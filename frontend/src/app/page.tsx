@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { ConfigPanel, ExperimentConfig } from '@/components/ConfigPanel';
 import { ResultsDashboard } from '@/components/ResultsDashboard';
-import { Sparkles } from 'lucide-react';
+import { SquareChevronDown } from 'lucide-react';
 
 export default function Home() {
     const [subjects, setSubjects] = useState<string[]>([]);
@@ -103,7 +103,7 @@ export default function Home() {
                 <div className="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className="bg-blue-600 p-2 rounded-lg text-white">
-                            <Sparkles size={18} fill="currentColor" />
+                            <SquareChevronDown size={18} />
                         </div>
                         <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-700 to-indigo-600 bg-clip-text text-transparent">
                             BenchmarkDemo <span className="font-light text-gray-400">AI Evaluator</span>
