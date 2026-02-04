@@ -139,13 +139,11 @@ function resolveDatasetPath(paths: string[]): string | null {
 }
 
 function parsePythonList(str: string): string[] {
-    // Basic normalization
     str = str.trim();
     if (str.startsWith('[') && str.endsWith(']')) {
         str = str.slice(1, -1);
     }
 
-    // If empty
     if (!str) return [];
 
     const result: string[] = [];
@@ -154,7 +152,6 @@ function parsePythonList(str: string): string[] {
     let quoteChar = '';
     let escape = false;
 
-    // Manual state machine to parse: 'Option 1', "Option 2", ...
     for (let i = 0; i < str.length; i++) {
         const char = str[i];
 
@@ -166,9 +163,6 @@ function parsePythonList(str: string): string[] {
 
         if (char === '\\') {
             escape = true;
-            // Don't add backslash immediately? Usually we keep it if it's escaping a quote?
-            // Python repr: 'It\'s' -> backslash is essentially part of the string until processed.
-            // Let's keep it simple: consume the next char as literal.
             continue;
         }
 
@@ -186,23 +180,20 @@ function parsePythonList(str: string): string[] {
                 inQuote = true;
                 quoteChar = char;
             } else if (char === ',') {
-                // Separator, ignore
+                if (current.trim()) {
+                    result.push(current.trim());
+                    current = '';
+                }
             } else {
-                // Whitespace or unquoted content? 
-                // In a valid python list repr, content should be quoted.
-                // But sometimes numbers or booleans are not.
-                // We'll ignore whitespace between items.
+                current += char;
             }
         }
     }
 
-    // Fallback if regex/state machine failed to produce an array but we have string
-    if (result.length === 0 && str.length > 0) {
-        // Try simple split if it looks like just commas
-        if (!str.includes("'") && !str.includes('"')) {
-            return str.split(',').map(s => s.trim());
-        }
+    if (current.trim()) {
+        result.push(current.trim());
     }
 
     return result.length > 0 ? result : [str];
 }
+
