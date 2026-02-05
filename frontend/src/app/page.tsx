@@ -11,13 +11,20 @@ export default function Home() {
     const [isLoadingSubjects, setIsLoadingSubjects] = useState(true);
 
     const [config, setConfig] = useState<ExperimentConfig>({
-        model: 'gpt-4o-mini', // Default to cheapest model
+        dataset: 'supergpqa',
+        provider: 'openai',
+        model: 'gpt-4o-mini', // Default to cheaper model
+        judgeProvider: 'openai',
+        judgeModel: 'gpt-4o-mini',
+        judgeReasoningEffort: 'low',
         promptTemplate: 'baseline',
         temperature: 0.2,
+        reasoningEffort: 'medium',
         perturbations: {
             adversarialText: false,
             labelNoise: 0
         },
+        judgePrompt: '',
         limit: 5,
         subject: 'All',
         difficulty: 'All'
@@ -31,11 +38,18 @@ export default function Home() {
     useEffect(() => {
         async function loadData() {
             try {
-                const res = await fetch('/api/dataset');
+                setIsLoadingSubjects(true);
+                const res = await fetch(`/api/dataset?dataset=${config.dataset}`);
                 const json = await res.json();
                 if (json.data) {
-                    // Extract unique subfields
-                    const uniqueSubjects = Array.from(new Set(json.data.map((d: any) => d.subfield || d.discipline))).sort() as string[];
+                    const uniqueSubjects = Array.from(new Set(json.data.map((d: any) => {
+                        if (config.dataset === 'prbench') {
+                            return d.topic || d.field;
+                        }
+                        return d.subfield || d.discipline;
+                    })))
+                        .filter(Boolean)
+                        .sort() as string[];
                     setSubjects(uniqueSubjects);
                 }
             } catch (e) {
@@ -45,7 +59,7 @@ export default function Home() {
             }
         }
         loadData();
-    }, []);
+    }, [config.dataset]);
 
     const runExperiment = async () => {
         setIsRunning(true);
@@ -54,16 +68,20 @@ export default function Home() {
 
         try {
             // 1. Fetch filtered data first
-            const dataRes = await fetch('/api/dataset');
+            const dataRes = await fetch(`/api/dataset?dataset=${config.dataset}`);
             const dataJson = await dataRes.json();
 
             let filtered = dataJson.data || [];
 
             // Filter logic (Client side for now, could be server side)
             if (config.subject !== 'All') {
-                filtered = filtered.filter((q: any) => (q.subfield === config.subject) || (q.discipline === config.subject));
+                if (config.dataset === 'prbench') {
+                    filtered = filtered.filter((q: any) => (q.topic === config.subject) || (q.field === config.subject));
+                } else {
+                    filtered = filtered.filter((q: any) => (q.subfield === config.subject) || (q.discipline === config.subject));
+                }
             }
-            if (config.difficulty !== 'All') {
+            if (config.dataset !== 'prbench' && config.difficulty !== 'All') {
                 filtered = filtered.filter((q: any) => q.difficulty === config.difficulty);
             }
 
@@ -83,14 +101,24 @@ export default function Home() {
                 })
             });
 
-            const json = await res.json();
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                const message = json?.error || `Experiment failed with status ${res.status}`;
+                throw new Error(message);
+            }
+            if (json.error) {
+                throw new Error(json.error);
+            }
             if (json.results) {
                 setResults(json.results);
                 setSummary(json.summary);
+            } else {
+                throw new Error('Experiment returned no results.');
             }
         } catch (e) {
             console.error(e);
-            alert('Experiment failed. Check console.');
+            const message = e instanceof Error ? e.message : 'Experiment failed. Check console.';
+            alert(message);
         } finally {
             setIsRunning(false);
         }

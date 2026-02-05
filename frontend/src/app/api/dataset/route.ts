@@ -4,20 +4,65 @@ import fs from 'fs';
 import path from 'path';
 import { parse } from 'csv-parse/sync';
 
-export async function GET() {
+type DatasetMode = 'supergpqa' | 'prbench';
+
+export async function GET(req: Request) {
     try {
-        const csvPath = path.join(process.cwd(), '../datasets/SuperGPQA Law Data.csv');
+        const { searchParams } = new URL(req.url);
+        const datasetParam = (searchParams.get('dataset') || 'supergpqa').toLowerCase();
+        const dataset: DatasetMode = datasetParam === 'prbench' ? 'prbench' : 'supergpqa';
 
-        if (!fs.existsSync(csvPath)) {
-            console.error('CSV file not found at:', csvPath);
-            // Fallback for dev environment or if path resolution differs
-            const altPath = path.join(process.cwd(), 'datasets/SuperGPQA Law Data.csv'); // If run from root? No, process.cwd in Next is project root.
-            // Actually, process.cwd() in Next.js is usually the directory containing package.json (frontend).
-            // So ../datasets is correct relative to frontend.
+        if (dataset === 'prbench') {
+            const csvPath = resolveDatasetPath([
+                path.join(process.cwd(), '../datasets/prbench/legal-data.csv'),
+                path.join(process.cwd(), 'datasets/prbench/legal-data.csv')
+            ]);
 
-            if (!fs.existsSync(csvPath)) {
+            if (!csvPath) {
                 return NextResponse.json({ error: 'Dataset file not found' }, { status: 404 });
             }
+
+            const fileContent = fs.readFileSync(csvPath, 'utf-8');
+            const records = parse(fileContent, {
+                columns: true,
+                skip_empty_lines: true,
+                relax_quotes: true,
+            });
+
+            const normalizedData = records.map((record: any, index: number) => {
+                const turns = parseInt(record.turns, 10) || 0;
+                const prompts: string[] = [];
+                const responses: string[] = [];
+
+                for (let i = 0; i < turns; i++) {
+                    prompts.push(record[`prompt_${i}`] || '');
+                    responses.push(record[`response_${i}`] || '');
+                }
+
+                return {
+                    id: record.task || `${index}`,
+                    turns,
+                    field: record.field,
+                    topic: record.topic,
+                    rubric: record.rubric,
+                    scratchpad: record.scratchpad,
+                    prompts,
+                    responses
+                };
+            });
+
+            return NextResponse.json({ data: normalizedData });
+        }
+
+        const csvPath = resolveDatasetPath([
+            path.join(process.cwd(), '../datasets/supergpqa/SuperGPQA Law Data.csv'),
+            path.join(process.cwd(), '../datasets/SuperGPQA Law Data.csv'),
+            path.join(process.cwd(), 'datasets/supergpqa/SuperGPQA Law Data.csv'),
+            path.join(process.cwd(), 'datasets/SuperGPQA Law Data.csv')
+        ]);
+
+        if (!csvPath) {
+            return NextResponse.json({ error: 'Dataset file not found' }, { status: 404 });
         }
 
         const fileContent = fs.readFileSync(csvPath, 'utf-8');
@@ -82,6 +127,15 @@ export async function GET() {
         console.error('Error loading dataset:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
+}
+
+function resolveDatasetPath(paths: string[]): string | null {
+    for (const candidate of paths) {
+        if (fs.existsSync(candidate)) {
+            return candidate;
+        }
+    }
+    return null;
 }
 
 function parsePythonList(str: string): string[] {

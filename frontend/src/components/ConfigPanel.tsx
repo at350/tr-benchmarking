@@ -2,13 +2,20 @@
 import React from 'react';
 
 export type ExperimentConfig = {
+    dataset: 'supergpqa' | 'prbench';
+    provider: 'openai' | 'anthropic' | 'gemini';
     model: string;
+    judgeProvider: 'openai' | 'anthropic' | 'gemini';
+    judgeModel: string;
+    judgeReasoningEffort: 'none' | 'low' | 'medium' | 'high' | 'xhigh';
     promptTemplate: 'baseline' | 'cot';
     temperature: number;
+    reasoningEffort: 'none' | 'low' | 'medium' | 'high' | 'xhigh';
     perturbations: {
         adversarialText: boolean;
         labelNoise: number;
     };
+    judgePrompt: string;
     limit: number;
     subject: string;
     difficulty: string;
@@ -37,47 +44,296 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects }: C
         }));
     };
 
+    const supportsGpt52Thinking = config.provider === 'openai' && (config.model === 'gpt-5.2' || config.model === 'gpt-5.2-pro');
+    const supportsJudgeThinking = config.judgeProvider === 'openai' && (config.judgeModel === 'gpt-5.2' || config.judgeModel === 'gpt-5.2-pro');
+    const isPrbench = config.dataset === 'prbench';
+    const openAiModels = [
+        { value: 'gpt-5.2', label: 'GPT-5.2 (Thinking)' },
+        { value: 'gpt-5.2-pro', label: 'GPT-5.2 Pro (Thinking)' },
+        { value: 'gpt-5.2-chat-latest', label: 'GPT-5.2 Instant' },
+        { value: 'gpt-5-mini', label: 'GPT-5 Mini' },
+        { value: 'gpt-5-nano', label: 'GPT-5 Nano' },
+        { value: 'gpt-4o', label: 'GPT-4o' },
+        { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+        { value: 'gpt-4.1', label: 'GPT-4.1' },
+        { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+        { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano' },
+        { value: 'o3', label: 'o3' },
+        { value: 'o4-mini', label: 'o4-mini' }
+    ];
+    const anthropicModels = [
+        { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5 (20251101)' },
+        { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5 (20250929)' },
+        { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (20251001)' },
+        { value: 'claude-opus-4-5', label: 'Claude Opus 4.5 (Alias)' },
+        { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5 (Alias)' },
+        { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 (Alias)' },
+        { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet (20241022)' },
+        { value: 'claude-3-5-sonnet-20240620', label: 'Claude 3.5 Sonnet (20240620)' },
+        { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (20241022)' },
+        { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus (20240229)' },
+        { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet (20240229)' },
+        { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku (20240307)' }
+    ];
+    const geminiModels = [
+        { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview' },
+        { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview' },
+        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+        { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+        { value: 'gemini-2.0-flash-001', label: 'Gemini 2.0 Flash (Stable 001)' },
+        { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental)' },
+        { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash-Lite' },
+        { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+        { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+        { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash 8B' }
+    ];
+    const getDefaultModel = (provider: ExperimentConfig['provider']) => {
+        if (provider === 'anthropic') return anthropicModels[0].value;
+        if (provider === 'gemini') return geminiModels[0].value;
+        return openAiModels[6].value;
+    };
+    const thinkingModes: Array<{ value: ExperimentConfig['reasoningEffort']; label: string }> = [
+        { value: 'none', label: 'None' },
+        { value: 'low', label: 'Low' },
+        { value: 'medium', label: 'Medium' },
+        { value: 'high', label: 'High' },
+        { value: 'xhigh', label: 'X-High' }
+    ];
+
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-6 h-full">
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                 Experiment Configuration
             </h2>
 
+            {/* Dataset Selection */}
+            <div className="space-y-3">
+                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Dataset</label>
+
+                <div className="grid grid-cols-2 gap-2">
+                    <button
+                        className={`p-2 rounded-lg text-sm font-medium transition-colors ${config.dataset === 'supergpqa' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                        onClick={() => setConfig(prev => ({ ...prev, dataset: 'supergpqa', subject: 'All', difficulty: 'All' }))}
+                        type="button"
+                    >
+                        SuperGPQA
+                    </button>
+                    <button
+                        className={`p-2 rounded-lg text-sm font-medium transition-colors ${config.dataset === 'prbench' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                        onClick={() => setConfig(prev => ({ ...prev, dataset: 'prbench', subject: 'All', difficulty: 'All', promptTemplate: 'baseline' }))}
+                        type="button"
+                    >
+                        PRBench
+                    </button>
+                </div>
+
+                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                    {isPrbench ? 'Topic Filter' : 'Dataset Filter'}
+                </label>
+
+                <select
+                    className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
+                    value={config.subject}
+                    onChange={(e) => handleChange('subject', e.target.value)}
+                >
+                    <option value="All">{isPrbench ? 'All Topics' : 'All Subfields'}</option>
+                    {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+
+                {!isPrbench && (
+                    <select
+                        className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
+                        value={config.difficulty}
+                        onChange={(e) => handleChange('difficulty', e.target.value)}
+                    >
+                        <option value="All">All Difficulties</option>
+                        <option value="easy">Easy</option>
+                        <option value="middle">Middle</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                )}
+
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Max {isPrbench ? 'Items' : 'Questions'}:</span>
+                    <select
+                        className="p-1 border rounded bg-white text-sm"
+                        value={config.limit}
+                        onChange={(e) => handleChange('limit', parseInt(e.target.value))}
+                    >
+                        <option value="5">5 (Demo)</option>
+                        <option value="10">10</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+            </div>
+
+            <hr className="border-gray-100" />
+
             {/* Model Selection */}
             <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Model</label>
+                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Provider</label>
                 <select
                     className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={config.model}
-                    onChange={(e) => handleChange('model', e.target.value)}
+                    value={config.provider}
+                    onChange={(e) => {
+                        const provider = e.target.value as ExperimentConfig['provider'];
+                        setConfig(prev => ({
+                            ...prev,
+                            provider,
+                            model: getDefaultModel(provider)
+                        }));
+                    }}
                 >
-                    <option value="gpt-4o">GPT-4o</option>
-                    <option value="gpt-4o-mini">GPT-4o Mini</option>
-                    <option value="gpt-5.2">GPT-5.2</option>
-                    <option value="gpt-5-mini">GPT-5 Mini</option>
-                    <option value="gpt-5-nano">GPT-5 Nano</option>
-                    <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
-                    <option value="o3">o3</option>
-                    <option value="o4-mini">o4-mini</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                    <option value="gemini">Gemini</option>
                 </select>
+
+                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Model</label>
+                {config.provider === 'openai' ? (
+                    <select
+                        className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={config.model}
+                        onChange={(e) => handleChange('model', e.target.value)}
+                    >
+                        {openAiModels.map(model => (
+                            <option key={model.value} value={model.value}>{model.label}</option>
+                        ))}
+                    </select>
+                ) : config.provider === 'anthropic' ? (
+                    <select
+                        className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={config.model}
+                        onChange={(e) => handleChange('model', e.target.value)}
+                    >
+                        {anthropicModels.map(model => (
+                            <option key={model.value} value={model.value}>{model.label}</option>
+                        ))}
+                    </select>
+                ) : (
+                    <select
+                        className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={config.model}
+                        onChange={(e) => handleChange('model', e.target.value)}
+                    >
+                        {geminiModels.map(model => (
+                            <option key={model.value} value={model.value}>{model.label}</option>
+                        ))}
+                    </select>
+                )}
             </div>
+
+            {supportsGpt52Thinking && (
+                <div className="space-y-2">
+                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">GPT-5.2 Thinking</label>
+                    <div className="grid grid-cols-5 gap-2">
+                        {thinkingModes.map(mode => (
+                            <button
+                                key={mode.value}
+                                className={`p-2 rounded-lg text-xs font-semibold transition-colors ${config.reasoningEffort === mode.value ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                onClick={() => handleChange('reasoningEffort', mode.value)}
+                                type="button"
+                            >
+                                {mode.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {isPrbench && (
+                <div className="space-y-2">
+                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Judge Provider</label>
+                    <select
+                        className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={config.judgeProvider}
+                        onChange={(e) => {
+                            const provider = e.target.value as ExperimentConfig['judgeProvider'];
+                            setConfig(prev => ({
+                                ...prev,
+                                judgeProvider: provider,
+                                judgeModel: getDefaultModel(provider)
+                            }));
+                        }}
+                    >
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="gemini">Gemini</option>
+                    </select>
+
+                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Judge Model</label>
+                    {config.judgeProvider === 'openai' ? (
+                        <select
+                            className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={config.judgeModel}
+                            onChange={(e) => handleChange('judgeModel', e.target.value)}
+                        >
+                            {openAiModels.map(model => (
+                                <option key={model.value} value={model.value}>{model.label}</option>
+                            ))}
+                        </select>
+                    ) : config.judgeProvider === 'anthropic' ? (
+                        <select
+                            className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={config.judgeModel}
+                            onChange={(e) => handleChange('judgeModel', e.target.value)}
+                        >
+                            {anthropicModels.map(model => (
+                                <option key={model.value} value={model.value}>{model.label}</option>
+                            ))}
+                        </select>
+                    ) : (
+                        <select
+                            className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={config.judgeModel}
+                            onChange={(e) => handleChange('judgeModel', e.target.value)}
+                        >
+                            {geminiModels.map(model => (
+                                <option key={model.value} value={model.value}>{model.label}</option>
+                            ))}
+                        </select>
+                    )}
+                </div>
+            )}
+
+            {isPrbench && supportsJudgeThinking && (
+                <div className="space-y-2">
+                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Judge Thinking</label>
+                    <div className="grid grid-cols-5 gap-2">
+                        {thinkingModes.map(mode => (
+                            <button
+                                key={mode.value}
+                                className={`p-2 rounded-lg text-xs font-semibold transition-colors ${config.judgeReasoningEffort === mode.value ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                onClick={() => handleChange('judgeReasoningEffort', mode.value)}
+                                type="button"
+                            >
+                                {mode.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Prompt Template */}
             <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Prompt Template</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className={`grid ${isPrbench ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
                     <button
                         className={`p-2 rounded-lg text-sm font-medium transition-colors ${config.promptTemplate === 'baseline' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                         onClick={() => handleChange('promptTemplate', 'baseline')}
                     >
                         Baseline
                     </button>
-                    <button
-                        className={`p-2 rounded-lg text-sm font-medium transition-colors ${config.promptTemplate === 'cot' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                        onClick={() => handleChange('promptTemplate', 'cot')}
-                    >
-                        Chain of Thought
-                    </button>
+                    {!isPrbench && (
+                        <button
+                            className={`p-2 rounded-lg text-sm font-medium transition-colors ${config.promptTemplate === 'cot' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                            onClick={() => handleChange('promptTemplate', 'cot')}
+                        >
+                            Chain of Thought
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -126,46 +382,23 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects }: C
                 </div>
             </div>
 
-            <hr className="border-gray-100" />
-
-            {/* Data Selection */}
-            <div className="space-y-3">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Dataset Filter</label>
-
-                <select
-                    className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
-                    value={config.subject}
-                    onChange={(e) => handleChange('subject', e.target.value)}
-                >
-                    <option value="All">All Subfields</option>
-                    {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-
-                <select
-                    className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
-                    value={config.difficulty}
-                    onChange={(e) => handleChange('difficulty', e.target.value)}
-                >
-                    <option value="All">All Difficulties</option>
-                    <option value="easy">Easy</option>
-                    <option value="middle">Middle</option>
-                    <option value="hard">Hard</option>
-                </select>
-
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Max Questions:</span>
-                    <select
-                        className="p-1 border rounded bg-white text-sm"
-                        value={config.limit}
-                        onChange={(e) => handleChange('limit', parseInt(e.target.value))}
-                    >
-                        <option value="5">5 (Demo)</option>
-                        <option value="10">10</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                    </select>
-                </div>
-            </div>
+            {isPrbench && (
+                <>
+                    <hr className="border-gray-100" />
+                    <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Judge Prompt (Optional)</label>
+                        <textarea
+                            className="w-full min-h-[120px] p-3 border rounded-lg bg-gray-50 text-sm resize-vertical focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="Add custom judge instructions to steer scoring (optional)."
+                            value={config.judgePrompt}
+                            onChange={(e) => handleChange('judgePrompt', e.target.value)}
+                        />
+                        <p className="text-xs text-gray-500">
+                            Leave blank to use the built-in judge rubric. When provided, this is appended to the baseline judge instructions.
+                        </p>
+                    </div>
+                </>
+            )}
 
             <div className="mt-auto">
                 <button
