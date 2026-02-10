@@ -24,6 +24,7 @@ type ControlledConfig = {
 type ExperimentConfig = {
     questions: Question[];
     model: string;
+    models?: string[];
     promptTemplate: 'baseline' | 'cot';
     temperature: number;
     benchmarkProfile?: 'legacy' | 'controlled';
@@ -39,6 +40,7 @@ type EvaluationArm = 'single' | 'deterministic' | 'stochastic';
 type ApiTransport = 'responses' | 'chat_completions';
 
 type EvaluationResult = {
+    model: string;
     questionId: string;
     questionText: string;
     originalQuestion: string;
@@ -65,12 +67,20 @@ type SplitSummary = {
     accuracy: number;
 };
 
+type ModelSummary = {
+    total: number;
+    correct: number;
+    accuracy: number;
+    splitSummary?: Record<string, SplitSummary>;
+};
+
 type ExperimentSummary = {
     total: number;
     correct: number;
     accuracy: number;
     benchmarkProfile: BenchmarkProfile;
     splitSummary?: Record<string, SplitSummary>;
+    modelSummary?: Record<string, ModelSummary>;
 };
 
 type ParsedAnswer = {
@@ -83,11 +93,16 @@ export async function POST(req: Request) {
     try {
         const config: ExperimentConfig = await req.json();
         const benchmarkProfile: BenchmarkProfile = config.benchmarkProfile ?? 'legacy';
-
-        const groupedResults = await Promise.all(
-            config.questions.map(async (q) => evaluateQuestion(q, config, benchmarkProfile))
+        const requestedModels = normalizeModels(config.models, config.model);
+        const groupedResultsByModel = await Promise.all(
+            requestedModels.map(async (model) => {
+                const groupedResults = await Promise.all(
+                    config.questions.map(async (q) => evaluateQuestion(q, config, benchmarkProfile, model))
+                );
+                return groupedResults.flat();
+            })
         );
-        const results = groupedResults.flat();
+        const results = groupedResultsByModel.flat();
         const summary = buildSummary(results, benchmarkProfile);
 
         return NextResponse.json({
@@ -103,16 +118,17 @@ export async function POST(req: Request) {
 async function evaluateQuestion(
     q: Question,
     config: ExperimentConfig,
-    benchmarkProfile: BenchmarkProfile
+    benchmarkProfile: BenchmarkProfile,
+    model: string
 ): Promise<EvaluationResult[]> {
     if (benchmarkProfile === 'controlled') {
-        return evaluateControlledQuestion(q, config);
+        return evaluateControlledQuestion(q, config, model);
     }
-    return [await evaluateLegacyQuestion(q, config)];
+    return [await evaluateLegacyQuestion(q, config, model)];
 }
 
-async function evaluateLegacyQuestion(q: Question, config: ExperimentConfig): Promise<EvaluationResult> {
-    const { model, promptTemplate, temperature, perturbations } = config;
+async function evaluateLegacyQuestion(q: Question, config: ExperimentConfig, model: string): Promise<EvaluationResult> {
+    const { promptTemplate, temperature, perturbations } = config;
     let questionText = q.question;
     let isPerturbed = false;
 
@@ -136,6 +152,7 @@ async function evaluateLegacyQuestion(q: Question, config: ExperimentConfig): Pr
     const groundTruth = applyLabelNoise(q.answer_letter, perturbations.labelNoise, q.choices.length);
 
     return {
+        model,
         questionId: q.id,
         questionText,
         originalQuestion: q.question,
@@ -157,7 +174,7 @@ async function evaluateLegacyQuestion(q: Question, config: ExperimentConfig): Pr
     };
 }
 
-async function evaluateControlledQuestion(q: Question, config: ExperimentConfig): Promise<EvaluationResult[]> {
+async function evaluateControlledQuestion(q: Question, config: ExperimentConfig, model: string): Promise<EvaluationResult[]> {
     const deterministicSplit = config.controlled?.deterministicSplit ?? true;
     const stochasticTemperature = clampTemperature(config.controlled?.stochasticTemperature ?? 0.7);
     const validLetters = getValidLetters(q.choices.length);
@@ -186,11 +203,12 @@ async function evaluateControlledQuestion(q: Question, config: ExperimentConfig)
 
     return Promise.all(
         arms.map(async ({ arm, temperature }) => {
-            const inference = await runControlledInference(config.model, systemPrompt, userContent, temperature);
+            const inference = await runControlledInference(model, systemPrompt, userContent, temperature);
             const parsed = parseControlledAnswer(inference.output, validLetters);
             const groundTruth = q.answer_letter;
 
             return {
+                model,
                 questionId: q.id,
                 questionText: q.question,
                 originalQuestion: q.question,
@@ -404,22 +422,50 @@ function buildSummary(results: EvaluationResult[], benchmarkProfile: BenchmarkPr
     };
 
     if (benchmarkProfile === 'controlled') {
-        const arms: EvaluationArm[] = ['deterministic', 'stochastic', 'single'];
-        const splitSummary: Record<string, { total: number; correct: number; accuracy: number }> = {};
-        for (const arm of arms) {
-            const armResults = results.filter((r) => r.evaluationArm === arm);
-            if (armResults.length === 0) continue;
-            const armCorrect = armResults.filter((r) => r.isCorrect).length;
-            splitSummary[arm] = {
-                total: armResults.length,
-                correct: armCorrect,
-                accuracy: armCorrect / armResults.length,
-            };
-        }
-        summary.splitSummary = splitSummary;
+        summary.splitSummary = buildArmSummary(results);
     }
 
+    const models = Array.from(new Set(results.map((r) => r.model)));
+    const modelSummary: Record<string, ModelSummary> = {};
+    for (const model of models) {
+        const modelResults = results.filter((r) => r.model === model);
+        const modelCorrect = modelResults.filter((r) => r.isCorrect).length;
+        const modelEntry: ModelSummary = {
+            total: modelResults.length,
+            correct: modelCorrect,
+            accuracy: modelResults.length > 0 ? modelCorrect / modelResults.length : 0,
+        };
+        if (benchmarkProfile === 'controlled') {
+            modelEntry.splitSummary = buildArmSummary(modelResults);
+        }
+        modelSummary[model] = modelEntry;
+    }
+    summary.modelSummary = modelSummary;
+
     return summary;
+}
+
+function buildArmSummary(results: EvaluationResult[]) {
+    const arms: EvaluationArm[] = ['deterministic', 'stochastic', 'single'];
+    const splitSummary: Record<string, SplitSummary> = {};
+    for (const arm of arms) {
+        const armResults = results.filter((r) => r.evaluationArm === arm);
+        if (armResults.length === 0) continue;
+        const armCorrect = armResults.filter((r) => r.isCorrect).length;
+        splitSummary[arm] = {
+            total: armResults.length,
+            correct: armCorrect,
+            accuracy: armCorrect / armResults.length,
+        };
+    }
+    return splitSummary;
+}
+
+function normalizeModels(models: string[] | undefined, fallbackModel: string) {
+    const candidates = [...(models || []), fallbackModel]
+        .map((model) => model.trim())
+        .filter((model) => model.length > 0);
+    return Array.from(new Set(candidates));
 }
 
 function applyLabelNoise(answerLetter: string, labelNoise: number, numChoices: number) {

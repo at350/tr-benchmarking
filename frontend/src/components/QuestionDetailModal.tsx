@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 type QuestionDetailModalProps = {
     data: {
+        model?: string;
         isCorrect: boolean;
         parsedChoice: string;
         groundTruth: string;
@@ -13,6 +14,7 @@ type QuestionDetailModalProps = {
         isSchemaCompliant?: boolean;
         temperatureUsed?: number;
         temperatureApplied?: boolean;
+        apiTransport?: 'responses' | 'chat_completions';
         isPerturbed: boolean;
         questionText: string;
         choices?: string[];
@@ -47,6 +49,7 @@ export function QuestionDetailModal({ data, onClose }: QuestionDetailModalProps)
                                 {data.isCorrect ? 'Correct Answer' : 'Incorrect Answer'}
                             </div>
                             <div className="ml-auto text-sm text-right">
+                                {data.model && <div>Model: <strong>{data.model}</strong></div>}
                                 <div>Model Picked: <strong>{data.parsedChoice}</strong></div>
                                 <div>Correct: <strong>{data.groundTruth}</strong></div>
                                 {data.evaluationArm && <div>Run: <strong>{data.evaluationArm}</strong></div>}
@@ -59,6 +62,7 @@ export function QuestionDetailModal({ data, onClose }: QuestionDetailModalProps)
                                 {typeof data.isSchemaCompliant === 'boolean' && <span>Schema: <strong>{data.isSchemaCompliant ? 'yes' : 'no'}</strong></span>}
                                 {typeof data.temperatureUsed === 'number' && <span>Temperature: <strong>{data.temperatureUsed}</strong></span>}
                                 {typeof data.temperatureApplied === 'boolean' && <span>Applied: <strong>{data.temperatureApplied ? 'yes' : 'no'}</strong></span>}
+                                {data.apiTransport && <span>Transport: <strong>{data.apiTransport}</strong></span>}
                             </div>
                         )}
 
