@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type LshRunSummary = {
     fileName: string;
@@ -90,6 +90,13 @@ type JudgeProvider = 'openai' | 'anthropic' | 'gemini';
 type JudgeReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
 type JudgeCap = 'none' | 'cap_60' | 'cap_70';
 
+type JudgeConfig = {
+    provider: JudgeProvider;
+    model: string;
+    reasoningEffort: JudgeReasoningEffort;
+    customInstructions: string;
+};
+
 type ClusterJudgeResult = {
     outcomes: {
         bottomLineOutcome: string;
@@ -116,6 +123,37 @@ type ClusterJudgeResult = {
     rawJudgeOutput: string;
 };
 
+type ClusterJudgeSnapshot = {
+    grading: ClusterJudgeResult;
+    judgeConfig: JudgeConfig;
+    runFile: string;
+    clusterId: string;
+    memberCount: number;
+    gradedAt: string;
+};
+
+type SavedGradeRecord = {
+    id: string;
+    savedAt: string;
+    grading: ClusterJudgeResult;
+    judgeConfig: JudgeConfig;
+    runFile: string;
+    clusterId: string;
+    memberCount: number;
+};
+
+type JudgeModelComparisonRow = {
+    key: string;
+    provider: JudgeProvider;
+    model: string;
+    sampleCount: number;
+    averageFinalScore: number;
+    averageSubtotal: number;
+    averagePenalty: number;
+    commonOutcome: string;
+    commonReasoning: string;
+};
+
 type JudgeApiResponse = {
     grading: ClusterJudgeResult;
     cluster: {
@@ -123,12 +161,19 @@ type JudgeApiResponse = {
         clusterId: string;
         memberCount: number;
     };
+    judgeConfig?: {
+        provider?: JudgeProvider;
+        model?: string;
+        reasoningEffort?: string;
+        customInstructions?: string;
+    };
 };
 
 const MAP_WIDTH = 980;
 const MAP_HEIGHT = 640;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const MODEL_PALETTE = ['#22c55e', '#ef4444', '#94a3b8', '#3b82f6', '#f97316', '#14b8a6', '#eab308', '#a855f7', '#06b6d4', '#f43f5e'];
+const SAVED_GRADES_STORAGE_KEY = 'lsh-runs-saved-grades-v1';
 
 const JUDGE_MODEL_OPTIONS: Record<JudgeProvider, Array<{ value: string; label: string }>> = {
     openai: [
@@ -190,7 +235,13 @@ export default function LshRunsPage() {
     const [judgeInstructions, setJudgeInstructions] = useState('');
     const [isJudgingCluster, setIsJudgingCluster] = useState(false);
     const [judgeError, setJudgeError] = useState<string | null>(null);
-    const [judgeResultsByCluster, setJudgeResultsByCluster] = useState<Record<string, ClusterJudgeResult>>({});
+    const [judgeResultsByCluster, setJudgeResultsByCluster] = useState<Record<string, ClusterJudgeSnapshot>>({});
+    const [savedGrades, setSavedGrades] = useState<SavedGradeRecord[]>([]);
+    const [selectedSavedGradeIds, setSelectedSavedGradeIds] = useState<string[]>([]);
+    const [savedGradesStatus, setSavedGradesStatus] = useState<string | null>(null);
+    const [inspectorPanePercent, setInspectorPanePercent] = useState(28);
+    const [isResizingPanes, setIsResizingPanes] = useState(false);
+    const splitPaneRef = useRef<HTMLDivElement | null>(null);
 
     const loadRuns = useCallback(async () => {
         try {
@@ -252,6 +303,15 @@ export default function LshRunsPage() {
         }
         void loadRunDetails(selectedRunFile);
     }, [loadRunDetails, selectedRunFile]);
+
+    useEffect(() => {
+        const loaded = readSavedGradesFromStorage();
+        setSavedGrades(loaded);
+    }, []);
+
+    useEffect(() => {
+        writeSavedGradesToStorage(savedGrades);
+    }, [savedGrades]);
 
     useEffect(() => {
         const stream = new EventSource('/api/lsh-runs/stream');
@@ -334,6 +394,56 @@ export default function LshRunsPage() {
     useEffect(() => {
         setJudgeError(null);
     }, [selectedRunFile, selectedClusterId]);
+
+    useEffect(() => {
+        setSelectedSavedGradeIds((previous) => previous.filter((id) => savedGrades.some((grade) => grade.id === id)));
+    }, [savedGrades]);
+
+    useEffect(() => {
+        if (!savedGradesStatus) {
+            return;
+        }
+        const timer = window.setTimeout(() => setSavedGradesStatus(null), 2500);
+        return () => window.clearTimeout(timer);
+    }, [savedGradesStatus]);
+
+    useEffect(() => {
+        if (!isResizingPanes) {
+            return;
+        }
+
+        const handlePointerMove = (event: MouseEvent) => {
+            const container = splitPaneRef.current;
+            if (!container) {
+                return;
+            }
+
+            const bounds = container.getBoundingClientRect();
+            if (bounds.width <= 0) {
+                return;
+            }
+
+            const mapPercent = ((event.clientX - bounds.left) / bounds.width) * 100;
+            const nextInspectorPercent = clampNumber(100 - mapPercent, 20, 48);
+            setInspectorPanePercent(nextInspectorPercent);
+        };
+
+        const handlePointerUp = () => {
+            setIsResizingPanes(false);
+        };
+
+        window.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('mouseup', handlePointerUp);
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        return () => {
+            window.removeEventListener('mousemove', handlePointerMove);
+            window.removeEventListener('mouseup', handlePointerUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+    }, [isResizingPanes]);
 
     const visibleModelSet = useMemo(() => new Set(visibleModels), [visibleModels]);
 
@@ -435,15 +545,30 @@ export default function LshRunsPage() {
         return buildJudgeResultKey(selectedRunFile, selectedCluster.id);
     }, [selectedRunFile, selectedCluster]);
 
-    const selectedClusterGrade = selectedClusterKey
+    const selectedClusterSnapshot = selectedClusterKey
         ? judgeResultsByCluster[selectedClusterKey] || null
         : null;
+    const selectedClusterGrade = selectedClusterSnapshot?.grading || null;
 
     const judgeModelOptions = JUDGE_MODEL_OPTIONS[judgeProvider];
     const judgeSupportsReasoningControl = useMemo(
         () => supportsJudgeReasoningControl(judgeProvider, judgeModel),
         [judgeProvider, judgeModel]
     );
+    const mapPanePercent = 100 - inspectorPanePercent;
+    const selectedSavedGrades = useMemo(
+        () => savedGrades.filter((grade) => selectedSavedGradeIds.includes(grade.id)),
+        [savedGrades, selectedSavedGradeIds]
+    );
+    const judgeModelComparisonRows = useMemo(
+        () => buildJudgeModelComparisonRows(selectedSavedGrades),
+        [selectedSavedGrades]
+    );
+    const selectedPenaltyTrends = useMemo(
+        () => buildPenaltyTrendRows(selectedSavedGrades),
+        [selectedSavedGrades]
+    );
+    const allSavedGradesSelected = savedGrades.length > 0 && selectedSavedGradeIds.length === savedGrades.length;
 
     const handleJudgeCluster = async () => {
         if (!selectedRunFile || !selectedCluster) {
@@ -487,7 +612,21 @@ export default function LshRunsPage() {
             const key = buildJudgeResultKey(selectedRunFile, selectedCluster.id);
             setJudgeResultsByCluster((previous) => ({
                 ...previous,
-                [key]: data.grading,
+                [key]: {
+                    grading: data.grading,
+                    judgeConfig: {
+                        provider: data.judgeConfig?.provider || judgeProvider,
+                        model: data.judgeConfig?.model || judgeModel,
+                        reasoningEffort: normalizeReasoningEffort(data.judgeConfig?.reasoningEffort),
+                        customInstructions: typeof data.judgeConfig?.customInstructions === 'string'
+                            ? data.judgeConfig.customInstructions
+                            : judgeInstructions,
+                    },
+                    runFile: data.cluster?.runFile || selectedRunFile,
+                    clusterId: data.cluster?.clusterId || selectedCluster.id,
+                    memberCount: Number.isFinite(data.cluster?.memberCount) ? data.cluster.memberCount : selectedCluster.size,
+                    gradedAt: new Date().toISOString(),
+                },
             }));
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to judge cluster.';
@@ -497,9 +636,60 @@ export default function LshRunsPage() {
         }
     };
 
+    const handleSaveLatestGrade = () => {
+        if (!selectedClusterSnapshot) {
+            return;
+        }
+
+        const savedRecord: SavedGradeRecord = {
+            id: `saved_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            savedAt: new Date().toISOString(),
+            grading: selectedClusterSnapshot.grading,
+            judgeConfig: selectedClusterSnapshot.judgeConfig,
+            runFile: selectedClusterSnapshot.runFile,
+            clusterId: selectedClusterSnapshot.clusterId,
+            memberCount: selectedClusterSnapshot.memberCount,
+        };
+
+        setSavedGrades((previous) => [savedRecord, ...previous]);
+        setSelectedSavedGradeIds((previous) => [savedRecord.id, ...previous.filter((id) => id !== savedRecord.id)]);
+        setSavedGradesStatus('Grade saved for comparison.');
+    };
+
+    const toggleSavedGradeSelection = (gradeId: string) => {
+        setSelectedSavedGradeIds((previous) => {
+            if (previous.includes(gradeId)) {
+                return previous.filter((id) => id !== gradeId);
+            }
+            return [...previous, gradeId];
+        });
+    };
+
+    const clearSavedGradeSelection = () => {
+        setSelectedSavedGradeIds([]);
+    };
+
+    const selectAllSavedGrades = () => {
+        setSelectedSavedGradeIds(savedGrades.map((grade) => grade.id));
+    };
+
+    const removeSelectedSavedGrades = () => {
+        if (selectedSavedGradeIds.length === 0) {
+            return;
+        }
+        setSavedGrades((previous) => previous.filter((grade) => !selectedSavedGradeIds.includes(grade.id)));
+        setSavedGradesStatus('Selected saved grades removed.');
+    };
+
+    const clearAllSavedGrades = () => {
+        setSavedGrades([]);
+        setSelectedSavedGradeIds([]);
+        setSavedGradesStatus('All saved grades cleared.');
+    };
+
     return (
-        <main className="min-h-screen bg-[radial-gradient(1200px_620px_at_6%_-8%,rgba(59,130,246,0.18),transparent),radial-gradient(1050px_620px_at_100%_0%,rgba(34,197,94,0.14),transparent),#f8fafc] text-slate-900">
-            <div className="mx-auto max-w-[1620px] px-5 py-6 sm:px-8 sm:py-8">
+        <main className={`min-h-screen bg-[radial-gradient(1200px_620px_at_6%_-8%,rgba(59,130,246,0.18),transparent),radial-gradient(1050px_620px_at_100%_0%,rgba(34,197,94,0.14),transparent),#f8fafc] text-slate-900 ${isResizingPanes ? 'select-none' : ''}`}>
+            <div className="mx-auto w-full max-w-none px-5 py-6 sm:px-8 sm:py-8">
                 <header className="rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
@@ -524,48 +714,40 @@ export default function LshRunsPage() {
                     </div>
                 </header>
 
-                <div className="mt-6 grid grid-cols-12 gap-6">
-                    <aside className="col-span-12 xl:col-span-3">
-                        <section className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
-                            <div className="flex items-center justify-between gap-3">
-                                <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-slate-600">Available Runs</h2>
-                                <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                                    {runs.length}
-                                </span>
-                            </div>
+                <div className="mt-6 space-y-4">
+                    <section className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-slate-600">Run Selection</h2>
+                            <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                                {runs.length} runs
+                            </span>
+                        </div>
 
-                            {isLoadingRuns && runs.length === 0 ? (
-                                <p className="mt-4 text-sm text-slate-500">Loading runs...</p>
-                            ) : runsError ? (
-                                <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{runsError}</p>
-                            ) : runs.length === 0 ? (
-                                <p className="mt-4 text-sm text-slate-500">No run files found in `lsh/results`.</p>
-                            ) : (
-                                <div className="mt-4 max-h-[72vh] space-y-2 overflow-y-auto pr-1">
-                                    {runs.map((run) => {
-                                        const isSelected = run.fileName === selectedRunFile;
-                                        return (
-                                            <button
-                                                key={run.fileName}
-                                                type="button"
-                                                onClick={() => setSelectedRunFile(run.fileName)}
-                                                className={`w-full rounded-xl border px-3 py-3 text-left transition-all ${isSelected ? 'border-blue-300 bg-blue-50 shadow-sm' : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white'}`}
-                                            >
-                                                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">
-                                                    {formatRunTimestamp(run.timestamp)}
-                                                </p>
-                                                <p className="mt-1 text-sm font-semibold text-slate-900">{run.fileName}</p>
-                                                <p className="mt-1 text-xs text-slate-600">{run.totalItems} items - {run.numClusters} clusters</p>
-                                                <p className="mt-1 text-[11px] text-slate-500">{run.method}</p>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </section>
-                    </aside>
+                        {isLoadingRuns && runs.length === 0 ? (
+                            <p className="mt-3 text-sm text-slate-500">Loading runs...</p>
+                        ) : runsError ? (
+                            <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{runsError}</p>
+                        ) : runs.length === 0 ? (
+                            <p className="mt-3 text-sm text-slate-500">No run files found in `lsh/results`.</p>
+                        ) : (
+                            <label className="mt-3 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                Active run
+                                <select
+                                    value={selectedRunFile ?? ''}
+                                    onChange={(event) => setSelectedRunFile(event.target.value || null)}
+                                    className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800"
+                                >
+                                    {runs.map((run) => (
+                                        <option key={run.fileName} value={run.fileName}>
+                                            {run.fileName} - {run.totalItems} items - {run.numClusters} clusters
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        )}
+                    </section>
 
-                    <section className="col-span-12 xl:col-span-9">
+                    <section>
                         {!selectedRunFile ? (
                             <EmptyStateCard message="Select a run to render the cluster map." />
                         ) : isLoadingSelectedRun ? (
@@ -691,8 +873,15 @@ export default function LshRunsPage() {
                                         </div>
                                     </div>
 
-                                    <div className="mt-4 grid grid-cols-12 gap-4">
-                                        <div className="col-span-12 xl:col-span-8">
+                                    <div
+                                        ref={splitPaneRef}
+                                        className="mt-4 flex flex-col gap-4 xl:flex-row xl:items-stretch xl:gap-0"
+                                        style={{
+                                            ['--map-pane-basis' as string]: `calc(${mapPanePercent}% - 6px)`,
+                                            ['--inspector-pane-basis' as string]: `calc(${inspectorPanePercent}% - 6px)`,
+                                        }}
+                                    >
+                                        <div className="min-w-0 xl:shrink-0 xl:basis-[var(--map-pane-basis)]">
                                             <div className="relative overflow-hidden rounded-xl border border-slate-700 bg-slate-950">
                                                 <svg
                                                     viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
@@ -811,7 +1000,22 @@ export default function LshRunsPage() {
                                             </p>
                                         </div>
 
-                                        <aside className="col-span-12 xl:col-span-4">
+                                        <div className="hidden xl:flex xl:w-3 xl:shrink-0 xl:items-center xl:justify-center">
+                                            <button
+                                                type="button"
+                                                onMouseDown={(event) => {
+                                                    event.preventDefault();
+                                                    setIsResizingPanes(true);
+                                                }}
+                                                className="group flex h-full w-full cursor-col-resize items-center justify-center"
+                                                aria-label="Resize cluster view and inspector panels"
+                                                title="Drag to resize panels"
+                                            >
+                                                <span className="h-24 w-1.5 rounded-full bg-slate-300 transition-colors group-hover:bg-blue-400" />
+                                            </button>
+                                        </div>
+
+                                        <aside className="min-w-0 xl:shrink-0 xl:basis-[var(--inspector-pane-basis)]">
                                             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                                                 <div className="flex items-center justify-between gap-2">
                                                     <h3 className="text-sm font-bold text-slate-900">Cluster Inspector</h3>
@@ -950,6 +1154,10 @@ export default function LshRunsPage() {
                                                                 {isJudgingCluster ? 'Grading cluster...' : `Grade ${selectedCluster.id === 'noise' ? 'Noise Cluster' : `Cluster ${selectedCluster.id}`}`}
                                                             </button>
 
+                                                            <p className="text-[11px] text-slate-500">
+                                                                Latest grade is temporary. Use Save grade to keep it for comparison.
+                                                            </p>
+
                                                             {judgeError && (
                                                                 <p className="rounded border border-red-200 bg-red-50 px-2 py-1.5 text-xs text-red-700">{judgeError}</p>
                                                             )}
@@ -959,6 +1167,18 @@ export default function LshRunsPage() {
                                                                     <div className="flex items-center justify-between gap-2">
                                                                         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Latest grade</p>
                                                                         <p className="text-sm font-extrabold text-slate-900">{selectedClusterGrade.finalScore.toFixed(2)} / 100</p>
+                                                                    </div>
+                                                                    <div className="flex flex-wrap items-center gap-2">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={handleSaveLatestGrade}
+                                                                            className="rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                                                                        >
+                                                                            Save grade
+                                                                        </button>
+                                                                        {savedGradesStatus && (
+                                                                            <p className="text-[11px] text-emerald-700">{savedGradesStatus}</p>
+                                                                        )}
                                                                     </div>
 
                                                                     <div className="grid grid-cols-3 gap-1.5 text-[11px]">
@@ -1060,6 +1280,140 @@ export default function LshRunsPage() {
                                             </div>
                                         </aside>
                                     </div>
+                                </section>
+
+                                <section className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur sm:p-5">
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                            <h3 className="text-base font-bold text-slate-900">Saved Grade Comparisons</h3>
+                                            <p className="text-sm text-slate-600">
+                                                Save only the grades you want to keep. Unsaved grades are temporary.
+                                            </p>
+                                        </div>
+                                        <span className="rounded bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                                            Saved: {savedGrades.length}
+                                        </span>
+                                    </div>
+
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={allSavedGradesSelected ? clearSavedGradeSelection : selectAllSavedGrades}
+                                            disabled={savedGrades.length === 0}
+                                            className="rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {allSavedGradesSelected ? 'Clear selection' : 'Select all saved'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={removeSelectedSavedGrades}
+                                            disabled={selectedSavedGradeIds.length === 0}
+                                            className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            Remove selected
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={clearAllSavedGrades}
+                                            disabled={savedGrades.length === 0}
+                                            className="rounded-md border border-red-300 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-800 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            Clear all saved
+                                        </button>
+                                    </div>
+                                    {savedGradesStatus && (
+                                        <p className="mt-2 text-xs text-emerald-700">{savedGradesStatus}</p>
+                                    )}
+
+                                    {savedGrades.length === 0 ? (
+                                        <p className="mt-3 text-sm text-slate-600">No saved grades yet. Grade a cluster, then click Save grade.</p>
+                                    ) : (
+                                        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Saved grade snapshots</p>
+                                                <div className="mt-2 max-h-72 space-y-2 overflow-y-auto pr-1">
+                                                    {savedGrades.map((grade) => {
+                                                        const selected = selectedSavedGradeIds.includes(grade.id);
+                                                        return (
+                                                            <label
+                                                                key={grade.id}
+                                                                className={`flex cursor-pointer items-start gap-2 rounded border px-2 py-2 text-xs ${selected ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={selected}
+                                                                    onChange={() => toggleSavedGradeSelection(grade.id)}
+                                                                    className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                                                                />
+                                                                <span className="min-w-0 flex-1">
+                                                                    <span className="block font-semibold text-slate-800">
+                                                                        {grade.judgeConfig.provider}/{grade.judgeConfig.model}
+                                                                    </span>
+                                                                    <span className="block text-slate-600">
+                                                                        Score {grade.grading.finalScore.toFixed(2)} - {grade.runFile} - cluster {grade.clusterId}
+                                                                    </span>
+                                                                    <span className="block text-slate-500">
+                                                                        Saved {formatDateTime(grade.savedAt)}
+                                                                    </span>
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Tendencies by judge model</p>
+                                                    {selectedSavedGrades.length === 0 ? (
+                                                        <p className="mt-2 text-xs text-slate-600">Select saved grades to compare.</p>
+                                                    ) : (
+                                                        <div className="mt-2 overflow-x-auto">
+                                                            <table className="w-full min-w-[520px] text-left text-[11px]">
+                                                                <thead>
+                                                                    <tr className="text-slate-500">
+                                                                        <th className="px-2 py-1 font-semibold">Judge model</th>
+                                                                        <th className="px-2 py-1 font-semibold">N</th>
+                                                                        <th className="px-2 py-1 font-semibold">Avg final</th>
+                                                                        <th className="px-2 py-1 font-semibold">Avg penalties</th>
+                                                                        <th className="px-2 py-1 font-semibold">Common outcome</th>
+                                                                        <th className="px-2 py-1 font-semibold">Common reasoning</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {judgeModelComparisonRows.map((row) => (
+                                                                        <tr key={row.key} className="border-t border-slate-200 text-slate-700">
+                                                                            <td className="px-2 py-1.5 font-semibold">{row.provider}/{row.model}</td>
+                                                                            <td className="px-2 py-1.5">{row.sampleCount}</td>
+                                                                            <td className="px-2 py-1.5">{row.averageFinalScore.toFixed(2)}</td>
+                                                                            <td className="px-2 py-1.5">{row.averagePenalty.toFixed(2)}</td>
+                                                                            <td className="px-2 py-1.5">{row.commonOutcome}</td>
+                                                                            <td className="px-2 py-1.5">{row.commonReasoning}</td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Frequent penalties in selection</p>
+                                                    {selectedPenaltyTrends.length === 0 ? (
+                                                        <p className="mt-2 text-xs text-slate-600">No penalties recorded in selected saved grades.</p>
+                                                    ) : (
+                                                        <div className="mt-2 space-y-1">
+                                                            {selectedPenaltyTrends.map((penalty) => (
+                                                                <p key={penalty.key} className="text-xs text-slate-700">
+                                                                    {penalty.label}: {penalty.count}
+                                                                </p>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </section>
                             </div>
                         )}
@@ -1379,4 +1733,182 @@ function formatJudgeCap(cap: JudgeCap) {
 
 function formatTick(value: number) {
     return value.toFixed(0);
+}
+
+function clampNumber(value: number, min: number, max: number) {
+    return Math.min(Math.max(value, min), max);
+}
+
+function normalizeReasoningEffort(value: unknown): JudgeReasoningEffort {
+    if (value === 'low' || value === 'medium' || value === 'high') {
+        return value;
+    }
+    if (value === 'xhigh') {
+        return 'high';
+    }
+    return 'auto';
+}
+
+function readSavedGradesFromStorage(): SavedGradeRecord[] {
+    if (typeof window === 'undefined') {
+        return [];
+    }
+
+    try {
+        const raw = window.localStorage.getItem(SAVED_GRADES_STORAGE_KEY);
+        if (!raw) {
+            return [];
+        }
+        const parsed = JSON.parse(raw) as unknown;
+        if (!Array.isArray(parsed)) {
+            return [];
+        }
+
+        return parsed
+            .map((entry) => normalizeSavedGrade(entry))
+            .filter((entry): entry is SavedGradeRecord => entry !== null)
+            .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+    } catch {
+        return [];
+    }
+}
+
+function writeSavedGradesToStorage(savedGrades: SavedGradeRecord[]) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.localStorage.setItem(SAVED_GRADES_STORAGE_KEY, JSON.stringify(savedGrades));
+    } catch (error) {
+        console.error('Failed to persist saved grades:', error);
+    }
+}
+
+function normalizeSavedGrade(value: unknown): SavedGradeRecord | null {
+    if (!value || typeof value !== 'object') {
+        return null;
+    }
+
+    const source = value as Record<string, unknown>;
+    const id = typeof source.id === 'string' ? source.id : '';
+    const savedAt = typeof source.savedAt === 'string' ? source.savedAt : '';
+    const runFile = typeof source.runFile === 'string' ? source.runFile : '';
+    const clusterId = typeof source.clusterId === 'string' ? source.clusterId : '';
+    const memberCount = typeof source.memberCount === 'number' && Number.isFinite(source.memberCount)
+        ? source.memberCount
+        : 0;
+    if (!id || !savedAt || !runFile || !clusterId) {
+        return null;
+    }
+
+    const grading = source.grading as ClusterJudgeResult | undefined;
+    if (!grading || typeof grading !== 'object') {
+        return null;
+    }
+
+    const rawJudgeConfig = source.judgeConfig as Record<string, unknown> | undefined;
+    const provider = rawJudgeConfig?.provider;
+    const model = rawJudgeConfig?.model;
+    if (
+        (provider !== 'openai' && provider !== 'anthropic' && provider !== 'gemini')
+        || typeof model !== 'string'
+        || model.trim().length === 0
+    ) {
+        return null;
+    }
+
+    return {
+        id,
+        savedAt,
+        runFile,
+        clusterId,
+        memberCount,
+        grading,
+        judgeConfig: {
+            provider,
+            model,
+            reasoningEffort: normalizeReasoningEffort(rawJudgeConfig?.reasoningEffort),
+            customInstructions: typeof rawJudgeConfig?.customInstructions === 'string'
+                ? rawJudgeConfig.customInstructions
+                : '',
+        },
+    };
+}
+
+function buildJudgeModelComparisonRows(savedGrades: SavedGradeRecord[]): JudgeModelComparisonRow[] {
+    const grouped = new Map<string, SavedGradeRecord[]>();
+    for (const grade of savedGrades) {
+        const key = `${grade.judgeConfig.provider}::${grade.judgeConfig.model}`;
+        if (!grouped.has(key)) {
+            grouped.set(key, []);
+        }
+        grouped.get(key)?.push(grade);
+    }
+
+    return Array.from(grouped.entries())
+        .map(([key, grades]) => {
+            const sampleCount = grades.length;
+            const averageFinalScore = sampleCount > 0
+                ? grades.reduce((sum, grade) => sum + grade.grading.finalScore, 0) / sampleCount
+                : 0;
+            const averageSubtotal = sampleCount > 0
+                ? grades.reduce((sum, grade) => sum + grade.grading.subtotal, 0) / sampleCount
+                : 0;
+            const averagePenalty = sampleCount > 0
+                ? grades.reduce((sum, grade) => sum + grade.grading.penaltyTotal, 0) / sampleCount
+                : 0;
+
+            return {
+                key,
+                provider: grades[0].judgeConfig.provider,
+                model: grades[0].judgeConfig.model,
+                sampleCount,
+                averageFinalScore,
+                averageSubtotal,
+                averagePenalty,
+                commonOutcome: findMostCommon(grades.map((grade) => grade.grading.outcomes.bottomLineOutcome)) || 'N/A',
+                commonReasoning: findMostCommon(grades.map((grade) => grade.grading.outcomes.reasoningAlignment)) || 'N/A',
+            };
+        })
+        .sort((a, b) => {
+            if (b.sampleCount !== a.sampleCount) {
+                return b.sampleCount - a.sampleCount;
+            }
+            return b.averageFinalScore - a.averageFinalScore;
+        });
+}
+
+function buildPenaltyTrendRows(savedGrades: SavedGradeRecord[]) {
+    const totals = new Map<string, { key: string; label: string; count: number }>();
+
+    for (const savedGrade of savedGrades) {
+        for (const penalty of savedGrade.grading.penaltiesApplied) {
+            const existing = totals.get(penalty.key);
+            if (existing) {
+                existing.count += 1;
+                continue;
+            }
+            totals.set(penalty.key, {
+                key: penalty.key,
+                label: penalty.label,
+                count: 1,
+            });
+        }
+    }
+
+    return Array.from(totals.values()).sort((a, b) => b.count - a.count);
+}
+
+function findMostCommon(values: string[]) {
+    if (values.length === 0) {
+        return null;
+    }
+
+    const counts = new Map<string, number>();
+    for (const value of values) {
+        counts.set(value, (counts.get(value) || 0) + 1);
+    }
+
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 }
