@@ -86,10 +86,84 @@ type ModelStat = {
     count: number;
 };
 
+type JudgeProvider = 'openai' | 'anthropic' | 'gemini';
+type JudgeReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
+type JudgeCap = 'none' | 'cap_60' | 'cap_70';
+
+type ClusterJudgeResult = {
+    outcomes: {
+        bottomLineOutcome: string;
+        outcomeCorrectness: string;
+        reasoningAlignment: string;
+        jurisdictionAssumption: string;
+    };
+    rowScores: Record<string, number>;
+    rowPoints: Record<string, number>;
+    subtotal: number;
+    penaltiesApplied: Array<{
+        key: string;
+        label: string;
+        points: number;
+    }>;
+    penaltyTotal: number;
+    cap: JudgeCap;
+    finalScore: number;
+    summary: string;
+    strengths: string[];
+    weaknesses: string[];
+    improvementSuggestions: string[];
+    parseFailed: boolean;
+    rawJudgeOutput: string;
+};
+
+type JudgeApiResponse = {
+    grading: ClusterJudgeResult;
+    cluster: {
+        runFile: string;
+        clusterId: string;
+        memberCount: number;
+    };
+};
+
 const MAP_WIDTH = 980;
 const MAP_HEIGHT = 640;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const MODEL_PALETTE = ['#22c55e', '#ef4444', '#94a3b8', '#3b82f6', '#f97316', '#14b8a6', '#eab308', '#a855f7', '#06b6d4', '#f43f5e'];
+
+const JUDGE_MODEL_OPTIONS: Record<JudgeProvider, Array<{ value: string; label: string }>> = {
+    openai: [
+        { value: 'gpt-5.2-chat-latest', label: 'GPT-5.2 Chat Latest' },
+        { value: 'gpt-5.2', label: 'GPT-5.2' },
+        { value: 'gpt-5-mini', label: 'GPT-5 Mini' },
+        { value: 'gpt-5-nano', label: 'GPT-5 Nano' },
+        { value: 'gpt-4o', label: 'GPT-4o' },
+    ],
+    anthropic: [
+        { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5 (20251101)' },
+        { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5 (20250929)' },
+        { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (20251001)' },
+        { value: 'claude-opus-4-5', label: 'Claude Opus 4.5 (Alias)' },
+        { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5 (Alias)' },
+        { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 (Alias)' },
+        { value: 'claude-3-5-sonnet-latest', label: 'Claude 3.5 Sonnet' },
+        { value: 'claude-3-5-haiku-latest', label: 'Claude 3.5 Haiku' },
+    ],
+    gemini: [
+        { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview' },
+        { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview' },
+        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+        { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+    ],
+};
+
+const JUDGE_ROW_ORDER = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'] as const;
+const JUDGE_REASONING_OPTIONS: Array<{ value: JudgeReasoningEffort; label: string }> = [
+    { value: 'auto', label: 'Auto (default)' },
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+];
 
 export default function LshRunsPage() {
     const [runs, setRuns] = useState<LshRunSummary[]>([]);
@@ -109,6 +183,14 @@ export default function LshRunsPage() {
     const [visibleModels, setVisibleModels] = useState<string[]>([]);
     const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
     const [hoveredClusterId, setHoveredClusterId] = useState<string | null>(null);
+
+    const [judgeProvider, setJudgeProvider] = useState<JudgeProvider>('openai');
+    const [judgeModel, setJudgeModel] = useState<string>(JUDGE_MODEL_OPTIONS.openai[0].value);
+    const [judgeReasoningEffort, setJudgeReasoningEffort] = useState<JudgeReasoningEffort>('auto');
+    const [judgeInstructions, setJudgeInstructions] = useState('');
+    const [isJudgingCluster, setIsJudgingCluster] = useState(false);
+    const [judgeError, setJudgeError] = useState<string | null>(null);
+    const [judgeResultsByCluster, setJudgeResultsByCluster] = useState<Record<string, ClusterJudgeResult>>({});
 
     const loadRuns = useCallback(async () => {
         try {
@@ -242,6 +324,17 @@ export default function LshRunsPage() {
         });
     }, [allModels]);
 
+    useEffect(() => {
+        const options = JUDGE_MODEL_OPTIONS[judgeProvider];
+        if (!options.some((option) => option.value === judgeModel)) {
+            setJudgeModel(options[0].value);
+        }
+    }, [judgeProvider, judgeModel]);
+
+    useEffect(() => {
+        setJudgeError(null);
+    }, [selectedRunFile, selectedClusterId]);
+
     const visibleModelSet = useMemo(() => new Set(visibleModels), [visibleModels]);
 
     const filteredClusters = useMemo(() => {
@@ -333,6 +426,75 @@ export default function LshRunsPage() {
         setVisibleModels([model]);
         setSelectedClusterId(null);
         setHoveredClusterId(null);
+    };
+
+    const selectedClusterKey = useMemo(() => {
+        if (!selectedRunFile || !selectedCluster) {
+            return null;
+        }
+        return buildJudgeResultKey(selectedRunFile, selectedCluster.id);
+    }, [selectedRunFile, selectedCluster]);
+
+    const selectedClusterGrade = selectedClusterKey
+        ? judgeResultsByCluster[selectedClusterKey] || null
+        : null;
+
+    const judgeModelOptions = JUDGE_MODEL_OPTIONS[judgeProvider];
+    const judgeSupportsReasoningControl = useMemo(
+        () => supportsJudgeReasoningControl(judgeProvider, judgeModel),
+        [judgeProvider, judgeModel]
+    );
+
+    const handleJudgeCluster = async () => {
+        if (!selectedRunFile || !selectedCluster) {
+            return;
+        }
+
+        setIsJudgingCluster(true);
+        setJudgeError(null);
+
+        try {
+            const payload: {
+                runFile: string;
+                clusterId: string;
+                judgeProvider: JudgeProvider;
+                judgeModel: string;
+                customInstructions: string;
+                reasoningEffort?: Exclude<JudgeReasoningEffort, 'auto'>;
+            } = {
+                runFile: selectedRunFile,
+                clusterId: selectedCluster.id,
+                judgeProvider,
+                judgeModel,
+                customInstructions: judgeInstructions,
+            };
+
+            if (judgeSupportsReasoningControl && judgeReasoningEffort !== 'auto') {
+                payload.reasoningEffort = judgeReasoningEffort;
+            }
+
+            const response = await fetch('/api/lsh-runs/judge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            const data = (await response.json()) as JudgeApiResponse & { error?: string };
+            if (!response.ok) {
+                throw new Error(data.error || `Judge request failed (${response.status}).`);
+            }
+
+            const key = buildJudgeResultKey(selectedRunFile, selectedCluster.id);
+            setJudgeResultsByCluster((previous) => ({
+                ...previous,
+                [key]: data.grading,
+            }));
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to judge cluster.';
+            setJudgeError(message);
+        } finally {
+            setIsJudgingCluster(false);
+        }
     };
 
     return (
@@ -713,6 +875,158 @@ export default function LshRunsPage() {
                                                 )}
 
                                                 <div className="mt-4 border-t border-slate-200 pt-3">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">LLM-as-Judge</p>
+                                                    {!selectedCluster ? (
+                                                        <p className="mt-2 text-xs text-slate-600">Select a cluster to configure judging.</p>
+                                                    ) : (
+                                                        <div className="mt-2 space-y-3">
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                <label className="text-[11px] font-semibold text-slate-600">
+                                                                    Provider
+                                                                    <select
+                                                                        value={judgeProvider}
+                                                                        onChange={(event) => setJudgeProvider(event.target.value as JudgeProvider)}
+                                                                        className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
+                                                                    >
+                                                                        <option value="openai">OpenAI</option>
+                                                                        <option value="anthropic">Anthropic</option>
+                                                                        <option value="gemini">Google Gemini</option>
+                                                                    </select>
+                                                                </label>
+                                                                <label className="text-[11px] font-semibold text-slate-600">
+                                                                    Judge model
+                                                                    <select
+                                                                        value={judgeModel}
+                                                                        onChange={(event) => setJudgeModel(event.target.value)}
+                                                                        className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
+                                                                    >
+                                                                        {judgeModelOptions.map((option) => (
+                                                                            <option key={option.value} value={option.value}>
+                                                                                {option.label}
+                                                                            </option>
+                                                                        ))}
+                                                                    </select>
+                                                                </label>
+                                                            </div>
+
+                                                            {judgeSupportsReasoningControl ? (
+                                                                <label className="block text-[11px] font-semibold text-slate-600">
+                                                                    Reasoning mode
+                                                                    <select
+                                                                        value={judgeReasoningEffort}
+                                                                        onChange={(event) => setJudgeReasoningEffort(event.target.value as JudgeReasoningEffort)}
+                                                                        className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
+                                                                    >
+                                                                        {JUDGE_REASONING_OPTIONS.map((option) => (
+                                                                            <option key={option.value} value={option.value}>
+                                                                                {option.label}
+                                                                            </option>
+                                                                        ))}
+                                                                    </select>
+                                                                </label>
+                                                            ) : (
+                                                                <p className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-[11px] text-slate-600">
+                                                                    This model does not expose judge reasoning controls. Default provider behavior is used.
+                                                                </p>
+                                                            )}
+
+                                                            <label className="block text-[11px] font-semibold text-slate-600">
+                                                                Custom judge instructions
+                                                                <textarea
+                                                                    value={judgeInstructions}
+                                                                    onChange={(event) => setJudgeInstructions(event.target.value)}
+                                                                    rows={4}
+                                                                    placeholder="Add custom grading preferences (optional). Base rubric is always applied."
+                                                                    className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-2 text-xs text-slate-700 placeholder:text-slate-400"
+                                                                />
+                                                            </label>
+
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleJudgeCluster}
+                                                                disabled={isJudgingCluster}
+                                                                className="rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                                            >
+                                                                {isJudgingCluster ? 'Grading cluster...' : `Grade ${selectedCluster.id === 'noise' ? 'Noise Cluster' : `Cluster ${selectedCluster.id}`}`}
+                                                            </button>
+
+                                                            {judgeError && (
+                                                                <p className="rounded border border-red-200 bg-red-50 px-2 py-1.5 text-xs text-red-700">{judgeError}</p>
+                                                            )}
+
+                                                            {selectedClusterGrade && (
+                                                                <div className="space-y-2 rounded border border-slate-200 bg-slate-50 p-2.5">
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Latest grade</p>
+                                                                        <p className="text-sm font-extrabold text-slate-900">{selectedClusterGrade.finalScore.toFixed(2)} / 100</p>
+                                                                    </div>
+
+                                                                    <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                                                                        <div className="rounded border border-slate-200 bg-white px-2 py-1">
+                                                                            <p className="font-semibold text-slate-500">Subtotal</p>
+                                                                            <p className="mt-0.5 font-bold text-slate-800">{selectedClusterGrade.subtotal.toFixed(2)}</p>
+                                                                        </div>
+                                                                        <div className="rounded border border-slate-200 bg-white px-2 py-1">
+                                                                            <p className="font-semibold text-slate-500">Penalties</p>
+                                                                            <p className="mt-0.5 font-bold text-slate-800">-{selectedClusterGrade.penaltyTotal.toFixed(2)}</p>
+                                                                        </div>
+                                                                        <div className="rounded border border-slate-200 bg-white px-2 py-1">
+                                                                            <p className="font-semibold text-slate-500">Cap</p>
+                                                                            <p className="mt-0.5 font-bold text-slate-800">{formatJudgeCap(selectedClusterGrade.cap)}</p>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="grid grid-cols-4 gap-1 text-[11px]">
+                                                                        {JUDGE_ROW_ORDER.map((row) => {
+                                                                            const rowScore = selectedClusterGrade.rowScores[row] ?? 0;
+                                                                            const rowPoint = selectedClusterGrade.rowPoints[row] ?? 0;
+                                                                            return (
+                                                                                <div key={row} className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                                                                                    <p className="font-semibold text-slate-500">{row}</p>
+                                                                                    <p className="font-bold text-slate-800">{rowScore} / 4</p>
+                                                                                    <p className="text-slate-600">{rowPoint.toFixed(2)}</p>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+
+                                                                    <div className="space-y-1 text-[11px] text-slate-700">
+                                                                        <p><span className="font-semibold">Outcome:</span> {selectedClusterGrade.outcomes.bottomLineOutcome}</p>
+                                                                        <p><span className="font-semibold">Correctness:</span> {selectedClusterGrade.outcomes.outcomeCorrectness}</p>
+                                                                        <p><span className="font-semibold">Reasoning:</span> {selectedClusterGrade.outcomes.reasoningAlignment}</p>
+                                                                        <p><span className="font-semibold">Jurisdiction:</span> {selectedClusterGrade.outcomes.jurisdictionAssumption}</p>
+                                                                    </div>
+
+                                                                    <p className="text-xs text-slate-700">{selectedClusterGrade.summary}</p>
+
+                                                                    {selectedClusterGrade.penaltiesApplied.length > 0 && (
+                                                                        <div className="space-y-1">
+                                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Penalties applied</p>
+                                                                            {selectedClusterGrade.penaltiesApplied.map((penalty) => (
+                                                                                <p key={penalty.key} className="text-[11px] text-slate-700">
+                                                                                    - {penalty.label} (-{penalty.points})
+                                                                                </p>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+
+                                                                    {selectedClusterGrade.parseFailed && (
+                                                                        <details className="rounded border border-amber-200 bg-amber-50 p-2">
+                                                                            <summary className="cursor-pointer text-[11px] font-semibold text-amber-800">
+                                                                                Judge JSON parse failed (show raw output)
+                                                                            </summary>
+                                                                            <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-[10px] text-amber-900">
+                                                                                {selectedClusterGrade.rawJudgeOutput}
+                                                                            </pre>
+                                                                        </details>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="mt-4 border-t border-slate-200 pt-3">
                                                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Visible cluster list</p>
                                                     <div className="mt-2 max-h-64 space-y-1.5 overflow-y-auto pr-1">
                                                         {filteredClusters.length === 0 ? (
@@ -1037,6 +1351,30 @@ function formatMetadataValue(value: unknown) {
         return value;
     }
     return JSON.stringify(value);
+}
+
+function buildJudgeResultKey(runFile: string, clusterId: string) {
+    return `${runFile}::${clusterId}`;
+}
+
+function supportsJudgeReasoningControl(provider: JudgeProvider, model: string) {
+    if (provider === 'openai') {
+        return model.startsWith('gpt-5');
+    }
+    if (provider === 'gemini') {
+        return model.startsWith('gemini-2.5') || model.startsWith('gemini-3');
+    }
+    return false;
+}
+
+function formatJudgeCap(cap: JudgeCap) {
+    if (cap === 'cap_60') {
+        return '60';
+    }
+    if (cap === 'cap_70') {
+        return '70';
+    }
+    return 'None';
 }
 
 function formatTick(value: number) {

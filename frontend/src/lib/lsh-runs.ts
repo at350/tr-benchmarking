@@ -64,6 +64,27 @@ export type LshRunDetails = {
     clusters: LshClusterSummary[];
 };
 
+export type LshClusterJudgeMember = {
+    id: string;
+    model: string;
+    text: string;
+};
+
+export type LshClusterJudgePayload = {
+    fileName: string;
+    clusterId: string;
+    representative: {
+        id: string;
+        model: string;
+        text: string;
+    };
+    members: LshClusterJudgeMember[];
+    modelBreakdown: Array<{
+        model: string;
+        count: number;
+    }>;
+};
+
 function resolveResultsDirectory() {
     const candidates = [
         path.resolve(process.cwd(), '../lsh/results'),
@@ -113,6 +134,23 @@ function toTextPreview(value: unknown) {
 
 function normalizeMembers(value: unknown): RawTextEntry[] {
     return Array.isArray(value) ? (value as RawTextEntry[]) : [];
+}
+
+function buildModelBreakdown(members: RawTextEntry[]) {
+    const modelBreakdownMap = new Map<string, number>();
+    for (const member of members) {
+        const model = toSafeString(member.model, 'unknown');
+        modelBreakdownMap.set(model, (modelBreakdownMap.get(model) || 0) + 1);
+    }
+
+    return Array.from(modelBreakdownMap.entries())
+        .map(([model, count]) => ({ model, count }))
+        .sort((a, b) => {
+            if (b.count !== a.count) {
+                return b.count - a.count;
+            }
+            return a.model.localeCompare(b.model);
+        });
 }
 
 function sortClusterEntries(entries: Array<{ id: string; size: number }>) {
@@ -208,21 +246,7 @@ export function getLshRunDetails(fileName: string): LshRunDetails | null {
         const representative = cluster?.representative || {};
         const members = normalizeMembers(cluster?.members);
         totalMembers += members.length;
-
-        const modelBreakdownMap = new Map<string, number>();
-        for (const member of members) {
-            const model = toSafeString(member.model, 'unknown');
-            modelBreakdownMap.set(model, (modelBreakdownMap.get(model) || 0) + 1);
-        }
-
-        const modelBreakdown = Array.from(modelBreakdownMap.entries())
-            .map(([model, count]) => ({ model, count }))
-            .sort((a, b) => {
-                if (b.count !== a.count) {
-                    return b.count - a.count;
-                }
-                return a.model.localeCompare(b.model);
-            });
+        const modelBreakdown = buildModelBreakdown(members);
 
         return {
             id,
@@ -250,5 +274,48 @@ export function getLshRunDetails(fileName: string): LshRunDetails | null {
         totalClusters: clusterSummaries.length,
         totalMembers,
         clusters: clusterSummaries,
+    };
+}
+
+export function getLshClusterJudgePayload(fileName: string, clusterId: string): LshClusterJudgePayload | null {
+    if (!isValidRunFileName(fileName)) {
+        return null;
+    }
+
+    const resultsDirectory = resolveResultsDirectory();
+    if (!resultsDirectory) {
+        return null;
+    }
+
+    const fullPath = path.join(resultsDirectory, fileName);
+    if (!fs.existsSync(fullPath)) {
+        return null;
+    }
+
+    const run = readRunFile(fullPath);
+    const clusters = run.clusters || {};
+    const cluster = clusters[clusterId];
+    if (!cluster) {
+        return null;
+    }
+
+    const representative = cluster.representative || {};
+    const members = normalizeMembers(cluster.members);
+    const normalizedMembers = members.map((member) => ({
+        id: toSafeString(member.id, 'unknown'),
+        model: toSafeString(member.model, 'unknown'),
+        text: toSafeString(member.text, ''),
+    }));
+
+    return {
+        fileName,
+        clusterId,
+        representative: {
+            id: toSafeString(representative.id, 'N/A'),
+            model: toSafeString(representative.model, 'unknown'),
+            text: toSafeString(representative.text, ''),
+        },
+        members: normalizedMembers,
+        modelBreakdown: buildModelBreakdown(members),
     };
 }
