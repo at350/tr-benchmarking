@@ -8,3 +8,4 @@ openai
 python-dotenv
 umap-learn
 tqdm
+httpx
