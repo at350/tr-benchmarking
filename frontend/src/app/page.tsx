@@ -15,6 +15,8 @@ type DatasetRow = {
     difficulty?: string;
     topic?: string;
     field?: string;
+    law_system?: string;
+    num_options?: number;
 };
 
 type SelectionPreview = {
@@ -43,6 +45,8 @@ const MAX_RUN_HISTORY_ENTRIES = 20;
 export default function Home() {
     const [suiteMode, setSuiteMode] = useState<SuiteMode>('forced_tests');
     const [subjects, setSubjects] = useState<string[]>([]);
+    const [jurisdictions, setJurisdictions] = useState<string[]>([]);
+    const [numOptionsList, setNumOptionsList] = useState<string[]>([]);
     const [datasetRows, setDatasetRows] = useState<DatasetRow[]>([]);
 
     const [mainConfig, setMainConfig] = useState<MainExperimentConfig>({
@@ -85,19 +89,33 @@ export default function Home() {
             adversarialText: false,
             labelNoise: 0,
         },
+        numRuns: 1,
         limit: 5,
         subject: 'All',
+        selectedSubjects: [],
         difficulty: 'All',
+        jurisdiction: 'All',
+        numOptions: 'All',
         questionSelectionMode: 'auto',
         autoSelectionOrder: 'ordered',
         sampleSeed: 42,
         manualQuestionIds: '',
+        comparisonMode: false,
+        compareFactor: 'model',
+        compareValueA: 'gpt-4o-mini',
+        compareValueB: 'gpt-4o',
     });
 
     const [isRunning, setIsRunning] = useState(false);
     const [runStatusText, setRunStatusText] = useState('Preparing experiment...');
+    const [progressCompleted, setProgressCompleted] = useState(0);
+    const [progressTotal, setProgressTotal] = useState(0);
     const [results, setResults] = useState<any[]>([]);
     const [summary, setSummary] = useState<any>(null);
+    const [aggregationByQuestion, setAggregationByQuestion] = useState<Record<string, Record<string, number>> | null>(null);
+    const [runCount, setRunCount] = useState<number>(0);
+    const [comparisonRunA, setComparisonRunA] = useState<{ results: any[]; summary: any; aggregationByQuestion: Record<string, Record<string, number>> | null; runCount: number } | null>(null);
+    const [comparisonRunB, setComparisonRunB] = useState<{ results: any[]; summary: any; aggregationByQuestion: Record<string, Record<string, number>> | null; runCount: number } | null>(null);
     const [runHistory, setRunHistory] = useState<RunHistoryEntry[]>([]);
     const [activeRunId, setActiveRunId] = useState<string | null>(null);
     const runAbortRef = useRef<AbortController | null>(null);
@@ -117,6 +135,8 @@ export default function Home() {
 
                 if (!json.data) {
                     setSubjects([]);
+                    setJurisdictions([]);
+                    setNumOptionsList([]);
                     setDatasetRows([]);
                     return;
                 }
@@ -127,9 +147,19 @@ export default function Home() {
                     ? Array.from(new Set(json.data.map((d) => d.topic || d.field).filter((value): value is string => Boolean(value)))).sort()
                     : Array.from(new Set(json.data.map((d) => d.subfield || d.discipline).filter((value): value is string => Boolean(value)))).sort();
                 setSubjects(uniqueSubjects);
+
+                const uniqueJurisdictions = Array.from(new Set(json.data.map((d) => (d as DatasetRow).law_system).filter((value): value is string => Boolean(value)))).sort();
+                setJurisdictions(uniqueJurisdictions);
+
+                const fromData = Array.from(new Set(json.data.map((d) => (d as DatasetRow).num_options).filter((v): v is number => typeof v === 'number' && !Number.isNaN(v)))).sort((a, b) => a - b).map(String);
+                const preset = Array.from({ length: 19 }, (_, i) => String(i + 2)); // 2 through 20
+                const merged = Array.from(new Set([...preset, ...fromData])).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+                setNumOptionsList(merged);
             } catch (error) {
                 console.error('Failed to load dataset', error);
                 setSubjects([]);
+                setJurisdictions([]);
+                setNumOptionsList([]);
                 setDatasetRows([]);
             }
         }
@@ -180,6 +210,10 @@ export default function Home() {
         setSuiteMode(entry.suiteMode);
         setResults(entry.results);
         setSummary(entry.summary);
+        setAggregationByQuestion(null);
+        setRunCount(0);
+        setComparisonRunA(null);
+        setComparisonRunB(null);
         setRunStatusText('Preparing experiment...');
         setActiveRunId(entry.id);
 
@@ -193,10 +227,19 @@ export default function Home() {
                 manualQuestionIds: entry.config.manualQuestionIds || '',
             });
         } else if (isForcedConfig(entry.config)) {
+            const fc = entry.config as ForcedExperimentConfig;
             setForcedConfig({
                 ...entry.config,
                 controlled: { ...entry.config.controlled },
                 perturbations: { ...entry.config.perturbations },
+                numRuns: typeof fc.numRuns === 'number' ? fc.numRuns : 1,
+                jurisdiction: fc.jurisdiction ?? 'All',
+                numOptions: fc.numOptions ?? 'All',
+                selectedSubjects: Array.isArray(fc.selectedSubjects) ? fc.selectedSubjects : (fc.subject && fc.subject !== 'All' ? [fc.subject] : []),
+                comparisonMode: fc.comparisonMode ?? false,
+                compareFactor: fc.compareFactor ?? 'model',
+                compareValueA: fc.compareValueA ?? 'gpt-4o-mini',
+                compareValueB: fc.compareValueB ?? 'gpt-4o',
                 questionSelectionMode: entry.config.questionSelectionMode || 'auto',
                 autoSelectionOrder: entry.config.autoSelectionOrder || 'ordered',
                 sampleSeed: typeof entry.config.sampleSeed === 'number' ? entry.config.sampleSeed : 42,
@@ -260,29 +303,246 @@ export default function Home() {
         const models = configSnapshot.evaluationMode === 'controlled_eval'
             ? Array.from(new Set([configSnapshot.model, configSnapshot.compareModel].filter((model): model is string => Boolean(model))))
             : [configSnapshot.model];
-        setRunStatusText(`Running ${sample.length} questions across ${models.length} model${models.length === 1 ? '' : 's'}...`);
+        const numRuns = configSnapshot.numRuns ?? 1;
+        const totalEvals = sample.length * models.length * numRuns;
+        setProgressTotal(totalEvals);
+        setProgressCompleted(0);
+        setRunStatusText(`Running ${sample.length} questions × ${numRuns} run${numRuns === 1 ? '' : 's'} across ${models.length} model${models.length === 1 ? '' : 's'}...`);
+        const body = {
+            questions: sample,
+            models,
+            numRuns,
+            streamProgress: true,
+            ...configSnapshot,
+        };
         const res = await fetch('/api/experiment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             signal,
-            body: JSON.stringify({
-                questions: sample,
-                models,
-                ...configSnapshot,
-            }),
+            body: JSON.stringify(body),
         });
 
-        const json = (await res.json()) as { results?: any[]; summary?: any };
-        if (json.results && json.summary) {
-            setResults(json.results);
-            setSummary(json.summary);
+        if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(errText || `Experiment failed: ${res.status}`);
+        }
+
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error('No response body');
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let finalJson: { results?: any[]; summary?: any; aggregationByQuestion?: Record<string, Record<string, number>>; runCount?: number } | null = null;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const parsed = JSON.parse(line) as { type: string; completed?: number; total?: number; results?: any[]; summary?: any; aggregationByQuestion?: Record<string, Record<string, number>>; runCount?: number; error?: string };
+                    if (parsed.type === 'progress' && typeof parsed.completed === 'number' && typeof parsed.total === 'number') {
+                        setProgressCompleted(parsed.completed);
+                        setProgressTotal(parsed.total);
+                    } else if (parsed.type === 'done') {
+                        finalJson = {
+                            results: parsed.results,
+                            summary: parsed.summary,
+                            aggregationByQuestion: parsed.aggregationByQuestion ?? undefined,
+                            runCount: parsed.runCount ?? 0,
+                        };
+                    } else if (parsed.type === 'error') {
+                        throw new Error(parsed.error ?? 'Experiment failed');
+                    }
+                } catch (e) {
+                    if (e instanceof SyntaxError) continue;
+                    throw e;
+                }
+            }
+        }
+        if (buffer.trim()) {
+            try {
+                const parsed = JSON.parse(buffer) as { type: string; results?: any[]; summary?: any; aggregationByQuestion?: Record<string, Record<string, number>>; runCount?: number };
+                if (parsed.type === 'done') {
+                    finalJson = {
+                        results: parsed.results,
+                        summary: parsed.summary,
+                        aggregationByQuestion: parsed.aggregationByQuestion ?? undefined,
+                        runCount: parsed.runCount ?? 0,
+                    };
+                }
+            } catch {
+                // ignore trailing parse errors
+            }
+        }
+
+        if (finalJson?.results && finalJson.summary) {
+            setResults(finalJson.results);
+            setSummary(finalJson.summary);
+            setAggregationByQuestion(finalJson.aggregationByQuestion ?? null);
+            setRunCount(finalJson.runCount ?? 0);
             addRunToHistory({
                 suiteMode: 'forced_tests',
                 config: configSnapshot,
-                results: json.results,
-                summary: json.summary,
+                results: finalJson.results,
+                summary: finalJson.summary,
             });
         }
+    };
+
+    const runForcedComparison = async (signal: AbortSignal, baseConfig: ForcedExperimentConfig) => {
+        setRunStatusText('Loading dataset...');
+        const dataRes = await fetch('/api/dataset', { signal });
+        const dataJson = (await dataRes.json()) as { data?: DatasetRow[] };
+        const rows = dataJson.data || [];
+
+        const numRunsA = baseConfig.compareFactor === 'numRuns' ? (parseInt(baseConfig.compareValueA, 10) || 5) : baseConfig.numRuns;
+        const numRunsB = baseConfig.compareFactor === 'numRuns' ? (parseInt(baseConfig.compareValueB, 10) || 10) : baseConfig.numRuns;
+        const configA: ForcedExperimentConfig = {
+            ...baseConfig,
+            model: baseConfig.compareFactor === 'model' ? baseConfig.compareValueA : baseConfig.model,
+            numRuns: numRunsA,
+            subject: baseConfig.compareFactor === 'subject' ? baseConfig.compareValueA : baseConfig.subject,
+            selectedSubjects: baseConfig.compareFactor === 'subject' ? (baseConfig.compareValueA === 'All' ? [] : [baseConfig.compareValueA]) : (baseConfig.selectedSubjects ?? []),
+            difficulty: baseConfig.compareFactor === 'difficulty' ? baseConfig.compareValueA : baseConfig.difficulty,
+        };
+        const configB: ForcedExperimentConfig = {
+            ...baseConfig,
+            model: baseConfig.compareFactor === 'model' ? baseConfig.compareValueB : baseConfig.model,
+            numRuns: numRunsB,
+            subject: baseConfig.compareFactor === 'subject' ? baseConfig.compareValueB : baseConfig.subject,
+            selectedSubjects: baseConfig.compareFactor === 'subject' ? (baseConfig.compareValueB === 'All' ? [] : [baseConfig.compareValueB]) : (baseConfig.selectedSubjects ?? []),
+            difficulty: baseConfig.compareFactor === 'difficulty' ? baseConfig.compareValueB : baseConfig.difficulty,
+        };
+
+        const selectionA = resolveForcedSelection(rows, configA);
+        const selectionB = resolveForcedSelection(rows, configB);
+        const sampleA = selectionA.selected;
+        const sampleB = selectionB.selected;
+
+        if (selectionA.missingIds.length > 0) {
+            throw new Error(`Config A: unknown manual IDs: ${selectionA.missingIds.join(', ')}`);
+        }
+        if (selectionB.missingIds.length > 0) {
+            throw new Error(`Config B: unknown manual IDs: ${selectionB.missingIds.join(', ')}`);
+        }
+        if (sampleA.length === 0) {
+            throw new Error('Config A: no questions selected.');
+        }
+        if (sampleB.length === 0) {
+            throw new Error('Config B: no questions selected.');
+        }
+
+        const labelA = baseConfig.compareFactor === 'model' ? baseConfig.compareValueA
+            : baseConfig.compareFactor === 'numRuns' ? `${numRunsA} runs`
+            : baseConfig.compareFactor === 'subject' ? baseConfig.compareValueA
+            : baseConfig.compareValueA;
+        const labelB = baseConfig.compareFactor === 'model' ? baseConfig.compareValueB
+            : baseConfig.compareFactor === 'numRuns' ? `${numRunsB} runs`
+            : baseConfig.compareFactor === 'subject' ? baseConfig.compareValueB
+            : baseConfig.compareValueB;
+
+        setRunStatusText(`Comparison: running Config A (${labelA})...`);
+        setProgressTotal(sampleA.length * configA.numRuns);
+        setProgressCompleted(0);
+        const bodyA = { questions: sampleA, models: [configA.model], numRuns: configA.numRuns, streamProgress: true, ...configA };
+        const resA = await fetch('/api/experiment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal, body: JSON.stringify(bodyA) });
+        if (!resA.ok) throw new Error(await resA.text().catch(() => `Config A failed: ${resA.status}`));
+        const readerA = resA.body?.getReader();
+        if (!readerA) throw new Error('No response body');
+        const decoder = new TextDecoder();
+        let bufferA = '';
+        let jsonA: { results?: any[]; summary?: any; aggregationByQuestion?: Record<string, Record<string, number>>; runCount?: number } | null = null;
+        while (true) {
+            const { done, value } = await readerA.read();
+            if (done) break;
+            bufferA += decoder.decode(value, { stream: true });
+            const lines = bufferA.split('\n');
+            bufferA = lines.pop() ?? '';
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const p = JSON.parse(line) as { type: string; completed?: number; total?: number; results?: any[]; summary?: any; aggregationByQuestion?: Record<string, Record<string, number>>; runCount?: number };
+                    if (p.type === 'progress' && typeof p.completed === 'number' && typeof p.total === 'number') {
+                        setProgressCompleted(p.completed);
+                        setProgressTotal(p.total);
+                    } else if (p.type === 'done') {
+                        jsonA = { results: p.results, summary: p.summary, aggregationByQuestion: p.aggregationByQuestion ?? undefined, runCount: p.runCount ?? 0 };
+                    }
+                } catch (e) {
+                    if (!(e instanceof SyntaxError)) throw e;
+                }
+            }
+        }
+        if (bufferA.trim()) {
+            try {
+                const p = JSON.parse(bufferA) as { type: string; results?: any[]; summary?: any };
+                if (p.type === 'done') jsonA = { results: p.results, summary: p.summary };
+            } catch { /* ignore */ }
+        }
+        if (!jsonA?.results || !jsonA?.summary) {
+            throw new Error('Config A run failed.');
+        }
+        setComparisonRunA({
+            results: jsonA.results,
+            summary: jsonA.summary,
+            aggregationByQuestion: jsonA.aggregationByQuestion ?? null,
+            runCount: jsonA.runCount ?? 0,
+        });
+
+        await new Promise((r) => setTimeout(r, 1500));
+        setRunStatusText(`Comparison: running Config B (${labelB})...`);
+        setProgressTotal(sampleB.length * configB.numRuns);
+        setProgressCompleted(0);
+        const bodyB = { questions: sampleB, models: [configB.model], numRuns: configB.numRuns, streamProgress: true, ...configB };
+        const resB = await fetch('/api/experiment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal, body: JSON.stringify(bodyB) });
+        if (!resB.ok) throw new Error(await resB.text().catch(() => `Config B failed: ${resB.status}`));
+        const readerB = resB.body?.getReader();
+        if (!readerB) throw new Error('No response body');
+        let bufferB = '';
+        let jsonB: { results?: any[]; summary?: any; aggregationByQuestion?: Record<string, Record<string, number>>; runCount?: number } | null = null;
+        while (true) {
+            const { done, value } = await readerB.read();
+            if (done) break;
+            bufferB += decoder.decode(value, { stream: true });
+            const lines = bufferB.split('\n');
+            bufferB = lines.pop() ?? '';
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const p = JSON.parse(line) as { type: string; completed?: number; total?: number; results?: any[]; summary?: any; aggregationByQuestion?: Record<string, Record<string, number>>; runCount?: number };
+                    if (p.type === 'progress' && typeof p.completed === 'number' && typeof p.total === 'number') {
+                        setProgressCompleted(p.completed);
+                        setProgressTotal(p.total);
+                    } else if (p.type === 'done') {
+                        jsonB = { results: p.results, summary: p.summary, aggregationByQuestion: p.aggregationByQuestion ?? undefined, runCount: p.runCount ?? 0 };
+                    }
+                } catch (e) {
+                    if (!(e instanceof SyntaxError)) throw e;
+                }
+            }
+        }
+        if (bufferB.trim()) {
+            try {
+                const p = JSON.parse(bufferB) as { type: string; results?: any[]; summary?: any };
+                if (p.type === 'done') jsonB = { results: p.results, summary: p.summary };
+            } catch { /* ignore */ }
+        }
+        if (!jsonB?.results || !jsonB?.summary) {
+            throw new Error('Config B run failed.');
+        }
+        setComparisonRunB({
+            results: jsonB.results,
+            summary: jsonB.summary,
+            aggregationByQuestion: jsonB.aggregationByQuestion ?? null,
+            runCount: jsonB.runCount ?? 0,
+        });
+
+        setResults(jsonA.results);
+        setSummary(jsonA.summary);
+        setRunStatusText('Comparison complete.');
     };
 
     const runExperiment = async () => {
@@ -310,11 +570,19 @@ export default function Home() {
         setIsRunning(true);
         setResults([]);
         setSummary(null);
+        setAggregationByQuestion(null);
+        setRunCount(0);
+        setComparisonRunA(null);
+        setComparisonRunB(null);
+        setProgressCompleted(0);
+        setProgressTotal(0);
         setActiveRunId(null);
 
         try {
             if (currentSuiteMode === 'main') {
                 await runMainExperiment(abortController.signal, mainConfigSnapshot);
+            } else if (forcedConfigSnapshot.comparisonMode) {
+                await runForcedComparison(abortController.signal, forcedConfigSnapshot);
             } else {
                 await runForcedExperiment(abortController.signal, forcedConfigSnapshot);
             }
@@ -343,6 +611,10 @@ export default function Home() {
         setSuiteMode(nextMode);
         setResults([]);
         setSummary(null);
+        setAggregationByQuestion(null);
+        setRunCount(0);
+        setComparisonRunA(null);
+        setComparisonRunB(null);
         setActiveRunId(null);
 
         if (nextMode === 'forced_tests') {
@@ -371,7 +643,7 @@ export default function Home() {
                 <div className="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-700 to-indigo-600 bg-clip-text text-transparent">
-                            BenchmarkDemo <span className="font-light text-gray-400">AI Evaluator</span>
+                            DEVIANCE TEST <span className="font-light text-gray-400">AI Evaluator</span>
                         </h1>
                     </div>
 
@@ -431,6 +703,8 @@ export default function Home() {
                             onCancel={cancelExperiment}
                             isLoading={isRunning}
                             subjects={subjects}
+                            jurisdictions={jurisdictions}
+                            numOptionsList={numOptionsList}
                             selectionPreview={currentSelectionPreview}
                             canRun={canRunCurrentSelection}
                             runDisabledReason={runDisabledReason}
@@ -500,8 +774,16 @@ export default function Home() {
                         <ForcedResultsDashboard
                             results={results}
                             summary={summary}
+                            aggregationByQuestion={aggregationByQuestion}
+                            runCount={runCount}
+                            comparisonRunA={comparisonRunA}
+                            comparisonRunB={comparisonRunB}
+                            comparisonLabelA={forcedConfig.comparisonMode ? (forcedConfig.compareFactor === 'model' ? forcedConfig.compareValueA : `${forcedConfig.compareValueA} runs`) : null}
+                            comparisonLabelB={forcedConfig.comparisonMode ? (forcedConfig.compareFactor === 'model' ? forcedConfig.compareValueB : `${forcedConfig.compareValueB} runs`) : null}
                             isLoading={isRunning}
                             loadingStatus={runStatusText}
+                            progressCompleted={progressCompleted}
+                            progressTotal={progressTotal}
                         />
                     )}
                 </div>
@@ -571,11 +853,19 @@ function resolveMainSelection(rows: DatasetRow[], config: MainExperimentConfig) 
 
 function resolveForcedSelection(rows: DatasetRow[], config: ForcedExperimentConfig) {
     let filtered = rows;
-    if (config.subject !== 'All') {
-        filtered = filtered.filter((row) => (row.subfield === config.subject) || (row.discipline === config.subject));
+    const subfieldFilter = config.selectedSubjects?.length ? config.selectedSubjects : (config.subject !== 'All' ? [config.subject] : []);
+    if (subfieldFilter.length > 0) {
+        filtered = filtered.filter((row) => subfieldFilter.includes(row.subfield || '') || subfieldFilter.includes(row.discipline || ''));
     }
     if (config.difficulty !== 'All') {
         filtered = filtered.filter((row) => row.difficulty === config.difficulty);
+    }
+    if (config.jurisdiction !== 'All') {
+        filtered = filtered.filter((row) => row.law_system === config.jurisdiction);
+    }
+    if (config.numOptions !== 'All') {
+        const n = parseInt(config.numOptions, 10);
+        filtered = filtered.filter((row) => row.num_options != null && Number(row.num_options) === n);
     }
 
     if (config.questionSelectionMode === 'manual') {

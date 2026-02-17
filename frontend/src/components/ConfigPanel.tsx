@@ -17,13 +17,21 @@ export type ExperimentConfig = {
         adversarialText: boolean;
         labelNoise: number;
     };
+    numRuns: number;
     limit: number;
     subject: string;
+    selectedSubjects: string[];
     difficulty: string;
+    jurisdiction: string;
+    numOptions: string;
     questionSelectionMode: 'auto' | 'manual';
     autoSelectionOrder: 'random' | 'ordered';
     sampleSeed: number;
     manualQuestionIds: string;
+    comparisonMode: boolean;
+    compareFactor: 'model' | 'numRuns' | 'subject' | 'difficulty';
+    compareValueA: string;
+    compareValueB: string;
 };
 
 type SelectionPreview = {
@@ -35,7 +43,7 @@ type SelectionPreview = {
     bucketCounts: Array<{ label: string; count: number }>;
 };
 
-const MODEL_OPTIONS = [
+export const MODEL_OPTIONS = [
     { value: 'gpt-4o', label: 'GPT-4o' },
     { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
     { value: 'gpt-5.2', label: 'GPT-5.2' },
@@ -44,6 +52,9 @@ const MODEL_OPTIONS = [
     { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
     { value: 'o3', label: 'o3' },
     { value: 'o4-mini', label: 'o4-mini' },
+    { value: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
+    { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5' },
+    { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
 ];
 
 interface ConfigPanelProps {
@@ -53,12 +64,14 @@ interface ConfigPanelProps {
     onCancel: () => void;
     isLoading: boolean;
     subjects: string[];
+    jurisdictions: string[];
+    numOptionsList: string[];
     selectionPreview: SelectionPreview;
     canRun: boolean;
     runDisabledReason?: string;
 }
 
-export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, subjects, selectionPreview, canRun, runDisabledReason }: ConfigPanelProps) {
+export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, subjects, jurisdictions, numOptionsList, selectionPreview, canRun, runDisabledReason }: ConfigPanelProps) {
     const isControlled = config.benchmarkProfile === 'controlled';
     const isControlledEval = config.evaluationMode === 'controlled_eval';
 
@@ -110,21 +123,21 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
                         <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                 </select>
-                {isControlledEval && (
-                    <>
-                        <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Compare Against (Optional)</label>
-                        <select
-                            className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={config.compareModel}
-                            onChange={(e) => handleChange('compareModel', e.target.value)}
-                        >
-                            <option value="">None</option>
-                            {MODEL_OPTIONS.map((option) => (
-                                <option key={`compare-${option.value}`} value={option.value}>{option.label}</option>
-                            ))}
-                        </select>
-                    </>
-                )}
+                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Number of runs</label>
+                <select
+                    className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={config.numRuns}
+                    onChange={(e) => handleChange('numRuns', parseInt(e.target.value, 10))}
+                >
+                    <option value={1}>1</option>
+                    <option value={3}>3</option>
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                </select>
             </div>
 
             <div className="space-y-2">
@@ -139,137 +152,51 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
                 </div>
             </div>
 
-            {/* Prompt Template */}
-            <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Prompt Template</label>
-                <div className="grid grid-cols-2 gap-2">
-                    <button
-                        className={`p-2 rounded-lg text-sm font-medium transition-colors ${config.promptTemplate === 'baseline' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                        onClick={() => handleChange('promptTemplate', 'baseline')}
-                        disabled={isControlled}
-                    >
-                        Baseline
-                    </button>
-                    <button
-                        className={`p-2 rounded-lg text-sm font-medium transition-colors ${config.promptTemplate === 'cot' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                        onClick={() => handleChange('promptTemplate', 'cot')}
-                        disabled={isControlled}
-                    >
-                        Chain of Thought
-                    </button>
-                </div>
-                {isControlled && <p className="text-xs text-gray-500">Locked to a single standardized prompt.</p>}
-            </div>
-
-            {/* Temperature */}
-            <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                    Temperature: {config.temperature}
-                </label>
-                <input
-                    type="range"
-                    min="0" max="1" step="0.1"
-                    className="w-full accent-blue-600"
-                    value={config.temperature}
-                    onChange={(e) => handleChange('temperature', parseFloat(e.target.value))}
-                    disabled={isControlled}
-                />
-                {isControlled && <p className="text-xs text-gray-500">Ignored in controlled mode.</p>}
-            </div>
-
-            <hr className="border-gray-100" />
-
-            {isControlled && (
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Question Sampling</label>
-                        <select
-                            className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
-                            value={config.samplingStrategy}
-                            onChange={(e) => handleChange('samplingStrategy', e.target.value as ExperimentConfig['samplingStrategy'])}
-                        >
-                            <option value="ordered">Ordered (Deterministic)</option>
-                            <option value="stratified">Stratified by Subfield</option>
-                        </select>
-                        <p className="text-xs text-gray-500">
-                            Ordered uses the first questions by id; stratified balances picks across available subfields.
-                        </p>
-                    </div>
-
-                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Determinism Split</label>
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700">Run deterministic + stochastic arms</span>
-                        <input
-                            type="checkbox"
-                            className="w-5 h-5 accent-blue-600"
-                            checked={config.controlled.deterministicSplit}
-                            onChange={(e) => handleControlledChange('deterministicSplit', e.target.checked)}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <div className="flex justify-between">
-                            <span className="text-sm text-gray-700">Stochastic Arm Temperature</span>
-                            <span className="text-sm font-bold text-blue-600">{config.controlled.stochasticTemperature.toFixed(1)}</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="0.1" max="1" step="0.1"
-                            className="w-full accent-blue-600"
-                            value={config.controlled.stochasticTemperature}
-                            onChange={(e) => handleControlledChange('stochasticTemperature', parseFloat(e.target.value))}
-                            disabled={!config.controlled.deterministicSplit}
-                        />
-                    </div>
-                </div>
-            )}
-
-            {isControlled && <hr className="border-gray-100" />}
-
-            {/* Perturbations */}
-            <div className="space-y-4">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Perturbations</label>
-
-                <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Adversarial Text</span>
-                    <input
-                        type="checkbox"
-                        className="w-5 h-5 accent-red-500"
-                        checked={config.perturbations.adversarialText}
-                        onChange={(e) => handlePerturbationChange('adversarialText', e.target.checked)}
-                        disabled={isControlled}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <div className="flex justify-between">
-                        <span className="text-sm text-gray-700">Label Noise</span>
-                        <span className="text-sm font-bold text-red-500">{config.perturbations.labelNoise}%</span>
-                    </div>
-                    <input
-                        type="range"
-                        min="0" max="50" step="10"
-                        className="w-full accent-red-500"
-                        value={config.perturbations.labelNoise}
-                        onChange={(e) => handlePerturbationChange('labelNoise', parseInt(e.target.value))}
-                        disabled={isControlled}
-                    />
-                </div>
-            </div>
-
-            <hr className="border-gray-100" />
-
             {/* Data Selection */}
             <div className="space-y-3">
                 <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Dataset Filter</label>
 
-                <select
-                    className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
-                    value={config.subject}
-                    onChange={(e) => handleChange('subject', e.target.value)}
-                >
-                    <option value="All">All Subfields</option>
-                    {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Subfields</label>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-2 max-h-32 overflow-y-auto">
+                    <p className="text-xs text-gray-500 mb-2">Select one or more (none = all)</p>
+                    {subjects.map((s) => {
+                        const isChecked = config.selectedSubjects.includes(s);
+                        return (
+                            <label key={s} className="flex items-center gap-2 py-1 hover:bg-gray-100 rounded px-1 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => {
+                                        const next = isChecked
+                                            ? config.selectedSubjects.filter((x) => x !== s)
+                                            : [...config.selectedSubjects, s];
+                                        setConfig((prev) => ({ ...prev, selectedSubjects: next }));
+                                    }}
+                                    className="w-4 h-4 accent-blue-600"
+                                />
+                                <span className="text-sm text-gray-700">{s}</span>
+                            </label>
+                        );
+                    })}
+                    {subjects.length > 0 && (
+                        <div className="flex gap-2 mt-2 pt-2 border-t border-gray-200">
+                            <button
+                                type="button"
+                                onClick={() => setConfig((prev) => ({ ...prev, selectedSubjects: [] }))}
+                                className="text-xs text-gray-500 hover:text-gray-700"
+                            >
+                                Clear
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setConfig((prev) => ({ ...prev, selectedSubjects: [...subjects] }))}
+                                className="text-xs text-gray-500 hover:text-gray-700"
+                            >
+                                Select all
+                            </button>
+                        </div>
+                    )}
+                </div>
 
                 <select
                     className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
@@ -282,13 +209,38 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
                     <option value="hard">Hard</option>
                 </select>
 
+                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Jurisdiction</label>
+                <select
+                    className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
+                    value={config.jurisdiction}
+                    onChange={(e) => handleChange('jurisdiction', e.target.value)}
+                >
+                    <option value="All">All Jurisdictions</option>
+                    {jurisdictions.map((j) => (
+                        <option key={j} value={j}>{j}</option>
+                    ))}
+                </select>
+
+                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Num of choices</label>
+                <select
+                    className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
+                    value={config.numOptions}
+                    onChange={(e) => handleChange('numOptions', e.target.value)}
+                >
+                    <option value="All">All</option>
+                    {numOptionsList.map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                    ))}
+                </select>
+
                 <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-600">Max Questions:</span>
                     <select
                         className="p-1 border rounded bg-white text-sm"
                         value={config.limit}
-                        onChange={(e) => handleChange('limit', parseInt(e.target.value))}
-                    >
+                            onChange={(e) => handleChange('limit', parseInt(e.target.value))}
+                        >
+                        <option value="1">1 (Single question)</option>
                         <option value="5">5 (Demo)</option>
                         <option value="10">10</option>
                         <option value="30">30</option>
@@ -386,6 +338,92 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
                         </p>
                     )}
                 </div>
+            </div>
+
+            {/* Comparison */}
+            <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50/50 p-3">
+                <div className="flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        id="comparisonMode"
+                        className="w-4 h-4 accent-blue-600"
+                        checked={config.comparisonMode}
+                        onChange={(e) => handleChange('comparisonMode', e.target.checked)}
+                    />
+                    <label htmlFor="comparisonMode" className="text-sm font-semibold text-gray-700">Compare two configurations</label>
+                </div>
+                {config.comparisonMode && (
+                    <>
+                        <p className="text-xs text-gray-500">One factor varied. Model/Num runs use the same questions; Subject/Difficulty compare different question sets.</p>
+                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Vary factor</label>
+                        <select
+                            className="w-full p-2 border rounded-lg bg-white text-sm"
+                            value={config.compareFactor}
+                            onChange={(e) => handleChange('compareFactor', e.target.value as ExperimentConfig['compareFactor'])}
+                        >
+                            <option value="model">Model</option>
+                            <option value="numRuns">Number of runs</option>
+                            <option value="subject">Subject (subdomain)</option>
+                            <option value="difficulty">Difficulty</option>
+                        </select>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Config A</label>
+                                {config.compareFactor === 'model' && (
+                                    <select className="w-full p-2 border rounded-lg bg-white text-sm" value={config.compareValueA} onChange={(e) => handleChange('compareValueA', e.target.value)}>
+                                        {MODEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                    </select>
+                                )}
+                                {config.compareFactor === 'numRuns' && (
+                                    <select className="w-full p-2 border rounded-lg bg-white text-sm" value={config.compareValueA} onChange={(e) => handleChange('compareValueA', e.target.value)}>
+                                        {[1, 3, 5, 10, 20, 25, 50, 100].map((n) => <option key={n} value={String(n)}>{n}</option>)}
+                                    </select>
+                                )}
+                                {config.compareFactor === 'subject' && (
+                                    <select className="w-full p-2 border rounded-lg bg-white text-sm" value={config.compareValueA} onChange={(e) => handleChange('compareValueA', e.target.value)}>
+                                        <option value="All">All</option>
+                                        {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                )}
+                                {config.compareFactor === 'difficulty' && (
+                                    <select className="w-full p-2 border rounded-lg bg-white text-sm" value={config.compareValueA} onChange={(e) => handleChange('compareValueA', e.target.value)}>
+                                        <option value="All">All</option>
+                                        <option value="easy">Easy</option>
+                                        <option value="middle">Middle</option>
+                                        <option value="hard">Hard</option>
+                                    </select>
+                                )}
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Config B</label>
+                                {config.compareFactor === 'model' && (
+                                    <select className="w-full p-2 border rounded-lg bg-white text-sm" value={config.compareValueB} onChange={(e) => handleChange('compareValueB', e.target.value)}>
+                                        {MODEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                    </select>
+                                )}
+                                {config.compareFactor === 'numRuns' && (
+                                    <select className="w-full p-2 border rounded-lg bg-white text-sm" value={config.compareValueB} onChange={(e) => handleChange('compareValueB', e.target.value)}>
+                                        {[1, 3, 5, 10, 20, 25, 50, 100].map((n) => <option key={n} value={String(n)}>{n}</option>)}
+                                    </select>
+                                )}
+                                {config.compareFactor === 'subject' && (
+                                    <select className="w-full p-2 border rounded-lg bg-white text-sm" value={config.compareValueB} onChange={(e) => handleChange('compareValueB', e.target.value)}>
+                                        <option value="All">All</option>
+                                        {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                )}
+                                {config.compareFactor === 'difficulty' && (
+                                    <select className="w-full p-2 border rounded-lg bg-white text-sm" value={config.compareValueB} onChange={(e) => handleChange('compareValueB', e.target.value)}>
+                                        <option value="All">All</option>
+                                        <option value="easy">Easy</option>
+                                        <option value="middle">Middle</option>
+                                        <option value="hard">Hard</option>
+                                    </select>
+                                )}
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
 
             <div className="mt-auto">

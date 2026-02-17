@@ -5,6 +5,88 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
+const RATE_LIMIT_MAX_RETRIES = 5;
+const RATE_LIMIT_DELAY_BETWEEN_RUNS_MS = 200;
+/** Anthropic Tier 1 allows 50 req/min; 2s between calls = 30/min for safety margin */
+const CLAUDE_DELAY_BETWEEN_REQUESTS_MS = 2000;
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getRetryAfterMs(error: unknown): number | null {
+    const err = error as Record<string, unknown> | null;
+    if (!err) return null;
+
+    const resp = err.response as Record<string, unknown> | undefined;
+    const retryAfterPreExtracted = resp?.retryAfter;
+    if (typeof retryAfterPreExtracted === 'string') {
+        const s = parseFloat(retryAfterPreExtracted);
+        if (!Number.isNaN(s)) return s * 1000;
+    }
+
+    const rawHeaders = resp?.headers ?? resp?.raw?.headers ?? err.headers;
+    if (!rawHeaders || typeof rawHeaders !== 'object') return null;
+
+    const get = (name: string): string | null => {
+        if (typeof (rawHeaders as Headers).get === 'function') {
+            return (rawHeaders as Headers).get(name);
+        }
+        const h = rawHeaders as Record<string, string | string[] | undefined>;
+        const v = h[name.toLowerCase()] ?? h[name];
+        if (v == null) return null;
+        return typeof v === 'string' ? v : v[0] ?? null;
+    };
+
+    const retryAfterMs = get('retry-after-ms');
+    if (retryAfterMs != null) {
+        const n = parseInt(retryAfterMs, 10);
+        if (!Number.isNaN(n)) return n;
+    }
+    const retryAfter = get('retry-after');
+    if (retryAfter != null) {
+        const s = parseFloat(retryAfter);
+        if (!Number.isNaN(s)) return s * 1000;
+    }
+    return null;
+}
+
+/** When retry-after is missing, Claude 429 needs ~60s for RPM bucket to replenish (50 req/min) */
+const CLAUDE_429_DEFAULT_WAIT_MS = 60000;
+
+function isRateLimitError(error: unknown): boolean {
+    const err = error as Record<string, unknown> | null;
+    if (!err) return false;
+    return err.status === 429 || err.code === 'rate_limit_exceeded';
+}
+
+function hasClaudeModel(models: string[]): boolean {
+    return models.some((m) => m.startsWith('claude-'));
+}
+
+async function withRetryOn429<T>(fn: () => Promise<T>, options?: { isClaude?: boolean }): Promise<T> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= RATE_LIMIT_MAX_RETRIES; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error;
+            if (attempt < RATE_LIMIT_MAX_RETRIES && isRateLimitError(error)) {
+                let waitMs = getRetryAfterMs(error);
+                if (waitMs == null) {
+                    waitMs = options?.isClaude ? CLAUDE_429_DEFAULT_WAIT_MS : Math.min(1000 * 2 ** attempt, 30000);
+                }
+                waitMs = Math.min(waitMs, 120000);
+                console.warn(`[experiment] Rate limit (429) hit, retrying in ${waitMs}ms (attempt ${attempt + 1}/${RATE_LIMIT_MAX_RETRIES})`);
+                await sleep(waitMs);
+                continue;
+            }
+            throw error;
+        }
+    }
+    throw lastError;
+}
+
 type Question = {
     id: string;
     question: string;
@@ -25,6 +107,8 @@ type ExperimentConfig = {
     questions: Question[];
     model: string;
     models?: string[];
+    numRuns?: number;
+    streamProgress?: boolean;
     promptTemplate: 'baseline' | 'cot';
     temperature: number;
     benchmarkProfile?: 'legacy' | 'controlled';
@@ -94,23 +178,130 @@ export async function POST(req: Request) {
         const config: ExperimentConfig = await req.json();
         const benchmarkProfile: BenchmarkProfile = config.benchmarkProfile ?? 'legacy';
         const requestedModels = normalizeModels(config.models, config.model);
+        const numRuns = Math.max(1, Math.min(100, config.numRuns ?? 1));
+        const numQuestions = config.questions?.length ?? 0;
+        const totalEvals = numQuestions * requestedModels.length * numRuns;
+        console.log(`[experiment] Starting: model=${requestedModels.join(',')} questions=${numQuestions} runs=${numRuns}`);
+
+        if (config.streamProgress) {
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream({
+                async start(controller) {
+                    const safeEnqueue = (payload: object) => {
+                        try {
+                            controller.enqueue(encoder.encode(JSON.stringify(payload) + '\n'));
+                        } catch (e) {
+                            const err = e as { code?: string; name?: string };
+                            if (err?.code !== 'ERR_INVALID_STATE' && err?.name !== 'InvalidStateError') throw e;
+                        }
+                    };
+                    try {
+                        const results: EvaluationResult[] = [];
+                        let completed = 0;
+                        const emitProgress = () => {
+                            completed += numQuestions;
+                            safeEnqueue({ type: 'progress', completed: Math.min(completed, totalEvals), total: totalEvals });
+                        };
+                        const runQuestionsForModel = async (model: string) => {
+                            const grouped: EvaluationResult[] = [];
+                            if (hasClaudeModel([model])) {
+                                for (const q of config.questions) {
+                                    const r = await evaluateQuestion(q, config, benchmarkProfile, model);
+                                    grouped.push(...r.flat());
+                                    await sleep(CLAUDE_DELAY_BETWEEN_REQUESTS_MS);
+                                }
+                            } else {
+                                const batch = await Promise.all(
+                                    config.questions.map((q) => evaluateQuestion(q, config, benchmarkProfile, model))
+                                );
+                                grouped.push(...batch.flat());
+                            }
+                            return grouped;
+                        };
+                        for (const model of requestedModels) {
+                            for (let run = 0; run < numRuns; run++) {
+                                if (run > 0 && numRuns > 1) await sleep(RATE_LIMIT_DELAY_BETWEEN_RUNS_MS);
+                                const groupedResults = await runQuestionsForModel(model);
+                                results.push(...groupedResults);
+                                emitProgress();
+                            }
+                        }
+                        const summary = buildSummary(results, benchmarkProfile);
+                        const aggregationByQuestion: Record<string, Record<string, number>> = {};
+                        if (numRuns > 1) {
+                            for (const r of results) {
+                                if (!aggregationByQuestion[r.questionId]) aggregationByQuestion[r.questionId] = {};
+                                const choice = r.parsedChoice?.trim().toUpperCase() || '?';
+                                aggregationByQuestion[r.questionId][choice] = (aggregationByQuestion[r.questionId][choice] || 0) + 1;
+                            }
+                        }
+                        safeEnqueue({ type: 'done', summary, results, ...(numRuns > 1 ? { aggregationByQuestion, runCount: numRuns } : {}) });
+                        console.log(`[experiment] Complete: accuracy=${(summary.accuracy * 100).toFixed(1)}% correct=${summary.correct}/${summary.total}`);
+                    } catch (err) {
+                        console.error('[experiment] Failed:', err);
+                        safeEnqueue({ type: 'error', error: String(err) });
+                    } finally {
+                        try {
+                            controller.close();
+                        } catch {
+                            // Controller already closed (e.g. client disconnected)
+                        }
+                    }
+                },
+            });
+            return new Response(stream, { headers: { 'Content-Type': 'application/x-ndjson' } });
+        }
+
+        const runQuestionsForModel = async (model: string) => {
+            const grouped: EvaluationResult[] = [];
+            if (hasClaudeModel([model])) {
+                for (const q of config.questions) {
+                    const r = await evaluateQuestion(q, config, benchmarkProfile, model);
+                    grouped.push(...r.flat());
+                    await sleep(CLAUDE_DELAY_BETWEEN_REQUESTS_MS);
+                }
+            } else {
+                const batch = await Promise.all(
+                    config.questions.map((q) => evaluateQuestion(q, config, benchmarkProfile, model))
+                );
+                grouped.push(...batch.flat());
+            }
+            return grouped;
+        };
         const groupedResultsByModel = await Promise.all(
             requestedModels.map(async (model) => {
-                const groupedResults = await Promise.all(
-                    config.questions.map(async (q) => evaluateQuestion(q, config, benchmarkProfile, model))
-                );
-                return groupedResults.flat();
+                const runs: EvaluationResult[][] = [];
+                for (let run = 0; run < numRuns; run++) {
+                    if (run > 0 && numRuns > 1) {
+                        await sleep(RATE_LIMIT_DELAY_BETWEEN_RUNS_MS);
+                    }
+                    runs.push(await runQuestionsForModel(model));
+                }
+                return runs.flat();
             })
         );
         const results = groupedResultsByModel.flat();
         const summary = buildSummary(results, benchmarkProfile);
 
+        const aggregationByQuestion: Record<string, Record<string, number>> = {};
+        if (numRuns > 1) {
+            for (const r of results) {
+                if (!aggregationByQuestion[r.questionId]) {
+                    aggregationByQuestion[r.questionId] = {};
+                }
+                const choice = r.parsedChoice?.trim().toUpperCase() || '?';
+                aggregationByQuestion[r.questionId][choice] = (aggregationByQuestion[r.questionId][choice] || 0) + 1;
+            }
+        }
+
+        console.log(`[experiment] Complete: accuracy=${(summary.accuracy * 100).toFixed(1)}% correct=${summary.correct}/${summary.total}`);
         return NextResponse.json({
             summary,
             results,
+            ...(numRuns > 1 ? { aggregationByQuestion, runCount: numRuns } : {}),
         });
     } catch (error) {
-        console.error('Experiment failed:', error);
+        console.error('[experiment] Failed:', error);
         return NextResponse.json({ error: 'Experiment failed' }, { status: 500 });
     }
 }
@@ -201,41 +392,48 @@ async function evaluateControlledQuestion(q: Question, config: ExperimentConfig,
         ]
         : [{ arm: 'single', temperature: 0 }];
 
-    return Promise.all(
-        arms.map(async ({ arm, temperature }) => {
-            const inference = await runControlledInference(model, systemPrompt, userContent, temperature);
-            const parsed = parseControlledAnswer(inference.output, validLetters);
-            const groundTruth = q.answer_letter;
+    const runArm = async ({ arm, temperature }: { arm: EvaluationArm; temperature: number }) => {
+        const inference = await runControlledInference(model, systemPrompt, userContent, temperature);
+        const parsed = parseControlledAnswer(inference.output, validLetters);
+        const groundTruth = q.answer_letter;
+        return {
+            model,
+            questionId: q.id,
+            questionText: q.question,
+            originalQuestion: q.question,
+            modelOutput: inference.output,
+            parsedChoice: parsed.answer,
+            groundTruth,
+            originalGroundTruth: q.answer_letter,
+            isCorrect: parsed.answer === groundTruth,
+            isPerturbed: false,
+            choices: q.choices,
+            subfield: q.subfield,
+            benchmarkProfile: 'controlled' as const,
+            evaluationArm: arm,
+            temperatureUsed: temperature,
+            temperatureApplied: inference.temperatureApplied,
+            parseMethod: parsed.parseMethod,
+            isSchemaCompliant: parsed.isSchemaCompliant,
+            apiTransport: inference.apiTransport,
+        };
+    };
 
-            return {
-                model,
-                questionId: q.id,
-                questionText: q.question,
-                originalQuestion: q.question,
-                modelOutput: inference.output,
-                parsedChoice: parsed.answer,
-                groundTruth,
-                originalGroundTruth: q.answer_letter,
-                isCorrect: parsed.answer === groundTruth,
-                isPerturbed: false,
-                choices: q.choices,
-                subfield: q.subfield,
-                benchmarkProfile: 'controlled',
-                evaluationArm: arm,
-                temperatureUsed: temperature,
-                temperatureApplied: inference.temperatureApplied,
-                parseMethod: parsed.parseMethod,
-                isSchemaCompliant: parsed.isSchemaCompliant,
-                apiTransport: inference.apiTransport,
-            };
-        })
-    );
+    if (isClaudeModel(model)) {
+        const out: EvaluationResult[] = [];
+        for (const a of arms) {
+            out.push(await runArm(a));
+            await sleep(CLAUDE_DELAY_BETWEEN_REQUESTS_MS);
+        }
+        return out;
+    }
+    return Promise.all(arms.map(runArm));
 }
 
 async function runLegacyInference(model: string, systemPrompt: string, userContent: string, temperature: number) {
     const isResponsesAPI = model === 'gpt-5-mini' || model === 'gpt-5-nano';
     if (isResponsesAPI) {
-        const response = await openai.responses.create({
+        const response = await withRetryOn429(() => openai.responses.create({
             model,
             input: userContent,
             instructions: systemPrompt,
@@ -253,7 +451,7 @@ async function runLegacyInference(model: string, systemPrompt: string, userConte
                 'reasoning.encrypted_content',
                 'web_search_call.action.sources',
             ],
-        });
+        }));
         return {
             output: extractResponsesText(response),
             temperatureApplied: false,
@@ -278,18 +476,75 @@ async function runControlledInference(model: string, systemPrompt: string, userC
     };
 }
 
+function isClaudeModel(model: string): boolean {
+    return model.startsWith('claude-');
+}
+
+async function createClaudeCompletion(model: string, systemPrompt: string, userContent: string, temperature: number) {
+    const apiKey = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+        throw new Error('CLAUDE_API_KEY or ANTHROPIC_API_KEY must be set in .env to use Claude models.');
+    }
+
+    const doRequest = async () => {
+        const body: Record<string, unknown> = {
+            model,
+            max_tokens: 1024,
+            messages: [{ role: 'user', content: userContent }],
+            temperature,
+        };
+        if (systemPrompt && systemPrompt.trim().length > 0) {
+            body.system = systemPrompt;
+        }
+
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify(body),
+        });
+
+        const json = (await response.json().catch(() => ({}))) as { error?: { message?: string }; content?: Array<{ text?: string }> };
+        if (!response.ok) {
+            const retryAfter = response.headers?.get?.('retry-after');
+            const err = new Error(json?.error?.message || `Anthropic request failed: ${response.status}`);
+            const errExt = err as unknown as { status?: number; response?: { headers?: Headers; retryAfter?: string } };
+            errExt.status = response.status;
+            errExt.response = { headers: response.headers, retryAfter: retryAfter ?? undefined };
+            throw err;
+        }
+
+        const parts = Array.isArray(json?.content) ? json.content : [];
+        const text = parts.map((p) => p?.text).filter(Boolean).join('');
+        return text || '';
+    };
+
+    const output = await withRetryOn429(doRequest, { isClaude: true });
+    return {
+        output,
+        temperatureApplied: true,
+    };
+}
+
 async function createChatCompletion(model: string, systemPrompt: string, userContent: string, temperature: number) {
+    if (isClaudeModel(model)) {
+        return createClaudeCompletion(model, systemPrompt, userContent, temperature);
+    }
+
     const messages = [
         { role: 'system' as const, content: systemPrompt },
         { role: 'user' as const, content: userContent },
     ];
 
     try {
-        const response = await openai.chat.completions.create({
+        const response = await withRetryOn429(() => openai.chat.completions.create({
             model,
             messages,
             temperature,
-        });
+        }));
         return {
             output: response.choices[0]?.message?.content || '',
             temperatureApplied: true,
@@ -300,10 +555,10 @@ async function createChatCompletion(model: string, systemPrompt: string, userCon
             throw error;
         }
 
-        const response = await openai.chat.completions.create({
+        const response = await withRetryOn429(() => openai.chat.completions.create({
             model,
             messages,
-        });
+        }));
         return {
             output: response.choices[0]?.message?.content || '',
             temperatureApplied: false,
