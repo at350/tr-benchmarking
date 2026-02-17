@@ -14,6 +14,11 @@ type LshRunSummary = {
     largestClusterSize: number;
 };
 
+type ModelBreakdownEntry = {
+    model: string;
+    count: number;
+};
+
 type LshClusterSummary = {
     id: string;
     size: number;
@@ -22,9 +27,11 @@ type LshClusterSummary = {
         model: string;
         textPreview: string;
     };
-    modelBreakdown: Array<{
+    modelBreakdown: ModelBreakdownEntry[];
+    membersPreview?: Array<{
+        id: string;
         model: string;
-        count: number;
+        textPreview: string;
     }>;
 };
 
@@ -51,7 +58,8 @@ type ClusterMapRegion = {
     centerX: number;
     centerY: number;
     radius: number;
-    size: number;
+    visibleMembers: number;
+    totalMembers: number;
     dominantModel: string;
     note: string;
 };
@@ -63,10 +71,25 @@ type AxisDomain = {
     maxY: number;
 };
 
-const MAP_WIDTH = 940;
-const MAP_HEIGHT = 620;
+type ClusterSeed = {
+    clusterId: string;
+    radius: number;
+    visibleMembers: number;
+    totalMembers: number;
+    dominantModel: string;
+    note: string;
+    visibleBreakdown: ModelBreakdownEntry[];
+};
+
+type ModelStat = {
+    model: string;
+    count: number;
+};
+
+const MAP_WIDTH = 980;
+const MAP_HEIGHT = 640;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-const MODEL_PALETTE = ['#22c55e', '#ef4444', '#94a3b8', '#3b82f6', '#f97316', '#14b8a6', '#eab308', '#c084fc', '#06b6d4', '#ec4899'];
+const MODEL_PALETTE = ['#22c55e', '#ef4444', '#94a3b8', '#3b82f6', '#f97316', '#14b8a6', '#eab308', '#a855f7', '#06b6d4', '#f43f5e'];
 
 export default function LshRunsPage() {
     const [runs, setRuns] = useState<LshRunSummary[]>([]);
@@ -78,6 +101,14 @@ export default function LshRunsPage() {
     const [isLoadingSelectedRun, setIsLoadingSelectedRun] = useState(false);
     const [selectedRunError, setSelectedRunError] = useState<string | null>(null);
     const [isStreamConnected, setIsStreamConnected] = useState(false);
+
+    const [clusterQuery, setClusterQuery] = useState('');
+    const [minClusterSize, setMinClusterSize] = useState(1);
+    const [showNoise, setShowNoise] = useState(false);
+    const [showClusterHulls, setShowClusterHulls] = useState(true);
+    const [visibleModels, setVisibleModels] = useState<string[]>([]);
+    const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
+    const [hoveredClusterId, setHoveredClusterId] = useState<string | null>(null);
 
     const loadRuns = useCallback(async () => {
         try {
@@ -167,29 +198,153 @@ export default function LshRunsPage() {
         };
     }, [loadRuns, loadRunDetails, selectedRunFile]);
 
-    const mapData = useMemo(() => buildClusterMapData(selectedRun), [selectedRun]);
-    const modelColorMap = useMemo(() => buildModelColorMap(mapData.models), [mapData.models]);
-    const axisDomain = useMemo(() => buildAxisDomain(mapData.points, mapData.regions), [mapData.points, mapData.regions]);
-    const modelTotals = useMemo(() => buildModelTotals(selectedRun), [selectedRun]);
     const activeRunSummary = useMemo(
         () => runs.find((run) => run.fileName === selectedRunFile) || null,
         [runs, selectedRunFile]
     );
 
-    const xTicks = useMemo(() => buildTicks(axisDomain.minX, axisDomain.maxX, 6), [axisDomain.maxX, axisDomain.minX]);
-    const yTicks = useMemo(() => buildTicks(axisDomain.minY, axisDomain.maxY, 6), [axisDomain.maxY, axisDomain.minY]);
-    const callouts = useMemo(() => buildCallouts(mapData.regions, axisDomain), [axisDomain, mapData.regions]);
+    const modelStats = useMemo(() => buildModelStats(selectedRun), [selectedRun]);
+    const allModels = useMemo(() => modelStats.map((entry) => entry.model), [modelStats]);
+    const modelColorMap = useMemo(() => buildModelColorMap(allModels), [allModels]);
+
+    const maxClusterSize = useMemo(() => {
+        if (!selectedRun || selectedRun.clusters.length === 0) {
+            return 1;
+        }
+        return Math.max(1, ...selectedRun.clusters.map((cluster) => cluster.size));
+    }, [selectedRun]);
+
+    useEffect(() => {
+        setClusterQuery('');
+        setMinClusterSize(1);
+        setShowNoise(false);
+        setShowClusterHulls(true);
+        setSelectedClusterId(null);
+        setHoveredClusterId(null);
+    }, [selectedRun?.fileName]);
+
+    useEffect(() => {
+        if (minClusterSize > maxClusterSize) {
+            setMinClusterSize(maxClusterSize);
+        }
+    }, [maxClusterSize, minClusterSize]);
+
+    useEffect(() => {
+        setVisibleModels((previous) => {
+            if (allModels.length === 0) {
+                return [];
+            }
+            if (previous.length === 0) {
+                return allModels;
+            }
+            const kept = previous.filter((model) => allModels.includes(model));
+            return kept.length > 0 ? kept : allModels;
+        });
+    }, [allModels]);
+
+    const visibleModelSet = useMemo(() => new Set(visibleModels), [visibleModels]);
+
+    const filteredClusters = useMemo(() => {
+        if (!selectedRun) {
+            return [] as LshClusterSummary[];
+        }
+
+        const query = clusterQuery.trim().toLowerCase();
+        return selectedRun.clusters.filter((cluster) => {
+            if (!showNoise && cluster.id.toLowerCase() === 'noise') {
+                return false;
+            }
+            if (cluster.size < minClusterSize) {
+                return false;
+            }
+            if (query.length > 0) {
+                const haystack = `${cluster.id} ${cluster.representative.id} ${cluster.representative.model}`.toLowerCase();
+                if (!haystack.includes(query)) {
+                    return false;
+                }
+            }
+            return cluster.modelBreakdown.some((entry) => visibleModelSet.has(entry.model));
+        });
+    }, [clusterQuery, minClusterSize, selectedRun, showNoise, visibleModelSet]);
+
+    useEffect(() => {
+        setSelectedClusterId((previous) => {
+            if (previous && filteredClusters.some((cluster) => cluster.id === previous)) {
+                return previous;
+            }
+            if (filteredClusters.length === 0) {
+                return null;
+            }
+            return filteredClusters[0].id;
+        });
+    }, [filteredClusters]);
+
+    const filteredClusterLookup = useMemo(
+        () => new Map(filteredClusters.map((cluster) => [cluster.id, cluster])),
+        [filteredClusters]
+    );
+
+    const mapData = useMemo(
+        () => buildClusterMapData(filteredClusters, visibleModelSet),
+        [filteredClusters, visibleModelSet]
+    );
+
+    const axisDomain = useMemo(
+        () => buildAxisDomain(mapData.points, mapData.regions),
+        [mapData.points, mapData.regions]
+    );
+
+    const xTicks = useMemo(() => buildTicks(axisDomain.minX, axisDomain.maxX, 6), [axisDomain]);
+    const yTicks = useMemo(() => buildTicks(axisDomain.minY, axisDomain.maxY, 6), [axisDomain]);
+
+    const hoveredCluster = useMemo(
+        () => (hoveredClusterId ? filteredClusterLookup.get(hoveredClusterId) || null : null),
+        [filteredClusterLookup, hoveredClusterId]
+    );
+
+    const selectedCluster = useMemo(
+        () => (selectedClusterId ? filteredClusterLookup.get(selectedClusterId) || null : null),
+        [filteredClusterLookup, selectedClusterId]
+    );
+
+    const focusCluster = selectedCluster || hoveredCluster;
+    const activeClusterId = selectedClusterId || hoveredClusterId;
+
+    const resetFilters = () => {
+        setClusterQuery('');
+        setMinClusterSize(1);
+        setShowNoise(false);
+        setShowClusterHulls(true);
+        setVisibleModels(allModels);
+        setSelectedClusterId(null);
+        setHoveredClusterId(null);
+    };
+
+    const toggleModel = (model: string) => {
+        setVisibleModels((previous) => {
+            if (previous.includes(model)) {
+                return previous.filter((entry) => entry !== model);
+            }
+            return [...previous, model];
+        });
+    };
+
+    const selectOnlyModel = (model: string) => {
+        setVisibleModels([model]);
+        setSelectedClusterId(null);
+        setHoveredClusterId(null);
+    };
 
     return (
-        <main className="min-h-screen bg-[radial-gradient(1200px_600px_at_5%_-5%,rgba(59,130,246,0.2),transparent),radial-gradient(1000px_550px_at_95%_0%,rgba(34,197,94,0.18),transparent),#f8fafc] text-slate-900">
-            <div className="mx-auto max-w-[1560px] px-5 py-6 sm:px-8 sm:py-8">
+        <main className="min-h-screen bg-[radial-gradient(1200px_620px_at_6%_-8%,rgba(59,130,246,0.18),transparent),radial-gradient(1050px_620px_at_100%_0%,rgba(34,197,94,0.14),transparent),#f8fafc] text-slate-900">
+            <div className="mx-auto max-w-[1620px] px-5 py-6 sm:px-8 sm:py-8">
                 <header className="rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">LSH Run Atlas</p>
-                            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Cluster Separation Map</h1>
+                            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Interactive Cluster Separation Map</h1>
                             <p className="mt-2 text-sm text-slate-600">
-                                Visual layout of each run&apos;s cluster islands with representative summaries and model color separation.
+                                Filter by model and cluster size, then click a cluster to inspect details without overlapping labels.
                             </p>
                         </div>
 
@@ -272,7 +427,7 @@ export default function LshRunsPage() {
                                         <div>
                                             <h2 className="text-lg font-bold text-slate-900">Projected Cluster Islands</h2>
                                             <p className="text-sm text-slate-600">
-                                                Synthetic 2D layout for cluster separation and model overlap.
+                                                Click a cluster to lock focus. Hover for quick inspection. Use filters to simplify the view.
                                             </p>
                                         </div>
                                         <p className="rounded bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
@@ -280,149 +435,317 @@ export default function LshRunsPage() {
                                         </p>
                                     </div>
 
-                                    <div className="relative mt-4 overflow-hidden rounded-xl border border-slate-700 bg-slate-950">
-                                        <svg
-                                            viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
-                                            className="h-auto w-full"
-                                            role="img"
-                                            aria-label="Cluster scatter map"
-                                        >
-                                            <rect x={0} y={0} width={MAP_WIDTH} height={MAP_HEIGHT} fill="#0b1221" />
-
-                                            {xTicks.map((tick) => {
-                                                const x = toSvgX(tick, axisDomain);
-                                                return (
-                                                    <g key={`x-${tick}`}>
-                                                        <line x1={x} y1={0} x2={x} y2={MAP_HEIGHT} stroke="#334155" strokeOpacity={0.45} strokeWidth={1} />
-                                                        <text x={x} y={MAP_HEIGHT - 8} textAnchor="middle" fontSize="11" fill="#94a3b8">
-                                                            {formatTick(tick)}
-                                                        </text>
-                                                    </g>
-                                                );
-                                            })}
-
-                                            {yTicks.map((tick) => {
-                                                const y = toSvgY(tick, axisDomain);
-                                                return (
-                                                    <g key={`y-${tick}`}>
-                                                        <line x1={0} y1={y} x2={MAP_WIDTH} y2={y} stroke="#334155" strokeOpacity={0.45} strokeWidth={1} />
-                                                        <text x={10} y={y - 6} textAnchor="start" fontSize="11" fill="#94a3b8">
-                                                            {formatTick(tick)}
-                                                        </text>
-                                                    </g>
-                                                );
-                                            })}
-
-                                            {mapData.regions.map((region) => {
-                                                const color = modelColorMap.get(region.dominantModel) || '#94a3b8';
-                                                return (
-                                                    <circle
-                                                        key={`region-${region.clusterId}`}
-                                                        cx={toSvgX(region.centerX, axisDomain)}
-                                                        cy={toSvgY(region.centerY, axisDomain)}
-                                                        r={Math.max((region.radius / (axisDomain.maxX - axisDomain.minX)) * MAP_WIDTH, 8)}
-                                                        fill={color}
-                                                        fillOpacity={0.12}
-                                                        stroke={color}
-                                                        strokeOpacity={0.5}
-                                                        strokeWidth={1}
-                                                    />
-                                                );
-                                            })}
-
-                                            {mapData.points.map((point, index) => (
-                                                <circle
-                                                    key={`${point.clusterId}-${index}`}
-                                                    cx={toSvgX(point.x, axisDomain)}
-                                                    cy={toSvgY(point.y, axisDomain)}
-                                                    r={3.6}
-                                                    fill={modelColorMap.get(point.model) || '#94a3b8'}
-                                                    fillOpacity={0.85}
+                                    <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+                                        <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
+                                            <div className="lg:col-span-2">
+                                                <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Search Cluster / Representative</label>
+                                                <input
+                                                    type="text"
+                                                    value={clusterQuery}
+                                                    onChange={(event) => setClusterQuery(event.target.value)}
+                                                    placeholder="cluster id, representative id, model"
+                                                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none ring-blue-200 placeholder:text-slate-400 focus:ring"
                                                 />
-                                            ))}
+                                            </div>
 
-                                            <text x={MAP_WIDTH / 2} y={22} textAnchor="middle" fontSize="15" fill="#e2e8f0" fontWeight="700">
-                                                {selectedRun.fileName}
-                                            </text>
-                                            <text x={MAP_WIDTH - 16} y={MAP_HEIGHT - 30} textAnchor="end" fontSize="11" fill="#94a3b8">
-                                                Projection X
-                                            </text>
-                                            <text
-                                                transform={`translate(18 ${MAP_HEIGHT / 2}) rotate(-90)`}
-                                                textAnchor="middle"
-                                                fontSize="11"
-                                                fill="#94a3b8"
+                                            <div>
+                                                <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Min Cluster Size</label>
+                                                <div className="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2">
+                                                    <input
+                                                        type="range"
+                                                        min={1}
+                                                        max={maxClusterSize}
+                                                        value={minClusterSize}
+                                                        onChange={(event) => setMinClusterSize(Number(event.target.value))}
+                                                        className="w-full"
+                                                    />
+                                                    <p className="mt-1 text-xs font-semibold text-slate-700">{minClusterSize} and above</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">View Options</p>
+                                                <label className="flex items-center gap-2 text-sm text-slate-700">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={showNoise}
+                                                        onChange={(event) => setShowNoise(event.target.checked)}
+                                                        className="h-4 w-4 rounded border-slate-300"
+                                                    />
+                                                    Show noise cluster
+                                                </label>
+                                                <label className="flex items-center gap-2 text-sm text-slate-700">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={showClusterHulls}
+                                                        onChange={(event) => setShowClusterHulls(event.target.checked)}
+                                                        className="h-4 w-4 rounded border-slate-300"
+                                                    />
+                                                    Show cluster hulls
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    onClick={resetFilters}
+                                                    className="rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                                                >
+                                                    Reset filters
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setVisibleModels(allModels)}
+                                                className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
                                             >
-                                                Projection Y
-                                            </text>
-                                        </svg>
+                                                All models
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setVisibleModels([])}
+                                                className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                                            >
+                                                None
+                                            </button>
 
-                                        <div className="pointer-events-none absolute inset-0 hidden lg:block">
-                                            {callouts.map((callout) => {
-                                                const color = modelColorMap.get(callout.dominantModel) || '#94a3b8';
+                                            {modelStats.map((entry) => {
+                                                const enabled = visibleModels.includes(entry.model);
+                                                const color = modelColorMap.get(entry.model) || '#94a3b8';
                                                 return (
-                                                    <div
-                                                        key={`callout-${callout.clusterId}`}
-                                                        className="absolute rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm"
-                                                        style={{
-                                                            left: `${callout.left}px`,
-                                                            top: `${callout.top}px`,
-                                                            width: `${callout.width}px`,
-                                                        }}
+                                                    <button
+                                                        key={entry.model}
+                                                        type="button"
+                                                        onClick={() => toggleModel(entry.model)}
+                                                        onDoubleClick={() => selectOnlyModel(entry.model)}
+                                                        title="Double-click to isolate"
+                                                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition ${enabled ? 'border-slate-300 bg-white text-slate-800' : 'border-slate-200 bg-slate-100 text-slate-400'}`}
                                                     >
-                                                        <div className="mb-2 border-l-4 pl-2" style={{ borderLeftColor: color }}>
-                                                            <p className="text-sm font-bold text-slate-900">
-                                                                {callout.clusterId === 'noise' ? 'Noise Cloud' : `Cluster ${callout.clusterId} Island`}
-                                                            </p>
-                                                            <p className="text-[11px] font-semibold text-slate-500">{callout.size} members</p>
-                                                        </div>
-                                                        <p className="text-xs text-slate-600">{callout.note || 'No representative summary available.'}</p>
-                                                    </div>
+                                                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color, opacity: enabled ? 1 : 0.35 }} />
+                                                        {entry.model} ({entry.count})
+                                                    </button>
                                                 );
                                             })}
                                         </div>
                                     </div>
 
-                                    <div className="mt-4 flex flex-wrap gap-2">
-                                        {Array.from(modelTotals.entries()).map(([model, count]) => (
-                                            <span
-                                                key={model}
-                                                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
-                                            >
-                                                <span
-                                                    className="h-2.5 w-2.5 rounded-full"
-                                                    style={{ backgroundColor: modelColorMap.get(model) || '#94a3b8' }}
-                                                />
-                                                {model} ({count})
-                                            </span>
-                                        ))}
-                                    </div>
-                                </section>
+                                    <div className="mt-4 grid grid-cols-12 gap-4">
+                                        <div className="col-span-12 xl:col-span-8">
+                                            <div className="relative overflow-hidden rounded-xl border border-slate-700 bg-slate-950">
+                                                <svg
+                                                    viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
+                                                    className="h-auto w-full"
+                                                    role="img"
+                                                    aria-label="Cluster scatter map"
+                                                >
+                                                    <rect
+                                                        x={0}
+                                                        y={0}
+                                                        width={MAP_WIDTH}
+                                                        height={MAP_HEIGHT}
+                                                        fill="#061227"
+                                                        onClick={() => setSelectedClusterId(null)}
+                                                    />
 
-                                <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                    {selectedRun.clusters.slice(0, 6).map((cluster) => {
-                                        const dominantColor = modelColorMap.get(cluster.modelBreakdown[0]?.model || 'unknown') || '#94a3b8';
-                                        return (
-                                            <article key={cluster.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                                    {xTicks.map((tick) => {
+                                                        const x = toSvgX(tick, axisDomain);
+                                                        return (
+                                                            <g key={`x-${tick}`}>
+                                                                <line x1={x} y1={0} x2={x} y2={MAP_HEIGHT} stroke="#334155" strokeOpacity={0.42} strokeWidth={1} />
+                                                                <text x={x} y={MAP_HEIGHT - 9} textAnchor="middle" fontSize="11" fill="#94a3b8">
+                                                                    {formatTick(tick)}
+                                                                </text>
+                                                            </g>
+                                                        );
+                                                    })}
+
+                                                    {yTicks.map((tick) => {
+                                                        const y = toSvgY(tick, axisDomain);
+                                                        return (
+                                                            <g key={`y-${tick}`}>
+                                                                <line x1={0} y1={y} x2={MAP_WIDTH} y2={y} stroke="#334155" strokeOpacity={0.42} strokeWidth={1} />
+                                                                <text x={10} y={y - 6} textAnchor="start" fontSize="11" fill="#94a3b8">
+                                                                    {formatTick(tick)}
+                                                                </text>
+                                                            </g>
+                                                        );
+                                                    })}
+
+                                                    {showClusterHulls && mapData.regions.map((region) => {
+                                                        const active = activeClusterId === region.clusterId;
+                                                        const muted = Boolean(activeClusterId) && !active;
+                                                        const color = modelColorMap.get(region.dominantModel) || '#94a3b8';
+                                                        return (
+                                                            <circle
+                                                                key={`region-${region.clusterId}`}
+                                                                cx={toSvgX(region.centerX, axisDomain)}
+                                                                cy={toSvgY(region.centerY, axisDomain)}
+                                                                r={Math.max((region.radius / (axisDomain.maxX - axisDomain.minX || 1)) * MAP_WIDTH, 8)}
+                                                                fill={color}
+                                                                fillOpacity={active ? 0.22 : muted ? 0.05 : 0.12}
+                                                                stroke={color}
+                                                                strokeOpacity={active ? 0.95 : muted ? 0.2 : 0.55}
+                                                                strokeWidth={active ? 2.2 : 1.2}
+                                                                onMouseEnter={() => setHoveredClusterId(region.clusterId)}
+                                                                onMouseLeave={() => setHoveredClusterId((current) => (current === region.clusterId ? null : current))}
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+                                                                    setSelectedClusterId(region.clusterId);
+                                                                }}
+                                                                className="cursor-pointer"
+                                                            />
+                                                        );
+                                                    })}
+
+                                                    {mapData.points.map((point, index) => {
+                                                        const active = activeClusterId === point.clusterId;
+                                                        const muted = Boolean(activeClusterId) && !active;
+                                                        return (
+                                                            <circle
+                                                                key={`${point.clusterId}-${index}`}
+                                                                cx={toSvgX(point.x, axisDomain)}
+                                                                cy={toSvgY(point.y, axisDomain)}
+                                                                r={active ? 4.8 : 3.4}
+                                                                fill={modelColorMap.get(point.model) || '#94a3b8'}
+                                                                fillOpacity={muted ? 0.18 : 0.9}
+                                                                onMouseEnter={() => setHoveredClusterId(point.clusterId)}
+                                                                onMouseLeave={() => setHoveredClusterId((current) => (current === point.clusterId ? null : current))}
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+                                                                    setSelectedClusterId(point.clusterId);
+                                                                }}
+                                                                className="cursor-pointer"
+                                                            />
+                                                        );
+                                                    })}
+
+                                                    <text x={MAP_WIDTH / 2} y={22} textAnchor="middle" fontSize="15" fill="#dbeafe" fontWeight="700">
+                                                        {selectedRun.fileName}
+                                                    </text>
+                                                    <text x={MAP_WIDTH - 16} y={MAP_HEIGHT - 28} textAnchor="end" fontSize="11" fill="#94a3b8">
+                                                        Projection X
+                                                    </text>
+                                                    <text
+                                                        transform={`translate(18 ${MAP_HEIGHT / 2}) rotate(-90)`}
+                                                        textAnchor="middle"
+                                                        fontSize="11"
+                                                        fill="#94a3b8"
+                                                    >
+                                                        Projection Y
+                                                    </text>
+                                                </svg>
+
+                                                {mapData.points.length === 0 && (
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-slate-950/70 p-4 text-center">
+                                                        <p className="max-w-md rounded-lg border border-slate-600 bg-slate-900/90 px-4 py-3 text-sm text-slate-200">
+                                                            No points match the current filters. Re-enable models or lower the cluster size threshold.
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <p className="mt-2 text-xs text-slate-500">
+                                                Filtered clusters: {filteredClusters.length} / {selectedRun.clusters.length} - Visible points: {mapData.points.length}
+                                            </p>
+                                        </div>
+
+                                        <aside className="col-span-12 xl:col-span-4">
+                                            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                                                 <div className="flex items-center justify-between gap-2">
-                                                    <h3 className="text-sm font-bold text-slate-900">
-                                                        {cluster.id === 'noise' ? 'Noise Cluster' : `Cluster ${cluster.id}`}
-                                                    </h3>
-                                                    <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                                                        {cluster.size} members
-                                                    </span>
+                                                    <h3 className="text-sm font-bold text-slate-900">Cluster Inspector</h3>
+                                                    {selectedClusterId && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedClusterId(null)}
+                                                            className="rounded border border-slate-300 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-200"
+                                                        >
+                                                            Clear focus
+                                                        </button>
+                                                    )}
                                                 </div>
-                                                <div className="mt-2 h-1.5 rounded-full" style={{ backgroundColor: dominantColor, opacity: 0.75 }} />
-                                                <p className="mt-3 text-xs text-slate-700">
-                                                    Representative: <span className="font-semibold">{cluster.representative.id}</span> ({cluster.representative.model})
-                                                </p>
-                                                <p className="mt-1 text-xs text-slate-600">{cluster.representative.textPreview || 'No representative preview available.'}</p>
-                                                <p className="mt-2 text-xs text-slate-600">
-                                                    Model mix: {cluster.modelBreakdown.map((entry) => `${entry.model} (${entry.count})`).join(', ')}
-                                                </p>
-                                            </article>
-                                        );
-                                    })}
+
+                                                {focusCluster ? (
+                                                    <div className="mt-3 space-y-3">
+                                                        <div>
+                                                            <p className="text-sm font-bold text-slate-900">
+                                                                {focusCluster.id === 'noise' ? 'Noise Cluster' : `Cluster ${focusCluster.id}`}
+                                                            </p>
+                                                            <p className="mt-0.5 text-xs text-slate-600">{focusCluster.size} members</p>
+                                                        </div>
+
+                                                        <p className="text-xs text-slate-700">
+                                                            Representative: <span className="font-semibold">{focusCluster.representative.id}</span>
+                                                            {' '}({focusCluster.representative.model})
+                                                        </p>
+                                                        <p className="text-xs text-slate-600">{focusCluster.representative.textPreview || 'No representative preview available.'}</p>
+
+                                                        <div className="space-y-1">
+                                                            {focusCluster.modelBreakdown.map((entry) => (
+                                                                <div key={`${focusCluster.id}-${entry.model}`} className="flex items-center justify-between gap-2 rounded border border-slate-200 bg-slate-50 px-2 py-1">
+                                                                    <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
+                                                                        <span
+                                                                            className="h-2.5 w-2.5 rounded-full"
+                                                                            style={{ backgroundColor: modelColorMap.get(entry.model) || '#94a3b8' }}
+                                                                        />
+                                                                        {entry.model}
+                                                                    </span>
+                                                                    <span className="text-xs font-semibold text-slate-700">{entry.count}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
+                                                        {focusCluster.membersPreview && focusCluster.membersPreview.length > 0 && (
+                                                            <div>
+                                                                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Sample members</p>
+                                                                <div className="mt-1.5 space-y-1">
+                                                                    {focusCluster.membersPreview.slice(0, 3).map((member) => (
+                                                                        <div key={`${focusCluster.id}-${member.id}`} className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5">
+                                                                            <p className="text-[11px] font-semibold text-slate-700">{member.id} ({member.model})</p>
+                                                                            <p className="mt-0.5 text-[11px] text-slate-600">{member.textPreview}</p>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <p className="mt-3 text-sm text-slate-600">Click or hover a cluster to inspect details.</p>
+                                                )}
+
+                                                <div className="mt-4 border-t border-slate-200 pt-3">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Visible cluster list</p>
+                                                    <div className="mt-2 max-h-64 space-y-1.5 overflow-y-auto pr-1">
+                                                        {filteredClusters.length === 0 ? (
+                                                            <p className="text-xs text-slate-500">No clusters match current filters.</p>
+                                                        ) : (
+                                                            filteredClusters.map((cluster) => {
+                                                                const dominantModel = cluster.modelBreakdown[0]?.model || 'unknown';
+                                                                const dominantColor = modelColorMap.get(dominantModel) || '#94a3b8';
+                                                                const selected = selectedClusterId === cluster.id;
+                                                                const hovered = hoveredClusterId === cluster.id;
+                                                                return (
+                                                                    <button
+                                                                        key={cluster.id}
+                                                                        type="button"
+                                                                        onClick={() => setSelectedClusterId(cluster.id)}
+                                                                        onMouseEnter={() => setHoveredClusterId(cluster.id)}
+                                                                        onMouseLeave={() => setHoveredClusterId((current) => (current === cluster.id ? null : current))}
+                                                                        className={`flex w-full items-center justify-between rounded-md border px-2 py-1.5 text-left text-xs transition ${selected ? 'border-blue-300 bg-blue-50' : hovered ? 'border-slate-300 bg-slate-100' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
+                                                                    >
+                                                                        <span className="inline-flex items-center gap-2 font-semibold text-slate-700">
+                                                                            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: dominantColor }} />
+                                                                            {cluster.id === 'noise' ? 'Noise' : `Cluster ${cluster.id}`}
+                                                                        </span>
+                                                                        <span className="font-semibold text-slate-600">{cluster.size}</span>
+                                                                    </button>
+                                                                );
+                                                            })
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </aside>
+                                    </div>
                                 </section>
                             </div>
                         )}
@@ -450,68 +773,154 @@ function EmptyStateCard({ message, isError = false }: { message: string; isError
     );
 }
 
-function buildClusterMapData(run: LshRunDetails | null) {
+function buildModelStats(run: LshRunDetails | null): ModelStat[] {
     if (!run) {
-        return { points: [] as ClusterMapPoint[], regions: [] as ClusterMapRegion[], models: [] as string[] };
+        return [];
     }
 
-    const points: ClusterMapPoint[] = [];
-    const regions: ClusterMapRegion[] = [];
-    const modelSet = new Set<string>();
-    const clusterCount = Math.max(run.clusters.length, 1);
+    const totals = new Map<string, number>();
+    for (const cluster of run.clusters) {
+        for (const entry of cluster.modelBreakdown) {
+            totals.set(entry.model, (totals.get(entry.model) || 0) + entry.count);
+        }
+    }
 
-    run.clusters.forEach((cluster, clusterIndex) => {
-        const ring = 16 + Math.floor(clusterIndex / 7) * 15;
-        const angle = (clusterIndex / clusterCount) * Math.PI * 2 + (Math.floor(clusterIndex / 7) * 0.25);
-        const centerX = Math.cos(angle) * ring;
-        const centerY = Math.sin(angle) * (ring * 0.76);
-        const radius = 3.2 + Math.sqrt(Math.max(cluster.size, 1)) * 1.8;
-        const dominantModel = cluster.modelBreakdown[0]?.model || 'unknown';
-        const modelSequence = expandModelsByCount(cluster.modelBreakdown, cluster.size);
-        const note = cluster.representative.textPreview;
-
-        regions.push({
-            clusterId: cluster.id,
-            centerX,
-            centerY,
-            radius,
-            size: cluster.size,
-            dominantModel,
-            note,
+    return Array.from(totals.entries())
+        .map(([model, count]) => ({ model, count }))
+        .sort((a, b) => {
+            if (b.count !== a.count) {
+                return b.count - a.count;
+            }
+            return a.model.localeCompare(b.model);
         });
+}
 
-        if (modelSequence.length === 0) {
-            modelSequence.push(dominantModel);
+function buildClusterMapData(
+    clusters: LshClusterSummary[],
+    visibleModels: Set<string>
+) {
+    if (clusters.length === 0 || visibleModels.size === 0) {
+        return { points: [] as ClusterMapPoint[], regions: [] as ClusterMapRegion[] };
+    }
+
+    const seeds: ClusterSeed[] = clusters
+        .map((cluster) => {
+            const visibleBreakdown = cluster.modelBreakdown.filter((entry) => visibleModels.has(entry.model));
+            const visibleMembers = visibleBreakdown.reduce((total, entry) => total + entry.count, 0);
+            if (visibleMembers === 0) {
+                return null;
+            }
+
+            const dominantModel = visibleBreakdown[0]?.model || cluster.modelBreakdown[0]?.model || 'unknown';
+            const radius = 2.8 + Math.sqrt(visibleMembers) * 1.9;
+
+            return {
+                clusterId: cluster.id,
+                radius,
+                visibleMembers,
+                totalMembers: cluster.size,
+                dominantModel,
+                note: cluster.representative.textPreview,
+                visibleBreakdown,
+            };
+        })
+        .filter((seed): seed is ClusterSeed => seed !== null);
+
+    if (seeds.length === 0) {
+        return { points: [] as ClusterMapPoint[], regions: [] as ClusterMapRegion[] };
+    }
+
+    const seededRegions: ClusterMapRegion[] = seeds.map((seed, index) => {
+        const spiralStep = 8 + Math.floor(index / 6) * 7;
+        const angle = index * GOLDEN_ANGLE * 0.92;
+        return {
+            clusterId: seed.clusterId,
+            centerX: Math.cos(angle) * spiralStep,
+            centerY: Math.sin(angle) * spiralStep * 0.72,
+            radius: seed.radius,
+            visibleMembers: seed.visibleMembers,
+            totalMembers: seed.totalMembers,
+            dominantModel: seed.dominantModel,
+            note: seed.note,
+        };
+    });
+
+    const regions = resolveRegionOverlaps(seededRegions);
+    const regionByCluster = new Map(regions.map((region) => [region.clusterId, region]));
+
+    const points: ClusterMapPoint[] = [];
+    for (const seed of seeds) {
+        const region = regionByCluster.get(seed.clusterId);
+        if (!region) {
+            continue;
         }
 
-        modelSequence.forEach((model, pointIndex) => {
-            modelSet.add(model);
-            const seed = hashString(`${cluster.id}:${model}:${pointIndex}`);
-            const localRadius = radius * Math.sqrt((pointIndex + 1) / modelSequence.length);
-            const theta = pointIndex * GOLDEN_ANGLE + seededFloat(seed, 1) * 0.7;
-            const jitterX = (seededFloat(seed, 2) - 0.5) * 1.2;
-            const jitterY = (seededFloat(seed, 3) - 0.5) * 1.2;
+        const sequence = expandModelsByCount(seed.visibleBreakdown, seed.visibleMembers);
+        sequence.forEach((model, pointIndex) => {
+            const randomSeed = hashString(`${seed.clusterId}:${model}:${pointIndex}`);
+            const radialPosition = region.radius * Math.sqrt((pointIndex + 1) / sequence.length);
+            const theta = pointIndex * GOLDEN_ANGLE + seededFloat(randomSeed, 1) * 0.85;
+            const jitterX = (seededFloat(randomSeed, 2) - 0.5) * 0.85;
+            const jitterY = (seededFloat(randomSeed, 3) - 0.5) * 0.85;
 
             points.push({
-                x: centerX + Math.cos(theta) * localRadius + jitterX,
-                y: centerY + Math.sin(theta) * localRadius + jitterY,
+                x: region.centerX + Math.cos(theta) * radialPosition + jitterX,
+                y: region.centerY + Math.sin(theta) * radialPosition + jitterY,
                 model,
-                clusterId: cluster.id,
+                clusterId: seed.clusterId,
             });
         });
-    });
+    }
 
     return {
         points,
-        regions: regions.sort((a, b) => b.size - a.size),
-        models: Array.from(modelSet).sort(),
+        regions: regions.sort((a, b) => b.visibleMembers - a.visibleMembers),
     };
 }
 
-function expandModelsByCount(
-    entries: Array<{ model: string; count: number }>,
-    fallbackCount: number
-) {
+function resolveRegionOverlaps(regions: ClusterMapRegion[]) {
+    const adjusted = regions.map((region) => ({ ...region }));
+
+    for (let iteration = 0; iteration < 120; iteration += 1) {
+        let moved = false;
+
+        for (let i = 0; i < adjusted.length; i += 1) {
+            for (let j = i + 1; j < adjusted.length; j += 1) {
+                const left = adjusted[i];
+                const right = adjusted[j];
+
+                const dx = right.centerX - left.centerX;
+                const dy = right.centerY - left.centerY;
+                const distance = Math.hypot(dx, dy) || 0.0001;
+                const minimumDistance = left.radius + right.radius + 2.3;
+
+                if (distance < minimumDistance) {
+                    const overlap = (minimumDistance - distance) * 0.5;
+                    const ux = dx / distance;
+                    const uy = dy / distance;
+                    left.centerX -= ux * overlap;
+                    left.centerY -= uy * overlap;
+                    right.centerX += ux * overlap;
+                    right.centerY += uy * overlap;
+                    moved = true;
+                }
+            }
+        }
+
+        for (const region of adjusted) {
+            region.centerX *= 0.995;
+            region.centerY *= 0.995;
+        }
+
+        if (!moved) {
+            break;
+        }
+    }
+
+    return adjusted;
+}
+
+function expandModelsByCount(entries: ModelBreakdownEntry[], fallbackCount: number) {
     const expanded: string[] = [];
     for (const entry of entries) {
         const safeCount = Number.isFinite(entry.count) ? Math.max(0, Math.floor(entry.count)) : 0;
@@ -531,19 +940,6 @@ function buildModelColorMap(models: string[]) {
         map.set(model, MODEL_PALETTE[index % MODEL_PALETTE.length]);
     });
     return map;
-}
-
-function buildModelTotals(run: LshRunDetails | null) {
-    const totals = new Map<string, number>();
-    if (!run) {
-        return totals;
-    }
-    for (const cluster of run.clusters) {
-        for (const entry of cluster.modelBreakdown) {
-            totals.set(entry.model, (totals.get(entry.model) || 0) + entry.count);
-        }
-    }
-    return new Map(Array.from(totals.entries()).sort((a, b) => a[0].localeCompare(b[0])));
 }
 
 function buildAxisDomain(points: ClusterMapPoint[], regions: ClusterMapRegion[]): AxisDomain {
@@ -591,26 +987,6 @@ function buildTicks(min: number, max: number, steps: number) {
     return Array.from({ length: steps + 1 }, (_, index) => min + (range * index) / steps);
 }
 
-function buildCallouts(regions: ClusterMapRegion[], domain: AxisDomain) {
-    const cards = regions.slice(0, 3).map((region, index) => {
-        const anchorX = toSvgX(region.centerX, domain);
-        const anchorY = toSvgY(region.centerY, domain);
-        const width = 246;
-        const height = 118;
-        const horizontalOffset = index === 1 ? -290 : 18;
-        const verticalOffset = index === 0 ? -95 : index === 1 ? 20 : -10;
-
-        return {
-            ...region,
-            width,
-            left: clamp(anchorX + horizontalOffset, 10, MAP_WIDTH - width - 10),
-            top: clamp(anchorY + verticalOffset, 10, MAP_HEIGHT - height - 10),
-        };
-    });
-
-    return cards;
-}
-
 function toSvgX(value: number, domain: AxisDomain) {
     const ratio = (value - domain.minX) / (domain.maxX - domain.minX || 1);
     return ratio * MAP_WIDTH;
@@ -633,10 +1009,6 @@ function hashString(value: string) {
 function seededFloat(seed: number, stream: number) {
     const mixed = Math.sin(seed * 0.013 + stream * 17.933) * 43758.5453;
     return mixed - Math.floor(mixed);
-}
-
-function clamp(value: number, min: number, max: number) {
-    return Math.min(Math.max(value, min), max);
 }
 
 function formatRunTimestamp(timestamp: string | null) {
