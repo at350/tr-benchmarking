@@ -74,7 +74,7 @@ async def fetch_response(model: str, question: str, index: int) -> dict:
         }
     except Exception as e:
         print(f"Error fetching from {model}: {e}")
-        return None
+        return None # type: ignore
 
 async def generate_dataset(num_responses=200, output_file="lsh/data/responses.json"):
     os.makedirs(os.path.dirname(output_file), exist_ok=True)

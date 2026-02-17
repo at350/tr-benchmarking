@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ConfigPanel as ForcedConfigPanel, ExperimentConfig as ForcedExperimentConfig } from '@/components/ConfigPanel';
 import { ConfigPanel as MainConfigPanel, ExperimentConfig as MainExperimentConfig } from '@/components/ConfigPanelMain';
@@ -406,6 +407,12 @@ export default function Home() {
                         <div className="text-xs font-mono text-gray-400">
                             v0.1.0-sprint1
                         </div>
+                        <Link
+                            href="/lsh-runs"
+                            className="text-xs font-semibold text-blue-700 hover:text-blue-900 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5"
+                        >
+                            LSH Runs
+                        </Link>
                     </div>
                 </div>
             </header>
