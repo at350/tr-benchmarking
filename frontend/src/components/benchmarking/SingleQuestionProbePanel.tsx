@@ -1,10 +1,10 @@
 'use client';
 
-import { useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { InfoTip } from '@/components/ui/InfoTip';
 import { getModelOptions, ModelProvider, ReasoningEffort, REASONING_OPTIONS, supportsReasoningEffortControl } from '@/lib/model-options';
-import type { PromptTemplate } from '@/lib/prompt-library';
+import { isBuiltinPromptTemplateId, type PromptTemplate } from '@/lib/prompt-library';
 
 export type DatasetQuestion = {
     id: string;
@@ -36,7 +36,16 @@ export type SingleProbeConfig = {
     selectedPromptId: string;
 };
 
+export type MultiModelSelectionOption = {
+    key: string;
+    provider: ModelProvider;
+    providerLabel: string;
+    model: string;
+    modelLabel: string;
+};
+
 type SingleQuestionProbePanelProps = {
+    mode?: 'single' | 'multi_model';
     config: SingleProbeConfig;
     setConfig: React.Dispatch<React.SetStateAction<SingleProbeConfig>>;
     availableQuestions: DatasetQuestion[];
@@ -58,9 +67,17 @@ type SingleQuestionProbePanelProps = {
     isRunning: boolean;
     canRun: boolean;
     runDisabledReason?: string;
+    multiModelOptions?: MultiModelSelectionOption[];
+    selectedMultiModelKeys?: string[];
+    multiModelRunsPerArm?: number;
+    onToggleMultiModel?: (key: string) => void;
+    onSelectAllMultiModels?: () => void;
+    onClearAllMultiModels?: () => void;
+    onMultiModelRunsPerArmChange?: (value: number) => void;
 };
 
 export function SingleQuestionProbePanel({
+    mode = 'single',
     config,
     setConfig,
     availableQuestions,
@@ -82,18 +99,52 @@ export function SingleQuestionProbePanel({
     isRunning,
     canRun,
     runDisabledReason,
+    multiModelOptions = [],
+    selectedMultiModelKeys = [],
+    multiModelRunsPerArm = 1,
+    onToggleMultiModel,
+    onSelectAllMultiModels,
+    onClearAllMultiModels,
+    onMultiModelRunsPerArmChange,
 }: SingleQuestionProbePanelProps) {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [datasetQuestionQuery, setDatasetQuestionQuery] = useState('');
 
     const filteredQuestions = availableQuestions.filter((row) => {
         const matchesSubject = config.subjectFilter === 'All' || (row.subfield || 'Unknown') === config.subjectFilter;
         const matchesDifficulty = config.difficultyFilter === 'All' || (row.difficulty || 'Unknown') === config.difficultyFilter;
         return matchesSubject && matchesDifficulty;
     });
+    const searchableQuestions = useMemo(() => {
+        const query = datasetQuestionQuery.trim().toLowerCase();
+        if (!query) {
+            return filteredQuestions;
+        }
+
+        return filteredQuestions.filter((question) => {
+            const haystack = [
+                question.id,
+                question.question,
+                question.subfield,
+                question.difficulty,
+                question.answer_letter,
+                ...question.choices,
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+
+            return haystack.includes(query);
+        });
+    }, [datasetQuestionQuery, filteredQuestions]);
+    const visibleQuestionRows = searchableQuestions.slice(0, 30);
 
     const subjectOptions = ['All', ...Array.from(new Set(availableQuestions.map((row) => row.subfield || 'Unknown'))).sort()];
     const difficultyOptions = ['All', ...Array.from(new Set(availableQuestions.map((row) => row.difficulty || 'Unknown'))).sort()];
     const supportsReasoningControl = supportsReasoningEffortControl(config.provider, config.model);
+    const selectedPromptIsBuiltin = selectedPrompt ? isBuiltinPromptTemplateId(selectedPrompt.id) : false;
+    const isMultiMode = mode === 'multi_model';
+    const promptInputsDisabled = isMultiMode ? false : !config.useCustomPrompt;
 
     const handleImportClick = () => {
         fileInputRef.current?.click();
@@ -130,8 +181,14 @@ export function SingleQuestionProbePanel({
     return (
         <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div>
-                <h3 className="text-lg font-bold text-slate-900">Single Question Probe</h3>
-                <p className="mt-1 text-sm text-slate-600">Select one dataset question or edit a custom question, then benchmark a single model response with optional prompt injection.</p>
+                <h3 className="text-lg font-bold text-slate-900">
+                    {isMultiMode ? 'Single Question Multi-Model A/B' : 'Single Question Probe'}
+                </h3>
+                <p className="mt-1 text-sm text-slate-600">
+                    {isMultiMode
+                        ? 'Select one question, pick multiple models, then run each model multiple times per arm: without custom prompt and with custom prompt.'
+                        : 'Select one dataset question or edit a custom question, then benchmark a single model response with optional prompt injection.'}
+                </p>
             </div>
 
             <section className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -172,22 +229,43 @@ export function SingleQuestionProbePanel({
 
                 <label className="space-y-1 block">
                     <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
-                        Dataset Question
-                        <InfoTip label="Pick an existing dataset question and load it into the editor. You can modify text, options, and answer before running." />
+                        Dataset Question Search
+                        <InfoTip label="Search dataset questions by ID, text, choice text, subfield, or difficulty, then select from the results list." />
                     </span>
-                    <select
+                    <input
+                        type="text"
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                        value={config.selectedDatasetQuestionId}
-                        onChange={(event) => setConfig((prev) => ({ ...prev, selectedDatasetQuestionId: event.target.value }))}
-                    >
-                        <option value="">Select a question...</option>
-                        {filteredQuestions.map((question) => (
-                            <option key={question.id} value={question.id}>
-                                {question.id.slice(0, 12)}... - {(question.subfield || 'Unknown')} - {(question.difficulty || 'Unknown')}
-                            </option>
-                        ))}
-                    </select>
+                        placeholder="Search questions..."
+                        value={datasetQuestionQuery}
+                        onChange={(event) => setDatasetQuestionQuery(event.target.value)}
+                    />
                 </label>
+
+                <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-300 bg-white">
+                    {visibleQuestionRows.length === 0 ? (
+                        <p className="px-3 py-2 text-sm text-slate-500">No questions match your filters/search.</p>
+                    ) : (
+                        <div className="divide-y divide-slate-200">
+                            {visibleQuestionRows.map((question) => {
+                                const selected = config.selectedDatasetQuestionId === question.id;
+                                return (
+                                    <button
+                                        key={question.id}
+                                        type="button"
+                                        onClick={() => setConfig((prev) => ({ ...prev, selectedDatasetQuestionId: question.id }))}
+                                        className={`w-full px-3 py-2 text-left transition-colors ${selected ? 'bg-teal-50' : 'hover:bg-slate-50'}`}
+                                    >
+                                        <p className="text-xs font-mono text-slate-600">{question.id}</p>
+                                        <p className="mt-0.5 line-clamp-2 text-sm text-slate-800">{question.question}</p>
+                                        <p className="mt-1 text-[11px] text-slate-500">
+                                            {(question.subfield || 'Unknown')} | {(question.difficulty || 'Unknown')} | Ans {question.answer_letter || '?'}
+                                        </p>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
 
                 <button
                     type="button"
@@ -215,15 +293,28 @@ export function SingleQuestionProbePanel({
 
                 <div className="grid gap-3 sm:grid-cols-2">
                     {editableQuestion.choices.map((choice, index) => (
+                        (() => {
+                            const letter = String.fromCharCode(65 + index);
+                            const isCorrectChoice = editableQuestion.answerLetter === letter;
+                            return (
                         <label key={index} className="space-y-1 block">
-                            <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Choice {String.fromCharCode(65 + index)}</span>
+                            <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                                <span>Choice {letter}</span>
+                                {isCorrectChoice && (
+                                    <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                                        Correct
+                                    </span>
+                                )}
+                            </span>
                             <input
                                 type="text"
-                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                className={`w-full rounded-lg border bg-white px-3 py-2 text-sm ${isCorrectChoice ? 'border-emerald-400 ring-1 ring-emerald-200' : 'border-slate-300'}`}
                                 value={choice}
                                 onChange={(event) => updateChoice(index, event.target.value)}
                             />
                         </label>
+                            );
+                        })()
                     ))}
                 </div>
 
@@ -243,11 +334,92 @@ export function SingleQuestionProbePanel({
                         })}
                     </select>
                 </label>
+
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                    <span className="font-semibold">Current correct answer:</span>{' '}
+                    {editableQuestion.answerLetter}
+                    {editableQuestion.choices[(editableQuestion.answerLetter.charCodeAt(0) - 65)]?.trim()
+                        ? ` — ${editableQuestion.choices[(editableQuestion.answerLetter.charCodeAt(0) - 65)].trim()}`
+                        : ' (choice text is blank)'}
+                </div>
             </section>
 
-            <section className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Model Settings</p>
-                <div className="grid gap-3 md:grid-cols-2">
+            {isMultiMode ? (
+                <section className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Model Selection</p>
+                    <div className="flex flex-wrap items-end justify-between gap-3">
+                        <label className="space-y-1">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                                Runs Per Arm
+                                <InfoTip label="How many times to call each selected model for each arm. Total calls = selected models x 2 arms x runs per arm." />
+                            </span>
+                            <input
+                                type="number"
+                                min={1}
+                                max={20}
+                                step={1}
+                                value={multiModelRunsPerArm}
+                                onChange={(event) => {
+                                    const parsed = Number.parseInt(event.target.value, 10);
+                                    const safeValue = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 20) : 1;
+                                    onMultiModelRunsPerArmChange?.(safeValue);
+                                }}
+                                className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                            />
+                        </label>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={onSelectAllMultiModels}
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                        >
+                            Select All
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onClearAllMultiModels}
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                        >
+                            Clear
+                        </button>
+                        <span className="rounded-full border border-teal-300 bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-800">
+                            {selectedMultiModelKeys.length} selected
+                        </span>
+                        </div>
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-300 bg-white">
+                        {multiModelOptions.length === 0 ? (
+                            <p className="px-3 py-2 text-sm text-slate-500">No model options available.</p>
+                        ) : (
+                            <div className="divide-y divide-slate-200">
+                                {multiModelOptions.map((option) => {
+                                    const selected = selectedMultiModelKeys.includes(option.key);
+                                    return (
+                                        <label key={option.key} className={`flex cursor-pointer items-start gap-2 px-3 py-2 ${selected ? 'bg-teal-50' : 'hover:bg-slate-50'}`}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selected}
+                                                onChange={() => onToggleMultiModel?.(option.key)}
+                                                className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                                            />
+                                            <span className="min-w-0">
+                                                <span className="block text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">{option.providerLabel}</span>
+                                                <span className="block text-sm text-slate-800">{option.modelLabel}</span>
+                                                <span className="block text-[11px] text-slate-500">{option.model}</span>
+                                            </span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </section>
+            ) : (
+                <section className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Model Settings</p>
+                    <div className="grid gap-3 md:grid-cols-2">
                     <label className="space-y-1">
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
                             Provider
@@ -287,10 +459,10 @@ export function SingleQuestionProbePanel({
                             ))}
                         </select>
                     </label>
-                </div>
+                    </div>
 
-                {supportsReasoningControl && (
-                    <label className="space-y-1 block">
+                    {supportsReasoningControl && (
+                        <label className="space-y-1 block">
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
                             Thinking Effort
                             <InfoTip label="Controls reasoning effort for models that expose an explicit thinking dial." />
@@ -304,10 +476,10 @@ export function SingleQuestionProbePanel({
                                 <option key={option.value} value={option.value}>{option.label}</option>
                             ))}
                         </select>
-                    </label>
-                )}
+                        </label>
+                    )}
 
-                <label className="space-y-1 block">
+                    <label className="space-y-1 block">
                     <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
                         Temperature ({config.temperature.toFixed(1)})
                         <InfoTip label="Higher values increase variability. Lower values are more deterministic." />
@@ -321,22 +493,36 @@ export function SingleQuestionProbePanel({
                         value={config.temperature}
                         onChange={(event) => setConfig((prev) => ({ ...prev, temperature: parseFloat(event.target.value) }))}
                     />
-                </label>
-            </section>
+                    </label>
+                </section>
+            )}
 
-            <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+            <section className={`space-y-3 rounded-xl border border-slate-200 p-4 ${promptInputsDisabled ? 'bg-slate-100' : 'bg-white'}`}>
                 <div className="flex items-center justify-between gap-2">
                     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Prompt Library</p>
-                    <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
-                        <input
-                            type="checkbox"
-                            checked={config.useCustomPrompt}
-                            onChange={(event) => setConfig((prev) => ({ ...prev, useCustomPrompt: event.target.checked }))}
-                            className="h-4 w-4 rounded border-slate-300"
-                        />
-                        Use custom user prompt
-                    </label>
+                    {isMultiMode ? (
+                        <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                            Runs both: no prompt + custom prompt
+                        </span>
+                    ) : (
+                        <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
+                            <input
+                                type="checkbox"
+                                checked={config.useCustomPrompt}
+                                onChange={(event) => setConfig((prev) => ({ ...prev, useCustomPrompt: event.target.checked }))}
+                                className="h-4 w-4 rounded border-slate-300"
+                            />
+                            Use custom user prompt
+                        </label>
+                    )}
                 </div>
+                <p className={`text-xs ${promptInputsDisabled ? 'text-slate-500' : 'text-teal-700'}`}>
+                    {isMultiMode
+                        ? 'This test always runs both arms: without custom prompt and with the selected custom prompt.'
+                        : promptInputsDisabled
+                        ? 'Custom user prompt is OFF. Prompt template content will not be sent in the run payload.'
+                        : 'Custom user prompt is ON. The selected prompt content will be sent in the run payload.'}
+                </p>
 
                 <div className="grid gap-3 md:grid-cols-2">
                     <label className="space-y-1 block">
@@ -345,7 +531,8 @@ export function SingleQuestionProbePanel({
                             <InfoTip label="When custom prompt mode is enabled, this prompt is prepended before the question payload." />
                         </span>
                         <select
-                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                            disabled={promptInputsDisabled}
+                            className={`w-full rounded-lg border border-slate-300 px-3 py-2 text-sm ${promptInputsDisabled ? 'cursor-not-allowed bg-slate-100 text-slate-500' : 'bg-white'}`}
                             value={config.selectedPromptId}
                             onChange={(event) => setConfig((prev) => ({ ...prev, selectedPromptId: event.target.value }))}
                         >
@@ -360,7 +547,8 @@ export function SingleQuestionProbePanel({
                         <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Prompt Name</span>
                         <input
                             type="text"
-                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                            disabled={promptInputsDisabled}
+                            className={`w-full rounded-lg border border-slate-300 px-3 py-2 text-sm ${promptInputsDisabled ? 'cursor-not-allowed bg-slate-100 text-slate-500' : 'bg-white'}`}
                             placeholder="e.g. IRAC strict answer prompt"
                             value={promptNameDraft}
                             onChange={(event) => setPromptNameDraft(event.target.value)}
@@ -371,7 +559,8 @@ export function SingleQuestionProbePanel({
                 <label className="space-y-1 block">
                     <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Prompt Content</span>
                     <textarea
-                        className="min-h-[110px] w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                        disabled={promptInputsDisabled}
+                        className={`min-h-[110px] w-full rounded-lg border border-slate-300 px-3 py-2 text-sm ${promptInputsDisabled ? 'cursor-not-allowed bg-slate-100 text-slate-500' : 'bg-white'}`}
                         value={promptContentDraft}
                         onChange={(event) => setPromptContentDraft(event.target.value)}
                         placeholder="Write or edit the reusable user prompt template."
@@ -382,14 +571,15 @@ export function SingleQuestionProbePanel({
                     <button
                         type="button"
                         onClick={onSavePrompt}
-                        className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800 hover:bg-teal-100"
+                        disabled={promptInputsDisabled}
+                        className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800 hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Save Prompt
                     </button>
                     <button
                         type="button"
                         onClick={onDeletePrompt}
-                        disabled={!selectedPrompt}
+                        disabled={promptInputsDisabled || !selectedPrompt || selectedPromptIsBuiltin}
                         className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Delete Selected
@@ -397,14 +587,15 @@ export function SingleQuestionProbePanel({
                     <button
                         type="button"
                         onClick={handleImportClick}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                        disabled={promptInputsDisabled}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Import JSON
                     </button>
                     <button
                         type="button"
                         onClick={onExportPrompts}
-                        disabled={prompts.length === 0}
+                        disabled={promptInputsDisabled || prompts.length === 0}
                         className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Export JSON
@@ -419,6 +610,9 @@ export function SingleQuestionProbePanel({
                 </div>
 
                 {promptStatus && <p className="text-xs text-teal-700">{promptStatus}</p>}
+                {selectedPromptIsBuiltin && (
+                    <p className="text-xs text-slate-600">This is a built-in prompt template and cannot be deleted.</p>
+                )}
             </section>
 
             <button
@@ -430,13 +624,18 @@ export function SingleQuestionProbePanel({
                     : 'bg-gradient-to-r from-teal-600 to-blue-600 text-white hover:from-teal-500 hover:to-blue-500'
                     }`}
             >
-                {isRunning ? 'Running Single Probe...' : 'Run Single Question Probe'}
+                {isRunning
+                    ? (isMultiMode ? 'Running Multi-Model A/B Test...' : 'Running Single Probe...')
+                    : (isMultiMode ? 'Run Multi-Model Single Question A/B' : 'Run Single Question Probe')}
             </button>
 
             {!isRunning && !canRun && runDisabledReason && <p className="text-xs text-rose-700">{runDisabledReason}</p>}
 
-            {config.useCustomPrompt && !selectedPrompt && (
+            {!isMultiMode && config.useCustomPrompt && !selectedPrompt && (
                 <p className="text-xs text-amber-700">Custom prompt mode is enabled. Select or save a prompt template before running.</p>
+            )}
+            {isMultiMode && !selectedPrompt && (
+                <p className="text-xs text-amber-700">Select or save a prompt template. The custom-prompt arm uses this template.</p>
             )}
         </div>
     );

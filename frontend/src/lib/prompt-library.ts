@@ -7,6 +7,34 @@ export type PromptTemplate = {
 };
 
 export const PROMPT_LIBRARY_STORAGE_KEY = 'general-benchmarking.prompt-library.v1';
+const BUILTIN_PROMPT_TIMESTAMP = '2026-02-21T00:00:00.000Z';
+
+export const BUILTIN_PROMPT_TEMPLATES: PromptTemplate[] = [
+    {
+        id: 'builtin_irac_parsed_v1',
+        name: 'IRAC+Gates (Parsed)',
+        createdAt: BUILTIN_PROMPT_TIMESTAMP,
+        updatedAt: BUILTIN_PROMPT_TIMESTAMP,
+        content: [
+            'You are a legal reasoning assistant.',
+            'Do not fabricate cases, statutes, quotes, or facts.',
+            'If jurisdiction or time is missing, state a reasonable assumption briefly.',
+            'If the premise is impossible or false, say so and stop.',
+            '',
+            'Use IRAC+Gates internally:',
+            '1. Issue: identify the dispositive legal issue first.',
+            '2. Rule/Test: state controlling rule elements and key exceptions.',
+            '3. Application: apply each rule element to the provided facts using explicit because/since reasoning.',
+            '4. Conclusion: state likely legal outcome and strongest counterargument.',
+            '',
+            'Treat independent legal requirements as separate gates.',
+            'Map each exception/defense to the specific gate it modifies.',
+            '',
+            'For this benchmark question, after reasoning, output ONLY the final answer letter (A-J).',
+            'No explanation in the final output.',
+        ].join('\n'),
+    },
+];
 
 export function createPromptTemplate(name: string, content: string): PromptTemplate {
     const now = new Date().toISOString();
@@ -21,13 +49,13 @@ export function createPromptTemplate(name: string, content: string): PromptTempl
 
 export function readPromptLibraryFromStorage() {
     if (typeof window === 'undefined') {
-        return [] as PromptTemplate[];
+        return BUILTIN_PROMPT_TEMPLATES;
     }
 
     try {
         const raw = window.localStorage.getItem(PROMPT_LIBRARY_STORAGE_KEY);
         if (!raw) {
-            return [];
+            return BUILTIN_PROMPT_TEMPLATES;
         }
 
         const parsed = JSON.parse(raw) as unknown;
@@ -35,13 +63,14 @@ export function readPromptLibraryFromStorage() {
             return [];
         }
 
-        return parsed
+        const parsedPrompts = parsed
             .map((item) => normalizePromptTemplate(item))
             .filter((item): item is PromptTemplate => item !== null)
             .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+        return mergePromptLibraries(BUILTIN_PROMPT_TEMPLATES, parsedPrompts);
     } catch (error) {
         console.error('Failed to read prompt library:', error);
-        return [];
+        return BUILTIN_PROMPT_TEMPLATES;
     }
 }
 
@@ -110,6 +139,10 @@ export function mergePromptLibraries(existing: PromptTemplate[], incoming: Promp
 
 export function promptLibraryToJson(prompts: PromptTemplate[]) {
     return JSON.stringify({ prompts }, null, 2);
+}
+
+export function isBuiltinPromptTemplateId(id: string) {
+    return BUILTIN_PROMPT_TEMPLATES.some((template) => template.id === id);
 }
 
 function normalizePromptTemplate(value: unknown): PromptTemplate | null {

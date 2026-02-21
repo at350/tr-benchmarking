@@ -1,4 +1,4 @@
-export type BenchmarkMode = 'main' | 'forced_tests' | 'single_probe';
+export type BenchmarkMode = 'main' | 'forced_tests' | 'single_probe' | 'single_probe_multi_model';
 
 export type SavedBenchmarkRun = {
     id: string;

@@ -168,7 +168,7 @@ async function generateModelResponse({ provider, model, systemPrompt, messages, 
             request.temperature = temperature;
         }
 
-        const response = await (openai as unknown as {
+        const responsesClient = (openai as unknown as {
             responses: {
                 create: (payload: Record<string, unknown>) => Promise<{
                     output_text?: string;
@@ -177,7 +177,18 @@ async function generateModelResponse({ provider, model, systemPrompt, messages, 
                     }>;
                 }>;
             };
-        }).responses.create(request);
+        }).responses;
+
+        let response;
+        try {
+            response = await responsesClient.create(request);
+        } catch (error) {
+            if (!('temperature' in request) || !isUnsupportedTemperatureError(error)) {
+                throw error;
+            }
+            delete request.temperature;
+            response = await responsesClient.create(request);
+        }
 
         return extractResponsesText(response);
     }
@@ -272,27 +283,30 @@ async function generateGeminiResponse({ model, systemPrompt, messages, temperatu
         });
     }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: 'POST',
-        headers: {
-            'content-type': 'application/json',
-            'x-goog-api-key': apiKey,
-        },
-        body: JSON.stringify({
+    const thinkingLevel = mapGeminiThinkingLevel(reasoningEffort);
+    let json: unknown;
+    try {
+        json = await runGeminiGenerateContentRequest({
+            apiKey,
+            model,
             contents,
-            generationConfig: {
-                temperature,
-                ...(mapGeminiThinkingLevel(reasoningEffort)
-                    ? { thinkingConfig: { thinkingLevel: mapGeminiThinkingLevel(reasoningEffort) } }
-                    : {}),
-            },
-        }),
-    });
+            temperature,
+            thinkingLevel,
+            includeThinkingConfig: Boolean(thinkingLevel),
+        });
+    } catch (error) {
+        if (!thinkingLevel || !isUnsupportedGeminiThinkingError(error)) {
+            throw error;
+        }
 
-    const json = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        const error = extractProviderErrorMessage(json);
-        throw new Error(error || `Gemini request failed (${response.status}).`);
+        json = await runGeminiGenerateContentRequest({
+            apiKey,
+            model,
+            contents,
+            temperature,
+            thinkingLevel,
+            includeThinkingConfig: false,
+        });
     }
 
     if (!isRecord(json) || !Array.isArray(json.candidates) || json.candidates.length === 0) {
@@ -307,6 +321,49 @@ async function generateGeminiResponse({ model, systemPrompt, messages, temperatu
     return candidate.content.parts
         .map((part) => (isRecord(part) && typeof part.text === 'string' ? part.text : ''))
         .join('');
+}
+
+type GeminiGenerateContentRequestOptions = {
+    apiKey: string;
+    model: string;
+    contents: Array<{ role: string; parts: Array<{ text: string }> }>;
+    temperature: number;
+    thinkingLevel: 'low' | 'medium' | 'high' | null;
+    includeThinkingConfig: boolean;
+};
+
+async function runGeminiGenerateContentRequest({
+    apiKey,
+    model,
+    contents,
+    temperature,
+    thinkingLevel,
+    includeThinkingConfig,
+}: GeminiGenerateContentRequestOptions) {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST',
+        headers: {
+            'content-type': 'application/json',
+            'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({
+            contents,
+            generationConfig: {
+                temperature,
+                ...(includeThinkingConfig && thinkingLevel
+                    ? { thinkingConfig: { thinkingLevel } }
+                    : {}),
+            },
+        }),
+    });
+
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const error = extractProviderErrorMessage(json);
+        throw new Error(error || `Gemini request failed (${response.status}).`);
+    }
+
+    return json;
 }
 
 function normalizeQuestion(value: unknown): SingleQuestionPayload | null {
@@ -432,4 +489,27 @@ function extractProviderErrorMessage(value: unknown) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
+}
+
+function isUnsupportedTemperatureError(error: unknown) {
+    if (!isRecord(error)) {
+        return false;
+    }
+
+    const param = error.param;
+    if (param === 'temperature') {
+        return true;
+    }
+
+    const message = typeof error.message === 'string' ? error.message.toLowerCase() : '';
+    return message.includes('unsupported parameter') && message.includes('temperature');
+}
+
+function isUnsupportedGeminiThinkingError(error: unknown) {
+    if (!isRecord(error)) {
+        return false;
+    }
+
+    const message = typeof error.message === 'string' ? error.message.toLowerCase() : '';
+    return message.includes('thinking') && message.includes('not supported');
 }

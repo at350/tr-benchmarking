@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-export type BenchmarkMode = 'main' | 'forced_tests' | 'single_probe';
+export type BenchmarkMode = 'main' | 'forced_tests' | 'single_probe' | 'single_probe_multi_model';
 
 type BenchmarkSidebarProps = {
     collapsed: boolean;
@@ -30,6 +30,11 @@ const BENCHMARK_OPTIONS: Array<{
         mode: 'single_probe',
         title: 'Single Question Probe',
         description: 'Benchmark one editable question with optional custom prompt templates.',
+    },
+    {
+        mode: 'single_probe_multi_model',
+        title: 'Single Question Multi-Model A/B',
+        description: 'Run multiple models on one question in two arms: without prompt and with custom prompt.',
     },
 ];
 
@@ -79,6 +84,9 @@ function shortMode(mode: BenchmarkMode) {
     }
     if (mode === 'forced_tests') {
         return 'Forced';
+    }
+    if (mode === 'single_probe_multi_model') {
+        return 'Multi';
     }
     return 'Single';
 }

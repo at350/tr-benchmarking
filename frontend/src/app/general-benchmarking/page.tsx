@@ -5,7 +5,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { BenchmarkSidebar, BenchmarkMode } from '@/components/benchmarking/BenchmarkSidebar';
 import { SavedRunComparisonPanel } from '@/components/benchmarking/SavedRunComparisonPanel';
-import { DatasetQuestion, EditableSingleQuestion, SingleProbeConfig, SingleQuestionProbePanel } from '@/components/benchmarking/SingleQuestionProbePanel';
+import {
+    DatasetQuestion,
+    EditableSingleQuestion,
+    MultiModelSelectionOption,
+    SingleProbeConfig,
+    SingleQuestionProbePanel
+} from '@/components/benchmarking/SingleQuestionProbePanel';
 import { ConfigPanel as ForcedConfigPanel, ExperimentConfig as ForcedExperimentConfig } from '@/components/ConfigPanel';
 import { ConfigPanel as MainConfigPanel, ExperimentConfig as MainExperimentConfig } from '@/components/ConfigPanelMain';
 import { ResultsDashboard as ForcedResultsDashboard } from '@/components/ResultsDashboard';
@@ -14,9 +20,10 @@ import { AppShell } from '@/components/ui/AppShell';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { InfoTip } from '@/components/ui/InfoTip';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { getDefaultModelForProvider } from '@/lib/model-options';
+import { getDefaultModelForProvider, MODEL_OPTIONS_BY_PROVIDER, PROVIDER_LABELS } from '@/lib/model-options';
 import {
     createPromptTemplate,
+    isBuiltinPromptTemplateId,
     mergePromptLibraries,
     parsePromptLibraryImport,
     PromptTemplate,
@@ -63,6 +70,11 @@ type RunHistoryEntry = {
 const RUN_HISTORY_STORAGE_KEY = 'benchmarkdemo.runHistory.v1';
 const SAVED_RUN_STORAGE_KEY = 'general-benchmarking.saved-runs.v1';
 const MAX_RUN_HISTORY_ENTRIES = 20;
+const DEFAULT_MULTI_MODEL_KEYS = [
+    'openai::gpt-5.2-chat-latest',
+    'anthropic::claude-sonnet-4-5',
+    'gemini::gemini-2.5-pro',
+];
 
 export default function GeneralBenchmarkingPage() {
     const [benchmarkMode, setBenchmarkMode] = useState<BenchmarkMode>('forced_tests');
@@ -132,6 +144,8 @@ export default function GeneralBenchmarkingPage() {
         useCustomPrompt: false,
         selectedPromptId: '',
     });
+    const [selectedMultiModelKeys, setSelectedMultiModelKeys] = useState<string[]>(DEFAULT_MULTI_MODEL_KEYS);
+    const [multiModelRunsPerArm, setMultiModelRunsPerArm] = useState(1);
 
     const [editableQuestion, setEditableQuestion] = useState<EditableSingleQuestion>({
         id: 'custom-question',
@@ -162,6 +176,16 @@ export default function GeneralBenchmarkingPage() {
         () => promptLibrary.find((prompt) => prompt.id === singleProbeConfig.selectedPromptId) || null,
         [promptLibrary, singleProbeConfig.selectedPromptId],
     );
+    const multiModelOptions = useMemo<MultiModelSelectionOption[]>(() => {
+        return (Object.keys(MODEL_OPTIONS_BY_PROVIDER) as Array<keyof typeof MODEL_OPTIONS_BY_PROVIDER>)
+            .flatMap((provider) => MODEL_OPTIONS_BY_PROVIDER[provider].map((option) => ({
+                key: `${provider}::${option.value}`,
+                provider,
+                providerLabel: PROVIDER_LABELS[provider],
+                model: option.value,
+                modelLabel: option.label,
+            })));
+    }, []);
 
     useEffect(() => {
         setRunHistory(readRunHistoryFromStorage());
@@ -186,6 +210,11 @@ export default function GeneralBenchmarkingPage() {
     }, [selectedPrompt]);
 
     useEffect(() => {
+        const validKeys = new Set(multiModelOptions.map((option) => option.key));
+        setSelectedMultiModelKeys((previous) => previous.filter((key) => validKeys.has(key)));
+    }, [multiModelOptions]);
+
+    useEffect(() => {
         async function loadSingleDataset() {
             try {
                 const res = await fetch('/api/dataset?dataset=supergpqa');
@@ -206,7 +235,7 @@ export default function GeneralBenchmarkingPage() {
 
     useEffect(() => {
         async function loadMainOrForcedDataset() {
-            if (benchmarkMode === 'single_probe') {
+            if (benchmarkMode !== 'main' && benchmarkMode !== 'forced_tests') {
                 return;
             }
 
@@ -308,6 +337,25 @@ export default function GeneralBenchmarkingPage() {
 
         return { canRun: true, reason: undefined as string | undefined };
     }, [editableQuestion, selectedPrompt, singleProbeConfig.useCustomPrompt]);
+    const multiModelRunValidation = useMemo(() => {
+        if (!editableQuestion.question.trim()) {
+            return { canRun: false, reason: 'Question text is required.' };
+        }
+        const hasBlankChoice = editableQuestion.choices.some((choice) => !choice.trim());
+        if (hasBlankChoice) {
+            return { canRun: false, reason: 'All answer choices must be filled in.' };
+        }
+        if (selectedMultiModelKeys.length === 0) {
+            return { canRun: false, reason: 'Select at least one model.' };
+        }
+        if (!Number.isInteger(multiModelRunsPerArm) || multiModelRunsPerArm < 1 || multiModelRunsPerArm > 20) {
+            return { canRun: false, reason: 'Runs per arm must be between 1 and 20.' };
+        }
+        if (!selectedPrompt) {
+            return { canRun: false, reason: 'Select a saved prompt for the custom-prompt arm.' };
+        }
+        return { canRun: true, reason: undefined as string | undefined };
+    }, [editableQuestion, multiModelRunsPerArm, selectedMultiModelKeys, selectedPrompt]);
 
     const mainDashboardResults = results as Parameters<typeof MainResultsDashboard>[0]['results'];
     const mainDashboardSummary = summary as Parameters<typeof MainResultsDashboard>[0]['summary'];
@@ -449,20 +497,26 @@ export default function GeneralBenchmarkingPage() {
         }
     };
 
-    const runSingleProbe = async (signal: AbortSignal) => {
-        setRunStatusText('Running single question probe...');
-
+    const requestSingleProbe = async (
+        signal: AbortSignal,
+        options: {
+            provider: 'openai' | 'anthropic' | 'gemini';
+            model: string;
+            useCustomPrompt: boolean;
+            customPrompt: string;
+        }
+    ) => {
         const response = await fetch('/api/benchmark-single', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             signal,
             body: JSON.stringify({
-                provider: singleProbeConfig.provider,
-                model: singleProbeConfig.model,
+                provider: options.provider,
+                model: options.model,
                 temperature: singleProbeConfig.temperature,
                 reasoningEffort: singleProbeConfig.reasoningEffort,
-                useCustomPrompt: singleProbeConfig.useCustomPrompt,
-                customPrompt: selectedPrompt?.content || '',
+                useCustomPrompt: options.useCustomPrompt,
+                customPrompt: options.useCustomPrompt ? options.customPrompt : '',
                 question: {
                     id: editableQuestion.id,
                     question: editableQuestion.question,
@@ -484,10 +538,171 @@ export default function GeneralBenchmarkingPage() {
             throw new Error(json.error || `Single probe failed (${response.status}).`);
         }
 
+        return json;
+    };
+
+    const runSingleProbe = async (signal: AbortSignal) => {
+        setRunStatusText('Running single question probe...');
+        const json = await requestSingleProbe(signal, {
+            provider: singleProbeConfig.provider,
+            model: singleProbeConfig.model,
+            useCustomPrompt: singleProbeConfig.useCustomPrompt,
+            customPrompt: selectedPrompt?.content || '',
+        });
+
         if (json.results && json.summary) {
             setResults(json.results);
             setSummary(json.summary);
         }
+    };
+    const runMultiModelSingleProbe = async (signal: AbortSignal) => {
+        if (!selectedPrompt?.content) {
+            throw new Error('Select a saved custom prompt before running multi-model A/B.');
+        }
+
+        const selectedOptions = multiModelOptions.filter((option) => selectedMultiModelKeys.includes(option.key));
+        const repeatCount = Math.min(Math.max(multiModelRunsPerArm, 1), 20);
+        const aggregateResults: Record<string, unknown>[] = [];
+        const armStats = {
+            withPrompt: { correct: 0, total: 0 },
+            withoutPrompt: { correct: 0, total: 0 },
+        };
+        const perModelStats = new Map(
+            selectedOptions.map((option) => [
+                option.key,
+                {
+                    provider: option.provider,
+                    modelLabel: option.modelLabel,
+                    model: option.model,
+                    withPrompt: { correct: 0, total: 0 },
+                    withoutPrompt: { correct: 0, total: 0 },
+                },
+            ]),
+        );
+
+        let completed = 0;
+        const totalRuns = selectedOptions.length * 2 * repeatCount;
+
+        for (const option of selectedOptions) {
+            for (const promptMode of ['without', 'with'] as const) {
+                for (let repeatIndex = 1; repeatIndex <= repeatCount; repeatIndex += 1) {
+                    if (signal.aborted) {
+                        throw new DOMException('Aborted', 'AbortError');
+                    }
+
+                    const useCustomPrompt = promptMode === 'with';
+                    setRunStatusText(
+                        `Running ${option.modelLabel} (${useCustomPrompt ? 'with prompt' : 'without prompt'}) repeat ${repeatIndex}/${repeatCount} (${completed + 1}/${totalRuns})...`
+                    );
+
+                    const json = await requestSingleProbe(signal, {
+                        provider: option.provider,
+                        model: option.model,
+                        useCustomPrompt,
+                        customPrompt: selectedPrompt.content,
+                    });
+                    const responseResult = Array.isArray(json.results) && json.results.length > 0
+                        ? json.results[0]
+                        : null;
+                    const responseSummary = json.summary || {};
+                    const isCorrect = responseResult && typeof responseResult.isCorrect === 'boolean'
+                        ? responseResult.isCorrect
+                        : false;
+
+                    aggregateResults.push({
+                        modelProvider: option.provider,
+                        modelLabel: option.modelLabel,
+                        model: option.model,
+                        promptMode: useCustomPrompt ? 'with_custom_prompt' : 'without_custom_prompt',
+                        promptArmLabel: useCustomPrompt ? 'With Prompt' : 'Without Prompt',
+                        repeatIndex,
+                        runsPerArm: repeatCount,
+                        questionId: responseResult && typeof responseResult.questionId === 'string' ? responseResult.questionId : editableQuestion.id,
+                        groundTruth: responseResult && typeof responseResult.groundTruth === 'string' ? responseResult.groundTruth : editableQuestion.answerLetter,
+                        parsedChoice: responseResult && typeof responseResult.parsedChoice === 'string' ? responseResult.parsedChoice : 'Unknown',
+                        isCorrect,
+                        modelOutput: responseResult && typeof responseResult.modelOutput === 'string' ? responseResult.modelOutput : '',
+                        accuracy: typeof responseSummary.accuracy === 'number' ? responseSummary.accuracy : (isCorrect ? 1 : 0),
+                    });
+
+                    const currentModelStats = perModelStats.get(option.key);
+                    if (currentModelStats) {
+                        if (useCustomPrompt) {
+                            currentModelStats.withPrompt.total += 1;
+                            if (isCorrect) {
+                                currentModelStats.withPrompt.correct += 1;
+                            }
+                        } else {
+                            currentModelStats.withoutPrompt.total += 1;
+                            if (isCorrect) {
+                                currentModelStats.withoutPrompt.correct += 1;
+                            }
+                        }
+                    }
+
+                    if (useCustomPrompt) {
+                        armStats.withPrompt.total += 1;
+                        if (isCorrect) {
+                            armStats.withPrompt.correct += 1;
+                        }
+                    } else {
+                        armStats.withoutPrompt.total += 1;
+                        if (isCorrect) {
+                            armStats.withoutPrompt.correct += 1;
+                        }
+                    }
+
+                    completed += 1;
+                }
+            }
+        }
+
+        const totalCorrect = armStats.withPrompt.correct + armStats.withoutPrompt.correct;
+        const total = armStats.withPrompt.total + armStats.withoutPrompt.total;
+        const perModel = selectedOptions.map((option) => {
+            const modelStats = perModelStats.get(option.key);
+            const withoutPrompt = modelStats?.withoutPrompt || { correct: 0, total: 0 };
+            const withPrompt = modelStats?.withPrompt || { correct: 0, total: 0 };
+            const withoutPromptAccuracy = withoutPrompt.total > 0 ? withoutPrompt.correct / withoutPrompt.total : 0;
+            const withPromptAccuracy = withPrompt.total > 0 ? withPrompt.correct / withPrompt.total : 0;
+            return {
+                provider: option.provider,
+                modelLabel: option.modelLabel,
+                model: option.model,
+                withoutPrompt: {
+                    correct: withoutPrompt.correct,
+                    total: withoutPrompt.total,
+                    accuracy: withoutPromptAccuracy,
+                },
+                withPrompt: {
+                    correct: withPrompt.correct,
+                    total: withPrompt.total,
+                    accuracy: withPromptAccuracy,
+                },
+                delta: withPromptAccuracy - withoutPromptAccuracy,
+            };
+        });
+
+        setResults(aggregateResults);
+        setSummary({
+            dataset: 'single_probe_multi_model',
+            runsPerArm: repeatCount,
+            totalRuns: total,
+            modelCount: selectedOptions.length,
+            totalCorrect,
+            accuracyOverall: total > 0 ? totalCorrect / total : 0,
+            perModel,
+            withPrompt: {
+                total: armStats.withPrompt.total,
+                correct: armStats.withPrompt.correct,
+                accuracy: armStats.withPrompt.total > 0 ? armStats.withPrompt.correct / armStats.withPrompt.total : 0,
+            },
+            withoutPrompt: {
+                total: armStats.withoutPrompt.total,
+                correct: armStats.withoutPrompt.correct,
+                accuracy: armStats.withoutPrompt.total > 0 ? armStats.withoutPrompt.correct / armStats.withoutPrompt.total : 0,
+            },
+        });
     };
 
     const runExperiment = async () => {
@@ -498,6 +713,11 @@ export default function GeneralBenchmarkingPage() {
         if (benchmarkMode === 'single_probe') {
             if (!singleRunValidation.canRun) {
                 alert(singleRunValidation.reason || 'Cannot run single probe with current inputs.');
+                return;
+            }
+        } else if (benchmarkMode === 'single_probe_multi_model') {
+            if (!multiModelRunValidation.canRun) {
+                alert(multiModelRunValidation.reason || 'Cannot run multi-model single-question test with current inputs.');
                 return;
             }
         } else if (!canRunCurrentSelection) {
@@ -527,6 +747,8 @@ export default function GeneralBenchmarkingPage() {
                 await runMainExperiment(abortController.signal, mainConfigSnapshot);
             } else if (benchmarkMode === 'forced_tests') {
                 await runForcedExperiment(abortController.signal, forcedConfigSnapshot);
+            } else if (benchmarkMode === 'single_probe_multi_model') {
+                await runMultiModelSingleProbe(abortController.signal);
             } else {
                 await runSingleProbe(abortController.signal);
             }
@@ -576,6 +798,20 @@ export default function GeneralBenchmarkingPage() {
             }));
         }
     };
+    const toggleMultiModelSelection = (modelKey: string) => {
+        setSelectedMultiModelKeys((previous) => {
+            if (previous.includes(modelKey)) {
+                return previous.filter((key) => key !== modelKey);
+            }
+            return [...previous, modelKey];
+        });
+    };
+    const selectAllMultiModels = () => {
+        setSelectedMultiModelKeys(multiModelOptions.map((option) => option.key));
+    };
+    const clearAllMultiModels = () => {
+        setSelectedMultiModelKeys([]);
+    };
 
     const loadDatasetQuestionIntoEditor = () => {
         if (!singleProbeConfig.selectedDatasetQuestionId) {
@@ -588,18 +824,23 @@ export default function GeneralBenchmarkingPage() {
             return;
         }
 
-        const normalizedChoices = selected.choices.length >= 4
-            ? selected.choices.slice(0, 4)
-            : [...selected.choices, ...Array.from({ length: 4 - selected.choices.length }, () => '')];
+        const normalizedChoices = selected.choices
+            .map((choice) => choice.trim())
+            .filter((choice) => choice.length > 0)
+            .slice(0, 10);
+        const validLetters = getChoiceLetters(normalizedChoices.length);
 
-        const answerLetter = typeof selected.answer_letter === 'string' && selected.answer_letter.trim().length > 0
+        const incomingAnswerLetter = typeof selected.answer_letter === 'string' && selected.answer_letter.trim().length > 0
             ? selected.answer_letter.trim().toUpperCase()
-            : 'A';
+            : '';
+        const answerLetter = validLetters.includes(incomingAnswerLetter)
+            ? incomingAnswerLetter
+            : (validLetters[0] || 'A');
 
         setEditableQuestion({
             id: selected.id,
             question: selected.question,
-            choices: normalizedChoices,
+            choices: normalizedChoices.length > 0 ? normalizedChoices : ['', ''],
             answerLetter,
             subfield: selected.subfield,
             difficulty: selected.difficulty,
@@ -636,6 +877,10 @@ export default function GeneralBenchmarkingPage() {
     const deleteSelectedPrompt = () => {
         if (!selectedPrompt) {
             setPromptStatus('Select a prompt to delete.');
+            return;
+        }
+        if (isBuiltinPromptTemplateId(selectedPrompt.id)) {
+            setPromptStatus('Built-in prompt templates cannot be deleted.');
             return;
         }
 
@@ -686,11 +931,13 @@ export default function GeneralBenchmarkingPage() {
             mainConfig,
             forcedConfig,
             singleProbeConfig,
+            selectedMultiModelKeys,
+            multiModelRunsPerArm,
             editableQuestion,
             selectedPrompt,
         });
 
-        const runTitle = buildSavedRunTitle(benchmarkMode, mainConfig, forcedConfig, singleProbeConfig);
+        const runTitle = buildSavedRunTitle(benchmarkMode, mainConfig, forcedConfig, singleProbeConfig, multiModelRunsPerArm);
 
         const nextRun: SavedBenchmarkRun = {
             id: `saved_run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -776,7 +1023,7 @@ export default function GeneralBenchmarkingPage() {
                             <SectionHeader
                                 title="Active Benchmark"
                                 description={buildBenchmarkDescription(benchmarkMode)}
-                                actions={<InfoTip label="Use the left benchmark selector to switch between main dataset benchmarking, forced-test benchmarking, and the new single-question probe flow." />}
+                                actions={<InfoTip label="Use the left benchmark selector to switch between main benchmarking, forced-test benchmarking, single-question probing, and multi-model single-question A/B testing." />}
                             />
                         </section>
 
@@ -802,6 +1049,38 @@ export default function GeneralBenchmarkingPage() {
                                 selectionPreview={currentSelectionPreview}
                                 canRun={canRunCurrentSelection}
                                 runDisabledReason={runDisabledReason}
+                            />
+                        ) : benchmarkMode === 'single_probe_multi_model' ? (
+                            <SingleQuestionProbePanel
+                                mode="multi_model"
+                                config={singleProbeConfig}
+                                setConfig={setSingleProbeConfig}
+                                availableQuestions={singleDatasetRows}
+                                editableQuestion={editableQuestion}
+                                setEditableQuestion={setEditableQuestion}
+                                prompts={promptLibrary}
+                                selectedPrompt={selectedPrompt}
+                                promptNameDraft={promptNameDraft}
+                                setPromptNameDraft={setPromptNameDraft}
+                                promptContentDraft={promptContentDraft}
+                                setPromptContentDraft={setPromptContentDraft}
+                                promptStatus={promptStatus}
+                                onLoadDatasetQuestion={loadDatasetQuestionIntoEditor}
+                                onSavePrompt={savePromptTemplate}
+                                onDeletePrompt={deleteSelectedPrompt}
+                                onExportPrompts={exportPromptLibrary}
+                                onImportPrompts={importPromptLibrary}
+                                onRun={runExperiment}
+                                isRunning={isRunning}
+                                canRun={multiModelRunValidation.canRun}
+                                runDisabledReason={multiModelRunValidation.reason}
+                                multiModelOptions={multiModelOptions}
+                                selectedMultiModelKeys={selectedMultiModelKeys}
+                                multiModelRunsPerArm={multiModelRunsPerArm}
+                                onToggleMultiModel={toggleMultiModelSelection}
+                                onSelectAllMultiModels={selectAllMultiModels}
+                                onClearAllMultiModels={clearAllMultiModels}
+                                onMultiModelRunsPerArmChange={setMultiModelRunsPerArm}
                             />
                         ) : (
                             <SingleQuestionProbePanel
@@ -908,6 +1187,17 @@ export default function GeneralBenchmarkingPage() {
                                     isLoading={isRunning}
                                     loadingStatus={runStatusText}
                                 />
+                            ) : benchmarkMode === 'single_probe_multi_model' ? (
+                                isRunning ? (
+                                    <LoadingRunState status={runStatusText} />
+                                ) : summary ? (
+                                    <MultiModelProbeResults summary={summary} results={results} />
+                                ) : (
+                                    <EmptyState
+                                        title="No multi-model A/B results yet"
+                                        description="Choose models and run the multi-model single-question test to compare outputs with and without custom prompt."
+                                    />
+                                )
                             ) : isRunning ? (
                                 <LoadingRunState status={runStatusText} />
                             ) : summary ? (
@@ -990,6 +1280,320 @@ function SingleProbeResults({ summary, results }: { summary: Record<string, unkn
     );
 }
 
+function MultiModelProbeResults({ summary, results }: { summary: Record<string, unknown>; results: Record<string, unknown>[] }) {
+    const modelRows = results
+        .filter((row) => isRecord(row))
+        .map((row) => ({
+            provider: typeof row.modelProvider === 'string' ? row.modelProvider : 'unknown',
+            modelLabel: typeof row.modelLabel === 'string' ? row.modelLabel : 'Unknown Model',
+            model: typeof row.model === 'string' ? row.model : 'unknown',
+            promptMode: typeof row.promptMode === 'string' ? row.promptMode : 'unknown',
+            parsedChoice: typeof row.parsedChoice === 'string' ? row.parsedChoice : 'Unknown',
+            groundTruth: typeof row.groundTruth === 'string' ? row.groundTruth : 'Unknown',
+            isCorrect: typeof row.isCorrect === 'boolean' ? row.isCorrect : false,
+            repeatIndex: typeof row.repeatIndex === 'number' ? row.repeatIndex : 1,
+            modelOutput: typeof row.modelOutput === 'string' ? row.modelOutput : '',
+        }));
+    const modelStatsFromSummary = Array.isArray(summary.perModel)
+        ? summary.perModel
+            .filter((item) => isRecord(item))
+            .map((item) => {
+                const withoutPrompt = isRecord(item.withoutPrompt) ? item.withoutPrompt : {};
+                const withPrompt = isRecord(item.withPrompt) ? item.withPrompt : {};
+                const withoutPromptTotal = typeof withoutPrompt.total === 'number' ? withoutPrompt.total : 0;
+                const withoutPromptCorrect = typeof withoutPrompt.correct === 'number' ? withoutPrompt.correct : 0;
+                const withPromptTotal = typeof withPrompt.total === 'number' ? withPrompt.total : 0;
+                const withPromptCorrect = typeof withPrompt.correct === 'number' ? withPrompt.correct : 0;
+                const withoutPromptAccuracy = withoutPromptTotal > 0 ? withoutPromptCorrect / withoutPromptTotal : 0;
+                const withPromptAccuracy = withPromptTotal > 0 ? withPromptCorrect / withPromptTotal : 0;
+
+                return {
+                    key: `${typeof item.provider === 'string' ? item.provider : 'unknown'}::${typeof item.model === 'string' ? item.model : 'unknown'}`,
+                    provider: typeof item.provider === 'string' ? item.provider : 'unknown',
+                    model: typeof item.model === 'string' ? item.model : 'unknown',
+                    modelLabel: typeof item.modelLabel === 'string' ? item.modelLabel : 'Unknown Model',
+                    withoutPrompt: {
+                        total: withoutPromptTotal,
+                        correct: withoutPromptCorrect,
+                        accuracy: withoutPromptAccuracy,
+                    },
+                    withPrompt: {
+                        total: withPromptTotal,
+                        correct: withPromptCorrect,
+                        accuracy: withPromptAccuracy,
+                    },
+                    delta: withPromptAccuracy - withoutPromptAccuracy,
+                };
+            })
+        : [];
+    const modelStats = modelStatsFromSummary.length > 0
+        ? modelStatsFromSummary
+        : buildModelStatsFromRows(modelRows);
+
+    const withPrompt = isRecord(summary.withPrompt) ? summary.withPrompt : {};
+    const withoutPrompt = isRecord(summary.withoutPrompt) ? summary.withoutPrompt : {};
+    const runsPerArm = typeof summary.runsPerArm === 'number'
+        ? summary.runsPerArm
+        : inferRunsPerArmFromModelStats(modelStats);
+    const totalRuns = typeof summary.totalRuns === 'number' ? summary.totalRuns : modelRows.length;
+    const modelCount = typeof summary.modelCount === 'number' ? summary.modelCount : modelStats.length;
+    const overallAccuracy = typeof summary.accuracyOverall === 'number'
+        ? summary.accuracyOverall
+        : (totalRuns > 0 ? modelRows.filter((row) => row.isCorrect).length / totalRuns : 0);
+
+    return (
+        <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-4">
+                <MetricCard
+                    label="Overall Accuracy"
+                    value={formatPercent(overallAccuracy)}
+                />
+                <MetricCard label="Models" value={`${modelCount}`} />
+                <MetricCard label="Runs / Arm" value={`${runsPerArm}`} />
+                <MetricCard label="Total Calls" value={`${totalRuns}`} />
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">Grouped Accuracy Bars By Model</p>
+                <p className="mt-1 text-xs text-slate-500">Each model is shown with two bars so you can compare prompt effect directly.</p>
+                {modelStats.length === 0 ? (
+                    <p className="mt-2 text-sm text-slate-500">No model comparison rows returned.</p>
+                ) : (
+                    <div className="mt-3 space-y-3">
+                        {modelStats.map((row) => (
+                            <div key={row.key} className="rounded-lg border border-slate-200 bg-white p-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-sm font-semibold text-slate-800">{row.modelLabel}</p>
+                                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${row.delta >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                                        {row.delta >= 0 ? '+' : ''}{formatPercent(row.delta)}
+                                    </span>
+                                </div>
+                                <p className="mt-0.5 text-[11px] uppercase tracking-[0.08em] text-slate-500">{row.provider}</p>
+                                <div className="mt-3 space-y-2">
+                                    <AccuracyBar
+                                        label="Without Prompt"
+                                        accuracy={row.withoutPrompt.accuracy}
+                                        detail={`${row.withoutPrompt.correct}/${row.withoutPrompt.total}`}
+                                        colorClass="bg-slate-500"
+                                    />
+                                    <AccuracyBar
+                                        label="With Prompt"
+                                        accuracy={row.withPrompt.accuracy}
+                                        detail={`${row.withPrompt.correct}/${row.withPrompt.total}`}
+                                        colorClass="bg-teal-600"
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">Prompt Arm Summary</p>
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                <MetricCard
+                    label="Without Prompt"
+                    value={formatPercent(typeof withoutPrompt.accuracy === 'number' ? withoutPrompt.accuracy : 0)}
+                />
+                <MetricCard
+                    label="With Prompt"
+                    value={formatPercent(typeof withPrompt.accuracy === 'number' ? withPrompt.accuracy : 0)}
+                />
+                </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">Model Prompt Impact Table</p>
+                {modelStats.length === 0 ? (
+                    <p className="mt-2 text-sm text-slate-500">No rows returned.</p>
+                ) : (
+                    <div className="mt-2 max-h-80 overflow-auto rounded-lg border border-slate-200 bg-white">
+                        <table className="min-w-full text-left text-xs">
+                            <thead className="sticky top-0 bg-slate-100 text-slate-600">
+                                <tr>
+                                    <th className="px-2 py-1.5">Provider</th>
+                                    <th className="px-2 py-1.5">Model</th>
+                                    <th className="px-2 py-1.5">Without Prompt</th>
+                                    <th className="px-2 py-1.5">With Prompt</th>
+                                    <th className="px-2 py-1.5">Delta</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {modelStats.map((row) => (
+                                    <tr key={row.key}>
+                                        <td className="px-2 py-1.5 text-slate-700">{row.provider}</td>
+                                        <td className="px-2 py-1.5 text-slate-700">{row.modelLabel}</td>
+                                        <td className="px-2 py-1.5 text-slate-700">
+                                            {formatPercent(row.withoutPrompt.accuracy)} ({row.withoutPrompt.correct}/{row.withoutPrompt.total})
+                                        </td>
+                                        <td className="px-2 py-1.5 text-slate-700">
+                                            {formatPercent(row.withPrompt.accuracy)} ({row.withPrompt.correct}/{row.withPrompt.total})
+                                        </td>
+                                        <td className={`px-2 py-1.5 font-semibold ${row.delta >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                            {row.delta >= 0 ? '+' : ''}{formatPercent(row.delta)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">Attempt-Level Results</p>
+                <div className="max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white">
+                    <table className="min-w-full text-left text-xs">
+                        <thead className="sticky top-0 bg-slate-100 text-slate-600">
+                            <tr>
+                                <th className="px-2 py-1.5">Model</th>
+                                <th className="px-2 py-1.5">Prompt Arm</th>
+                                <th className="px-2 py-1.5">Repeat</th>
+                                <th className="px-2 py-1.5">Choice</th>
+                                <th className="px-2 py-1.5">Truth</th>
+                                <th className="px-2 py-1.5">Correct</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                            {modelRows.map((row, index) => (
+                                <tr key={`${row.provider}-${row.model}-${row.promptMode}-${row.repeatIndex}-${index}`}>
+                                    <td className="px-2 py-1.5 text-slate-700">{row.modelLabel}</td>
+                                    <td className="px-2 py-1.5 text-slate-700">{row.promptMode === 'with_custom_prompt' ? 'With Prompt' : 'Without Prompt'}</td>
+                                    <td className="px-2 py-1.5 text-slate-700">{row.repeatIndex}</td>
+                                    <td className="px-2 py-1.5 text-slate-700">{row.parsedChoice}</td>
+                                    <td className="px-2 py-1.5 text-slate-700">{row.groundTruth}</td>
+                                    <td className={`px-2 py-1.5 font-semibold ${row.isCorrect ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                        {row.isCorrect ? 'Yes' : 'No'}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">Raw Outputs</p>
+                <div className="max-h-72 space-y-2 overflow-auto rounded-xl border border-slate-200 bg-white p-2">
+                    {modelRows.map((row, index) => (
+                        <details key={`raw-${row.provider}-${row.model}-${row.promptMode}-${index}`} className="rounded border border-slate-200 bg-slate-50 p-2">
+                            <summary className="cursor-pointer text-xs font-semibold text-slate-700">
+                                {row.modelLabel} - {row.promptMode === 'with_custom_prompt' ? 'With Prompt' : 'Without Prompt'} - repeat {row.repeatIndex} - {row.parsedChoice}/{row.groundTruth}
+                            </summary>
+                            <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded border border-slate-200 bg-white p-2 text-[11px] text-slate-700">
+                                {row.modelOutput}
+                            </pre>
+                        </details>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function AccuracyBar({
+    label,
+    accuracy,
+    detail,
+    colorClass,
+}: {
+    label: string;
+    accuracy: number;
+    detail: string;
+    colorClass: string;
+}) {
+    const clampedPercent = Math.min(Math.max(accuracy, 0), 1) * 100;
+    return (
+        <div className="grid items-center gap-2 sm:grid-cols-[108px_minmax(0,1fr)_90px]">
+            <span className="text-xs font-semibold text-slate-600">{label}</span>
+            <div className="h-3 overflow-hidden rounded-full bg-slate-200">
+                <div className={`h-full rounded-full ${colorClass}`} style={{ width: `${clampedPercent}%` }} />
+            </div>
+            <span className="text-right text-xs text-slate-700">{formatPercent(accuracy)} ({detail})</span>
+        </div>
+    );
+}
+
+function buildModelStatsFromRows(rows: Array<{
+    provider: string;
+    modelLabel: string;
+    model: string;
+    promptMode: string;
+    isCorrect: boolean;
+}>) {
+    const stats = new Map<string, {
+        key: string;
+        provider: string;
+        modelLabel: string;
+        model: string;
+        withoutPrompt: { correct: number; total: number; accuracy: number };
+        withPrompt: { correct: number; total: number; accuracy: number };
+        delta: number;
+    }>();
+
+    for (const row of rows) {
+        const key = `${row.provider}::${row.model}`;
+        if (!stats.has(key)) {
+            stats.set(key, {
+                key,
+                provider: row.provider,
+                modelLabel: row.modelLabel,
+                model: row.model,
+                withoutPrompt: { correct: 0, total: 0, accuracy: 0 },
+                withPrompt: { correct: 0, total: 0, accuracy: 0 },
+                delta: 0,
+            });
+        }
+
+        const entry = stats.get(key);
+        if (!entry) {
+            continue;
+        }
+
+        const isWithPrompt = row.promptMode === 'with_custom_prompt';
+        if (isWithPrompt) {
+            entry.withPrompt.total += 1;
+            if (row.isCorrect) {
+                entry.withPrompt.correct += 1;
+            }
+        } else {
+            entry.withoutPrompt.total += 1;
+            if (row.isCorrect) {
+                entry.withoutPrompt.correct += 1;
+            }
+        }
+    }
+
+    return Array.from(stats.values()).map((entry) => {
+        entry.withoutPrompt.accuracy = entry.withoutPrompt.total > 0
+            ? entry.withoutPrompt.correct / entry.withoutPrompt.total
+            : 0;
+        entry.withPrompt.accuracy = entry.withPrompt.total > 0
+            ? entry.withPrompt.correct / entry.withPrompt.total
+            : 0;
+        entry.delta = entry.withPrompt.accuracy - entry.withoutPrompt.accuracy;
+        return entry;
+    });
+}
+
+function inferRunsPerArmFromModelStats(rows: Array<{
+    withoutPrompt: { total: number };
+    withPrompt: { total: number };
+}>) {
+    if (rows.length === 0) {
+        return 0;
+    }
+    return Math.max(
+        0,
+        ...rows.map((row) => Math.max(row.withPrompt.total, row.withoutPrompt.total)),
+    );
+}
+
+function formatPercent(value: number) {
+    return `${(value * 100).toFixed(1)}%`;
+}
+
 function MetricCard({ label, value }: { label: string; value: string }) {
     return (
         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -1006,6 +1610,9 @@ function buildBenchmarkDescription(mode: BenchmarkMode) {
     if (mode === 'forced_tests') {
         return 'Forced-test benchmark flow for legacy vs controlled profiles and model split comparisons.';
     }
+    if (mode === 'single_probe_multi_model') {
+        return 'Run multiple models on one question in two arms: without custom prompt and with custom prompt.';
+    }
     return 'Probe any single question with optional custom prompt templates and save runs for cross-run comparison.';
 }
 
@@ -1014,6 +1621,8 @@ function buildSavedRunConfigSnapshot({
     mainConfig,
     forcedConfig,
     singleProbeConfig,
+    selectedMultiModelKeys,
+    multiModelRunsPerArm,
     editableQuestion,
     selectedPrompt,
 }: {
@@ -1021,6 +1630,8 @@ function buildSavedRunConfigSnapshot({
     mainConfig: MainExperimentConfig;
     forcedConfig: ForcedExperimentConfig;
     singleProbeConfig: SingleProbeConfig;
+    selectedMultiModelKeys: string[];
+    multiModelRunsPerArm: number;
     editableQuestion: EditableSingleQuestion;
     selectedPrompt: PromptTemplate | null;
 }) {
@@ -1038,6 +1649,17 @@ function buildSavedRunConfigSnapshot({
             perturbations: { ...forcedConfig.perturbations },
         };
     }
+    if (benchmarkMode === 'single_probe_multi_model') {
+        return {
+            mode: 'single_probe_multi_model',
+            selectedModels: selectedMultiModelKeys,
+            runsPerArm: Math.min(Math.max(multiModelRunsPerArm, 1), 20),
+            question: editableQuestion,
+            prompt: selectedPrompt
+                ? { id: selectedPrompt.id, name: selectedPrompt.name }
+                : null,
+        };
+    }
 
     return {
         ...singleProbeConfig,
@@ -1053,6 +1675,7 @@ function buildSavedRunTitle(
     mainConfig: MainExperimentConfig,
     forcedConfig: ForcedExperimentConfig,
     singleProbeConfig: SingleProbeConfig,
+    multiModelRunsPerArm: number
 ) {
     if (benchmarkMode === 'main') {
         return `${mainConfig.dataset.toUpperCase()} - ${mainConfig.model}`;
@@ -1061,6 +1684,9 @@ function buildSavedRunTitle(
         return forcedConfig.compareModel
             ? `${forcedConfig.model} vs ${forcedConfig.compareModel}`
             : `${forcedConfig.model} (forced)`;
+    }
+    if (benchmarkMode === 'single_probe_multi_model') {
+        return `Multi-model single-question A/B (x${Math.min(Math.max(multiModelRunsPerArm, 1), 20)}/arm)`;
     }
     return `${singleProbeConfig.provider}/${singleProbeConfig.model} - single probe`;
 }
@@ -1396,7 +2022,7 @@ function normalizeSavedRun(value: unknown): SavedBenchmarkRun | null {
     const mode = value.mode;
     const title = typeof value.title === 'string' ? value.title : '';
 
-    if (!id || !savedAt || !title || (mode !== 'main' && mode !== 'forced_tests' && mode !== 'single_probe')) {
+    if (!id || !savedAt || !title || (mode !== 'main' && mode !== 'forced_tests' && mode !== 'single_probe' && mode !== 'single_probe_multi_model')) {
         return null;
     }
 
@@ -1463,6 +2089,11 @@ function formatHistoryTimestamp(isoDate: string) {
         return isoDate;
     }
     return parsed.toLocaleString();
+}
+
+function getChoiceLetters(choiceCount: number) {
+    const safeCount = Math.min(Math.max(choiceCount, 1), 10);
+    return Array.from({ length: safeCount }, (_, index) => String.fromCharCode(65 + index));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
