@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { InfoTip } from '@/components/ui/InfoTip';
 
 export type ExperimentConfig = {
     evaluationMode: 'supergpqa_prbench' | 'controlled_eval';
@@ -58,6 +59,15 @@ interface ConfigPanelProps {
     runDisabledReason?: string;
 }
 
+function FieldLabel({ label, helpText }: { label: string; helpText: string }) {
+    return (
+        <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 uppercase tracking-wider">
+            <span>{label}</span>
+            <InfoTip label={helpText} />
+        </div>
+    );
+}
+
 export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, subjects, selectionPreview, canRun, runDisabledReason }: ConfigPanelProps) {
     const isControlled = config.benchmarkProfile === 'controlled';
     const isControlledEval = config.evaluationMode === 'controlled_eval';
@@ -100,7 +110,7 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
 
             {/* Model Selection */}
             <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Model</label>
+                <FieldLabel label="Model" helpText="Primary model benchmarked in the forced suite." />
                 <select
                     className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
                     value={config.model}
@@ -112,7 +122,7 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
                 </select>
                 {isControlledEval && (
                     <>
-                        <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Compare Against (Optional)</label>
+                        <FieldLabel label="Compare Against (Optional)" helpText="Optional second model for side-by-side forced-test evaluation." />
                         <select
                             className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
                             value={config.compareModel}
@@ -128,7 +138,7 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
             </div>
 
             <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Benchmark Profile</label>
+                <FieldLabel label="Benchmark Profile" helpText="Controlled profile locks key knobs for reproducible testing." />
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                     <p className="text-sm font-semibold text-gray-700">
                         {isControlled ? 'Controlled Profile' : 'Legacy Profile'}
@@ -141,7 +151,7 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
 
             {/* Prompt Template */}
             <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Prompt Template</label>
+                <FieldLabel label="Prompt Template" helpText="Baseline and CoT prompt modes for legacy runs." />
                 <div className="grid grid-cols-2 gap-2">
                     <button
                         className={`p-2 rounded-lg text-sm font-medium transition-colors ${config.promptTemplate === 'baseline' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
@@ -163,9 +173,10 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
 
             {/* Temperature */}
             <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 uppercase tracking-wider">
                     Temperature: {config.temperature}
-                </label>
+                    <InfoTip label="Higher temperature increases randomness; controlled mode ignores this value." />
+                </div>
                 <input
                     type="range"
                     min="0" max="1" step="0.1"
@@ -182,7 +193,7 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
             {isControlled && (
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Question Sampling</label>
+                        <FieldLabel label="Question Sampling" helpText="Ordered follows ID order; stratified balances across subfields." />
                         <select
                             className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
                             value={config.samplingStrategy}
@@ -196,7 +207,7 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
                         </p>
                     </div>
 
-                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Determinism Split</label>
+                    <FieldLabel label="Determinism Split" helpText="Runs deterministic and stochastic arms to compare variance." />
                     <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-700">Run deterministic + stochastic arms</span>
                         <input
@@ -227,7 +238,7 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
 
             {/* Perturbations */}
             <div className="space-y-4">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Perturbations</label>
+                <FieldLabel label="Perturbations" helpText="Noise controls for robustness checks. Disabled in controlled profile." />
 
                 <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-700">Adversarial Text</span>
@@ -260,7 +271,7 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
 
             {/* Data Selection */}
             <div className="space-y-3">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Dataset Filter</label>
+                <FieldLabel label="Dataset Filter" helpText="Filter subfields and difficulty before selecting sampled IDs." />
 
                 <select
                     className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
@@ -298,7 +309,7 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Question Selection</label>
+                    <FieldLabel label="Question Selection" helpText="Auto sample or provide explicit IDs to run." />
                     <div className="grid grid-cols-2 gap-2">
                         <button
                             type="button"
@@ -321,7 +332,7 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
                     <div className="space-y-2">
                         {(!isControlled || config.samplingStrategy !== 'stratified') && (
                             <>
-                                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Auto Order</label>
+                                <FieldLabel label="Auto Order" helpText="Choose deterministic ordering or seeded random ordering." />
                                 <select
                                     className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
                                     value={config.autoSelectionOrder}
@@ -334,7 +345,7 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
                         )}
                         {config.autoSelectionOrder === 'random' && (!isControlled || config.samplingStrategy !== 'stratified') && (
                             <div className="space-y-1">
-                                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Sample Seed</label>
+                                <FieldLabel label="Sample Seed" helpText="Keeps random auto-sampling reproducible." />
                                 <input
                                     type="number"
                                     className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
@@ -349,7 +360,7 @@ export function ConfigPanel({ config, setConfig, onRun, onCancel, isLoading, sub
                     </div>
                 ) : (
                     <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Question IDs (comma or newline separated)</label>
+                        <FieldLabel label="Question IDs (comma or newline separated)" helpText="Run the exact IDs listed here after filter application." />
                         <textarea
                             className="w-full min-h-[88px] p-2 border rounded-lg bg-gray-50 text-sm font-mono"
                             placeholder="e.g. 00f9f2c1-...&#10;2a17c3fd-..."
