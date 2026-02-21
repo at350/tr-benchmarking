@@ -408,6 +408,12 @@ export default function Home() {
                             v0.1.0-sprint1
                         </div>
                         <Link
+                            href="/database-view"
+                            className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5"
+                        >
+                            Dataset View
+                        </Link>
+                        <Link
                             href="/lsh-runs"
                             className="text-xs font-semibold text-blue-700 hover:text-blue-900 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5"
                         >

@@ -363,8 +363,10 @@ export default function LshRunsPage() {
         setMinClusterSize(1);
         setShowNoise(false);
         setShowClusterHulls(true);
+        setVisibleModels([]);
         setSelectedClusterId(null);
         setHoveredClusterId(null);
+        setIsResizingPanes(false);
     }, [selectedRun?.fileName]);
 
     useEffect(() => {
@@ -946,6 +948,7 @@ export default function LshRunsPage() {
                                         <div className="min-w-0 xl:shrink-0 xl:basis-[var(--map-pane-basis)]">
                                             <div className="relative overflow-hidden rounded-xl border border-slate-700 bg-slate-950">
                                                 <svg
+                                                    key={selectedRun.fileName}
                                                     viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
                                                     className="h-auto w-full"
                                                     role="img"
