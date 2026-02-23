@@ -55,9 +55,14 @@ export async function GET(req: Request) {
         }
 
         const csvPath = resolveDatasetPath([
+            path.join(process.cwd(), 'datasets/supergpqa/SuperGPQA Law Data feb ten.csv'),
+            path.join(process.cwd(), '../datasets/supergpqa/SuperGPQA Law Data feb ten.csv'),
+            path.join(process.cwd(), 'datasets/supergpqa/SuperGPQA Law Data_with_num_options_and_law_system.csv'),
+            path.join(process.cwd(), '../datasets/supergpqa/SuperGPQA Law Data_with_num_options_and_law_system.csv'),
+            path.join(process.cwd(), 'datasets/supergpqa/SuperGPQA Law Data_with_num_options.csv'),
+            path.join(process.cwd(), '../datasets/supergpqa/SuperGPQA Law Data_with_num_options.csv'),
             path.join(process.cwd(), '../datasets/supergpqa/SuperGPQA Law Data.csv'),
-            path.join(process.cwd(), '../datasets/SuperGPQA Law Data.csv'),
-            path.join(process.cwd(), 'datasets/supergpqa/SuperGPQA Law Data.csv'),
+            path.join(process.cwd(), '../datasets/supergpqa/SuperGPQA Law Data.csv'),
             path.join(process.cwd(), 'datasets/SuperGPQA Law Data.csv')
         ]);
 
@@ -114,15 +119,22 @@ export async function GET(req: Request) {
                 id: record.uuid,
                 question: record.question,
                 choices: choices,
-                answer: record.answer, // The text answer
-                answer_letter: record.answer_letter, // A, B, C etc
+                answer: record.answer,
+                answer_letter: record.answer_letter,
                 discipline: record.discipline,
                 subfield: record.subfield,
                 difficulty: record.difficulty,
+                ...(record.num_options != null && { num_options: Number(record.num_options) }),
+                ...(record.law_system != null && record.law_system !== '' && { law_system: String(record.law_system) }),
             };
         });
 
-        return NextResponse.json({ data: normalizedData });
+        // Only return Law questions (no other disciplines/categories)
+        const lawOnly = normalizedData.filter(
+            (row: { discipline?: string }) => String(row.discipline || '').toLowerCase() === 'law'
+        );
+
+        return NextResponse.json({ data: lawOnly });
     } catch (error) {
         console.error('Error loading dataset:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

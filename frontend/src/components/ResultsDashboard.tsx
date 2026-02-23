@@ -14,6 +14,7 @@ type ResultItem = {
     isCorrect: boolean;
     isPerturbed: boolean;
     questionText: string;
+    choices?: string[];
     subfield?: string;
     benchmarkProfile?: 'legacy' | 'controlled';
     evaluationArm?: 'single' | 'deterministic' | 'stochastic';
@@ -46,16 +47,32 @@ type ExperimentSummary = {
     modelSummary?: Record<string, ModelSummary>;
 };
 
+type ComparisonRun = {
+    results: any[];
+    summary: any;
+    aggregationByQuestion: Record<string, Record<string, number>> | null;
+    runCount: number;
+};
+
 interface ResultsDashboardProps {
     results: ResultItem[];
     summary: ExperimentSummary | null;
+    aggregationByQuestion?: Record<string, Record<string, number>> | null;
+    runCount?: number;
+    comparisonRunA?: ComparisonRun | null;
+    comparisonRunB?: ComparisonRun | null;
+    comparisonLabelA?: string | null;
+    comparisonLabelB?: string | null;
     isLoading: boolean;
     loadingStatus: string;
+    progressCompleted?: number;
+    progressTotal?: number;
 }
 
-export function ResultsDashboard({ results, summary, isLoading, loadingStatus }: ResultsDashboardProps) {
+export function ResultsDashboard({ results, summary, aggregationByQuestion = null, runCount = 0, comparisonRunA = null, comparisonRunB = null, comparisonLabelA = null, comparisonLabelB = null, isLoading, loadingStatus, progressCompleted = 0, progressTotal = 0 }: ResultsDashboardProps) {
     const [selectedQuestion, setSelectedQuestion] = useState<ResultItem | null>(null);
-    const [viewMode, setViewMode] = useState<'table' | 'chart'>('table');
+    const showDistribution = (runCount ?? 0) > 1 && aggregationByQuestion && Object.keys(aggregationByQuestion).length > 0;
+    const [viewMode, setViewMode] = useState<'table' | 'chart' | 'distribution'>('table');
     const splitEntries = Object.entries(summary?.splitSummary || {});
     const modelEntries = Object.entries(summary?.modelSummary || {});
     const chartModels = useMemo(() => Array.from(new Set(results.map((r) => r.model))), [results]);
@@ -105,12 +122,54 @@ export function ResultsDashboard({ results, summary, isLoading, loadingStatus }:
     }, [results, chartModels]);
 
     if (isLoading) {
+        const showProgress = progressTotal > 0;
         return (
             <div className="h-full flex flex-col items-center justify-center p-10 border border-blue-100 rounded-xl bg-gradient-to-br from-blue-50/60 to-indigo-50/60">
                 <div className="h-12 w-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
                 <p className="text-xl font-semibold text-gray-800 mt-5">Running Experiment</p>
                 <p className="text-sm text-gray-500 mt-2">{loadingStatus}</p>
+                {showProgress && (
+                    <div className="w-full max-w-sm mt-4 space-y-2">
+                        <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-blue-600 transition-all duration-300 ease-out"
+                                style={{ width: `${Math.min(100, (progressCompleted / progressTotal) * 100)}%` }}
+                            />
+                        </div>
+                        <p className="text-xs text-gray-500 text-center">
+                            {progressCompleted} / {progressTotal} questions answered
+                        </p>
+                    </div>
+                )}
                 <p className="text-xs text-gray-400 mt-4">You can cancel from the left panel at any time.</p>
+            </div>
+        );
+    }
+
+    const showComparison = comparisonRunA != null && comparisonRunB != null;
+    const partialComparison = comparisonRunA != null && comparisonRunB == null;
+
+    if (!summary && !comparisonRunA && !comparisonRunB) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center text-gray-400 p-10 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+                <BarChart3 size={48} className="mb-4 opacity-20" />
+                <p className="text-lg font-medium">No results yet</p>
+                <p className="text-sm">Run an experiment to see the benchmark data.</p>
+            </div>
+        );
+    }
+
+    if (partialComparison) {
+        const labelA = comparisonLabelA ?? 'Config A';
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500">
+                <h3 className="text-lg font-bold text-gray-800">Comparison cancelled</h3>
+                <p className="text-sm text-amber-600">Config B was not completed. Showing Config A only.</p>
+                <div className="rounded-xl border-2 border-blue-200 bg-blue-50/30 p-5 max-w-md">
+                    <p className="text-sm font-semibold uppercase tracking-wider text-blue-700 mb-3">{labelA}</p>
+                    <p className="text-3xl font-bold text-gray-800">{(comparisonRunA!.summary.accuracy * 100).toFixed(1)}%</p>
+                    <p className="text-sm text-gray-600 mt-1">{comparisonRunA!.summary.correct} / {comparisonRunA!.summary.total} correct</p>
+                </div>
             </div>
         );
     }
@@ -121,6 +180,50 @@ export function ResultsDashboard({ results, summary, isLoading, loadingStatus }:
                 <BarChart3 size={48} className="mb-4 opacity-20" />
                 <p className="text-lg font-medium">No results yet</p>
                 <p className="text-sm">Run an experiment to see the benchmark data.</p>
+            </div>
+        );
+    }
+
+    const labelA = comparisonLabelA ?? 'Config A';
+    const labelB = comparisonLabelB ?? 'Config B';
+
+    if (showComparison) {
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500">
+                <h3 className="text-lg font-bold text-gray-800">Comparison</h3>
+                <p className="text-sm text-gray-500">Same questions, one factor varied.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="rounded-xl border-2 border-blue-200 bg-blue-50/30 p-5">
+                        <p className="text-sm font-semibold uppercase tracking-wider text-blue-700 mb-3">{labelA}</p>
+                        <div className="space-y-2">
+                            <p className="text-3xl font-bold text-gray-800">{(comparisonRunA.summary.accuracy * 100).toFixed(1)}%</p>
+                            <p className="text-sm text-gray-600">{comparisonRunA.summary.correct} / {comparisonRunA.summary.total} correct</p>
+                        </div>
+                    </div>
+                    <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/30 p-5">
+                        <p className="text-sm font-semibold uppercase tracking-wider text-indigo-700 mb-3">{labelB}</p>
+                        <div className="space-y-2">
+                            <p className="text-3xl font-bold text-gray-800">{(comparisonRunB.summary.accuracy * 100).toFixed(1)}%</p>
+                            <p className="text-sm text-gray-600">{comparisonRunB.summary.correct} / {comparisonRunB.summary.total} correct</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <p className="text-sm font-semibold text-gray-600 mb-2">{labelA} — Details</p>
+                        <p className="text-xs text-gray-500">Total responses: {comparisonRunA.results.length}</p>
+                        {comparisonRunA.runCount > 1 && (
+                            <p className="text-xs text-gray-500">Runs per question: {comparisonRunA.runCount}</p>
+                        )}
+                    </div>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <p className="text-sm font-semibold text-gray-600 mb-2">{labelB} — Details</p>
+                        <p className="text-xs text-gray-500">Total responses: {comparisonRunB.results.length}</p>
+                        {comparisonRunB.runCount > 1 && (
+                            <p className="text-xs text-gray-500">Runs per question: {comparisonRunB.runCount}</p>
+                        )}
+                    </div>
+                </div>
             </div>
         );
     }
@@ -207,11 +310,89 @@ export function ResultsDashboard({ results, summary, isLoading, loadingStatus }:
                         >
                             Subfield Chart
                         </button>
+                        {showDistribution && (
+                            <button
+                                onClick={() => setViewMode('distribution')}
+                                className={`px-3 py-1 text-sm font-medium rounded-md transition-all ${viewMode === 'distribution' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Answer distribution
+                            </button>
+                        )}
                     </div>
                 </div>
 
                 <div className="overflow-x-auto">
-                    {viewMode === 'table' ? (
+                    {viewMode === 'distribution' && aggregationByQuestion ? (
+                        <div className="p-6 space-y-6">
+                            <h4 className="text-lg font-semibold text-gray-800">Answer choice distribution</h4>
+                            <p className="text-sm text-gray-500">Pie chart of how often each answer was selected across {runCount} run{runCount === 1 ? '' : 's'} per question.</p>
+                            {(() => {
+                                const CORRECT_COLOR = '#22c55e';
+                                const WRONG_COLOR = '#ef4444';
+                                const DIVIDER_COLOR = '#000000';
+                                const DIVIDER_PCT = 1.2;
+                                const getChoicesForQuestion = (qId: string) => {
+                                    const first = results.find((r) => r.questionId === qId);
+                                    const choices = (first as ResultItem & { choices?: string[] })?.choices;
+                                    const n = choices?.length ?? 4;
+                                    return Array.from({ length: n }, (_, i) => String.fromCharCode(65 + i));
+                                };
+                                const getCorrectLetter = (qId: string) => {
+                                    const first = results.find((r) => r.questionId === qId);
+                                    return first?.originalGroundTruth?.trim().toUpperCase() ?? first?.groundTruth?.trim().toUpperCase() ?? null;
+                                };
+                                const questionIds = Object.keys(aggregationByQuestion).sort();
+                                return questionIds.map((qId) => {
+                                    const counts = aggregationByQuestion[qId];
+                                    const correctLetter = getCorrectLetter(qId);
+                                    const choiceLetters = getChoicesForQuestion(qId);
+                                    const extraKeys = Object.keys(counts).filter((k) => !choiceLetters.includes(k));
+                                    const letters = [...choiceLetters, ...extraKeys].filter((v, i, a) => a.indexOf(v) === i);
+                                    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+                                    const sliceCount = letters.length;
+                                    const totalDivider = sliceCount * DIVIDER_PCT;
+                                    const scale = total > 0 ? (100 - totalDivider) / 100 : 0;
+                                    let cumul = 0;
+                                    const parts: string[] = [];
+                                    letters.forEach((letter) => {
+                                        const count = counts[letter] ?? 0;
+                                        const pct = total > 0 ? (count / total) * 100 * scale : 0;
+                                        const color = (correctLetter && letter === correctLetter) ? CORRECT_COLOR : WRONG_COLOR;
+                                        parts.push(`${color} ${cumul}% ${cumul + pct}%`);
+                                        cumul += pct;
+                                        parts.push(`${DIVIDER_COLOR} ${cumul}% ${cumul + DIVIDER_PCT}%`);
+                                        cumul += DIVIDER_PCT;
+                                    });
+                                    const gradientStops = parts.join(', ');
+                                    return (
+                                        <div key={qId} className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 flex flex-col sm:flex-row items-center gap-4">
+                                            <div className="flex flex-col items-center gap-2 shrink-0">
+                                                <div
+                                                    className="w-32 h-32 rounded-full border-2 border-white shadow-sm"
+                                                    style={{
+                                                        background: total > 0 ? `conic-gradient(${gradientStops})` : 'conic-gradient(#e5e7eb 0% 100%)',
+                                                    }}
+                                                />
+                                                <p className="text-xs font-mono text-gray-500 truncate max-w-[8rem]" title={qId}>{qId.substring(0, 10)}...</p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                                                {letters.map((letter) => {
+                                                    const isCorrect = correctLetter && letter === correctLetter;
+                                                    return (
+                                                        <div key={letter} className="flex items-center gap-1.5">
+                                                            <span className="inline-block w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: isCorrect ? CORRECT_COLOR : WRONG_COLOR }} />
+                                                            <span className="font-medium text-gray-700">{letter}{isCorrect ? ' (correct)' : ''}</span>
+                                                            <span className="text-gray-500">{(counts[letter] ?? 0)}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                });
+                            })()}
+                        </div>
+                    ) : viewMode === 'table' ? (
                         <table className="w-full text-left text-sm">
                             <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm text-xs uppercase text-gray-500 font-bold">
                                 <tr>
