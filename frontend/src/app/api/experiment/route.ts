@@ -25,7 +25,8 @@ function getRetryAfterMs(error: unknown): number | null {
         if (!Number.isNaN(s)) return s * 1000;
     }
 
-    const rawHeaders = resp?.headers ?? resp?.raw?.headers ?? err.headers;
+    const respRaw = resp?.raw as Record<string, unknown> | undefined;
+    const rawHeaders = resp?.headers ?? respRaw?.headers ?? err.headers;
     if (!rawHeaders || typeof rawHeaders !== 'object') return null;
 
     const get = (name: string): string | null => {
