@@ -82,7 +82,7 @@ export async function POST(req: Request) {
             reasoningEffort,
         });
 
-        const parsedChoice = parseChoice(output, validLetters);
+        const parsedChoice = await parseChoiceRobust(output, validLetters);
         const isCorrect = parsedChoice === question.answerLetter;
 
         return NextResponse.json({
@@ -400,19 +400,118 @@ function normalizeQuestion(value: unknown): SingleQuestionPayload | null {
     };
 }
 
-function parseChoice(output: string, validLetters: string[]) {
-    const validSet = new Set(validLetters);
-    const match = output.match(/\b([A-J])\b/i);
-    if (match && validSet.has(match[1].toUpperCase())) {
-        return match[1].toUpperCase();
+async function parseChoiceRobust(output: string, validLetters: string[]) {
+    const deterministic = parseChoiceDeterministic(output, validLetters);
+    if (deterministic) {
+        return deterministic;
     }
 
-    const first = output.trim().charAt(0).toUpperCase();
-    if (validSet.has(first)) {
-        return first;
+    const llmParsed = await parseChoiceWithTinyModel(output, validLetters);
+    if (llmParsed) {
+        return llmParsed;
     }
 
     return 'Unknown';
+}
+
+function parseChoiceDeterministic(output: string, validLetters: string[]) {
+    const validSet = new Set(validLetters);
+    const normalized = output.replace(/\r/g, '').trim();
+    if (!normalized) {
+        return null;
+    }
+
+    const tail = normalized.slice(-2200);
+
+    const explicitAnswer = findLastValidCapturedLetter(
+        tail,
+        /(?:final\s*(?:answer|choice)|correct\s*answer|answer|therefore|thus|conclusion)\s*(?:is|:|=|-)?\s*\(?([A-J])\)?\b/gi,
+        validSet,
+    );
+    if (explicitAnswer) {
+        return explicitAnswer;
+    }
+
+    const lineAnswer = findLastValidCapturedLetter(
+        tail,
+        /^\s*(?:answer\s*(?:is|:)\s*)?\(?([A-J])\)?\s*$/gim,
+        validSet,
+    );
+    if (lineAnswer) {
+        return lineAnswer;
+    }
+
+    const trailingStandalone = findLastValidCapturedLetter(
+        tail,
+        /\b(?:option|choice)\s*([A-J])\b/gi,
+        validSet,
+    );
+    if (trailingStandalone) {
+        return trailingStandalone;
+    }
+
+    return null;
+}
+
+function findLastValidCapturedLetter(text: string, pattern: RegExp, validSet: Set<string>) {
+    let match: RegExpExecArray | null = null;
+    let last: string | null = null;
+    pattern.lastIndex = 0;
+    while ((match = pattern.exec(text)) !== null) {
+        const candidate = (match[1] || '').toUpperCase();
+        if (validSet.has(candidate)) {
+            last = candidate;
+        }
+    }
+    return last;
+}
+
+async function parseChoiceWithTinyModel(output: string, validLetters: string[]) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+        return null;
+    }
+
+    const validSet = new Set(validLetters);
+
+    try {
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            temperature: 0,
+            messages: [
+                {
+                    role: 'system',
+                    content: 'Extract the model\'s final selected answer letter from the text. Return ONLY one uppercase letter from the valid set, or UNKNOWN.',
+                },
+                {
+                    role: 'user',
+                    content: [
+                        `Valid letters: ${validLetters.join(', ')}`,
+                        '',
+                        'Model output:',
+                        '"""',
+                        output.slice(-6000),
+                        '"""',
+                    ].join('\n'),
+                },
+            ],
+        });
+
+        const text = (completion.choices[0]?.message?.content || '').trim().toUpperCase();
+        const direct = text.replace(/[^A-Z]/g, '');
+        if (direct.length > 0 && validSet.has(direct[0])) {
+            return direct[0];
+        }
+
+        const match = text.match(/\b([A-J])\b/);
+        if (match && validSet.has(match[1])) {
+            return match[1];
+        }
+    } catch (error) {
+        console.error('Fallback answer parsing failed:', error);
+    }
+
+    return null;
 }
 
 function getValidLetters(numChoices: number) {

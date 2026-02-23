@@ -9,6 +9,7 @@ import {
     DatasetQuestion,
     EditableSingleQuestion,
     MultiModelSelectionOption,
+    SavedSingleBenchmark,
     SingleProbeConfig,
     SingleQuestionProbePanel
 } from '@/components/benchmarking/SingleQuestionProbePanel';
@@ -69,26 +70,30 @@ type RunHistoryEntry = {
 
 const RUN_HISTORY_STORAGE_KEY = 'benchmarkdemo.runHistory.v1';
 const SAVED_RUN_STORAGE_KEY = 'general-benchmarking.saved-runs.v1';
-const GENERAL_UI_STATE_STORAGE_KEY = 'general-benchmarking.ui-state.v1';
 const MAX_RUN_HISTORY_ENTRIES = 20;
 const DEFAULT_MULTI_MODEL_KEYS = [
     'openai::gpt-5.2-chat-latest',
     'anthropic::claude-sonnet-4-5',
     'gemini::gemini-2.5-pro',
 ];
-
-type GeneralBenchmarkUiState = {
-    benchmarkMode: BenchmarkMode;
-    isSidebarCollapsed: boolean;
-    mainConfig: MainExperimentConfig;
-    forcedConfig: ForcedExperimentConfig;
-    singleProbeConfig: SingleProbeConfig;
-    selectedMultiModelKeys: string[];
-    multiModelRunsPerArm: number;
-    editableQuestion: EditableSingleQuestion;
-    promptNameDraft: string;
-    promptContentDraft: string;
-};
+const SINGLE_QUESTION_SAVED_BENCHMARKS: SavedSingleBenchmark[] = [
+    {
+        id: 'lsh-ucc-firm-offer',
+        name: 'LSH Custom: UCC Firm Offer',
+        description: 'Copied from lsh/run_robust_benchmark_v2.py TEST_QUESTION. Single fixed legal question used in the LSH robust benchmark.',
+        question: {
+            id: 'lsh_ucc_firm_offer',
+            question: 'Merchant A, a manufacturer of widgets, sent a signed letter to Buyer B on January 1st stating: "We offer to sell you 1,000 widgets at $10 each. This offer will remain open until March 31st." Buyer B did not pay anything to keep the offer open. On February 1st, Merchant A called Buyer B and said, "The price of widgets has gone up. I am revoking my offer of January 1st." On February 5th, Buyer B sent a letter accepting the January 1st offer.\nIs there an enforceable contract between Merchant A and Buyer B?',
+            choices: [
+                'Yes, there is an enforceable contract.',
+                'No, there is not an enforceable contract.',
+            ],
+            answerLetter: 'A',
+            subfield: 'Contracts',
+            difficulty: 'Unknown',
+        },
+    },
+];
 
 export default function GeneralBenchmarkingPage() {
     const [benchmarkMode, setBenchmarkMode] = useState<BenchmarkMode>('forced_tests');
@@ -159,6 +164,7 @@ export default function GeneralBenchmarkingPage() {
         selectedPromptId: '',
     });
     const [selectedMultiModelKeys, setSelectedMultiModelKeys] = useState<string[]>(DEFAULT_MULTI_MODEL_KEYS);
+    const [selectedSavedBenchmarkId, setSelectedSavedBenchmarkId] = useState('');
     const [multiModelRunsPerArm, setMultiModelRunsPerArm] = useState(1);
 
     const [editableQuestion, setEditableQuestion] = useState<EditableSingleQuestion>({
@@ -185,7 +191,6 @@ export default function GeneralBenchmarkingPage() {
     const [promptNameDraft, setPromptNameDraft] = useState('');
     const [promptContentDraft, setPromptContentDraft] = useState('');
     const [promptStatus, setPromptStatus] = useState<string | null>(null);
-    const [hasHydratedUiState, setHasHydratedUiState] = useState(false);
 
     const selectedPrompt = useMemo(
         () => promptLibrary.find((prompt) => prompt.id === singleProbeConfig.selectedPromptId) || null,
@@ -206,29 +211,6 @@ export default function GeneralBenchmarkingPage() {
         setRunHistory(readRunHistoryFromStorage());
         setSavedRuns(readSavedRunsFromStorage());
         setPromptLibrary(readPromptLibraryFromStorage());
-
-        const persistedUiState = readGeneralBenchmarkUiStateFromStorage();
-        if (persistedUiState) {
-            setBenchmarkMode(persistedUiState.benchmarkMode);
-            setIsSidebarCollapsed(persistedUiState.isSidebarCollapsed);
-            setMainConfig({
-                ...persistedUiState.mainConfig,
-                perturbations: { ...persistedUiState.mainConfig.perturbations },
-            });
-            setForcedConfig({
-                ...persistedUiState.forcedConfig,
-                controlled: { ...persistedUiState.forcedConfig.controlled },
-                perturbations: { ...persistedUiState.forcedConfig.perturbations },
-            });
-            setSingleProbeConfig(persistedUiState.singleProbeConfig);
-            setSelectedMultiModelKeys(persistedUiState.selectedMultiModelKeys);
-            setMultiModelRunsPerArm(persistedUiState.multiModelRunsPerArm);
-            setEditableQuestion(persistedUiState.editableQuestion);
-            setPromptNameDraft(persistedUiState.promptNameDraft);
-            setPromptContentDraft(persistedUiState.promptContentDraft);
-        }
-
-        setHasHydratedUiState(true);
     }, []);
 
     useEffect(() => {
@@ -329,37 +311,6 @@ export default function GeneralBenchmarkingPage() {
 
         return () => window.clearTimeout(timer);
     }, [promptStatus]);
-
-    useEffect(() => {
-        if (!hasHydratedUiState) {
-            return;
-        }
-
-        writeGeneralBenchmarkUiStateToStorage({
-            benchmarkMode,
-            isSidebarCollapsed,
-            mainConfig,
-            forcedConfig,
-            singleProbeConfig,
-            selectedMultiModelKeys,
-            multiModelRunsPerArm,
-            editableQuestion,
-            promptNameDraft,
-            promptContentDraft,
-        });
-    }, [
-        benchmarkMode,
-        editableQuestion,
-        forcedConfig,
-        hasHydratedUiState,
-        isSidebarCollapsed,
-        mainConfig,
-        multiModelRunsPerArm,
-        promptContentDraft,
-        promptNameDraft,
-        selectedMultiModelKeys,
-        singleProbeConfig,
-    ]);
 
     const currentSelectionPreview = useMemo<SelectionPreview>(() => {
         if (benchmarkMode === 'main') {
@@ -881,6 +832,38 @@ export default function GeneralBenchmarkingPage() {
     const clearAllMultiModels = () => {
         setSelectedMultiModelKeys([]);
     };
+    const loadSavedBenchmarkIntoEditor = () => {
+        if (!selectedSavedBenchmarkId) {
+            return;
+        }
+
+        const selected = SINGLE_QUESTION_SAVED_BENCHMARKS.find((benchmark) => benchmark.id === selectedSavedBenchmarkId);
+        if (!selected) {
+            setPromptStatus('Selected saved benchmark was not found.');
+            return;
+        }
+
+        const normalizedChoices = selected.question.choices
+            .map((choice) => choice.trim())
+            .filter((choice) => choice.length > 0)
+            .slice(0, 10);
+        const validLetters = getChoiceLetters(normalizedChoices.length);
+        const incomingAnswerLetter = selected.question.answerLetter.trim().toUpperCase();
+        const answerLetter = validLetters.includes(incomingAnswerLetter)
+            ? incomingAnswerLetter
+            : (validLetters[0] || 'A');
+
+        setEditableQuestion({
+            id: selected.question.id,
+            question: selected.question.question,
+            choices: normalizedChoices.length > 0 ? normalizedChoices : ['', ''],
+            answerLetter,
+            subfield: selected.question.subfield,
+            difficulty: selected.question.difficulty,
+        });
+
+        setPromptStatus(`Loaded saved benchmark "${selected.name}" into editor.`);
+    };
 
     const loadDatasetQuestionIntoEditor = () => {
         if (!singleProbeConfig.selectedDatasetQuestionId) {
@@ -941,13 +924,6 @@ export default function GeneralBenchmarkingPage() {
         setPromptLibrary((previous) => [created, ...previous]);
         setSingleProbeConfig((previous) => ({ ...previous, selectedPromptId: created.id }));
         setPromptStatus('Prompt saved.');
-    };
-
-    const createNewPromptDraft = () => {
-        setSingleProbeConfig((previous) => ({ ...previous, selectedPromptId: '' }));
-        setPromptNameDraft('');
-        setPromptContentDraft('');
-        setPromptStatus('Started a new prompt draft.');
     };
 
     const deleteSelectedPrompt = () => {
@@ -1132,6 +1108,10 @@ export default function GeneralBenchmarkingPage() {
                                 config={singleProbeConfig}
                                 setConfig={setSingleProbeConfig}
                                 availableQuestions={singleDatasetRows}
+                                savedBenchmarks={SINGLE_QUESTION_SAVED_BENCHMARKS}
+                                selectedSavedBenchmarkId={selectedSavedBenchmarkId}
+                                onSelectSavedBenchmark={setSelectedSavedBenchmarkId}
+                                onLoadSavedBenchmark={loadSavedBenchmarkIntoEditor}
                                 editableQuestion={editableQuestion}
                                 setEditableQuestion={setEditableQuestion}
                                 prompts={promptLibrary}
@@ -1143,7 +1123,6 @@ export default function GeneralBenchmarkingPage() {
                                 promptStatus={promptStatus}
                                 onLoadDatasetQuestion={loadDatasetQuestionIntoEditor}
                                 onSavePrompt={savePromptTemplate}
-                                onCreateNewPrompt={createNewPromptDraft}
                                 onDeletePrompt={deleteSelectedPrompt}
                                 onExportPrompts={exportPromptLibrary}
                                 onImportPrompts={importPromptLibrary}
@@ -1164,6 +1143,10 @@ export default function GeneralBenchmarkingPage() {
                                 config={singleProbeConfig}
                                 setConfig={setSingleProbeConfig}
                                 availableQuestions={singleDatasetRows}
+                                savedBenchmarks={SINGLE_QUESTION_SAVED_BENCHMARKS}
+                                selectedSavedBenchmarkId={selectedSavedBenchmarkId}
+                                onSelectSavedBenchmark={setSelectedSavedBenchmarkId}
+                                onLoadSavedBenchmark={loadSavedBenchmarkIntoEditor}
                                 editableQuestion={editableQuestion}
                                 setEditableQuestion={setEditableQuestion}
                                 prompts={promptLibrary}
@@ -1175,7 +1158,6 @@ export default function GeneralBenchmarkingPage() {
                                 promptStatus={promptStatus}
                                 onLoadDatasetQuestion={loadDatasetQuestionIntoEditor}
                                 onSavePrompt={savePromptTemplate}
-                                onCreateNewPrompt={createNewPromptDraft}
                                 onDeletePrompt={deleteSelectedPrompt}
                                 onExportPrompts={exportPromptLibrary}
                                 onImportPrompts={importPromptLibrary}
@@ -1995,81 +1977,6 @@ function isAbortError(error: unknown) {
     );
 }
 
-function readGeneralBenchmarkUiStateFromStorage(): GeneralBenchmarkUiState | null {
-    if (typeof window === 'undefined') {
-        return null;
-    }
-
-    try {
-        const raw = window.localStorage.getItem(GENERAL_UI_STATE_STORAGE_KEY);
-        if (!raw) {
-            return null;
-        }
-
-        const parsed = JSON.parse(raw);
-        if (!isRecord(parsed)) {
-            return null;
-        }
-
-        if (!isBenchmarkMode(parsed.benchmarkMode)) {
-            return null;
-        }
-        if (typeof parsed.isSidebarCollapsed !== 'boolean') {
-            return null;
-        }
-        if (!isRecord(parsed.mainConfig) || !isMainConfig(parsed.mainConfig as HistoryConfig)) {
-            return null;
-        }
-        if (!isRecord(parsed.forcedConfig) || !isForcedConfig(parsed.forcedConfig as HistoryConfig)) {
-            return null;
-        }
-        if (!isSingleProbeConfig(parsed.singleProbeConfig)) {
-            return null;
-        }
-        if (!Array.isArray(parsed.selectedMultiModelKeys) || !parsed.selectedMultiModelKeys.every((key) => typeof key === 'string')) {
-            return null;
-        }
-        const runsPerArm = parsed.multiModelRunsPerArm;
-        if (typeof runsPerArm !== 'number' || !Number.isInteger(runsPerArm) || runsPerArm < 1 || runsPerArm > 20) {
-            return null;
-        }
-        if (!isEditableSingleQuestion(parsed.editableQuestion)) {
-            return null;
-        }
-        if (typeof parsed.promptNameDraft !== 'string' || typeof parsed.promptContentDraft !== 'string') {
-            return null;
-        }
-
-        return {
-            benchmarkMode: parsed.benchmarkMode,
-            isSidebarCollapsed: parsed.isSidebarCollapsed,
-            mainConfig: parsed.mainConfig as MainExperimentConfig,
-            forcedConfig: parsed.forcedConfig as ForcedExperimentConfig,
-            singleProbeConfig: parsed.singleProbeConfig,
-            selectedMultiModelKeys: parsed.selectedMultiModelKeys,
-            multiModelRunsPerArm: runsPerArm,
-            editableQuestion: parsed.editableQuestion,
-            promptNameDraft: parsed.promptNameDraft,
-            promptContentDraft: parsed.promptContentDraft,
-        };
-    } catch (error) {
-        console.error('Failed to read general benchmarking UI state:', error);
-        return null;
-    }
-}
-
-function writeGeneralBenchmarkUiStateToStorage(state: GeneralBenchmarkUiState) {
-    if (typeof window === 'undefined') {
-        return;
-    }
-
-    try {
-        window.localStorage.setItem(GENERAL_UI_STATE_STORAGE_KEY, JSON.stringify(state));
-    } catch (error) {
-        console.error('Failed to persist general benchmarking UI state:', error);
-    }
-}
-
 function readRunHistoryFromStorage(): RunHistoryEntry[] {
     if (typeof window === 'undefined') {
         return [];
@@ -2242,60 +2149,6 @@ function formatHistoryTimestamp(isoDate: string) {
         return isoDate;
     }
     return parsed.toLocaleString();
-}
-
-function isBenchmarkMode(value: unknown): value is BenchmarkMode {
-    return value === 'main'
-        || value === 'forced_tests'
-        || value === 'single_probe'
-        || value === 'single_probe_multi_model';
-}
-
-function isSingleProbeConfig(value: unknown): value is SingleProbeConfig {
-    if (!isRecord(value)) {
-        return false;
-    }
-
-    const providerValid = value.provider === 'openai' || value.provider === 'anthropic' || value.provider === 'gemini';
-    const reasoningValid = value.reasoningEffort === 'none'
-        || value.reasoningEffort === 'low'
-        || value.reasoningEffort === 'medium'
-        || value.reasoningEffort === 'high'
-        || value.reasoningEffort === 'xhigh';
-
-    return (
-        providerValid
-        && typeof value.model === 'string'
-        && reasoningValid
-        && typeof value.temperature === 'number'
-        && Number.isFinite(value.temperature)
-        && typeof value.subjectFilter === 'string'
-        && typeof value.difficultyFilter === 'string'
-        && typeof value.selectedDatasetQuestionId === 'string'
-        && typeof value.useCustomPrompt === 'boolean'
-        && typeof value.selectedPromptId === 'string'
-    );
-}
-
-function isEditableSingleQuestion(value: unknown): value is EditableSingleQuestion {
-    if (!isRecord(value)) {
-        return false;
-    }
-
-    if (typeof value.id !== 'string' || typeof value.question !== 'string' || typeof value.answerLetter !== 'string') {
-        return false;
-    }
-    if (!Array.isArray(value.choices) || value.choices.length < 1 || value.choices.length > 10) {
-        return false;
-    }
-    if (!value.choices.every((choice) => typeof choice === 'string')) {
-        return false;
-    }
-    if (!/^[A-J]$/.test(value.answerLetter.toUpperCase())) {
-        return false;
-    }
-
-    return true;
 }
 
 function getChoiceLetters(choiceCount: number) {

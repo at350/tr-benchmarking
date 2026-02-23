@@ -44,11 +44,22 @@ export type MultiModelSelectionOption = {
     modelLabel: string;
 };
 
+export type SavedSingleBenchmark = {
+    id: string;
+    name: string;
+    description: string;
+    question: EditableSingleQuestion;
+};
+
 type SingleQuestionProbePanelProps = {
     mode?: 'single' | 'multi_model';
     config: SingleProbeConfig;
     setConfig: React.Dispatch<React.SetStateAction<SingleProbeConfig>>;
     availableQuestions: DatasetQuestion[];
+    savedBenchmarks?: SavedSingleBenchmark[];
+    selectedSavedBenchmarkId?: string;
+    onSelectSavedBenchmark?: (id: string) => void;
+    onLoadSavedBenchmark?: () => void;
     editableQuestion: EditableSingleQuestion;
     setEditableQuestion: React.Dispatch<React.SetStateAction<EditableSingleQuestion>>;
     prompts: PromptTemplate[];
@@ -60,7 +71,6 @@ type SingleQuestionProbePanelProps = {
     promptStatus: string | null;
     onLoadDatasetQuestion: () => void;
     onSavePrompt: () => void;
-    onCreateNewPrompt: () => void;
     onDeletePrompt: () => void;
     onExportPrompts: () => void;
     onImportPrompts: (raw: string) => void;
@@ -82,6 +92,10 @@ export function SingleQuestionProbePanel({
     config,
     setConfig,
     availableQuestions,
+    savedBenchmarks = [],
+    selectedSavedBenchmarkId = '',
+    onSelectSavedBenchmark,
+    onLoadSavedBenchmark,
     editableQuestion,
     setEditableQuestion,
     prompts,
@@ -93,7 +107,6 @@ export function SingleQuestionProbePanel({
     promptStatus,
     onLoadDatasetQuestion,
     onSavePrompt,
-    onCreateNewPrompt,
     onDeletePrompt,
     onExportPrompts,
     onImportPrompts,
@@ -140,6 +153,10 @@ export function SingleQuestionProbePanel({
         });
     }, [datasetQuestionQuery, filteredQuestions]);
     const visibleQuestionRows = searchableQuestions.slice(0, 30);
+    const selectedSavedBenchmark = useMemo(
+        () => savedBenchmarks.find((benchmark) => benchmark.id === selectedSavedBenchmarkId) || null,
+        [savedBenchmarks, selectedSavedBenchmarkId],
+    );
 
     const subjectOptions = ['All', ...Array.from(new Set(availableQuestions.map((row) => row.subfield || 'Unknown'))).sort()];
     const difficultyOptions = ['All', ...Array.from(new Set(availableQuestions.map((row) => row.difficulty || 'Unknown'))).sort()];
@@ -195,6 +212,38 @@ export function SingleQuestionProbePanel({
 
             <section className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Question Source</p>
+                {savedBenchmarks.length > 0 && (
+                    <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
+                        <label className="space-y-1 block">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                                Saved Benchmark
+                                <InfoTip label="Built-in one-question benchmark presets. Load one directly into the editable question form." />
+                            </span>
+                            <select
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                value={selectedSavedBenchmarkId}
+                                onChange={(event) => onSelectSavedBenchmark?.(event.target.value)}
+                            >
+                                <option value="">Select a saved benchmark...</option>
+                                {savedBenchmarks.map((benchmark) => (
+                                    <option key={benchmark.id} value={benchmark.id}>{benchmark.name}</option>
+                                ))}
+                            </select>
+                        </label>
+                        {selectedSavedBenchmark && (
+                            <p className="text-xs text-slate-600">{selectedSavedBenchmark.description}</p>
+                        )}
+                        <button
+                            type="button"
+                            onClick={onLoadSavedBenchmark}
+                            disabled={!selectedSavedBenchmarkId}
+                            className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            Load Saved Benchmark
+                        </button>
+                    </div>
+                )}
+
                 <div className="grid gap-3 md:grid-cols-2">
                     <label className="space-y-1">
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
@@ -570,14 +619,6 @@ export function SingleQuestionProbePanel({
                 </label>
 
                 <div className="flex flex-wrap gap-2">
-                    <button
-                        type="button"
-                        onClick={onCreateNewPrompt}
-                        disabled={promptInputsDisabled}
-                        className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        New Prompt
-                    </button>
                     <button
                         type="button"
                         onClick={onSavePrompt}
