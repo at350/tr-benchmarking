@@ -1,0 +1,11 @@
+numpy
+scikit-learn
+sentence-transformers
+networkx
+python-louvain
+tomli
+openai
+python-dotenv
+umap-learn
+tqdm
+httpx
