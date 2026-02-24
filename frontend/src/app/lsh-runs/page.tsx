@@ -30,10 +30,18 @@ type LshClusterSummary = {
         textPreview: string;
     };
     modelBreakdown: ModelBreakdownEntry[];
+    members?: Array<{ id: string; model: string }>;
     membersPreview?: Array<{
         id: string;
         model: string;
         textPreview: string;
+        text: string;
+    }>;
+    edgeMembersPreview?: Array<{
+        id: string;
+        model: string;
+        textPreview: string;
+        text: string;
     }>;
 };
 
@@ -54,6 +62,7 @@ type ClusterMapPoint = {
     y: number;
     model: string;
     clusterId: string;
+    memberId?: string;
 };
 
 type ClusterMapRegion = {
@@ -82,6 +91,7 @@ type ClusterSeed = {
     dominantModel: string;
     note: string;
     visibleBreakdown: ModelBreakdownEntry[];
+    members: Array<{ id: string; model: string }>;
 };
 
 type ModelStat = {
@@ -228,6 +238,8 @@ export default function LshRunsPage() {
     const [minClusterSize, setMinClusterSize] = useState(1);
     const [showNoise, setShowNoise] = useState(false);
     const [showClusterHulls, setShowClusterHulls] = useState(true);
+    const [sampleMembersMode, setSampleMembersMode] = useState<'centroid' | 'edge'>('centroid');
+    const [selectedSampleMemberId, setSelectedSampleMemberId] = useState<string | null>(null);
     const [visibleModels, setVisibleModels] = useState<string[]>([]);
     const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
     const [hoveredClusterId, setHoveredClusterId] = useState<string | null>(null);
@@ -528,6 +540,10 @@ export default function LshRunsPage() {
 
     const focusCluster = selectedCluster || hoveredCluster;
     const activeClusterId = selectedClusterId || hoveredClusterId;
+
+    useEffect(() => {
+        setSelectedSampleMemberId(null);
+    }, [activeClusterId]);
 
     const resetFilters = () => {
         setClusterQuery('');
@@ -1066,14 +1082,17 @@ export default function LshRunsPage() {
                                                     {mapData.points.map((point, index) => {
                                                         const active = activeClusterId === point.clusterId;
                                                         const muted = Boolean(activeClusterId) && !active;
+                                                        const isSelectedSample = selectedSampleMemberId === point.memberId;
                                                         return (
                                                             <circle
                                                                 key={`${point.clusterId}-${index}`}
                                                                 cx={toSvgX(point.x, axisDomain)}
                                                                 cy={toSvgY(point.y, axisDomain)}
-                                                                r={active ? 4.8 : 3.4}
+                                                                r={isSelectedSample ? 7 : active ? 4.8 : 3.4}
                                                                 fill={modelColorMap.get(point.model) || '#94a3b8'}
-                                                                fillOpacity={muted ? 0.18 : 0.9}
+                                                                fillOpacity={muted && !isSelectedSample ? 0.18 : 0.9}
+                                                                stroke={isSelectedSample ? '#fbbf24' : 'none'}
+                                                                strokeWidth={isSelectedSample ? 3 : 0}
                                                                 onMouseEnter={() => setHoveredClusterId(point.clusterId)}
                                                                 onMouseLeave={() => setHoveredClusterId((current) => (current === point.clusterId ? null : current))}
                                                                 onClick={(event) => {
@@ -1137,7 +1156,10 @@ export default function LshRunsPage() {
                                                     {selectedClusterId && (
                                                         <button
                                                             type="button"
-                                                            onClick={() => setSelectedClusterId(null)}
+                                                            onClick={() => {
+                                                                setSelectedClusterId(null);
+                                                                setSelectedSampleMemberId(null);
+                                                            }}
                                                             className="rounded border border-slate-300 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-200"
                                                         >
                                                             Clear focus
@@ -1177,15 +1199,76 @@ export default function LshRunsPage() {
 
                                                         {focusCluster.membersPreview && focusCluster.membersPreview.length > 0 && (
                                                             <div>
-                                                                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Sample members</p>
-                                                                <div className="mt-1.5 space-y-1">
-                                                                    {focusCluster.membersPreview.slice(0, 3).map((member) => (
-                                                                        <div key={`${focusCluster.id}-${member.id}`} className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5">
-                                                                            <p className="text-[11px] font-semibold text-slate-700">{member.id} ({member.model})</p>
-                                                                            <p className="mt-0.5 text-[11px] text-slate-600">{member.textPreview}</p>
-                                                                        </div>
-                                                                    ))}
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Sample members</p>
+                                                                    <div className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 p-0.5">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setSampleMembersMode('centroid')}
+                                                                            className={`rounded px-2 py-0.5 text-[10px] font-semibold transition ${sampleMembersMode === 'centroid' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                                        >
+                                                                            Centroid
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setSampleMembersMode('edge')}
+                                                                            className={`rounded px-2 py-0.5 text-[10px] font-semibold transition ${sampleMembersMode === 'edge' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                                        >
+                                                                            Edge cases
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
+                                                                {sampleMembersMode === 'edge' && (!focusCluster.edgeMembersPreview || focusCluster.edgeMembersPreview.length === 0) ? (
+                                                                    <div className="mt-1.5 rounded border border-amber-200 bg-amber-50 px-2 py-1.5">
+                                                                        <p className="text-[11px] text-amber-800">
+                                                                            Edge sampling requires re-running the pipeline to compute outer-third members.
+                                                                        </p>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="mt-1.5 space-y-1">
+                                                                        {(sampleMembersMode === 'centroid'
+                                                                            ? focusCluster.membersPreview.slice(0, 3)
+                                                                            : focusCluster.edgeMembersPreview ?? []
+                                                                        ).map((member) => {
+                                                                            const isSelected = selectedSampleMemberId === member.id;
+                                                                            return (
+                                                                                <button
+                                                                                    key={`${focusCluster.id}-${member.id}`}
+                                                                                    type="button"
+                                                                                    onClick={() => setSelectedSampleMemberId(isSelected ? null : member.id)}
+                                                                                    className={`w-full rounded border px-2 py-1.5 text-left transition ${isSelected ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-300' : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100'}`}
+                                                                                >
+                                                                                    <p className="text-[11px] font-semibold text-slate-700">{member.id} ({member.model})</p>
+                                                                                    <p className="mt-0.5 text-[11px] text-slate-600">{member.textPreview}</p>
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                )}
+                                                                {selectedSampleMemberId && focusCluster && (() => {
+                                                                    const sampleList = sampleMembersMode === 'centroid'
+                                                                        ? focusCluster.membersPreview?.slice(0, 3) ?? []
+                                                                        : focusCluster.edgeMembersPreview ?? [];
+                                                                    const selectedMember = sampleList.find((m) => m.id === selectedSampleMemberId);
+                                                                    if (!selectedMember) return null;
+                                                                    return (
+                                                                        <div className="mt-2 rounded-lg border-2 border-blue-300 bg-blue-50/80 p-3">
+                                                                            <div className="flex items-center justify-between gap-2">
+                                                                                <p className="text-xs font-bold text-slate-800">Full response: {selectedMember.id}</p>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => setSelectedSampleMemberId(null)}
+                                                                                    className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-100"
+                                                                                >
+                                                                                    Close
+                                                                                </button>
+                                                                            </div>
+                                                                            <div className="mt-2 max-h-64 overflow-y-auto rounded border border-slate-200 bg-white p-2 text-xs text-slate-700 whitespace-pre-wrap">
+                                                                                {selectedMember.text || selectedMember.textPreview || 'No content.'}
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                         )}
                                                     </div>
@@ -1699,7 +1782,7 @@ export default function LshRunsPage() {
                     </div>
                 </div>
             )}
-        </main>
+        </AppShell>
     );
 }
 
@@ -1761,6 +1844,7 @@ function buildClusterMapData(
             const dominantModel = visibleBreakdown[0]?.model || cluster.modelBreakdown[0]?.model || 'unknown';
             const radius = 2.8 + Math.sqrt(visibleMembers) * 1.9;
 
+            const members = cluster.members ?? [];
             return {
                 clusterId: cluster.id,
                 radius,
@@ -1769,6 +1853,7 @@ function buildClusterMapData(
                 dominantModel,
                 note: cluster.representative.textPreview,
                 visibleBreakdown,
+                members,
             };
         })
         .filter((seed): seed is ClusterSeed => seed !== null);
@@ -1803,6 +1888,19 @@ function buildClusterMapData(
         }
 
         const sequence = expandModelsByCount(seed.visibleBreakdown, seed.visibleMembers);
+        const membersByModel = new Map<string, string[]>();
+        for (const m of seed.members) {
+            if (visibleModels.has(m.model)) {
+                const list = membersByModel.get(m.model) ?? [];
+                list.push(m.id);
+                membersByModel.set(m.model, list);
+            }
+        }
+        const modelCounters = new Map<string, number>();
+        for (const entry of seed.visibleBreakdown) {
+            modelCounters.set(entry.model, 0);
+        }
+
         sequence.forEach((model, pointIndex) => {
             const randomSeed = hashString(`${seed.clusterId}:${model}:${pointIndex}`);
             const radialPosition = region.radius * Math.sqrt((pointIndex + 1) / sequence.length);
@@ -1810,11 +1908,17 @@ function buildClusterMapData(
             const jitterX = (seededFloat(randomSeed, 2) - 0.5) * 0.85;
             const jitterY = (seededFloat(randomSeed, 3) - 0.5) * 0.85;
 
+            const modelList = membersByModel.get(model) ?? [];
+            const counter = modelCounters.get(model) ?? 0;
+            const memberId = modelList[counter] ?? undefined;
+            modelCounters.set(model, counter + 1);
+
             points.push({
                 x: region.centerX + Math.cos(theta) * radialPosition + jitterX,
                 y: region.centerY + Math.sin(theta) * radialPosition + jitterY,
                 model,
                 clusterId: seed.clusterId,
+                memberId,
             });
         });
     }
