@@ -248,6 +248,11 @@ export default function LshRunsPage() {
     const [isResizingPanes, setIsResizingPanes] = useState(false);
     const splitPaneRef = useRef<HTMLDivElement | null>(null);
 
+    const [isRunModalOpen, setIsRunModalOpen] = useState(false);
+    const [runQuestion, setRunQuestion] = useState('');
+    const [isRunningBenchmark, setIsRunningBenchmark] = useState(false);
+    const [runBenchmarkError, setRunBenchmarkError] = useState<string | null>(null);
+
     const loadRuns = useCallback(async () => {
         try {
             const response = await fetch('/api/lsh-runs', { cache: 'no-store' });
@@ -754,6 +759,36 @@ export default function LshRunsPage() {
         setSavedGradesStatus(`Comparing ${selectedSavedGradeIds.length} saved grade${selectedSavedGradeIds.length === 1 ? '' : 's'}.`);
     };
 
+    const handleRunBenchmark = async () => {
+        if (!runQuestion.trim()) return;
+
+        setIsRunningBenchmark(true);
+        setRunBenchmarkError(null);
+
+        try {
+            const response = await fetch('/api/lsh-runs/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: runQuestion }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to start benchmark run');
+            }
+
+            setIsRunModalOpen(false);
+            setRunQuestion('');
+            // Optional: trigger reload of runs since a new one was just created
+            void loadRuns();
+        } catch (error) {
+            setRunBenchmarkError(error instanceof Error ? error.message : 'Unknown error');
+        } finally {
+            setIsRunningBenchmark(false);
+        }
+    };
+
     return (
         <AppShell
             eyebrow="LSH-RUHS"
@@ -773,6 +808,12 @@ export default function LshRunsPage() {
                         </div>
 
                         <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setIsRunModalOpen(true)}
+                                className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors"
+                            >
+                                Run New Benchmark
+                            </button>
                             <span className={`rounded-full px-3 py-1 text-xs font-semibold ${isStreamConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                                 {isStreamConnected ? 'Live stream connected' : 'Live stream reconnecting'}
                             </span>
@@ -1588,7 +1629,77 @@ export default function LshRunsPage() {
                     </section>
                 </div>
             </div>
-        </AppShell>
+
+            {/* Run New Benchmark Modal */}
+            {isRunModalOpen && (
+                <div className="relative z-50">
+                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" />
+                    <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
+                        <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                            <div className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-slate-200">
+                                <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                                    <div className="sm:flex sm:items-start">
+                                        <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                                            <h3 className="text-lg font-semibold leading-6 text-slate-900">
+                                                Run LSH-IRAC Benchmark
+                                            </h3>
+                                            <div className="mt-2 text-sm text-slate-500 space-y-3">
+                                                <p>
+                                                    Enter a legal question below. The backend will fetch ~100+ responses from multiple models and cluster them using LSH + UMAP + HDBSCAN.
+                                                </p>
+                                                <div className="my-2 rounded-md bg-blue-50 p-3 text-blue-800 text-xs text-left">
+                                                    <strong>Note:</strong> This process will take a few minutes as it waits for all models to respond. Please do not close this window.
+                                                </div>
+                                                <textarea
+                                                    rows={4}
+                                                    className="mt-2 block w-full rounded-md border-0 py-2 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6 px-3"
+                                                    placeholder="Enter a legal fact pattern or question..."
+                                                    value={runQuestion}
+                                                    onChange={(e) => setRunQuestion(e.target.value)}
+                                                    disabled={isRunningBenchmark}
+                                                />
+                                                {runBenchmarkError && (
+                                                    <p className="text-red-600 text-sm mt-2">{runBenchmarkError}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="bg-slate-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                                    <button
+                                        type="button"
+                                        className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto ${isRunningBenchmark || !runQuestion.trim()
+                                                ? 'bg-blue-400 cursor-not-allowed'
+                                                : 'bg-blue-600 hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                                            }`}
+                                        onClick={handleRunBenchmark}
+                                        disabled={isRunningBenchmark || !runQuestion.trim()}
+                                    >
+                                        {isRunningBenchmark ? (
+                                            <span className="flex items-center gap-2">
+                                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Running...
+                                            </span>
+                                        ) : 'Start Benchmark'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 sm:mt-0 sm:w-auto"
+                                        onClick={() => !isRunningBenchmark && setIsRunModalOpen(false)}
+                                        disabled={isRunningBenchmark}
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </main>
     );
 }
 

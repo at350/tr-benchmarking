@@ -66,7 +66,9 @@ REPLICATE_MODELS = [
     "google/gemini-3-pro",
     "meta/llama-4-maverick-instruct",
     "anthropic/claude-4.5-sonnet",
-    "anthropic/claude-3.5-haiku"
+    "anthropic/claude-3.5-haiku",
+    "deepseek-ai/deepseek-v3",
+    "xai/grok-4"
 ]
 
 # --- Fetch Functions ---
