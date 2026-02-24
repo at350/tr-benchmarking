@@ -10,6 +10,7 @@ type LshRunSummary = {
     timestamp: string | null;
     modifiedAt: string;
     method: string;
+    schema: string;
     totalItems: number;
     numClusters: number;
     largestClusterSize: number;
@@ -41,6 +42,7 @@ type LshRunDetails = {
     runId: string;
     timestamp: string | null;
     modifiedAt: string;
+    schema: string;
     metadata: Record<string, unknown>;
     totalClusters: number;
     totalMembers: number;
@@ -809,7 +811,7 @@ export default function LshRunsPage() {
                                 >
                                     {runs.map((run) => (
                                         <option key={run.fileName} value={run.fileName}>
-                                            {run.fileName} - {run.totalItems} items - {run.numClusters} clusters
+                                            {run.schema === 'IRAC' ? '[IRAC] ' : ''}{run.fileName} - {run.totalItems} items - {run.numClusters} clusters
                                         </option>
                                     ))}
                                 </select>
@@ -828,8 +830,9 @@ export default function LshRunsPage() {
                             <EmptyStateCard message="Run details are unavailable." />
                         ) : (
                             <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
                                     <MetricCard label="Run" value={activeRunSummary?.runId || selectedRun.runId} />
+                                    <MetricCard label="Schema" value={selectedRun.schema} />
                                     <MetricCard label="Method" value={formatMetadataValue(selectedRun.metadata.method)} />
                                     <MetricCard label="Items" value={String(selectedRun.totalMembers)} />
                                     <MetricCard label="Clusters" value={String(selectedRun.totalClusters)} />
@@ -1466,13 +1469,12 @@ export default function LshRunsPage() {
                                                                                                     {row.provider}/{row.model}
                                                                                                 </p>
                                                                                                 <span
-                                                                                                    className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${
-                                                                                                        row.provider === 'openai'
-                                                                                                            ? 'border-blue-200 bg-blue-50 text-blue-700'
-                                                                                                            : row.provider === 'anthropic'
-                                                                                                                ? 'border-amber-200 bg-amber-50 text-amber-700'
-                                                                                                                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                                                                                    }`}
+                                                                                                    className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${row.provider === 'openai'
+                                                                                                        ? 'border-blue-200 bg-blue-50 text-blue-700'
+                                                                                                        : row.provider === 'anthropic'
+                                                                                                            ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                                                                                            : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                                                                        }`}
                                                                                                 >
                                                                                                     N={row.sampleCount}
                                                                                                 </span>

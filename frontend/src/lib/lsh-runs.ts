@@ -21,6 +21,7 @@ type RawCluster = {
 type RawRunFile = {
     metadata?: Record<string, unknown>;
     clusters?: Record<string, RawCluster>;
+    schema?: string;
 };
 
 export type LshRunSummary = {
@@ -29,6 +30,7 @@ export type LshRunSummary = {
     timestamp: string | null;
     modifiedAt: string;
     method: string;
+    schema: string;
     totalItems: number;
     numClusters: number;
     largestClusterSize: number;
@@ -58,6 +60,7 @@ export type LshRunDetails = {
     runId: string;
     timestamp: string | null;
     modifiedAt: string;
+    schema: string;
     metadata: Record<string, unknown>;
     totalClusters: number;
     totalMembers: number;
@@ -85,18 +88,26 @@ export type LshClusterJudgePayload = {
     }>;
 };
 
-function resolveResultsDirectory() {
+function resolveResultsDirectories() {
+    // Return all existing result directories
     const candidates = [
         path.resolve(process.cwd(), '../lsh/results'),
         path.resolve(process.cwd(), 'lsh/results'),
+        path.resolve(process.cwd(), '../lsh-IRAC/results'),
+        path.resolve(process.cwd(), 'lsh-IRAC/results'),
     ];
 
-    for (const candidate of candidates) {
-        if (fs.existsSync(candidate)) {
-            return candidate;
+    return candidates.filter(candidate => fs.existsSync(candidate));
+}
+
+function resolveRunFileLocation(fileName: string): string | null {
+    const directories = resolveResultsDirectories();
+    for (const dir of directories) {
+        const fullPath = path.join(dir, fileName);
+        if (fs.existsSync(fullPath)) {
+            return fullPath;
         }
     }
-
     return null;
 }
 
@@ -124,8 +135,28 @@ function toSafeNumber(value: unknown, fallback = 0) {
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
+function extractRepresentativeText(entry: unknown): string {
+    if (!entry || typeof entry !== 'object') return '';
+    const obj = entry as Record<string, unknown>;
+
+    if (typeof obj.text === 'string') return obj.text;
+
+    // Check for IRAC schema
+    const formatted = [];
+    if (typeof obj.issue === 'string' && obj.issue.trim()) formatted.push(`Issue: ${obj.issue.trim()}`);
+    if (typeof obj.rule === 'string' && obj.rule.trim()) formatted.push(`Rule: ${obj.rule.trim()}`);
+    if (typeof obj.application === 'string' && obj.application.trim()) formatted.push(`Application: ${obj.application.trim()}`);
+    if (typeof obj.conclusion === 'string' && obj.conclusion.trim()) formatted.push(`Conclusion: ${obj.conclusion.trim()}`);
+
+    if (formatted.length > 0) {
+        return formatted.join('\n\n');
+    }
+
+    return '';
+}
+
 function toTextPreview(value: unknown) {
-    const text = toSafeString(value, '').replace(/\s+/g, ' ').trim();
+    const text = extractRepresentativeText(value).replace(/\s+/g, ' ').trim();
     if (text.length <= MAX_TEXT_PREVIEW_LENGTH) {
         return text;
     }
@@ -167,49 +198,54 @@ export function isValidRunFileName(fileName: string) {
 }
 
 export function getLshResultsDirectory() {
-    return resolveResultsDirectory();
+    // Legacy support for things not updated to the list approach yet
+    const dirs = resolveResultsDirectories();
+    return dirs.length > 0 ? dirs[0] : null;
 }
 
 export function listLshRunSummaries(): LshRunSummary[] {
-    const resultsDirectory = resolveResultsDirectory();
-    if (!resultsDirectory) {
+    const resultsDirectories = resolveResultsDirectories();
+
+    if (resultsDirectories.length === 0) {
         return [];
     }
 
-    const files = fs.readdirSync(resultsDirectory)
-        .filter((fileName) => isValidRunFileName(fileName))
-        .sort((a, b) => b.localeCompare(a));
-
     const summaries: LshRunSummary[] = [];
 
-    for (const fileName of files) {
-        const fullPath = path.join(resultsDirectory, fileName);
+    for (const resultsDirectory of resultsDirectories) {
+        const files = fs.readdirSync(resultsDirectory)
+            .filter((fileName) => isValidRunFileName(fileName));
 
-        try {
-            const stats = fs.statSync(fullPath);
-            const run = readRunFile(fullPath);
-            const clusters = run.clusters || {};
-            const clusterEntries = Object.entries(clusters);
-            const clusterSizes = clusterEntries.map(([, cluster]) => normalizeMembers(cluster.members).length);
-            const inferredTotalItems = clusterSizes.reduce((total, size) => total + size, 0);
-            const metadata = run.metadata || {};
+        for (const fileName of files) {
+            const fullPath = path.join(resultsDirectory, fileName);
 
-            summaries.push({
-                fileName,
-                runId: fileName.replace(/\.json$/, ''),
-                timestamp: parseRunTimestamp(fileName),
-                modifiedAt: stats.mtime.toISOString(),
-                method: toSafeString(metadata.method, 'unknown'),
-                totalItems: toSafeNumber(metadata.total_items, inferredTotalItems),
-                numClusters: toSafeNumber(metadata.num_clusters, clusterEntries.length),
-                largestClusterSize: clusterSizes.length > 0 ? Math.max(...clusterSizes) : 0,
-            });
-        } catch (error) {
-            console.error(`Skipping malformed run file: ${fileName}`, error);
+            try {
+                const stats = fs.statSync(fullPath);
+                const run = readRunFile(fullPath);
+                const clusters = run.clusters || {};
+                const clusterEntries = Object.entries(clusters);
+                const clusterSizes = clusterEntries.map(([, cluster]) => normalizeMembers(cluster.members).length);
+                const inferredTotalItems = clusterSizes.reduce((total, size) => total + size, 0);
+                const metadata = run.metadata || {};
+
+                summaries.push({
+                    fileName,
+                    runId: fileName.replace(/\.json$/, ''),
+                    timestamp: parseRunTimestamp(fileName),
+                    modifiedAt: stats.mtime.toISOString(),
+                    method: toSafeString(metadata.method, 'unknown'),
+                    schema: toSafeString(metadata.schema, 'Standard'),
+                    totalItems: toSafeNumber(metadata.total_items, inferredTotalItems),
+                    numClusters: toSafeNumber(metadata.num_clusters, clusterEntries.length),
+                    largestClusterSize: clusterSizes.length > 0 ? Math.max(...clusterSizes) : 0,
+                });
+            } catch (error) {
+                console.error(`Skipping malformed run file: ${fileName}`, error);
+            }
         }
     }
 
-    return summaries;
+    return summaries.sort((a, b) => b.fileName.localeCompare(a.fileName));
 }
 
 export function getLshRunDetails(fileName: string): LshRunDetails | null {
@@ -217,13 +253,8 @@ export function getLshRunDetails(fileName: string): LshRunDetails | null {
         return null;
     }
 
-    const resultsDirectory = resolveResultsDirectory();
-    if (!resultsDirectory) {
-        return null;
-    }
-
-    const fullPath = path.join(resultsDirectory, fileName);
-    if (!fs.existsSync(fullPath)) {
+    const fullPath = resolveRunFileLocation(fileName);
+    if (!fullPath) {
         return null;
     }
 
@@ -254,13 +285,13 @@ export function getLshRunDetails(fileName: string): LshRunDetails | null {
             representative: {
                 id: toSafeString(representative.id, 'N/A'),
                 model: toSafeString(representative.model, 'unknown'),
-                textPreview: toTextPreview(representative.text),
+                textPreview: toTextPreview(representative), // Pass the whole object for extraction
             },
             modelBreakdown,
             membersPreview: members.slice(0, MAX_MEMBER_PREVIEW_COUNT).map((member) => ({
                 id: toSafeString(member.id, 'unknown'),
                 model: toSafeString(member.model, 'unknown'),
-                textPreview: toTextPreview(member.text),
+                textPreview: toTextPreview(member), // Pass the whole object for extraction
             })),
         };
     });
@@ -271,6 +302,7 @@ export function getLshRunDetails(fileName: string): LshRunDetails | null {
         timestamp: parseRunTimestamp(fileName),
         modifiedAt: stats.mtime.toISOString(),
         metadata,
+        schema: toSafeString(metadata.schema, 'Standard'),
         totalClusters: clusterSummaries.length,
         totalMembers,
         clusters: clusterSummaries,
@@ -282,13 +314,8 @@ export function getLshClusterJudgePayload(fileName: string, clusterId: string): 
         return null;
     }
 
-    const resultsDirectory = resolveResultsDirectory();
-    if (!resultsDirectory) {
-        return null;
-    }
-
-    const fullPath = path.join(resultsDirectory, fileName);
-    if (!fs.existsSync(fullPath)) {
+    const fullPath = resolveRunFileLocation(fileName);
+    if (!fullPath) {
         return null;
     }
 
@@ -304,7 +331,7 @@ export function getLshClusterJudgePayload(fileName: string, clusterId: string): 
     const normalizedMembers = members.map((member) => ({
         id: toSafeString(member.id, 'unknown'),
         model: toSafeString(member.model, 'unknown'),
-        text: toSafeString(member.text, ''),
+        text: extractRepresentativeText(member),
     }));
 
     return {
@@ -313,7 +340,7 @@ export function getLshClusterJudgePayload(fileName: string, clusterId: string): 
         representative: {
             id: toSafeString(representative.id, 'N/A'),
             model: toSafeString(representative.model, 'unknown'),
-            text: toSafeString(representative.text, ''),
+            text: extractRepresentativeText(representative),
         },
         members: normalizedMembers,
         modelBreakdown: buildModelBreakdown(members),

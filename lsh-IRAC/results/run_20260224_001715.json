@@ -1,0 +1,801 @@
+{
+  "metadata": {
+    "timestamp": "20260224_001715",
+    "method": "density_umap_hdbscan",
+    "umap_dims": 10,
+    "min_cluster_size": 5,
+    "question": "A husband and wife were shopping at a local department store when the wife saw a dress that she especially liked. The wife, who weighed more than 300 pounds, was unable to find a size large enough to fit her. She then saw a store clerk and asked if the store carried the dress in her size. The clerk looked at the wife and said, \"You look like a hippopotamus, and I'm sorry, but we don't carry this dress in the hippo size. \" Another customer in the store overheard the comment and began to laugh. The wife became very upset and hurried out of the store. If the wife asserts a tort action against the department store based upon the clerk's actions, the wife will\n\n\"win, because the clerk's actions caused her emotional distress.\",\n\"lose, because the wife did not suffer any physical harm.\",\n\"win, because the comment was intended to ridicule and humiliate her.\",\n\"lose, because the comment was made in a public place.\",\n\"win, because the store does not carry clothes in her size.\",\n\"lose, because the wife only suffered hurt feelings.\",\n\"win, because the statement was overheard by another customer.\",\n\"win, because the clerk's conduct was extreme and outrageous.\",\n\"lose, because the comment was not intended to cause harm.\",\n\"lose, because the clerk was merely stating an opinion.\"\n",
+    "schema": "IRAC",
+    "total_items": 87,
+    "num_clusters": 7,
+    "failures": {
+      "google/gemini-3-flash": 16,
+      "google/gemini-3-pro": 18,
+      "meta/llama-4-maverick-instruct": 19,
+      "anthropic/claude-4.5-sonnet": 20,
+      "anthropic/claude-3.5-haiku": 20
+    }
+  },
+  "clusters": {
+    "3": {
+      "representative": {
+        "id": "gpt-4o_2",
+        "model": "gpt-4o",
+        "issue": "Whether the wife can successfully assert a tort action for intentional infliction of emotional distress against the department store based on the clerk's comment.",
+        "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct be extreme and outrageous, that the conduct intentionally or recklessly caused the plaintiff emotional distress, and that the distress was severe.",
+        "application": "The clerk's comment calling the wife a 'hippopotamus' and stating that the store does not carry 'hippo size' could be considered extreme and outrageous behavior, especially as it was made in a public setting and was overheard by another customer, causing humiliation. The comment was likely intended to ridicule and humiliate the wife, and the wife's reaction of becoming very upset and hurrying out of the store suggests she suffered emotional distress.",
+        "conclusion": "The wife will win, because the clerk's conduct was extreme and outrageous."
+      },
+      "members": [
+        {
+          "id": "gpt-4o_0",
+          "model": "gpt-4o",
+          "issue": "Whether the department store is liable for the clerk's comment causing the wife emotional distress.",
+          "rule": "To establish a claim for intentional infliction of emotional distress, the plaintiff must demonstrate that the defendant's conduct was extreme and outrageous, intended to cause, or recklessly disregarded the likelihood of causing, severe emotional distress.",
+          "application": "The clerk's comment, comparing the wife to a 'hippopotamus' and implying she is excessively large, could be considered extreme and outrageous as it was intended to ridicule and humiliate her in a public setting, and another customer overheard the comment, amplifying the humiliation. This conduct could be viewed as going beyond all bounds of decency, and it is reasonable to conclude that such a comment could cause severe emotional distress.",
+          "conclusion": "The wife will win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-4o_1",
+          "model": "gpt-4o",
+          "issue": "Whether the wife can successfully assert a tort action for intentional infliction of emotional distress against the department store based on the clerk's actions.",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct be extreme and outrageous, intentionally or recklessly causing severe emotional distress to the plaintiff.",
+          "application": "The clerk's comment, calling the wife a 'hippopotamus' and referencing 'hippo size,' could be considered extreme and outrageous as it was intended to ridicule and humiliate her in a public setting. The fact that another customer overheard and laughed could further demonstrate the impact of the clerk's conduct. The comment was not merely an opinion, as it was made in a derogatory manner.",
+          "conclusion": "The wife will win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-4o_2",
+          "model": "gpt-4o",
+          "issue": "Whether the wife can successfully assert a tort action for intentional infliction of emotional distress against the department store based on the clerk's comment.",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct be extreme and outrageous, that the conduct intentionally or recklessly caused the plaintiff emotional distress, and that the distress was severe.",
+          "application": "The clerk's comment calling the wife a 'hippopotamus' and stating that the store does not carry 'hippo size' could be considered extreme and outrageous behavior, especially as it was made in a public setting and was overheard by another customer, causing humiliation. The comment was likely intended to ridicule and humiliate the wife, and the wife's reaction of becoming very upset and hurrying out of the store suggests she suffered emotional distress.",
+          "conclusion": "The wife will win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-4o_4",
+          "model": "gpt-4o",
+          "issue": "Whether the wife can successfully assert a tort action for intentional infliction of emotional distress against the department store based on the clerk's comments.",
+          "rule": "To establish a claim for intentional infliction of emotional distress, the plaintiff must prove: (1) the defendant's conduct was extreme and outrageous, (2) the conduct was intended to cause, or was in reckless disregard of the likelihood of causing, emotional distress, (3) the plaintiff suffered severe emotional distress, and (4) the conduct was a substantial factor in causing the distress.",
+          "application": "The clerk's comment, comparing the wife to a 'hippopotamus' and stating that the store doesn't carry the dress in 'hippo size,' could be considered extreme and outrageous, especially since it was made in a public setting and was overheard by another customer. The comment appears to be intended to ridicule and humiliate the wife, which could satisfy the intent or reckless disregard requirement. The wife's reaction of becoming very upset and hurriedly leaving the store suggests that she suffered emotional distress as a result of the clerk's conduct.",
+          "conclusion": "The wife will likely win, because the clerk's conduct was extreme and outrageous and caused her emotional distress."
+        },
+        {
+          "id": "gpt-4o_5",
+          "model": "gpt-4o",
+          "issue": "Can the wife successfully assert a tort action for intentional infliction of emotional distress against the department store based on the clerk's actions?",
+          "rule": "The tort of intentional infliction of emotional distress requires: (1) extreme and outrageous conduct by the defendant; (2) intent to cause, or reckless disregard of the probability of causing, emotional distress; (3) severe emotional distress suffered by the plaintiff; and (4) a causal connection between the conduct and the emotional distress.",
+          "application": "The clerk's comment referring to the wife as a 'hippopotamus' and stating they don't carry the dress in 'hippo size' could be considered extreme and outrageous conduct likely to cause emotional distress. The comment was made publicly and was overheard by another customer, which could further support the claim of humiliation and emotional distress. The clerk's conduct may demonstrate an intent to ridicule or a reckless disregard for the likelihood of causing emotional distress.",
+          "conclusion": "The wife will win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-4o_7",
+          "model": "gpt-4o",
+          "issue": "Whether the wife can successfully assert a tort action for intentional infliction of emotional distress against the department store based on the clerk's comments.",
+          "rule": "To establish a claim for intentional infliction of emotional distress, the plaintiff must prove: (1) extreme and outrageous conduct by the defendant; (2) the defendant's intent to cause, or reckless disregard of the likelihood of causing, emotional distress; (3) severe emotional distress suffered by the plaintiff; and (4) a causal connection between the defendant's conduct and the emotional distress.",
+          "application": "The clerk's comment, comparing the wife to a 'hippopotamus' and saying the store doesn't carry 'hippo size,' could be considered extreme and outrageous, as it was intended to ridicule and humiliate the wife publicly. The comment was likely made with reckless disregard for causing emotional distress, as it was foreseeable that such a remark would cause embarrassment and upset. The wife's hurried exit from the store indicates she suffered emotional distress, and the presence of another customer who laughed exacerbates the humiliation.",
+          "conclusion": "The wife will likely win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-4o_13",
+          "model": "gpt-4o",
+          "issue": "Whether the wife can successfully assert a tort action for intentional infliction of emotional distress against the department store based on the clerk's actions and statements.",
+          "rule": "The tort of intentional infliction of emotional distress requires: (1) extreme and outrageous conduct by the defendant; (2) the defendant's intent to cause, or reckless disregard of the likelihood of causing, emotional distress; (3) severe emotional distress suffered by the plaintiff; and (4) actual and proximate causation of the emotional distress by the defendant's conduct.",
+          "application": "The clerk's statement calling the wife a 'hippopotamus' could be considered extreme and outrageous as it was intended to ridicule and humiliate her in public, which satisfies the first element. The clerk's intent can be inferred from the nature of the statement, indicating a reckless disregard for the likelihood of causing emotional distress. The wife's reaction of becoming very upset and leaving the store suggests she experienced severe emotional distress. Additionally, the presence of another customer who laughed could exacerbate the humiliation and distress experienced, fulfilling the causation requirement.",
+          "conclusion": "The wife will win because the clerk's conduct was extreme and outrageous, intended to ridicule and humiliate her, and caused her severe emotional distress."
+        },
+        {
+          "id": "gpt-4o_14",
+          "model": "gpt-4o",
+          "issue": "Whether the wife can successfully assert a tort action for intentional infliction of emotional distress against the department store based on the clerk's comment.",
+          "rule": "To establish a claim for intentional infliction of emotional distress, the plaintiff must prove: (1) the defendant engaged in extreme and outrageous conduct; (2) the conduct was intentional or reckless; (3) the conduct caused emotional distress; and (4) the emotional distress was severe.",
+          "application": "The clerk's comment, describing the wife as looking like a 'hippopotamus' and referencing a 'hippo size,' could be considered extreme and outrageous conduct, as it was a public, humiliating statement meant to ridicule. The comment was intentional, as it was directed specifically at the wife. The wife was visibly upset, indicating emotional distress, and the public nature and ridicule could contribute to the distress being deemed severe.",
+          "conclusion": "Win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-4o_15",
+          "model": "gpt-4o",
+          "issue": "Whether the wife can successfully claim a tort action for intentional infliction of emotional distress based on the clerk's comment.",
+          "rule": "The tort of intentional infliction of emotional distress requires the plaintiff to prove that the defendant's conduct was extreme and outrageous, that the defendant intended to cause, or recklessly disregarded the likelihood of causing, emotional distress, and that the plaintiff suffered severe emotional distress as a result.",
+          "application": "The clerk's comment, comparing the wife to a hippopotamus and making a derogatory remark about her size, could be considered extreme and outrageous, especially in a customer service context. The fact that another customer laughed could support the claim that the comment was humiliating. The clerk's intent to ridicule can be inferred from the nature of the comment. Although the wife did not suffer physical harm, the emotional impact could be deemed severe, given her reaction.",
+          "conclusion": "The wife will likely win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-4o_16",
+          "model": "gpt-4o",
+          "issue": "Whether the wife can successfully assert a tort action against the department store for intentional infliction of emotional distress based on the clerk's actions.",
+          "rule": "To establish a claim for intentional infliction of emotional distress, the plaintiff must prove that the defendant's conduct was extreme and outrageous, intended to cause, or recklessly disregarded the likelihood of causing emotional distress, and that such conduct did indeed cause severe emotional distress.",
+          "application": "The clerk's comment, calling the wife a 'hippopotamus' and referencing 'hippo size,' can be considered extreme and outrageous given the context, as it was intended to ridicule and humiliate her. This comment was overheard by another customer, exacerbating the emotional impact. The fact that the wife became very upset and hurried out of the store suggests that she experienced emotional distress as a result of the clerk's actions. The conduct was not a mere opinion or statement of fact about dress sizes but was intended to demean.",
+          "conclusion": "The wife will win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-4o_17",
+          "model": "gpt-4o",
+          "issue": "Can the wife successfully bring a tort action for intentional infliction of emotional distress based on the clerk's comment?",
+          "rule": "To establish a claim for intentional infliction of emotional distress, the plaintiff must show (1) extreme and outrageous conduct by the defendant, (2) intent to cause, or reckless disregard of the likelihood of causing, emotional distress, (3) causation, and (4) severe emotional distress suffered by the plaintiff.",
+          "application": "The clerk's comment, comparing the wife to a 'hippopotamus,' could be considered extreme and outrageous given the context of a customer service interaction. The comment was likely intended to ridicule and humiliate the wife, as evidenced by another customer's laughter. This supports a finding of intent or reckless disregard. The wife's upset reaction demonstrates causation of emotional distress. However, whether her distress is severe enough to satisfy the legal standard is uncertain from the provided facts.",
+          "conclusion": "The wife may win, because the clerk's conduct was extreme and outrageous, potentially meeting the elements of intentional infliction of emotional distress."
+        },
+        {
+          "id": "gpt-4o_18",
+          "model": "gpt-4o",
+          "issue": "Whether the wife can succeed in a tort action for intentional infliction of emotional distress based on the clerk's comment.",
+          "rule": "To succeed in a claim for intentional infliction of emotional distress, the plaintiff must demonstrate that the defendant's conduct was extreme and outrageous, intended to cause, or recklessly disregarded the likelihood of causing emotional distress, and that the conduct actually caused severe emotional distress.",
+          "application": "The clerk's comment, calling the wife a 'hippopotamus,' was made in a public setting and was overheard by another customer, which could be considered extreme and outrageous conduct. It was intended to ridicule and humiliate the wife, potentially meeting the requirement of intent or reckless disregard for causing emotional distress. The wife's immediate reaction of becoming very upset and leaving the store suggests that the comment caused her emotional distress.",
+          "conclusion": "The wife will likely win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-4o_19",
+          "model": "gpt-4o",
+          "issue": "Can the wife successfully assert a tort action for intentional infliction of emotional distress based on the clerk's comment?",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct be extreme and outrageous, intentionally or recklessly causing severe emotional distress to the plaintiff.",
+          "application": "The clerk's comment, referring to the wife as a 'hippopotamus' and implying she was too large for the store's clothing, could be considered extreme and outrageous, especially in a public setting. The comment was made in a manner that ridiculed and humiliated the wife intentionally, as evidenced by the laughter of another customer. This public humiliation may fulfill the requirement of causing severe emotional distress.",
+          "conclusion": "The wife will win because the clerk's conduct was extreme and outrageous, intended to ridicule and humiliate her, resulting in emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_0",
+          "model": "gpt-4-turbo",
+          "issue": "Can the wife successfully assert a tort action for intentional infliction of emotional distress against the department store based on the clerk's comments?",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct was extreme and outrageous, that the conduct was intended to cause severe emotional distress or done with reckless disregard of the probability of causing such distress, and that the conduct actually caused severe emotional distress.",
+          "application": "In this scenario, the clerk's comment to the wife, referring to her as a 'hippopotamus' and stating that the store does not carry clothes in 'hippo size', can be considered extreme and outrageous. It was both humiliating and intentionally directed at her in a public setting, likely with the intent to ridicule or with reckless disregard for the emotional impact it would have. The wife's reaction to leave the store hurriedly indicates that she experienced severe emotional distress as a result of the comment.",
+          "conclusion": "The wife is likely to win a tort action for intentional infliction of emotional distress against the department store because the clerk's conduct was extreme and outrageous, and it caused her severe emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_2",
+          "model": "gpt-4-turbo",
+          "issue": "Can the wife successfully bring a tort action against the department store for intentional infliction of emotional distress based on the clerk's comment?",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct was intentional or reckless, extreme and outrageous, and that it caused the plaintiff severe emotional distress.",
+          "application": "In this case, the clerk's comment to the wife, comparing her to a 'hippopotamus' and stating they do not have a 'hippo size,' can be considered extreme and outrageous conduct that goes beyond the bounds of decency tolerated by society. This comment was made intentionally or at least recklessly, with disregard to its impact on the wife. The fact that this comment was made publicly, in the presence of another customer who laughed, likely exacerbated the emotional distress experienced by the wife. Although there was no physical harm, physical injury is not a necessary element for this tort.",
+          "conclusion": "The wife would likely win a tort action for intentional infliction of emotional distress against the department store, as the clerk's conduct was extreme and outrageous and caused her emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_3",
+          "model": "gpt-4-turbo",
+          "issue": "Can the wife successfully assert a tort action against the department store based on the clerk's comment?",
+          "rule": "Intentional infliction of emotional distress occurs when one acts in an extreme and outrageous manner intentionally or recklessly, causing severe emotional distress to another. The conduct must exceed all bounds of decency tolerated by society, and actual damage must occur as a result.",
+          "application": "The clerk's comment to the wife, comparing her to a 'hippopotamus' and stating that they do not carry a 'hippo size,' can be considered extreme and outrageous. Such a comment clearly exceeds normal bounds of decency and is likely to cause severe emotional distress, as evidenced by the wife becoming very upset and leaving the store. The presence of other customers, including one who laughed, indicates that the comment was publicly humiliating, exacerbating the distress.",
+          "conclusion": "The wife will likely win a tort action for intentional infliction of emotional distress against the department store because the clerk's comment was extreme, outrageous, and directly caused her severe emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_4",
+          "model": "gpt-4-turbo",
+          "issue": "Whether the wife can successfully assert a tort action against the department store for the clerk's comments causing her emotional distress.",
+          "rule": "Under the tort of intentional infliction of emotional distress, a plaintiff must prove that the defendant's conduct was extreme and outrageous, that the defendant intended to cause, or recklessly disregarded the likelihood of causing, emotional distress, that the plaintiff suffered severe emotional distress, and that the defendant's conduct actually caused the distress.",
+          "application": "In this case, the clerk's comment likening the wife to a 'hippopotamus' and stating they do not carry 'hippo size' is unnecessarily rude and disparaging, likely qualifying as extreme and outrageous conduct. The intention to ridicule is evident from the nature of the comment, particularly in a public setting which could amplify the humiliation. The fact that another customer laughed and the wife hurriedly left the store indicates that she suffered emotional distress. Therefore, the clerk's actions meet the criteria of intent and causation of distress.",
+          "conclusion": "The wife will likely win a tort action against the department store based on the clerk's actions causing her emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_5",
+          "model": "gpt-4-turbo",
+          "issue": "Will the wife win a tort action against the department store based on the clerk's comment causing her emotional distress?",
+          "rule": "In tort law, a claim of intentional infliction of emotional distress requires that the defendant's conduct was extreme and outrageous, was intended to cause severe emotional distress, or was done with reckless disregard of the probability of causing such distress, and that the conduct actually caused severe emotional distress.",
+          "application": "In this scenario, the clerk's comment to the wife, comparing her to a 'hippopotamus' and stating they do not carry 'hippo size,' can be considered extreme and outrageous conduct that goes beyond the bounds of decency. The comment was made publicly, in the presence of another customer who laughed, which likely exacerbated the wife's humiliation and distress. The intent to ridicule and humiliate is evident, and the wife left the store hurriedly, indicating that she was indeed distressed by the comment.",
+          "conclusion": "The wife will likely win a tort action against the department store for intentional infliction of emotional distress, as the clerk's conduct was extreme, outrageous, and intended to cause, and did cause, severe emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_6",
+          "model": "gpt-4-turbo",
+          "issue": "Can the wife successfully assert a tort action for intentional infliction of emotional distress against the department store based on the clerk's comment?",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct was extreme and outrageous, intentionally or recklessly caused emotional distress, and that the distress was severe.",
+          "application": "The clerk's comment to the wife, likening her appearance to a 'hippopotamus' and stating they do not carry 'hippo size,' can be considered extreme and outrageous as it is both humiliating and degrading. The intent to cause distress can be inferred from the nature of the comment, especially given it was made publicly. The severity of the emotional distress is indicated by the wife's reaction to leave the store hurriedly, which shows she was deeply hurt and embarrassed by the comment.",
+          "conclusion": "The wife will likely win because the clerk's conduct was extreme and outrageous, and it caused her emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_7",
+          "model": "gpt-4-turbo",
+          "issue": "Whether the wife can prevail in a tort action against the department store based on the clerk's comment causing emotional distress.",
+          "rule": "In tort law, a claim for intentional infliction of emotional distress requires that the defendant's conduct was extreme and outrageous, intentionally or recklessly caused emotional distress, and the distress was severe.",
+          "application": "The clerk's comment comparing the wife to a 'hippopotamus' and stating they do not carry 'hippo size' can be considered extreme and outrageous conduct, especially given the public setting and the intention to humiliate. The wife's immediate emotional response and her action of hurrying out of the store indicate that the comment caused her distress. Although there was no physical harm, physical injury is not a necessary element for this claim.",
+          "conclusion": "The wife will likely win a tort action for intentional infliction of emotional distress against the department store because the clerk's conduct was extreme and outrageous, and it caused her emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_8",
+          "model": "gpt-4-turbo",
+          "issue": "Whether the wife can successfully assert a tort action against the department store for intentional infliction of emotional distress based on the clerk's comment.",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct was extreme and outrageous, intended to cause severe emotional distress, and actually caused severe emotional distress.",
+          "application": "In this case, the store clerk's comment comparing the wife to a 'hippopotamus' and stating that the store does not have 'hippo size' dresses clearly constitutes extreme and outrageous conduct. Such comments are both humiliating and degrading, particularly when made publicly and overheard by other customers. The intent to inflict emotional distress can be inferred from the nature of the words used and the public manner in which they were delivered. The wife's reaction, where she became very upset and hurried out of the store, indicates that she indeed suffered severe emotional distress.",
+          "conclusion": "The wife is likely to win a tort action against the department store for intentional infliction of emotional distress based on the clerk's actions, as the conduct was extreme and outrageous and appears to have caused significant emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_9",
+          "model": "gpt-4-turbo",
+          "issue": "Whether the wife can successfully assert a tort action against the department store for the clerk's comment causing her emotional distress.",
+          "rule": "Intentional infliction of emotional distress occurs when one's outrageous conduct intentionally or recklessly causes severe emotional distress to another. The conduct must exceed all bounds of decency tolerated by society and must be of a nature that is especially calculated to cause mental damage of a very serious kind.",
+          "application": "In this scenario, the clerk's comment to the wife, comparing her to a 'hippopotamus' and mentioning they do not carry the 'hippo size,' can be considered extremely insulting and demeaning. Such comments clearly go beyond a mere rude remark and enter the realm of outrageous and humiliating, especially given it was made in a public setting and overheard by another customer, which likely exacerbated the wife's distress. The clerk\u2019s behavior appears to meet the threshold of outrageous conduct intended to cause, or recklessly disregarding the risk of causing, emotional distress.",
+          "conclusion": "The wife is likely to win a tort action for intentional infliction of emotional distress against the department store, as the clerk\u2019s conduct was extreme and outrageous, and it directly caused her severe emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_10",
+          "model": "gpt-4-turbo",
+          "issue": "Can the wife successfully assert a tort action against the department store for intentional infliction of emotional distress based on the clerk's comment?",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct was extreme and outrageous, intentionally or recklessly caused emotional distress, and the distress was severe. The conduct must go beyond all possible bounds of decency and be regarded as shocking and intolerable in a civilized society.",
+          "application": "The clerk's remark comparing the wife to a 'hippopotamus' and stating they do not carry 'hippo size' was both humiliating and degrading. Such a comment, made publicly and causing the wife to leave the store upset, can be considered extreme and outrageous behavior that transcends the bounds of decency. Although no physical harm occurred, the emotional distress caused by such a derogatory comment, especially in public and overheard by others, can be significant enough to meet the severity requirement.",
+          "conclusion": "The wife is likely to win a tort action for intentional infliction of emotional distress against the department store because the clerk's conduct was extreme and outrageous, causing her emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_13",
+          "model": "gpt-4-turbo",
+          "issue": "Can the wife successfully assert a tort action against the department store for intentional infliction of emotional distress based on the clerk's comment?",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct was extreme and outrageous, intended to cause severe emotional distress or recklessly disregarded the likelihood of causing such distress, and actually caused severe emotional distress.",
+          "application": "The clerk's comment comparing the wife to a 'hippopotamus' and stating that they do not carry 'hippo size' is arguably extreme and outrageous as it is both humiliating and degrading, particularly within a public setting and in the presence of others. The intent to cause distress, or at least reckless disregard for the emotional impact of the comment, can be inferred from the nature of the remark. Although there is no indication of physical harm, the law recognizes claims based solely on emotional distress if the other elements are sufficiently met. The wife's immediate emotional reaction and decision to leave the store suggest that the comment caused her significant distress.",
+          "conclusion": "The wife is likely to win a tort action against the department store for intentional infliction of emotional distress, as the clerk's conduct meets the criteria of being extreme and outrageous, and it caused her emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_14",
+          "model": "gpt-4-turbo",
+          "issue": "Can the wife successfully assert a tort action against the department store based on the clerk's comment, claiming intentional infliction of emotional distress?",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct was extreme and outrageous, intended to cause severe emotional distress (or recklessly disregarded the likelihood of causing such distress), and actually caused severe emotional distress.",
+          "application": "In this scenario, the clerk's comment, comparing the wife's size to a 'hippopotamus' and stating they do not carry 'hippo size,' could be considered extreme and outrageous as it is beyond the bounds of decency in a retail context. The intent to ridicule and humiliate is apparent, or at the very least, the clerk acted with reckless disregard for the impact of the words. The emotional distress suffered by the wife is evidenced by her immediate reaction of becoming upset and leaving the store. The presence of another customer who overheard and laughed at the comment likely exacerbated the emotional distress.",
+          "conclusion": "The wife would likely win a tort action against the department store for intentional infliction of emotional distress based on the clerk's conduct being extreme and outrageous, and causing her emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_15",
+          "model": "gpt-4-turbo",
+          "issue": "Can the wife successfully assert a tort claim for intentional infliction of emotional distress against the department store based on the clerk's comment?",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct was extreme and outrageous, intended to cause severe emotional distress or recklessly disregarded the likelihood of causing such distress, and actually caused severe emotional distress.",
+          "application": "In this case, the clerk's comment comparing the wife to a 'hippopotamus' and stating they do not carry clothes in 'hippo size' is arguably extreme and outrageous, especially when made in a public setting and meant to address her body size. This comment, particularly because it was made by an employee representing the store, could be seen as intended to humiliate or degrade the wife, fulfilling the intent requirement. The wife's reaction to leave the store upset indicates that she suffered emotional distress. Although physical harm is not a requisite for this claim, the severity of the emotional distress would need to be assessed to determine if it meets the legal standard of 'severe.'",
+          "conclusion": "The wife might win a claim for intentional infliction of emotional distress against the department store if it can be proven that the emotional distress was severe, as the clerk's conduct could be considered extreme and outrageous, and it appears intended to cause distress."
+        },
+        {
+          "id": "gpt-4-turbo_16",
+          "model": "gpt-4-turbo",
+          "issue": "Whether the wife can successfully assert a tort action against the department store based on the clerk's comment causing her emotional distress.",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct was extreme and outrageous, intentionally or recklessly caused emotional distress, and the distress was severe.",
+          "application": "In this case, the clerk's comment, comparing the wife to a 'hippopotamus' and stating that the store does not carry clothing in 'hippo size,' was demeaning and personally insulting in the context of her attempting to buy clothing, a basic social activity. The comment was made publicly, exacerbating the humiliation, as evidenced by another customer overhearing and laughing. This suggests that the conduct could be seen as extreme and outrageous. The wife's immediate reaction to leave the store upset indicates that she experienced significant emotional distress as a direct result of the clerk's comment.",
+          "conclusion": "The wife will likely win a tort action for intentional infliction of emotional distress against the department store, as the clerk's conduct appears to meet the criteria of being extreme and outrageous, directly causing her emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_18",
+          "model": "gpt-4-turbo",
+          "issue": "Whether the wife can successfully assert a tort action against the department store for intentional infliction of emotional distress based on the clerk's comments.",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct was extreme and outrageous, intentionally or recklessly caused emotional distress, and that the distress was severe.",
+          "application": "The clerk's comment to the wife, comparing her to a 'hippopotamus' and stating they do not carry the dress in 'hippo size,' is likely to be considered extreme and outrageous by societal standards, as it is both humiliating and degrading. The intent to inflict emotional distress can be inferred from the nature of the comment, particularly given that it was made publicly in front of other customers. The wife's reaction, where she became very upset and hurried out of the store, suggests that she experienced significant emotional distress as a result of the comment.",
+          "conclusion": "The wife is likely to win a tort action for intentional infliction of emotional distress against the department store because the clerk's conduct was extreme and outrageous and caused her emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_19",
+          "model": "gpt-4-turbo",
+          "issue": "Whether the wife can succeed in a tort action against the department store for intentional infliction of emotional distress based on the clerk's comment.",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct was extreme and outrageous, that the defendant intended to cause or recklessly disregarded the likelihood of causing emotional distress, that the plaintiff suffered severe emotional distress, and that the defendant's conduct actually caused the plaintiff's emotional distress.",
+          "application": "In this case, the clerk's comment comparing the wife to a 'hippopotamus' and stating that the store does not carry clothes in 'hippo size' is objectively humiliating and derogatory, particularly when made in a public setting and loud enough to be overheard by other customers. Such comments can be considered extreme and outrageous, especially given their personal and insulting nature. The wife's reaction to hurry out of the store upset indicates that she suffered emotional distress. The fact that another customer laughed, potentially increasing the wife's humiliation, further supports the severity of the emotional distress caused by the clerk's conduct.",
+          "conclusion": "The wife would likely win a tort action against the department store for intentional infliction of emotional distress, as the clerk's conduct was extreme and outrageous, and it directly caused the wife to suffer emotional distress."
+        }
+      ]
+    },
+    "4": {
+      "representative": {
+        "id": "gpt-4o_10",
+        "model": "gpt-4o",
+        "issue": "Whether the wife can successfully assert a tort action against the department store for intentional infliction of emotional distress based on the clerk's comment.",
+        "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct was extreme and outrageous, that the conduct was intended to cause severe emotional distress or was done with reckless disregard of the likelihood of causing such distress, and that the plaintiff actually suffered severe emotional distress as a result.",
+        "application": "The clerk's comment could be considered extreme and outrageous, as it was a derogatory remark made about the wife's weight, intended to ridicule and humiliate her publicly. The fact that another customer overheard and laughed at the comment may support the claim that it was made with reckless disregard for causing distress. However, the wife must also demonstrate that she suffered severe emotional distress, which can be challenging if the only evidence is that she became upset and left the store.",
+        "conclusion": "The wife will likely lose because she only suffered hurt feelings and there is insufficient evidence of severe emotional distress, despite the clerk's conduct potentially being extreme and outrageous."
+      },
+      "members": [
+        {
+          "id": "gpt-4o_3",
+          "model": "gpt-4o",
+          "issue": "Can the wife succeed in a tort claim for intentional infliction of emotional distress based on the clerk's comments?",
+          "rule": "For a claim of intentional infliction of emotional distress, the plaintiff must prove that the defendant's conduct was extreme and outrageous, that the conduct was intended to cause or recklessly disregarded the likelihood of causing emotional distress, and that severe emotional distress was actually suffered.",
+          "application": "The clerk's comment could be considered extreme and outrageous as it publicly ridiculed and humiliated the wife based on her weight. The comment was made in the presence of another customer who laughed, potentially exacerbating the distress. While the comment may not have been intended to cause harm, the reckless disregard for the wife's feelings could support the claim. Physical harm is not required, only severe emotional distress, which the wife's reaction of hurrying out of the store suggests.",
+          "conclusion": "win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-4o_6",
+          "model": "gpt-4o",
+          "issue": "Whether the wife can successfully assert a tort action for intentional infliction of emotional distress based on the clerk's insulting comment.",
+          "rule": "To succeed in a claim for intentional infliction of emotional distress, the plaintiff must prove that the defendant's conduct was extreme and outrageous, intended to cause, or was done with reckless disregard of the likelihood of causing, severe emotional distress, which actually results in such distress.",
+          "application": "The clerk's comment could be seen as extreme and outrageous as it was a direct insult aimed at ridiculing the wife in front of others, which may satisfy the threshold for extreme conduct. The comment was not just an opinion or a statement of fact about the store's inventory, but a personal attack that could foreseeably cause severe emotional distress. The presence of another customer who overheard and laughed at the comment could further support the claim that the conduct was outrageous and humiliating.",
+          "conclusion": "The wife will win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-4o_8",
+          "model": "gpt-4o",
+          "issue": "Whether the wife can successfully assert a tort action for intentional infliction of emotional distress against the department store based on the clerk's comments.",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct be extreme and outrageous, that the conduct intentionally or recklessly causes severe emotional distress to another, and that the emotional distress suffered is severe.",
+          "application": "The clerk's comment could be considered extreme and outrageous as it was a derogatory remark made in public, aimed at ridiculing and humiliating the wife based on her physical appearance. Such conduct could be seen as intentionally or recklessly causing emotional distress. Although no physical harm occurred, the emotional distress suffered by the wife could be deemed severe given the public humiliation and the impact of the comment.",
+          "conclusion": "The wife will win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-4o_10",
+          "model": "gpt-4o",
+          "issue": "Whether the wife can successfully assert a tort action against the department store for intentional infliction of emotional distress based on the clerk's comment.",
+          "rule": "The tort of intentional infliction of emotional distress requires that the defendant's conduct was extreme and outrageous, that the conduct was intended to cause severe emotional distress or was done with reckless disregard of the likelihood of causing such distress, and that the plaintiff actually suffered severe emotional distress as a result.",
+          "application": "The clerk's comment could be considered extreme and outrageous, as it was a derogatory remark made about the wife's weight, intended to ridicule and humiliate her publicly. The fact that another customer overheard and laughed at the comment may support the claim that it was made with reckless disregard for causing distress. However, the wife must also demonstrate that she suffered severe emotional distress, which can be challenging if the only evidence is that she became upset and left the store.",
+          "conclusion": "The wife will likely lose because she only suffered hurt feelings and there is insufficient evidence of severe emotional distress, despite the clerk's conduct potentially being extreme and outrageous."
+        },
+        {
+          "id": "gpt-4o_11",
+          "model": "gpt-4o",
+          "issue": "Can the wife successfully claim emotional distress against the department store for the clerk's insulting comment?",
+          "rule": "To establish a claim for intentional infliction of emotional distress, the conduct must be extreme and outrageous, intended to cause, or recklessly disregarding the likelihood of causing, emotional distress, which must be severe.",
+          "application": "The clerk's comment could be seen as extreme and outrageous, as it ridiculed the wife's weight in a humiliating manner in public, and was overheard by another customer. This could fulfill the requirement of conduct that is beyond the bounds of decency. The distress caused to the wife, although not physically harmful, could be considered severe due to the public humiliation.",
+          "conclusion": "win, because the clerk's conduct was extreme and outrageous."
+        }
+      ]
+    },
+    "5": {
+      "representative": {
+        "id": "gpt-4-turbo_17",
+        "model": "gpt-4-turbo",
+        "issue": "Whether the wife can assert a successful tort action against the department store for the clerk's comment causing emotional distress.",
+        "rule": "Intentional infliction of emotional distress (IIED) requires that the defendant's conduct was extreme and outrageous, intended to cause severe emotional distress, and actually caused severe emotional distress.",
+        "application": "The clerk's comment, comparing the wife to a 'hippopotamus' and stating they do not carry 'hippo size,' can be considered extreme and outrageous as it is beyond the bounds of decency and was made with an intention to ridicule and humiliate her in a public setting. The fact that another customer overheard and laughed indicates the comment was public and humiliating. The wife's reaction of becoming very upset and hurrying out of the store suggests that she suffered emotional distress as a direct result.",
+        "conclusion": "The wife will likely win a tort action for intentional infliction of emotional distress against the department store based on the clerk's actions."
+      },
+      "members": [
+        {
+          "id": "gpt-4o_9",
+          "model": "gpt-4o",
+          "issue": "Whether the wife can successfully claim intentional infliction of emotional distress against the department store based on the clerk's comments.",
+          "rule": "To establish a claim for intentional infliction of emotional distress (IIED), the plaintiff must prove: (1) the defendant's conduct was extreme and outrageous, (2) the conduct was intentional or reckless, (3) the conduct caused emotional distress, and (4) the emotional distress was severe.",
+          "application": "The clerk's comment, comparing the wife to a 'hippopotamus' and suggesting the store does not carry her size, could be deemed extreme and outrageous, particularly given the public setting and the resulting humiliation. The intent to ridicule may satisfy the requirement that the conduct was intentional or reckless. The wife's upset reaction indicates she experienced emotional distress, and the public humiliation might be considered severe.",
+          "conclusion": "The wife will likely win because the clerk's conduct could be considered extreme and outrageous."
+        },
+        {
+          "id": "gpt-4o_12",
+          "model": "gpt-4o",
+          "issue": "Whether the wife can successfully claim intentional infliction of emotional distress (IIED) based on the clerk's actions.",
+          "rule": "To succeed on a claim for intentional infliction of emotional distress, the plaintiff must prove that the defendant's conduct was extreme and outrageous, that the conduct was intended to cause emotional distress or done with reckless disregard of the likelihood of causing such distress, and that the conduct actually caused severe emotional distress.",
+          "application": "The clerk's comment can be seen as extreme and outrageous as it publicly ridiculed the wife based on her weight, a sensitive characteristic. The comment may demonstrate an intent to ridicule or could be considered as done with reckless disregard given the humiliating nature of the statement. Another customer overheard the comment, which may have exacerbated the wife's distress. While the wife did not suffer physical harm, the emotional distress caused by the public humiliation could be considered severe.",
+          "conclusion": "The wife will likely win because the clerk's conduct was extreme and outrageous, and it caused her severe emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_1",
+          "model": "gpt-4-turbo",
+          "issue": "Can the wife successfully assert a tort action against the department store for the emotional distress caused by the clerk's comment?",
+          "rule": "Intentional infliction of emotional distress (IIED) occurs when one's conduct is so extreme and outrageous, it exceeds all bounds of decency as to be regarded as atrocious and utterly intolerable in a civilized community. The plaintiff must establish that the defendant intended to cause emotional distress or knew there was a high probability that their conduct would cause distress, and as a result, the plaintiff suffered severe emotional distress.",
+          "application": "The clerk's comment, referring to the wife as a 'hippopotamus' and stating that they do not carry the dress in 'hippo size,' is demeaning and personally insulting. This comment, especially made in a public setting and overheard by another customer who laughed, could be considered extreme and outrageous behavior that exceeds societal norms of decency. The wife's reaction to hurry out of the store upset indicates that she suffered emotional distress due to the remark. Whether the distress was severe is a subjective determination, but the nature of the remark and the public humiliation involved support the severity of the emotional distress.",
+          "conclusion": "The wife will likely win a tort action against the department store for intentional infliction of emotional distress because the clerk's conduct was extreme and outrageous, directly causing her emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_11",
+          "model": "gpt-4-turbo",
+          "issue": "Whether the wife can successfully assert a tort action against the department store based on the clerk's actions.",
+          "rule": "The relevant legal doctrine here is intentional infliction of emotional distress (IIED), which requires that the defendant's conduct be extreme and outrageous, intended to cause severe emotional distress, and actually cause severe emotional distress to the plaintiff.",
+          "application": "In this case, the clerk's comment comparing the wife to a 'hippopotamus' and stating that they do not carry the dress in 'hippo size' is demeaning and insulting. Such comments are likely to be considered extreme and outrageous, especially given their personal and humiliating nature. The fact that the comment was made publicly, in the presence of another customer who laughed, exacerbates the humiliation and emotional distress. The wife's reaction to leave the store hurriedly indicates that she suffered distress from the incident.",
+          "conclusion": "The wife will likely win a tort action for intentional infliction of emotional distress against the department store, because the clerk's conduct was extreme and outrageous, and it caused her emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_12",
+          "model": "gpt-4-turbo",
+          "issue": "Can the wife successfully assert a tort action against the department store based on the clerk's comment causing her emotional distress?",
+          "rule": "Intentional infliction of emotional distress (IIED) occurs when one acts in a manner that is extreme and outrageous, intentionally or recklessly causing severe emotional distress to another. The conduct must exceed all bounds usually tolerated by decent society.",
+          "application": "In this case, the clerk's comment comparing the wife to a 'hippopotamus' and stating they do not carry 'hippo size' can be considered extreme and outrageous. Such comments are humiliating and clearly intended to ridicule based on physical appearance, which is generally considered beyond the bounds of decency. The fact that another customer overheard and laughed indicates the comment was public, exacerbating the humiliation. Although the wife did not suffer physical harm, IIED does not require physical injury, only severe emotional distress, which is indicated by the wife becoming very upset and leaving the store hurriedly.",
+          "conclusion": "The wife is likely to win a tort action for intentional infliction of emotional distress against the department store due to the clerk's extreme and outrageous conduct causing her severe emotional distress."
+        },
+        {
+          "id": "gpt-4-turbo_17",
+          "model": "gpt-4-turbo",
+          "issue": "Whether the wife can assert a successful tort action against the department store for the clerk's comment causing emotional distress.",
+          "rule": "Intentional infliction of emotional distress (IIED) requires that the defendant's conduct was extreme and outrageous, intended to cause severe emotional distress, and actually caused severe emotional distress.",
+          "application": "The clerk's comment, comparing the wife to a 'hippopotamus' and stating they do not carry 'hippo size,' can be considered extreme and outrageous as it is beyond the bounds of decency and was made with an intention to ridicule and humiliate her in a public setting. The fact that another customer overheard and laughed indicates the comment was public and humiliating. The wife's reaction of becoming very upset and hurrying out of the store suggests that she suffered emotional distress as a direct result.",
+          "conclusion": "The wife will likely win a tort action for intentional infliction of emotional distress against the department store based on the clerk's actions."
+        },
+        {
+          "id": "llama-4-maverick-instruct_3",
+          "model": "llama-4-maverick-instruct",
+          "issue": "Will the wife succeed in a tort action against the department store based on the clerk's comment?",
+          "rule": "To succeed in a claim for intentional infliction of emotional distress (IIED), a plaintiff must prove that the defendant's conduct was extreme and outrageous, intentional or reckless, and caused the plaintiff severe emotional distress.",
+          "application": "The clerk's comment, 'You look like a hippopotamus, and I'm sorry, but we don't carry this dress in the hippo size,' is extreme and outrageous as it was made directly to the wife, comparing her to an animal, and was intended to ridicule or humiliate her. The fact that another customer overheard the comment and laughed further supports the notion that the comment was humiliating. The wife's reaction of becoming very upset and hurrying out of the store indicates that she suffered emotional distress. The rule for IIED does not require physical harm, so the wife's lack of physical injury is not a bar to recovery.",
+          "conclusion": "The wife will win, because the clerk's conduct was extreme and outrageous."
+        }
+      ]
+    },
+    "6": {
+      "representative": {
+        "id": "gpt-5-nano_2",
+        "model": "gpt-5-nano",
+        "issue": "Whether the clerk's remark constitutes intentional infliction of emotional distress (IIED) by the department store against the wife.",
+        "rule": "To prevail on IIED, a plaintiff must prove: (1) extreme and outrageous conduct; (2) the conduct was intentional or reckless; (3) causation; and (4) severe emotional distress. Mere insults or hurt feelings are generally insufficient; conduct that is intended to ridicule and humiliates in a public setting can be extreme and outrageous and may satisfy the standard.",
+        "application": "The clerk stated, 'You look like a hippopotamus' and that the dress isn't carried in a 'hippo size' to the wife, in a department store in view of other customers. This insult based on weight is highly insulting and aimed at ridiculing her appearance. It was overheard by another customer, amplifying humiliation. The wife became very upset and hurried from the store, indicating severe emotional distress beyond mere hurt feelings. These factors\u2014intense public ridicule, intent to demean, and resulting distress\u2014support extreme and outrageous conduct leading to IIED.",
+        "conclusion": "The wife would likely win on an IIED claim against the department store."
+      },
+      "members": [
+        {
+          "id": "gpt-5-nano_0",
+          "model": "gpt-5-nano",
+          "issue": "Does the clerk's public insult to a shopper constitute intentional infliction of emotional distress (IIED)?",
+          "rule": "To prevail on IIED, the plaintiff must show (1) extreme and outrageous conduct by the defendant, (2) intent to cause or reckless disregard of the likelihood of causing severe emotional distress, (3) causation, and (4) severe emotional distress. Mere insults or hurt feelings are generally insufficient; the conduct must be beyond the bounds of decency, and public humiliation or targeted ridicule can support a finding of outrageous conduct.",
+          "application": "The clerk told the wife, who weighs over 300 pounds, that she looked like a hippopotamus and that the dress was not carried in her size, in the presence of another customer. This language is highly insulting and demeaningly targeted at the wife's weight, and the remark was overheard by bystanders, increasing humiliation. The conduct appears designed to ridicule and publicly embarrass the plaintiff, which could be deemed extreme and outrageous. The wife did experience emotional distress (she became upset and hurried from the store), and no physical harm is required for IIED.",
+          "conclusion": "Win for the wife on an IIED claim."
+        },
+        {
+          "id": "gpt-5-nano_1",
+          "model": "gpt-5-nano",
+          "issue": "Does the clerk's remark to the wife\u2014calling her a hippo and stating the dress is not available in her size\u2014support a claim for intentional infliction of emotional distress against the department store?",
+          "rule": "To prevail on intentional infliction of emotional distress (IIED), a plaintiff must prove: (1) extreme and outrageous conduct, (2) intentional or reckless conduct, (3) causation, and (4) severe emotional distress. Mere insults or hurt feelings typically do not satisfy the outrageousness or severity thresholds, and physical injury is not required.",
+          "application": "The clerk made a single, demeaning remark in a public setting, calling the wife a hippo and noting the dress isn\u2019t available in her size. While insulting and embarrassing, such conduct is not necessarily extreme and outrageous in the IIED sense, absent additional aggravating factors. The wife became upset and left, but there is no evidence of severe emotional distress or physical consequences. The remark being overheard by others does not by itself establish IIED. Therefore, the conduct is unlikely to meet the extreme and outrageous standard required for IIED.",
+          "conclusion": "lose, because the wife only suffered hurt feelings."
+        },
+        {
+          "id": "gpt-5-nano_2",
+          "model": "gpt-5-nano",
+          "issue": "Whether the clerk's remark constitutes intentional infliction of emotional distress (IIED) by the department store against the wife.",
+          "rule": "To prevail on IIED, a plaintiff must prove: (1) extreme and outrageous conduct; (2) the conduct was intentional or reckless; (3) causation; and (4) severe emotional distress. Mere insults or hurt feelings are generally insufficient; conduct that is intended to ridicule and humiliates in a public setting can be extreme and outrageous and may satisfy the standard.",
+          "application": "The clerk stated, 'You look like a hippopotamus' and that the dress isn't carried in a 'hippo size' to the wife, in a department store in view of other customers. This insult based on weight is highly insulting and aimed at ridiculing her appearance. It was overheard by another customer, amplifying humiliation. The wife became very upset and hurried from the store, indicating severe emotional distress beyond mere hurt feelings. These factors\u2014intense public ridicule, intent to demean, and resulting distress\u2014support extreme and outrageous conduct leading to IIED.",
+          "conclusion": "The wife would likely win on an IIED claim against the department store."
+        },
+        {
+          "id": "gpt-5-nano_3",
+          "model": "gpt-5-nano",
+          "issue": "Whether the wife may recover for intentional infliction of emotional distress (IIED) against the department store based on the clerk's remark that she looked like a hippopotamus and the ensuing public humiliation.",
+          "rule": "To prevail on IIED, a plaintiff must prove: (1) extreme and outrageous conduct by the defendant; (2) the defendant's intent to cause distress or reckless disregard of the likelihood of causing distress; (3) causation; and (4) severe emotional distress. Mere insults or hurt feelings are usually insufficient; the conduct must be extreme and outrageous, and the distress must be severe. Conduct in a public setting and intended to humiliate can help satisfy the standard.",
+          "application": "The clerk's remark comparing the wife to a hippopotamus is a highly offensive, body-shaming statement. It targets a sensitive attribute (weight) and was made in a store in the presence of others, leading to public humiliation and the wife's distress (she hurried out). Even without physical harm, IIED can lie where conduct is extreme and outrageous and causes severe emotional distress; the public nature and intentional humiliation bolster the claim. Therefore, the elements of IIED appear satisfied under the facts provided.",
+          "conclusion": "win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-5-nano_4",
+          "model": "gpt-5-nano",
+          "issue": "Whether the wife can recover for intentional infliction of emotional distress against the department store based on the clerk's insult.",
+          "rule": "To recover for IIED, the plaintiff must show (1) extreme and outrageous conduct by the defendant, (2) intent or recklessness to cause or disregard of the likelihood of causing emotional distress, (3) severe emotional distress suffered by the plaintiff, and (4) causation. Mere insults, hurt feelings, or actions in a public place are not automatically actionable; conduct must be beyond the bounds of decency and outrageous.",
+          "application": "The clerk called the wife a 'hippopotamus' and stated the dress isn't in her size, an insult tied to her weight, with another customer overhearing and laughing. This is an outrageous insult beyond mere rude comment, made intentionally, in a public setting, creating humiliating exposure. The wife hurried out and suffered distress (no physical injury required). The combination of intentional insult, extreme and outrageous nature, public setting, and resulting distress supports IIED.",
+          "conclusion": "Win, because the clerk's conduct was extreme and outrageous and caused severe emotional distress."
+        },
+        {
+          "id": "gpt-5-nano_6",
+          "model": "gpt-5-nano",
+          "issue": "Whether the department store clerk's remark constitutes extreme and outrageous conduct supporting a claim for intentional infliction of emotional distress (IIED).",
+          "rule": "To prevail on IIED, a plaintiff must prove (1) extreme and outrageous conduct by the defendant, (2) intent or reckless disregard to cause emotional distress, (3) causation, and (4) severe emotional distress. Mere insults or hurt feelings are generally insufficient; physical injury is not required for IIED, though the distress must be severe.",
+          "application": "The clerk referred to the wife as a hippopotamus and stated the dress is not carried in 'hippo size,' made in the presence of others, and an overhearing customer laughed. This targets the wife\u2019s weight, is demeaning, and occurs in a public setting, suggesting intent (or reckless disregard) to ridicule and humiliate. The wife\u2019s reaction\u2014being upset and leaving the store\u2014demonstrates emotional distress. The conduct is more than a mere insult and can be characterized as extreme and outrageous under IIED standards, with causation shown by her distress linked to the remark.",
+          "conclusion": "win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-5-nano_7",
+          "model": "gpt-5-nano",
+          "issue": "Does the wife have a viable claim for intentional infliction of emotional distress against the department store based on the clerk's remark?",
+          "rule": "To prevail on IIED, the plaintiff must prove (1) extreme and outrageous conduct, (2) intentional or reckless conduct, (3) causation, and (4) severe emotional distress. Mere hurt feelings or insults are generally insufficient; outrageous, publicly humiliating conduct can satisfy the standard.",
+          "application": "The clerk's statement, described as calling the wife a 'hippopotamus' and stating the dress isn't carried in a 'hippo size', is a highly insulting, weight-based remark made in public where others could hear. This appears to be intentional or reckless conduct, and the public nature of the humiliation (overheard by another customer) supports outrageousness. The wife became very upset and hurried out, indicating distress beyond mere annoyance; while no physical harm is required, the distress must be severe, which can be shown by the public humiliation and emotional response. The store's inventory issue does not absolve the conduct and does not negate the claim.",
+          "conclusion": "Win, because the clerk's conduct was extreme and outrageous and caused severe emotional distress."
+        },
+        {
+          "id": "gpt-5-nano_8",
+          "model": "gpt-5-nano",
+          "issue": "Whether the clerk's remark constitutes intentional infliction of emotional distress against the wife.",
+          "rule": "To recover for intentional infliction of emotional distress (IIED), a plaintiff must show: (1) extreme and outrageous conduct by the defendant; (2) intention to cause emotional distress or reckless disregard of the risk of causing distress; (3) severe emotional distress; and (4) a causal link between the conduct and the distress. Mere insults, hurt feelings, or nonactionable opinions generally are not sufficient; conduct in a public place and aimed at humiliating the plaintiff can support the outrageousness requirement.",
+          "application": "The clerk's remark\u2014'You look like a hippopotamus... we don't carry this dress in the hippo size'\u2014targets the wife's weight with a demeaning insult, in a store in the presence of others. The comment was likely intended to ridicule and humiliate, and it was overheard by another customer, increasing humiliation. The wife became very upset and left the store, evidencing distress. The conduct is arguably extreme and outrageous beyond decency, and there is a causal link to her emotional distress. (Note: physical injury is not required for IIED.)",
+          "conclusion": "The wife will win on a claim of intentional infliction of emotional distress."
+        },
+        {
+          "id": "gpt-5-nano_10",
+          "model": "gpt-5-nano",
+          "issue": "Whether the clerk's public insult based on the wife's weight constitutes intentional infliction of emotional distress (IIED) against her.",
+          "rule": "To prevail on IIED, the plaintiff must prove: (1) extreme and outrageous conduct by the defendant; (2) the defendant intended to cause distress or acted with reckless disregard of the high probability of causing distress; (3) causation; and (4) severe emotional distress suffered by the plaintiff. Insults or hurt feelings typically are not enough, but conduct that is extreme, outrageous, and intended to humiliate, especially in a public setting, can satisfy the standard and may be attributable to the employer under respondeat superior.",
+          "application": "The clerk publicly told the wife, 'You look like a hippopotamus,' and that the dress isn't carried in her 'hippo size,' in a department store, in the presence of other customers who laughed. This appears to be more than mere insult; it targets a sensitive characteristic (weight) in a humiliating way in a public venue, with evident emotional impact on the wife (she became very upset and hurried out) and corroborating bystander laughter. The conduct is directed at her and could be deemed extreme and outrageous, potentially intended to humiliate. A store may be liable for the clerk\u2019s actions under respondeat superior. Therefore, the elements of IIED appear to be satisfied, or at least reasonably arguable, given the public humiliation and emotional distress.",
+          "conclusion": "Win, because the clerk's conduct was extreme and outrageous and likely caused severe emotional distress in a public setting, supporting a claim for IIED."
+        },
+        {
+          "id": "gpt-5-nano_11",
+          "model": "gpt-5-nano",
+          "issue": "Whether the wife's claim for intentional infliction of emotional distress lies against the department store based on the clerk's remark.",
+          "rule": "To prevail on intentional infliction of emotional distress (IIED), a plaintiff must prove (1) extreme and outrageous conduct by the defendant, (2) intent to cause emotional distress or recklessness regarding the risk of emotional distress, (3) causation, and (4) severe emotional distress. The conduct must be more than mere insults or indignities; physical injury is not required.",
+          "application": "The clerk told the wife, who is overweight, that she looks like a hippopotamus and that the dress is not carried in a 'hippo size.' The remark is demeaning, targeted at her weight, made in a public store and overheard by another customer, and it appears to be intentional and reckless to cause distress. It caused the wife to become very upset and leave the store. These facts support that the conduct was extreme and outrageous and that she suffered severe emotional distress, without requiring physical injury.",
+          "conclusion": "win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-5-nano_12",
+          "model": "gpt-5-nano",
+          "issue": "Whether the department store clerk's remark constitutes intentional infliction of emotional distress against the wife.",
+          "rule": "To prevail on intentional infliction of emotional distress (IIED), a plaintiff must prove (1) extreme and outrageous conduct, (2) intentional or reckless conduct, (3) causation, and (4) severe emotional distress. The conduct must go beyond all bounds of decency in a civilized society and physical injury is not required for recovery.",
+          "application": "The clerk stated that the wife looks like a hippopotamus and that the dress does not come in hippo size, which is a highly insulting, demeaning remark directed at a sensitive attribute (weight) in a public setting where others could overhear. This kind of remark could be deemed extreme and outrageous, particularly given its public nature and the humiliation it caused the wife. It is plausible that a reasonable person would suffer severe emotional distress from such conduct, and the distress was caused by the clerk's remark rather than by any physical harm.",
+          "conclusion": "The wife will win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-5-nano_13",
+          "model": "gpt-5-nano",
+          "issue": "Whether the department store clerk's remark constitutes intentional infliction of emotional distress (IIED) against the wife.",
+          "rule": "To prevail on IIED, a plaintiff must prove (1) extreme and outrageous conduct by the defendant, (2) intent to cause distress or reckless disregard of the likelihood of causing distress, (3) causation, and (4) severe emotional distress. Mere insults or hurt feelings are generally insufficient, and a physical injury is not required for IIED.",
+          "application": "The clerk described the wife with demeaning language (you look like a hippopotamus) and stated the dress is not available in her size, in a public setting and in a manner intended to ridicule. The conduct was witnessed by another customer, and the wife became very upset and hurried out. Although there is no requirement of physical injury, the conduct appears to be more than a mere insult and could be deemed extreme and outrageous, especially given its public and humiliating nature aimed at the wife\u2019s weight. The facts support intent or at least reckless disregard, causation, and severe emotional distress in the form of substantial emotional upset.",
+          "conclusion": "win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-5-nano_14",
+          "model": "gpt-5-nano",
+          "issue": "Whether the department store clerk's remark constitutes intentional infliction of emotional distress against the wife.",
+          "rule": "To prevail on IIED, a plaintiff must prove (1) extreme and outrageous conduct, (2) intentional or reckless conduct, (3) causation, and (4) severe emotional distress. Mere insults or hurt feelings are generally insufficient; however, conduct that is outrageous and intended to cause distress (or recklessly disregard the likelihood of distress) may satisfy the standard.",
+          "application": "The clerk publicly called the wife a 'hippopotamus' and said the dress isn\u2019t available in her size, in the presence of other customers. This appears to be conduct beyond the bounds of decency in a civilized society and is likely to be deemed extreme and outrageous, especially given the public humiliation and the wife's reaction (becoming upset and leaving). The clerk\u2019s statement was at least reckless or intentional, and it caused emotional distress, not merely hurt feelings, given the wife\u2019s strong reaction.",
+          "conclusion": "win, because the clerk's conduct was extreme and outrageous and caused the wife emotional distress."
+        },
+        {
+          "id": "gpt-5-nano_15",
+          "model": "gpt-5-nano",
+          "issue": "Whether the department store clerk's comment to the wife constitutes intentional or reckless extreme and outrageous conduct that supports a claim for intentional infliction of emotional distress (IIED).",
+          "rule": "To prevail on IIED, a plaintiff must show (1) extreme and outrageous conduct by the defendant, (2) intent to cause emotional distress or reckless disregard of the likelihood of causing distress, (3) causation, and (4) severe emotional distress. Mere insults, rude comments, or hurt feelings are generally insufficient unless the conduct is outrageous and intended to or likely to cause severe distress; conduct in public or aimed at a protected or sensitive characteristic can support a finding of outrageous conduct. A bystander\u2019s witnessing the conduct can be evidence of outrage and impact, but is not itself dispositive.",
+          "application": "The clerk stated, in a public setting, that the wife \u2018looks like a hippopotamus\u2019 and that the dress is not carried in her \u2018hippo size.\u2019 This targets a sensitive characteristic (weight) with demeaning language, intended to ridicule and humiliate the wife. The remark was overheard by another customer, and the wife became very upset and hurried out, suggesting at least some emotional distress. While an insult alone is not always enough, the combination of the public, humiliating nature of the remark, its intentional ridicule, and the resulting distress supports a finding that the conduct was extreme and outrageous and caused severe emotional distress.",
+          "conclusion": "win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-5-nano_16",
+          "model": "gpt-5-nano",
+          "issue": "Whether a wife can recover for intentional infliction of emotional distress against a department store based on a clerk's insult about her weight in a public setting.",
+          "rule": "To establish IIED, a plaintiff must prove (1) extreme and outrageous conduct by the defendant, (2) the conduct was intentional or reckless, (3) causation, and (4) severe emotional distress. Mere insults or hurt feelings are generally insufficient; conduct in a public setting that humiliates a sensitive trait (such as weight) may be extreme and outrageous if there is substantial outrageousness beyond decency.",
+          "application": "The clerk told the wife, in public, that she looked like a hippopotamus and that the dress didn't come in 'hippo size.' The remark targets a sensitive attribute (weight), is demeaning and humiliating, and was overheard by another customer who laughed. This may exceed the bounds of decency and thus constitute extreme and outrageous conduct. The wife became very upset, indicating distress. The store's policy about sizing does not justify the conduct; intent or recklessness can be inferred from the clerk's mock-insensitive ridicule.",
+          "conclusion": "win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-5-nano_17",
+          "model": "gpt-5-nano",
+          "issue": "Whether the clerk's remark constitutes intentional infliction of emotional distress (IIED) against the wife.",
+          "rule": "To prevail on intentional infliction of emotional distress (IIED), a plaintiff must show (1) extreme and outrageous conduct by the defendant, (2) intent or recklessness in causing emotional distress, (3) causation, and (4) severe emotional distress. Mere insults or hurt feelings do not suffice; conduct in a public setting may still be extreme and outrageous if it targets a sensitive characteristic (e.g., weight) and transcends all bounds of decency.",
+          "application": "The clerk publicly insulted the wife by comparing her to a hippopotamus and announcing a non-existent 'hippo size' for a dress, a remark based on her weight. The remark was overheard by another customer, amplifying humiliation. Although the facts do not specify medical symptoms, the wife became very upset and left the store, supporting severe distress in context. The conduct appears intentional or reckless and outrageous, rising above everyday insults. Therefore, the elements of IIED are met.",
+          "conclusion": "The wife would likely win the IIED claim against the department store."
+        },
+        {
+          "id": "gpt-5-nano_18",
+          "model": "gpt-5-nano",
+          "issue": "Whether the wife can recover for intentional infliction of emotional distress against the department store based on the clerk's size-related insult in a public setting.",
+          "rule": "Elements of IIED: (1) extreme and outrageous conduct; (2) intent or reckless disregard to cause emotional distress; (3) causation; (4) severe emotional distress. Conduct that is merely insulting or not outrageous generally fails; however, conduct that is extreme and outrageous, particularly when directed at a vulnerable individual and witnessed by others, may satisfy the standard.",
+          "application": "The clerk's comment, calling the wife a hippopotamus and stating the dress is not carried in a 'hippo size,' is insulting, demeaning, and aimed at ridiculing her weight. The remark occurred in a public store and was overheard by another customer, amplifying the humiliation. The wife became very upset and hurried out, which supports emotional distress beyond mere hurt feelings. These facts could satisfy the extreme and outrageous conduct and causation elements of IIED.",
+          "conclusion": "win, because the clerk's conduct was extreme and outrageous."
+        },
+        {
+          "id": "gpt-5-nano_19",
+          "model": "gpt-5-nano",
+          "issue": "Whether the wife can recover for intentional infliction of emotional distress against the department store based on the clerk's remark that she looked like a hippopotamus and that the dress is not available in her size.",
+          "rule": "To prevail on intentional infliction of emotional distress (IIED), a plaintiff must show (1) extreme and outrageous conduct by the defendant, (2) intent to cause distress or recklessness regarding the likelihood of causing distress, (3) causation, and (4) severe emotional distress. Mere insults or hurt feelings are generally insufficient, but outrageous conduct, especially in public or intended to humiliate, can satisfy the standard.",
+          "application": "The clerk's comment comparing the wife to a hippo and stating the dress isn't available in her size constitutes a highly insulting, demeaning, and public remark. Delivered in a store where others could overhear, it is more than a mere rude comment and could be viewed as extreme and outrageous, intended to ridicule or at least recklessly causing distress. The wife became very upset, indicating severe emotional distress, and causation is present through the clerk's remark. Although the distress described is not detailed as physical harm, IIED can allow recovery for severe emotional distress without physical injury where the conduct is extreme and outrageous.",
+          "conclusion": "win, because the clerk's conduct was extreme and outrageous."
+        }
+      ]
+    },
+    "1": {
+      "representative": {
+        "id": "gpt-5.2_14",
+        "model": "gpt-5.2",
+        "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress based on the clerk\u2019s insulting comment about her weight and clothing size made in front of another customer.",
+        "rule": "To establish intentional infliction of emotional distress (IIED), a plaintiff must show: (1) extreme and outrageous conduct by the defendant; (2) intent to cause severe emotional distress (or reckless disregard of the likelihood of causing it); (3) causation; and (4) severe emotional distress. Mere insults, indignities, name-calling, or hurt feelings\u2014without more\u2014generally do not rise to the level of \u201cextreme and outrageous\u201d conduct, even if made in public. Physical injury is not required for IIED, but the distress must be severe. An employer can be vicariously liable for an employee\u2019s torts committed within the scope of employment (or otherwise liable under agency principles), but liability still depends on proving the underlying tort elements.",
+        "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark was rude, humiliating, and made during a customer-service interaction, and it was overheard by another customer who laughed. However, courts typically treat isolated derogatory comments and public ridicule in ordinary commercial settings as \u201cmere insults\u201d rather than conduct so extreme and outrageous as to exceed all bounds of decency. The facts also indicate the wife became upset and left the store, but they do not show distress of the required severity (e.g., ongoing psychological harm, medical treatment, inability to function). While intent to humiliate can be inferred from the phrasing, IIED requires more than intent to ridicule; it requires extreme and outrageous conduct and severe distress. Therefore, the wife is unlikely to satisfy the \u201cextreme and outrageous\u201d and \u201csevere distress\u201d elements, even though no physical harm is required and the public nature/overhearing does not itself create liability.",
+        "conclusion": "The wife will likely lose, because the clerk\u2019s comment is generally treated as a mere insult causing hurt feelings rather than extreme and outrageous conduct producing legally \u201csevere\u201d emotional distress."
+      },
+      "members": [
+        {
+          "id": "gpt-5-nano_5",
+          "model": "gpt-5-nano",
+          "issue": "Whether a store clerk's insulting comment to a customer about her weight constitutes intentional infliction of emotional distress actionable against the department store.",
+          "rule": "To prevail on IIED, the plaintiff must show extreme and outrageous conduct by the defendant intended to cause or reckless disregard of the probability of causing severe emotional distress, resulting in severe emotional distress. Mere insults or hurt feelings, especially in public, do not suffice.",
+          "application": "The clerk used a demeaning description ('hippopotamus') and stated the dress wasn't available in her size, in a public setting where another customer overheard. While this is insulting and embarrassing, it is a single remark and does not appear to be extreme and outrageous conduct beyond the bounds of decency. There is also no evidence of severe emotional distress beyond being upset; the facts state she became very upset but not that she suffered severe or lasting distress. Therefore IIED liability would likely fail; the claim would fail due to lack of extreme outrageousness and lack of proof of severe distress.",
+          "conclusion": "The wife will lose the claim because she suffered only hurt feelings, not severe emotional distress."
+        },
+        {
+          "id": "gpt-5.2_2",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover against the department store for intentional infliction of emotional distress based on the clerk\u2019s insulting comment about her weight and clothing size made in front of other customers.",
+          "rule": "To prevail on intentional infliction of emotional distress (IIED), a plaintiff must show: (1) extreme and outrageous conduct by the defendant; (2) intent to cause severe emotional distress (or reckless disregard of the probability of causing it); (3) causation; and (4) severe emotional distress. Physical injury is not required, but the conduct must be beyond all bounds of decency; ordinary insults, indignities, or rude comments generally do not qualify unless coupled with abuse of power, a special vulnerability known to the defendant, or a pattern of harassment. Employers can be vicariously liable for an employee\u2019s torts committed within the scope of employment.",
+          "application": "The clerk\u2019s comment was rude, insulting, and humiliating, and it occurred during a customer-service interaction in a public retail setting where it was overheard and prompted laughter. However, a single insult about appearance/size in a store, without threats, physical contact, detention, repeated harassment, or exploitation of a known special vulnerability beyond what is apparent, is typically treated as a nonactionable \u201cmere insult\u201d rather than \u201cextreme and outrageous\u201d conduct. While the clerk likely intended to ridicule or at least acted with reckless disregard that the comment would upset the wife, the wife must also prove \u201csevere\u201d emotional distress, not just embarrassment or hurt feelings. On these facts, the strongest barrier is that the conduct\u2014though offensive\u2014likely does not meet the high threshold of extreme and outrageous conduct required for IIED, and the facts as given indicate upset and humiliation but do not clearly establish severe distress.",
+          "conclusion": "The wife will likely lose, because the clerk\u2019s single insulting remark is generally not considered sufficiently extreme and outrageous (and the facts show primarily hurt feelings/embarrassment rather than severe distress), even though physical harm is not required."
+        },
+        {
+          "id": "gpt-5.2_14",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress based on the clerk\u2019s insulting comment about her weight and clothing size made in front of another customer.",
+          "rule": "To establish intentional infliction of emotional distress (IIED), a plaintiff must show: (1) extreme and outrageous conduct by the defendant; (2) intent to cause severe emotional distress (or reckless disregard of the likelihood of causing it); (3) causation; and (4) severe emotional distress. Mere insults, indignities, name-calling, or hurt feelings\u2014without more\u2014generally do not rise to the level of \u201cextreme and outrageous\u201d conduct, even if made in public. Physical injury is not required for IIED, but the distress must be severe. An employer can be vicariously liable for an employee\u2019s torts committed within the scope of employment (or otherwise liable under agency principles), but liability still depends on proving the underlying tort elements.",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark was rude, humiliating, and made during a customer-service interaction, and it was overheard by another customer who laughed. However, courts typically treat isolated derogatory comments and public ridicule in ordinary commercial settings as \u201cmere insults\u201d rather than conduct so extreme and outrageous as to exceed all bounds of decency. The facts also indicate the wife became upset and left the store, but they do not show distress of the required severity (e.g., ongoing psychological harm, medical treatment, inability to function). While intent to humiliate can be inferred from the phrasing, IIED requires more than intent to ridicule; it requires extreme and outrageous conduct and severe distress. Therefore, the wife is unlikely to satisfy the \u201cextreme and outrageous\u201d and \u201csevere distress\u201d elements, even though no physical harm is required and the public nature/overhearing does not itself create liability.",
+          "conclusion": "The wife will likely lose, because the clerk\u2019s comment is generally treated as a mere insult causing hurt feelings rather than extreme and outrageous conduct producing legally \u201csevere\u201d emotional distress."
+        },
+        {
+          "id": "gpt-5.2_16",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress based on the clerk\u2019s insulting comment about her weight and clothing size in front of others.",
+          "rule": "To establish intentional infliction of emotional distress (IIED), a plaintiff must show: (1) extreme and outrageous conduct by the defendant, (2) intent to cause severe emotional distress or reckless disregard of the high probability of causing it, (3) causation, and (4) severe emotional distress. Mere insults, indignities, or hurt feelings\u2014without conduct that is truly extreme and outrageous\u2014are generally insufficient. Physical injury is not required, but the distress must be severe. Public setting or the presence of third parties may aggravate the conduct, but does not by itself create liability.",
+          "application": "The clerk\u2019s remark was rude, humiliating, and directed at the wife\u2019s appearance in a customer-service setting, and it caused her to become very upset and leave. However, courts usually treat isolated name-calling and mocking comments in retail interactions as \"mere insults\" rather than the kind of extreme and outrageous conduct required for IIED, absent additional aggravating circumstances (e.g., a pattern of harassment, abuse of special power over a vulnerable person, threats, or truly egregious conduct). The fact that another customer overheard and laughed can increase the humiliation, but it typically does not transform a single insulting comment into actionable IIED. The facts also indicate upset and embarrassment, but do not clearly show the level of \u201csevere\u201d emotional distress required. Therefore, the wife likely cannot meet the \u201cextreme and outrageous\u201d and \u201csevere distress\u201d elements even though physical harm is not required.",
+          "conclusion": "The wife will likely lose, because the clerk\u2019s conduct\u2014while insulting and humiliating\u2014would generally be treated as nonactionable mere insults/hurt feelings rather than extreme and outrageous conduct causing severe emotional distress."
+        },
+        {
+          "id": "gpt-5.2_18",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress based on the clerk\u2019s insulting comment about her weight and clothing size made in the store and overheard by another customer.",
+          "rule": "To prevail on intentional infliction of emotional distress (IIED), a plaintiff must show: (1) the defendant acted intentionally or recklessly; (2) the conduct was extreme and outrageous (beyond all possible bounds of decency, regarded as atrocious and utterly intolerable in a civilized community); (3) the conduct caused the plaintiff\u2019s emotional distress; and (4) the emotional distress was severe. Physical injury is not required, though it can help prove severity. Mere insults, indignities, or hurt feelings\u2014without more\u2014generally do not satisfy the \u201cextreme and outrageous\u201d and \u201csevere distress\u201d elements. Liability may be more likely where the defendant exploits a known special vulnerability, abuses a position of authority, or engages in a pattern of harassment.",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark was rude, humiliating, and made in public, and it foreseeably upset the wife. However, the facts show a single insulting comment in a retail interaction, with no allegation of repeated harassment, threats, physical intimidation, abuse of power beyond the ordinary customer-service context, or exploitation of a uniquely known susceptibility other than the wife\u2019s visible weight. The wife became upset and left the store, but there are no facts indicating severe emotional distress (e.g., medical treatment, inability to function, prolonged symptoms). Under the general rule that mere insults and public ridicule, standing alone, are not \u201cextreme and outrageous\u201d and do not establish \u201csevere\u201d distress, the claim would likely fail. The fact that another customer overheard and laughed may increase humiliation but typically does not convert a one-time insult into actionable IIED absent additional aggravating circumstances.",
+          "conclusion": "The wife will likely lose; the clerk\u2019s comment is generally treated as a nonactionable insult causing hurt feelings rather than extreme and outrageous conduct causing severe emotional distress (best matching: \"lose, because the wife only suffered hurt feelings.\")."
+        }
+      ]
+    },
+    "2": {
+      "representative": {
+        "id": "gpt-5.2_13",
+        "model": "gpt-5.2",
+        "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress (IIED) based on the clerk\u2019s insulting comment about her weight and clothing size made in front of others.",
+        "rule": "To prevail on IIED, a plaintiff must show (1) extreme and outrageous conduct, (2) intent to cause severe emotional distress or reckless disregard of the high probability of causing it, (3) causation, and (4) severe emotional distress. Physical injury is not required, but ordinary insults, indignities, or hurt feelings\u2014especially in a retail/customer interaction\u2014generally do not rise to the level of \u201cextreme and outrageous\u201d absent aggravating circumstances (e.g., threats, repeated harassment, abuse of a special vulnerability known to the defendant, or conduct beyond all bounds of decency). Employers can be vicariously liable for an employee\u2019s torts committed within the scope of employment.",
+        "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark was rude, insulting, and humiliating, and it foreseeably upset the wife; the laughter by another customer underscores the embarrassment. However, the facts describe a single verbal insult during a shopping inquiry, with no threat, no physical contact, no repeated course of harassment, and no special relationship or coercive power beyond an ordinary retail interaction. Courts typically treat such one-off insults in public as insufficiently \u201cextreme and outrageous\u201d for IIED, even if intended to ridicule and even if overheard. While the wife need not show physical harm, she must show severe emotional distress; the facts indicate she was \u201cvery upset\u201d and left the store, which often is characterized as hurt feelings/embarrassment rather than the level of severity required. Thus the claim likely fails on the \u201cextreme and outrageous\u201d and/or \u201csevere distress\u201d elements.",
+        "conclusion": "The wife will most likely lose, because the clerk\u2019s single insulting comment in a retail setting is generally not extreme and outrageous enough (and the distress shown appears insufficiently severe) to support an IIED claim, even without any requirement of physical harm."
+      },
+      "members": [
+        {
+          "id": "gpt-5-nano_9",
+          "model": "gpt-5-nano",
+          "issue": "Whether the wife may recover for intentional infliction of emotional distress (IIED) from the clerk's remark in the department store.",
+          "rule": "IIED requires (1) extreme and outrageous conduct, (2) intentional or reckless disregard of a high risk of causing emotional distress, (3) causation, and (4) severe emotional distress. Mere insults or hurt feelings typically do not meet the standard; physical harm is not required, but distress must be severe.",
+          "application": "The clerk\u2019s comment was a single, insulting remark made in a public place. While understandably humiliating, the facts as stated show the wife became upset and left the store, suggesting hurt feelings rather than severe emotional distress. There is no indication of persistent or extreme conduct, nor evidence of severe distress. Therefore, the conduct likely fails the 'extreme and outrageous' and 'severe distress' elements of IIED.",
+          "conclusion": "lose, because the wife only suffered hurt feelings."
+        },
+        {
+          "id": "gpt-5.2_0",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover against the department store for intentional infliction of emotional distress (IIED) based on the clerk\u2019s insulting comment about her weight and size in front of others.",
+          "rule": "To establish IIED, a plaintiff must show: (1) the defendant engaged in extreme and outrageous conduct, (2) the defendant acted intentionally or recklessly, (3) the conduct caused the plaintiff\u2019s emotional distress, and (4) the distress was severe. Mere insults, indignities, or hurt feelings\u2014especially in ordinary commercial settings\u2014generally do not rise to the level of \u201cextreme and outrageous\u201d conduct, even if made in public or overheard by others. Physical harm is not required, but the emotional distress must be severe and the conduct must be beyond all bounds of decency.",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark was rude, humiliating, and made in a retail setting where the wife was seeking help, and it was overheard by another customer who laughed. However, courts typically treat isolated name-calling and ridicule by a store employee as an \u201cinsult\u201d rather than conduct so extreme and outrageous as to satisfy IIED, absent aggravating factors (e.g., threats, repeated harassment, exploitation of a known special vulnerability beyond ordinary observation, or abuse of a position of power in an exceptional way). While the clerk likely intended to ridicule, and the wife was upset and fled the store, the facts do not establish severe emotional distress beyond hurt feelings, nor conduct that meets the high \u201cextreme and outrageous\u201d threshold required for IIED. The public nature/overhearing does not, by itself, convert an insult into actionable IIED, and lack of physical injury is not dispositive but does not help the severity showing.",
+          "conclusion": "The wife will lose, because the clerk\u2019s comment is most likely treated as a nonactionable insult causing only hurt feelings rather than extreme and outrageous conduct causing severe emotional distress."
+        },
+        {
+          "id": "gpt-5.2_1",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress (IIED) based on the clerk\u2019s insulting comment about her weight and dress size made in the presence of other customers.",
+          "rule": "To establish IIED, a plaintiff must show: (1) the defendant engaged in extreme and outrageous conduct; (2) the defendant intended to cause severe emotional distress or acted with reckless disregard of the high probability of causing it; (3) the conduct caused the plaintiff\u2019s distress; and (4) the distress was severe. Physical injury is not required, but mere insults, indignities, or hurt feelings generally are not enough unless the conduct is truly extreme and outrageous (e.g., exploiting known special vulnerability, repeated harassment, or conduct beyond all bounds of decency). Employers/businesses may be vicariously liable for torts committed by employees within the scope of employment, but liability still requires the underlying tort elements.",
+          "application": "The clerk\u2019s remark was rude, mocking, and humiliating, and it was made in a retail setting where the wife was seeking assistance. However, the scenario describes a single insult (a weight-based slur and \u201chippo size\u201d comment). Courts typically treat isolated name-calling in ordinary commercial interactions as insufficiently \u201cextreme and outrageous,\u201d even if it predictably causes embarrassment and distress and even if others overhear and laugh. The facts do not indicate the clerk knew of a particular medical condition or special susceptibility beyond what was visible, nor is there a pattern of harassment or other aggravating circumstances. While the wife clearly suffered emotional upset and left the store, the facts support, at most, hurt feelings/embarrassment rather than the \u201csevere\u201d distress usually required. Because the conduct likely fails the extreme-and-outrageous and/or severe-distress thresholds, the store would not be liable for IIED on these facts.",
+          "conclusion": "The wife will likely lose, because the clerk\u2019s single insulting comment in a retail setting is generally not considered extreme and outrageous enough to support an IIED claim (and amounts to hurt feelings/embarrassment rather than legally actionable severe emotional distress)."
+        },
+        {
+          "id": "gpt-5.2_3",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover against the department store for intentional infliction of emotional distress (IIED) based on the clerk\u2019s insulting comment about her weight and size in the presence of another customer.",
+          "rule": "To prove IIED, a plaintiff must show: (1) the defendant acted intentionally or recklessly; (2) the conduct was extreme and outrageous (beyond all possible bounds of decency); (3) the conduct caused the plaintiff\u2019s distress; and (4) the emotional distress was severe. Physical injury is not required, and the fact that conduct occurs in public does not bar liability, but ordinary insults, indignities, ridicule, or hurt feelings\u2014without more\u2014generally do not satisfy the \u201cextreme and outrageous\u201d and \u201csevere distress\u201d requirements. Employers can be vicariously liable for torts committed by employees acting within the scope of employment (including interactions with customers).",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark was an intentional insult made while responding to a customer inquiry and thus within the scope of employment for potential store liability. However, courts typically treat a single episode of name-calling or ridicule in a retail setting as an \u201cordinary insult\u201d rather than conduct so extreme and outrageous as to support IIED, absent special circumstances (e.g., repeated harassment, abuse of a position of special power, knowledge of unusual susceptibility, or particularly egregious conduct). The wife\u2019s reaction\u2014becoming upset and leaving\u2014shows emotional upset, but the facts do not indicate \u201csevere\u201d distress (e.g., medical treatment, inability to function, prolonged trauma). The presence of another customer who laughed may increase humiliation, but it usually does not convert a one-time insult into legally \u201cextreme and outrageous\u201d conduct or establish severe distress by itself.",
+          "conclusion": "The wife will most likely lose, because the clerk\u2019s remark is generally treated as an insult causing hurt feelings rather than extreme and outrageous conduct producing severe emotional distress (the best matching option is: \"lose, because the wife only suffered hurt feelings.\")."
+        },
+        {
+          "id": "gpt-5.2_4",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress (IIED) based on the clerk\u2019s insulting comment about her weight and clothing size made in the presence of other customers.",
+          "rule": "To prevail on IIED, a plaintiff must prove: (1) extreme and outrageous conduct by the defendant; (2) intent to cause, or reckless disregard of the probability of causing, severe emotional distress; (3) causation; and (4) severe emotional distress. Mere insults, indignities, or hurt feelings\u2014especially in ordinary commercial settings\u2014generally do not rise to \u201cextreme and outrageous\u201d conduct, absent aggravating factors (e.g., threats, repeated harassment, abuse of a special vulnerability known to the defendant, or conduct that goes beyond all bounds of decency). Physical injury is not required, but the distress must be \u201csevere,\u201d not merely upset or embarrassed.",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark is rude, humiliating, and was made in public and overheard, which increases embarrassment. However, it appears to be a single incident in a retail context, without threats, physical intimidation, or a pattern of harassment. Although the clerk likely intended to insult or at least acted with reckless disregard for the likelihood of distress, courts typically treat isolated name-calling in a store as an \u201cinsult\u201d insufficiently extreme and outrageous for IIED. The facts show the wife became very upset and left the store, but do not indicate the kind of severe, debilitating distress typically required. Thus, the strongest barrier is the \u201cextreme and outrageous\u201d and \u201csevere distress\u201d elements, not the absence of physical harm or the fact it occurred in public.",
+          "conclusion": "The wife will likely lose, because the clerk\u2019s conduct, while insulting and humiliating, is generally treated as a mere insult that does not meet the extreme-and-outrageous and severe-distress requirements for IIED (physical harm is not required)."
+        },
+        {
+          "id": "gpt-5.2_5",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress (IIED) based on the clerk\u2019s humiliating comment about her weight and clothing size made in front of other customers.",
+          "rule": "To prevail on an IIED claim, a plaintiff must show: (1) extreme and outrageous conduct by the defendant; (2) intent to cause severe emotional distress (or reckless disregard of the high probability of causing it); (3) causation; and (4) severe emotional distress. Physical injury is not required. Mere insults, indignities, or hurt feelings generally are not enough unless the conduct is truly extreme/outrageous, often considering context such as abuse of a position of authority or targeting a known special susceptibility.",
+          "application": "The clerk\u2019s statement was a crude, humiliating insult in a retail setting and was overheard by another customer who laughed. While the comment was offensive and intended to ridicule, courts typically treat isolated verbal insults by store employees as insufficiently \u201cextreme and outrageous\u201d to support IIED absent additional aggravating factors (e.g., repeated harassment, threats, or exploitation of a known special vulnerability). The wife\u2019s upset and embarrassment, without facts showing \u201csevere\u201d distress beyond transient humiliation, also weakens the claim. The lack of physical harm does not bar recovery, but the likely failure is that the conduct and resulting distress do not meet the high IIED threshold.",
+          "conclusion": "The wife will most likely lose, because the clerk\u2019s remark\u2014though insulting\u2014would usually be treated as an insufficient basis for IIED (i.e., mere insult/hurt feelings rather than legally \u201cextreme and outrageous\u201d conduct causing severe distress)."
+        },
+        {
+          "id": "gpt-5.2_6",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover against the department store for intentional infliction of emotional distress (IIED) based on the clerk\u2019s insulting remark about her weight and dress size made in front of other customers.",
+          "rule": "To establish IIED, a plaintiff must show: (1) the defendant engaged in extreme and outrageous conduct, (2) intending to cause severe emotional distress or acting with reckless disregard of the probability of causing such distress, (3) causation, and (4) severe emotional distress. Physical injury is not required. Mere insults, indignities, rude comments, or hurt feelings\u2014without more\u2014generally do not meet the \u201cextreme and outrageous\u201d threshold, unless coupled with aggravating circumstances (e.g., abuse of power/authority, repeated harassment, or targeting a known special vulnerability in a particularly egregious way). Employers are typically vicariously liable for employee torts committed within the scope of employment in customer interactions.",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark was offensive and humiliating, and it foreseeably upset the wife, especially when overheard by another customer who laughed. However, as a one-time verbal insult in a retail setting, it is likely to be characterized as an indignity or mere insult rather than conduct so extreme and outrageous as to exceed all bounds of decency. The facts do not indicate repeated harassment, threats, physical intimidation, or other aggravating factors that courts commonly require to convert an insult into actionable IIED. Although the comment appears intended to ridicule, IIED still requires conduct meeting the high \u201cextreme and outrageous\u201d standard and distress that is \u201csevere,\u201d not just upset or hurt feelings; the prompt describes the wife as \u201cvery upset\u201d and leaving the store, which may be insufficient to show severe distress. The public nature/overhearing is relevant to humiliation but does not by itself make the conduct actionable.",
+          "conclusion": "The wife will likely lose, because the clerk\u2019s single insulting comment\u2014though rude and humiliating\u2014would generally be treated as a nonactionable mere insult/hurt feelings rather than extreme and outrageous conduct causing legally \u201csevere\u201d emotional distress."
+        },
+        {
+          "id": "gpt-5.2_7",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover against the department store for intentional infliction of emotional distress (IIED) based on the clerk\u2019s insulting comment about her weight and clothing size made in front of others.",
+          "rule": "To prove IIED, a plaintiff must show: (1) extreme and outrageous conduct, (2) intent to cause severe emotional distress (or reckless disregard of a high probability of causing it), (3) causation, and (4) severe emotional distress. Mere insults, indignities, or hurt feelings\u2014without more\u2014generally do not qualify as \u201cextreme and outrageous.\u201d Physical injury is not required, but the distress must be severe. Outrageousness may be more readily found where there is abuse of a position of authority or power over a vulnerable person, or conduct that goes beyond ordinary rudeness, but ordinary retail insults typically remain nonactionable.",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark was intentionally humiliating and was overheard by another customer, causing the wife to become very upset and leave. However, in most jurisdictions, a single episode of name-calling and public ridicule by a store employee\u2014while offensive\u2014will be treated as an insult/indignity rather than conduct so extreme and outrageous as to satisfy IIED, absent additional aggravating factors (e.g., a sustained campaign of harassment, threats, or exploitation of a special vulnerability in a way the law recognizes as beyond all bounds of decency). The facts show upset and embarrassment, but do not establish the level of \u201csevere\u201d emotional distress typically required. The lack of physical harm is not dispositive, but the claim still fails if the conduct is not legally \u201coutrageous\u201d and the distress is not shown to be severe.",
+          "conclusion": "Lose, because the wife only suffered hurt feelings."
+        },
+        {
+          "id": "gpt-5.2_8",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress based on the clerk\u2019s insulting comment about her weight and clothing size made in front of others.",
+          "rule": "Intentional infliction of emotional distress (IIED) requires: (1) extreme and outrageous conduct, (2) intent to cause severe emotional distress (or reckless disregard of the probability of causing it), (3) causation, and (4) severe emotional distress. Mere insults, indignities, or hurt feelings\u2014especially in ordinary commercial settings\u2014generally do not qualify as \u201cextreme and outrageous\u201d absent aggravating factors (e.g., threats, repeated harassment, abuse of a position of power over a uniquely vulnerable person known to the defendant, or conduct beyond all bounds of decency). Physical injury is not required, but the distress must be severe.",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark was rude, humiliating, and made in a public retail setting where another customer overheard and laughed, causing the wife to become very upset and leave. However, a single insulting comment by a store clerk, without threats, physical contact, repeated harassment, or other extraordinary circumstances, is typically treated as a nonactionable insult rather than conduct \u201cso extreme and outrageous\u201d as to satisfy IIED. While the remark appears intended to ridicule (supporting intent), the facts given show upset and embarrassment but do not establish the level of \u201csevere\u201d distress required, and the main deficiency is that the conduct likely falls into the category of mere indignities in a commercial transaction.",
+          "conclusion": "Lose, because the clerk\u2019s comment\u2014though insulting\u2014likely does not rise to the level of extreme and outrageous conduct required for IIED."
+        },
+        {
+          "id": "gpt-5.2_9",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress (IIED) based on the clerk\u2019s insulting comment about her weight and size in front of others.",
+          "rule": "To establish IIED, a plaintiff must show (1) extreme and outrageous conduct, (2) intent to cause severe emotional distress (or reckless disregard of the likelihood of causing it), (3) causation, and (4) severe emotional distress. Mere insults, indignities, or hurt feelings\u2014especially in ordinary commercial settings\u2014generally do not rise to \u201cextreme and outrageous\u201d conduct absent aggravating factors (e.g., repeated harassment, threats, exploitation of a known special vulnerability, or abuse of a position of power beyond ordinary rudeness). Physical injury is not required, but the distress must be severe, not trivial.",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark was plainly rude and humiliating and was made in a customer-service interaction where the wife was seeking help. However, this appears to be a single, isolated insult in a retail setting without threats, physical contact, or a pattern of harassment. Although the clerk\u2019s comment was likely intended to mock or at least made with reckless disregard of emotional impact, courts typically treat one-time name-calling in a store as an indignity insufficiently \u201cextreme and outrageous\u201d to support IIED. The fact that another customer overheard and laughed may increase embarrassment, but it usually does not transform a single insult into actionable outrageousness absent additional aggravating conduct. The facts also describe the wife being \u201cvery upset\u201d and leaving, but do not show distress so severe that no reasonable person could be expected to endure it.",
+          "conclusion": "The wife will likely lose, because the clerk\u2019s single insulting comment, while offensive, is generally not legally \u201cextreme and outrageous\u201d enough to support IIED, and the facts do not show severe emotional distress."
+        },
+        {
+          "id": "gpt-5.2_10",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress (IIED) based on the clerk\u2019s insulting comment about her weight and dress size made in front of other customers.",
+          "rule": "To prevail on IIED, a plaintiff must show (1) extreme and outrageous conduct, (2) intent to cause severe emotional distress or reckless disregard of the high probability of causing it, (3) causation, and (4) severe emotional distress. Mere insults, indignities, or hurt feelings\u2014even in public\u2014generally do not qualify as \u201cextreme and outrageous\u201d absent aggravating factors (e.g., abuse of power, repeated harassment, targeting a known special vulnerability in a particularly egregious way). Physical injury is not required, but the distress must be severe, not trivial.",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark is a crude, humiliating insult and it caused the wife to become upset and leave. However, in the typical retail setting, a single disparaging comment about a customer\u2019s appearance/size is usually treated as a nonactionable insult rather than conduct so extreme and outrageous as to exceed all bounds of decency. The fact that another customer overheard and laughed supports humiliation but does not, by itself, transform the incident into actionable outrageousness. The facts also indicate only that the wife was \u201cvery upset\u201d and had hurt feelings; they do not show the kind of \u201csevere\u201d emotional distress (e.g., lasting, disabling, or medically significant distress) typically required. While the comment appears intended to ridicule, IIED still fails if the conduct is not legally \u201coutrageous\u201d and/or the distress is not severe.",
+          "conclusion": "The wife will likely lose; the best answer is that she loses because she only suffered hurt feelings (i.e., insufficient severe distress and a single insult is generally not extreme and outrageous)."
+        },
+        {
+          "id": "gpt-5.2_11",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress based on the clerk\u2019s insulting comment about her weight and clothing size made in front of other customers.",
+          "rule": "Intentional infliction of emotional distress (IIED) requires: (1) extreme and outrageous conduct, (2) intent to cause distress or reckless disregard of the likelihood of causing distress, (3) causation, and (4) severe emotional distress. Mere insults, indignities, ridicule, or hurt feelings\u2014without more\u2014generally do not qualify as \u201cextreme and outrageous,\u201d even if made in public, unless accompanied by aggravating factors (e.g., abuse of a position of power, targeting a known special vulnerability, repeated harassment, threats, or conduct beyond ordinary rudeness). Physical injury is not required for IIED, but the distress must be severe.",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d comment is crude and humiliating and was overheard by another customer who laughed, supporting that the wife was embarrassed and upset. However, in most jurisdictions, a single rude, body-shaming remark by a retail employee during a customer interaction is treated as an insult/ridicule and not sufficiently extreme and outrageous to meet the high IIED threshold. There are no facts indicating repeated harassment, threats, physical intimidation, or that the clerk exploited a known special susceptibility beyond what was apparent, and the facts describe the wife becoming \u201cvery upset\u201d and leaving, which typically suggests hurt feelings/embarrassment rather than legally \u201csevere\u201d emotional distress. The lack of physical harm does not bar the claim, but the likely failure is the \u201cextreme and outrageous\u201d and/or \u201csevere distress\u201d elements.",
+          "conclusion": "The wife will likely lose, because the clerk\u2019s single insulting comment amounts to mere ridicule/hurt feelings and is generally not extreme and outrageous enough to support an IIED claim."
+        },
+        {
+          "id": "gpt-5.2_12",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress (IIED) based on the clerk\u2019s insulting comment about her weight in front of others.",
+          "rule": "To prevail on IIED, a plaintiff must show: (1) the defendant engaged in extreme and outrageous conduct, (2) intended to cause severe emotional distress or acted with reckless disregard of the likelihood of causing it, (3) the conduct caused the distress, and (4) the distress was severe. Physical injury is not required, and mere insults, indignities, or hurt feelings\u2014without more\u2014generally do not rise to \u201cextreme and outrageous\u201d conduct. However, targeted humiliation in a commercial setting may qualify when it is particularly abusive, especially if it exploits a known sensitivity or is calculated to publicly humiliate.",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark was a deliberate, personal insult tied to the wife\u2019s weight and was made in the course of customer service. The comment was reasonably likely to cause emotional harm and public humiliation (it was overheard and laughed at), supporting intent or at least reckless disregard. Causation is shown because the wife became very upset and fled the store. The key weakness is whether the conduct and the resulting distress meet the high threshold: many courts treat single-incident name-calling in a store as a nonactionable insult absent proof of severe distress (e.g., medical treatment, lasting effects) or additional aggravating factors. The facts show upset and embarrassment, but not \u201csevere\u201d distress beyond hurt feelings, making liability uncertain and often unlikely under the traditional high bar for IIED.",
+          "conclusion": "She will likely lose, because\u2014even though physical harm is not required\u2014the clerk\u2019s comment is typically treated as an insulting indignity and the facts do not show the level of extreme and outrageous conduct and severe emotional distress required for IIED."
+        },
+        {
+          "id": "gpt-5.2_13",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress (IIED) based on the clerk\u2019s insulting comment about her weight and clothing size made in front of others.",
+          "rule": "To prevail on IIED, a plaintiff must show (1) extreme and outrageous conduct, (2) intent to cause severe emotional distress or reckless disregard of the high probability of causing it, (3) causation, and (4) severe emotional distress. Physical injury is not required, but ordinary insults, indignities, or hurt feelings\u2014especially in a retail/customer interaction\u2014generally do not rise to the level of \u201cextreme and outrageous\u201d absent aggravating circumstances (e.g., threats, repeated harassment, abuse of a special vulnerability known to the defendant, or conduct beyond all bounds of decency). Employers can be vicariously liable for an employee\u2019s torts committed within the scope of employment.",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark was rude, insulting, and humiliating, and it foreseeably upset the wife; the laughter by another customer underscores the embarrassment. However, the facts describe a single verbal insult during a shopping inquiry, with no threat, no physical contact, no repeated course of harassment, and no special relationship or coercive power beyond an ordinary retail interaction. Courts typically treat such one-off insults in public as insufficiently \u201cextreme and outrageous\u201d for IIED, even if intended to ridicule and even if overheard. While the wife need not show physical harm, she must show severe emotional distress; the facts indicate she was \u201cvery upset\u201d and left the store, which often is characterized as hurt feelings/embarrassment rather than the level of severity required. Thus the claim likely fails on the \u201cextreme and outrageous\u201d and/or \u201csevere distress\u201d elements.",
+          "conclusion": "The wife will most likely lose, because the clerk\u2019s single insulting comment in a retail setting is generally not extreme and outrageous enough (and the distress shown appears insufficiently severe) to support an IIED claim, even without any requirement of physical harm."
+        },
+        {
+          "id": "gpt-5.2_15",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover against the department store for intentional infliction of emotional distress (IIED) based on the clerk\u2019s humiliating comment about her weight and size in front of others.",
+          "rule": "To prove IIED, a plaintiff must show: (1) the defendant engaged in extreme and outrageous conduct; (2) the defendant acted intentionally or recklessly as to causing emotional distress; (3) the conduct caused the plaintiff\u2019s distress; and (4) the distress was severe. Physical injury is not required. Mere insults or hurt feelings generally are insufficient unless the circumstances (including abuse of a position of power, known special susceptibility, or public humiliation) make the conduct extreme and outrageous. An employer can be vicariously liable for an employee\u2019s tort committed within the scope of employment.",
+          "application": "The clerk, while acting as a store employee responding to a customer request, compared the wife to a \u201chippopotamus\u201d and mocked her as needing a \u201chippo size,\u201d an intentional ridicule tied directly to a personal characteristic (her weight) and delivered in a customer-service setting. The fact that another customer overheard and laughed supports the humiliating nature of the incident and helps show outrageousness beyond a private, offhand remark. The wife immediately became very upset and fled the store, supporting causation and emotional distress; and IIED does not require physical harm. While isolated insults often do not meet the high threshold, a targeted, degrading, customer-facing humiliation by a clerk can be found extreme and outrageous, and the clerk at least acted recklessly (if not intentionally) regarding the likelihood of causing severe distress. The store may be liable under respondeat superior because the interaction occurred during the clerk\u2019s performance of job duties (assisting a customer).",
+          "conclusion": "The wife is most likely to win on an IIED theory because the clerk\u2019s conduct can be deemed extreme and outrageous and was at least reckless in causing severe emotional distress; physical harm is not required."
+        },
+        {
+          "id": "gpt-5.2_17",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress (IIED) based on the clerk\u2019s insulting comment about her weight and clothing size made in front of others.",
+          "rule": "To prevail on an IIED claim, a plaintiff must show: (1) the defendant engaged in extreme and outrageous conduct, (2) the defendant intended to cause severe emotional distress or acted with reckless disregard of the probability of causing it, (3) causation, and (4) severe emotional distress. Mere insults, indignities, rude behavior, or hurt feelings\u2014without more\u2014generally do not constitute \u201cextreme and outrageous\u201d conduct. Physical injury is not required, but the distress must be severe. Public setting or the presence of third parties may aggravate conduct but does not automatically make it actionable; liability typically requires conduct beyond ordinary rudeness (e.g., abuse of a special power relationship, repeated harassment, or targeting a known special susceptibility).",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark was humiliating and made in a retail setting where another customer overheard and laughed. However, a single instance of name-calling/insult in a store, without additional aggravating factors (such as repeated harassment, threats, or exploitation of a known unusual susceptibility beyond what is obvious), is usually treated as nonactionable rudeness rather than the kind of extreme and outrageous conduct required for IIED. The facts also describe that the wife became upset and left, but do not indicate \u201csevere\u201d emotional distress (e.g., medical treatment, inability to function, prolonged symptoms). Although intent to humiliate can be inferred, the key element\u2014extreme and outrageous conduct causing severe distress\u2014is likely not met under typical tort standards.",
+          "conclusion": "The wife will most likely lose, because the clerk\u2019s comment, while offensive, is generally treated as a mere insult causing hurt feelings rather than extreme and outrageous conduct causing severe emotional distress."
+        },
+        {
+          "id": "gpt-5.2_19",
+          "model": "gpt-5.2",
+          "issue": "Whether the wife can recover from the department store for intentional infliction of emotional distress based on the clerk\u2019s insulting comment about her weight and clothing size made in the presence of another customer.",
+          "rule": "Intentional infliction of emotional distress (IIED) requires (1) extreme and outrageous conduct, (2) intent to cause severe emotional distress (or reckless disregard of the likelihood of causing it), (3) causation, and (4) severe emotional distress. Mere insults, indignities, or hurt feelings\u2014without more\u2014generally do not qualify as \u201cextreme and outrageous,\u201d and physical injury is not required, but the distress must be severe.",
+          "application": "The clerk\u2019s \u201chippopotamus/hippo size\u201d remark is a cruel, humiliating insult and was made in a retail setting where a customer could overhear and laugh. However, courts typically treat isolated name-calling or rudeness by store employees as nonactionable \u201cmere insults,\u201d absent additional aggravating factors (e.g., threats, repeated harassment, exploitation of a known special vulnerability in an extreme way, or conduct far beyond ordinary incivility). The facts show the wife became upset and left, but do not show distress rising to the level of \u201csevere\u201d as required for IIED. Lack of physical harm does not bar the claim, but the likely failure is that the conduct is not legally \u201cextreme and outrageous\u201d and the harm described is more consistent with hurt feelings/embarrassment than severe distress.",
+          "conclusion": "The wife will likely lose, because the clerk\u2019s comment is generally treated as a nonactionable insult and the facts do not show the severe emotional distress required for IIED."
+        }
+      ]
+    },
+    "0": {
+      "representative": {
+        "id": "gemini-3-flash_0",
+        "model": "gemini-3-flash",
+        "issue": "Whether a store clerk's insulting comment to a customer regarding her weight constitutes Intentional Infliction of Emotional Distress (IIED).",
+        "rule": "To prevail on a claim for IIED, a plaintiff must prove: (1) extreme and outrageous conduct; (2) intent to cause, or reckless disregard of the probability of causing, severe emotional distress; (3) causation; and (4) severe emotional distress. Mere insults, indignities, or petty oppressions do not rise to the level of extreme and outrageous conduct, and recovery is generally denied for mere hurt feelings.",
+        "application": "While the clerk's comparison of the wife to a hippopotamus was rude, insulting, and humiliating, it does not meet the legal threshold of 'extreme and outrageous' conduct that transcends all bounds of decency. Furthermore, the wife's reaction of being 'very upset' indicates hurt feelings rather than the severe, debilitating emotional distress required to sustain a cause of action in tort.",
+        "conclusion": "lose, because the wife only suffered hurt feelings."
+      },
+      "members": [
+        {
+          "id": "gemini-3-flash_0",
+          "model": "gemini-3-flash",
+          "issue": "Whether a store clerk's insulting comment to a customer regarding her weight constitutes Intentional Infliction of Emotional Distress (IIED).",
+          "rule": "To prevail on a claim for IIED, a plaintiff must prove: (1) extreme and outrageous conduct; (2) intent to cause, or reckless disregard of the probability of causing, severe emotional distress; (3) causation; and (4) severe emotional distress. Mere insults, indignities, or petty oppressions do not rise to the level of extreme and outrageous conduct, and recovery is generally denied for mere hurt feelings.",
+          "application": "While the clerk's comparison of the wife to a hippopotamus was rude, insulting, and humiliating, it does not meet the legal threshold of 'extreme and outrageous' conduct that transcends all bounds of decency. Furthermore, the wife's reaction of being 'very upset' indicates hurt feelings rather than the severe, debilitating emotional distress required to sustain a cause of action in tort.",
+          "conclusion": "lose, because the wife only suffered hurt feelings."
+        },
+        {
+          "id": "gemini-3-flash_11",
+          "model": "gemini-3-flash",
+          "issue": "Whether the clerk's insulting remarks regarding the wife's weight constitute a valid claim for Intentional Infliction of Emotional Distress (IIED) against the department store.",
+          "rule": "To succeed in a claim for Intentional Infliction of Emotional Distress, a plaintiff must prove that the defendant engaged in extreme and outrageous conduct that intentionally or recklessly caused severe emotional distress. Liability does not extend to mere insults, indignities, threats, annoyances, petty oppressions, or other trivialities.",
+          "application": "While the clerk's comments comparing the wife to a hippopotamus were rude, insensitive, and socially unacceptable, they fall under the category of mere insults and indignities. In a legal context, such verbal abuse in a retail setting typically does not meet the high threshold of 'extreme and outrageous' conduct required for IIED. Furthermore, the wife's reaction of being 'very upset' constitutes hurt feelings rather than the severe and debilitating emotional distress necessary for recovery.",
+          "conclusion": "lose, because the wife only suffered hurt feelings."
+        },
+        {
+          "id": "gemini-3-flash_12",
+          "model": "gemini-3-flash",
+          "issue": "Whether a store clerk's verbal insult regarding a customer's weight constitutes Intentional Infliction of Emotional Distress (IIED) or another actionable tort.",
+          "rule": "To establish a claim for Intentional Infliction of Emotional Distress, a plaintiff must prove: (1) extreme and outrageous conduct; (2) intent to cause, or reckless disregard of a substantial probability of causing, severe emotional distress; (3) causation; and (4) severe emotional distress. Extreme and outrageous conduct is defined as behavior that goes beyond all possible bounds of decency. Liability does not extend to mere insults, indignities, threats, annoyances, petty oppressions, or other trivialities.",
+          "application": "In this case, the clerk's comments comparing the wife to a hippopotamus were rude, insensitive, and humiliating. However, under the law of torts, such verbal abuse is classified as a mere insult or indignity rather than conduct that is 'extreme and outrageous.' Furthermore, while the wife became 'very upset,' this level of reaction generally does not meet the legal threshold of 'severe' emotional distress required for recovery. Because the conduct does not meet the high bar of being utterly intolerable in a civilized community, the store is not liable.",
+          "conclusion": "lose, because the wife only suffered hurt feelings."
+        },
+        {
+          "id": "gemini-3-flash_17",
+          "model": "gemini-3-flash",
+          "issue": "Whether the store clerk's derogatory comment to the customer is sufficient to sustain a prima facie case for Intentional Infliction of Emotional Distress (IIED).",
+          "rule": "To establish a claim for IIED, a plaintiff must prove: (1) the defendant acted intentionally or recklessly; (2) the conduct was extreme and outrageous; (3) there is a causal connection between the conduct and the distress; and (4) the resulting emotional distress was severe. 'Extreme and outrageous' conduct must go beyond all possible bounds of decency; mere insults, indignities, or petty oppressions are generally not actionable.",
+          "application": "The clerk's comparison of the wife to a hippopotamus was rude, insensitive, and intended to be hurtful. However, in the context of tort law, such verbal abuse is categorized as a mere insult rather than extreme and outrageous conduct. Unless the clerk was aware of a specific sensitivity or there was a special relationship (like a common carrier), the law expects individuals to be hardened to a certain amount of rough language. The wife's distress, while genuine, falls under 'hurt feelings' rather than the severe emotional distress required for recovery.",
+          "conclusion": "lose, because the wife only suffered hurt feelings."
+        },
+        {
+          "id": "gemini-3-pro_6",
+          "model": "gemini-3-pro",
+          "issue": "Whether the wife can prevail in a tort action for Intentional Infliction of Emotional Distress (IIED) against the department store based on the clerk's offensive insults regarding her weight.",
+          "rule": "To succeed in a claim for Intentional Infliction of Emotional Distress, a plaintiff must prove that the defendant engaged in extreme and outrageous conduct that intentionally or recklessly caused severe emotional distress. Courts generally hold that 'extreme and outrageous' conduct does not include mere insults, indignities, threats, annoyances, petty oppressions, or other trivialities. Furthermore, the emotional distress suffered must be severe; the law does not provide a remedy for mere hurt feelings or bad manners.",
+          "application": "In this case, the clerk's comments comparing the wife to a 'hippopotamus' were undoubtedly rude, offensive, and unprofessional. However, legally, such remarks constitute mere insults or indignities rather than conduct so extreme and outrageous that it exceeds all bounds of decency in a civilized community. Additionally, the facts indicate that the wife became 'upset' and left the store. This reaction characterizes 'hurt feelings' rather than the debilitating, severe emotional distress required to sustain a tort claim for IIED.",
+          "conclusion": "lose, because the wife only suffered hurt feelings."
+        },
+        {
+          "id": "gemini-3-pro_13",
+          "model": "gemini-3-pro",
+          "issue": "Whether a customer can recover damages for Intentional Infliction of Emotional Distress (IIED) against a department store based on an employee's offensive and insulting remarks regarding the customer's weight.",
+          "rule": "To establish a prima facie case for Intentional Infliction of Emotional Distress, the plaintiff must prove: (1) the defendant acted intentionally or recklessly; (2) the conduct was extreme and outrageous; (3) the actions caused the plaintiff emotional distress; and (4) the emotional distress was severe. Liability for IIED does not extend to mere insults, indignities, threats, annoyances, petty oppressions, or other trivialities. 'Severe' emotional distress must go beyond simple embarrassment or hurt feelings; it must be distress so severe that no reasonable person could be expected to endure it.",
+          "application": "In this case, the clerk's comment comparing the wife to a 'hippopotamus' was undeniably rude, offensive, and unprofessional. However, under the objective standard of tort law, such insults do not rise to the level of 'extreme and outrageous' conduct required to sustain an IIED claim. Furthermore, the facts state that the wife became 'very upset.' This reaction constitutes 'hurt feelings' rather than the debilitating or severe emotional distress required by law. Unlike common carriers or innkeepers, department stores are not held to a heightened standard of courtesy that would make mere insults actionable.",
+          "conclusion": "lose, because the wife only suffered hurt feelings."
+        }
+      ]
+    }
+  }
+}
