@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppShell } from '@/components/ui/AppShell';
 
 type LshRunSummary = {
     fileName: string;
@@ -789,8 +790,13 @@ export default function LshRunsPage() {
     };
 
     return (
-        <main className={`min-h-screen bg-[radial-gradient(1200px_620px_at_6%_-8%,rgba(59,130,246,0.18),transparent),radial-gradient(1050px_620px_at_100%_0%,rgba(34,197,94,0.14),transparent),#f8fafc] text-slate-900 ${isResizingPanes ? 'select-none' : ''}`}>
-            <div className="mx-auto w-full max-w-none px-5 py-6 sm:px-8 sm:py-8">
+        <AppShell
+            eyebrow="LSH-RUHS"
+            title="Interactive Cluster Separation Map"
+            subtitle="Filter by model and cluster size, inspect cluster members, and compare saved grading snapshots."
+            maxWidthClassName="max-w-none"
+        >
+            <div className={`${isResizingPanes ? 'select-none' : ''}`}>
                 <header className="rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
@@ -812,10 +818,10 @@ export default function LshRunsPage() {
                                 {isStreamConnected ? 'Live stream connected' : 'Live stream reconnecting'}
                             </span>
                             <Link
-                                href="/"
+                                href="/general-benchmarking"
                                 className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100"
                             >
-                                Back to benchmark app
+                                Open Benchmark Runner
                             </Link>
                         </div>
                     </div>
