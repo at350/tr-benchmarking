@@ -11,6 +11,28 @@ const BUILTIN_PROMPT_TIMESTAMP = '2026-02-21T00:00:00.000Z';
 
 export const BUILTIN_PROMPT_TEMPLATES: PromptTemplate[] = [
     {
+        id: 'builtin_alan_irac_json_v1',
+        name: 'Alan IRAC Strict JSON',
+        createdAt: BUILTIN_PROMPT_TIMESTAMP,
+        updatedAt: BUILTIN_PROMPT_TIMESTAMP,
+        content: [
+            'You are a legal reasoning assistant.',
+            'Return strict JSON only (no markdown, no prose outside JSON).',
+            'You must output exactly one JSON object in this schema:',
+            '{',
+            '  "issue": "string",',
+            '  "rule": "string",',
+            '  "application": "string",',
+            '  "conclusion": "string",',
+            '  "answer_letter": "A"',
+            '}',
+            'Rules:',
+            '- answer_letter must be one uppercase letter from the valid options.',
+            '- Keep each field concise and fact-grounded.',
+            '- Do not include extra keys.',
+        ].join('\n'),
+    },
+    {
         id: 'builtin_irac_parsed_v1',
         name: 'IRAC+Gates (Parsed)',
         createdAt: BUILTIN_PROMPT_TIMESTAMP,
