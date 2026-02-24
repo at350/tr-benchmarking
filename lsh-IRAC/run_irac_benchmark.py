@@ -4,6 +4,7 @@ import asyncio
 import httpx
 import time
 import sys
+import argparse
 
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
@@ -31,10 +32,11 @@ openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 # --- Configuration ---
 NUM_RESPONSES_PER_MODEL = 20
 TIMESTAMP = time.strftime("%Y%m%d_%H%M%S")
-OUTPUT_FILE = f"lsh-IRAC/data/responses_{TIMESTAMP}.json"
-RESULTS_FILE = f"lsh-IRAC/results/run_{TIMESTAMP}.json"
 
-TEST_QUESTION = """A woman owned a 10-acre tract of rural farmland in fee simple absolute. The woman agreed to sell the farmland to a man, and each signed a writing stating that the farmland was beitig sold: ". . . for $10,000, receipt of which is acknowledged. " In actuality, the man had not yet paid the woman the $10,000. At the date set for closing, the woman transferred a deed to the farmland to the man, who gave the woman a check for $10,000. Howevei, a few days after the woman deposited the check, she received notice from her bank that the check had not cleared, due to insufficient funds in the account. The woman then brought suit against the man. At trial, the woman seeks to testify that the man did not in fact pay her the $10,000 as recited in their written instrument. The man objects to the woman's proposed testimony. Will the trial court judge be correct in sustaining the man's objection?"""
+# Base directory is the lsh-IRAC folder where this script lives
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_FILE = os.path.join(BASE_DIR, f"data/responses_{TIMESTAMP}.json")
+RESULTS_FILE = os.path.join(BASE_DIR, f"results/run_{TIMESTAMP}.json")
 
 SYSTEM_PROMPT = """You are an expert legal assistant. 
 
@@ -141,18 +143,33 @@ async def fetch_replicate(model, question, index):
             url = f"https://api.replicate.com/v1/models/{owner}/{name}/predictions"
             
             async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(url, json=input_data, headers=headers)
-                
-                if resp.status_code != 201:
-                    return {"error": f"Status {resp.status_code}: {resp.text}", "model": model, "id": f"{model}_{index}"}
+                max_retries = 5
+                for attempt in range(max_retries):
+                    resp = await client.post(url, json=input_data, headers=headers)
+                    if resp.status_code == 429:
+                        await asyncio.sleep(2 ** attempt + 2)
+                        continue
+                        
+                    if resp.status_code != 201:
+                        if attempt == max_retries - 1:
+                            return {"error": f"Status {resp.status_code}: {resp.text}", "model": model, "id": f"{model.split('/')[-1]}_{index}"}
+                        else:
+                            await asyncio.sleep(2 ** attempt + 2)
+                            continue
+                    break # Success on getting 201
                     
                 prediction = resp.json()
                 get_url = prediction["urls"]["get"]
                 
                 # Poll
                 while True:
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(3)
                     resp = await client.get(get_url, headers=headers)
+                    if resp.status_code == 429:
+                        continue
+                    if resp.status_code != 200:
+                        continue
+                    
                     pred = resp.json()
                     status = pred["status"]
                     
@@ -166,9 +183,9 @@ async def fetch_replicate(model, question, index):
                         if not parsed_json:
                             # Replicate models are trickier with Markdown blocks
                             return {"error": f"Failed to parse JSON from response:\n{text}", "model": cleaned_model, "id": f"{cleaned_model}_{index}"}
-                            
+                        
                         # Validate that the dict contains IRAC keys broadly
-                        keys_lower = [k.lower() for k in parsed_json.keys()]
+                        keys_lower = [k.lower() if isinstance(k, str) else k for k in parsed_json.keys()]
                         if not ('issue' in keys_lower and 'rule' in keys_lower and 'application' in keys_lower and 'conclusion' in keys_lower):
                             return {"error": f"JSON parsed but missing core IRAC keys:\n{parsed_json}", "model": cleaned_model, "id": f"{cleaned_model}_{index}"}
                             
@@ -188,7 +205,7 @@ async def fetch_replicate(model, question, index):
                             "id": f"{cleaned_model}_{index}"
                         }
                     elif status in ["failed", "canceled"]:
-                         return {"error": f"Prediction status: {status}", "model": model, "id": f"{model}_{index}"}
+                         return {"error": f"Prediction status: {status}", "model": model, "id": f"{model.split('/')[-1]}_{index}"}
                         
         except Exception as e:
             cleaned_model = model.split("/")[-1]
@@ -196,25 +213,54 @@ async def fetch_replicate(model, question, index):
 
 # --- Main Flow ---
 
-async def main():
+async def main(args):
     print(f"Starting IRAC Benchmark Run...")
     print(f"Timestamp: {TIMESTAMP}")
     print(f"Target: {NUM_RESPONSES_PER_MODEL} responses per model.")
+    
+    with open(args.question, "r") as f:
+        test_question = f.read()
+
+    # Load existing data if we want to skip already generated data
+    existing_data = []
+    existing_ids = set()
+    if args.resume:
+        try:
+            with open(args.resume, "r") as f:
+                existing_data = json.load(f)
+                for item in existing_data:
+                    existing_ids.add(item["id"])
+            print(f"Loaded {len(existing_data)} existing responses from {args.resume}.")
+        except Exception as e:
+            print(f"Error loading resume file: {e}")
     
     tasks = []
     
     # OpenAI
     for model in OPENAI_MODELS:
         for i in range(NUM_RESPONSES_PER_MODEL):
-            tasks.append(fetch_openai(model, TEST_QUESTION, i))
+            item_id = f"{model}_{i}"
+            if item_id in existing_ids:
+                continue
+            tasks.append(fetch_openai(model, test_question, i))
             
     # Replicate
     for model in REPLICATE_MODELS:
+        cleaned_model = model.split("/")[-1]
         for i in range(NUM_RESPONSES_PER_MODEL):
-            tasks.append(fetch_replicate(model, TEST_QUESTION, i))
+            item_id = f"{cleaned_model}_{i}"
+            if item_id in existing_ids:
+                continue
+            tasks.append(fetch_replicate(model, test_question, i))
             
-    print(f"Dispatched {len(tasks)} JSON generation tasks...")
-    results = await tqdm.gather(*tasks)
+    print(f"Dispatched {len(tasks)} NEW JSON generation tasks...")
+    
+    if len(tasks) > 0:
+        new_results = await tqdm.gather(*tasks)
+    else:
+        new_results = []
+        
+    results = new_results + existing_data
     
     # Separation
     valid_data = []
@@ -269,7 +315,7 @@ async def main():
                 "method": "density_umap_hdbscan",
                 "umap_dims": 10,
                 "min_cluster_size": 5,
-                "question": TEST_QUESTION,
+                "question": test_question,
                 "schema": "IRAC",
                 "total_items": len(valid_data),
                 "num_clusters": results['num_clusters'],
@@ -328,4 +374,8 @@ async def main():
         print("No valid parsed JSON data to cluster. Ensure models are returning correct formats.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description="Run IRAC Benchmark")
+    parser.add_argument("--question", required=True, help="Path to the text file containing the question.")
+    parser.add_argument("--resume", help="Path to an existing JSON results file to resume from.")
+    args = parser.parse_args()
+    asyncio.run(main(args))

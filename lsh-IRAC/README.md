@@ -33,12 +33,17 @@ This module relies on the environment and dependencies of the parent `lsh` folde
 
 ## Running the Benchmark
 
-Execute the main script from the root of the repository:
+Execute the main script from the root of the repository. You must provide a text file containing the legal question using the `--question` argument:
 
 ```bash
 # Assuming you are in the tr-benchmarking directory
 source lsh/.venv/bin/activate
-python lsh-IRAC/run_irac_benchmark.py
+python lsh-IRAC/run_irac_benchmark.py --question lsh-IRAC/data/questions/question_iied.txt
+```
+
+You can optionally resume a previous run (e.g., if you hit an API rate limit and only got partial results) by passing the existing JSON file via the `--resume` flag:
+```bash
+python lsh-IRAC/run_irac_benchmark.py --question lsh-IRAC/data/questions/question_iied.txt --resume lsh-IRAC/data/responses_20260224_001715.json
 ```
 
 ## Output
