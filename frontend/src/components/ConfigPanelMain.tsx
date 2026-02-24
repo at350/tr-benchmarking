@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { InfoTip } from '@/components/ui/InfoTip';
 
 export type ExperimentConfig = {
     dataset: 'supergpqa' | 'prbench';
@@ -43,6 +44,15 @@ interface ConfigPanelProps {
     selectionPreview: SelectionPreview;
     canRun: boolean;
     runDisabledReason?: string;
+}
+
+function FieldLabel({ label, helpText }: { label: string; helpText: string }) {
+    return (
+        <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 uppercase tracking-wider">
+            <span>{label}</span>
+            <InfoTip label={helpText} />
+        </div>
+    );
 }
 
 export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, selectionPreview, canRun, runDisabledReason }: ConfigPanelProps) {
@@ -125,7 +135,7 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
 
             {/* Dataset Selection */}
             <div className="space-y-3">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Dataset</label>
+                <FieldLabel label="Dataset" helpText="Select which benchmark dataset to run. PRBench enables judge controls." />
 
                 <div className="grid grid-cols-2 gap-2">
                     <button
@@ -144,9 +154,10 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
                     </button>
                 </div>
 
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                    {isPrbench ? 'Topic Filter' : 'Dataset Filter'}
-                </label>
+                <FieldLabel
+                    label={isPrbench ? 'Topic Filter' : 'Dataset Filter'}
+                    helpText="Filter the benchmark pool before sampling or manual-ID selection."
+                />
 
                 <select
                     className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
@@ -171,7 +182,10 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
                 )}
 
                 <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Max {isPrbench ? 'Items' : 'Questions'}:</span>
+                    <span className="inline-flex items-center gap-1 text-sm text-gray-600">
+                        Max {isPrbench ? 'Items' : 'Questions'}
+                        <InfoTip label="Caps the number of auto-selected items for this run. Manual ID mode ignores this cap." />
+                    </span>
                     <select
                         className="p-1 border rounded bg-white text-sm"
                         value={config.limit}
@@ -185,7 +199,7 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Question Selection</label>
+                    <FieldLabel label="Question Selection" helpText="Choose automatic sampling or provide exact IDs manually." />
                     <div className="grid grid-cols-2 gap-2">
                         <button
                             type="button"
@@ -206,7 +220,7 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
 
                 {config.questionSelectionMode === 'auto' ? (
                     <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Auto Order</label>
+                        <FieldLabel label="Auto Order" helpText="Ordered follows IDs; random uses deterministic seed shuffling." />
                         <select
                             className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
                             value={config.autoSelectionOrder}
@@ -217,7 +231,7 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
                         </select>
                         {config.autoSelectionOrder === 'random' && (
                             <div className="space-y-1">
-                                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Sample Seed</label>
+                                <FieldLabel label="Sample Seed" helpText="Use the same seed to reproduce the same random sample." />
                                 <input
                                     type="number"
                                     className="w-full p-2 border rounded-lg bg-gray-50 text-sm"
@@ -229,7 +243,10 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
                     </div>
                 ) : (
                     <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{isPrbench ? 'Item IDs' : 'Question IDs'} (comma or newline separated)</label>
+                        <FieldLabel
+                            label={`${isPrbench ? 'Item IDs' : 'Question IDs'} (comma or newline separated)`}
+                            helpText="Run only the listed IDs after filters are applied."
+                        />
                         <textarea
                             className="w-full min-h-[88px] p-2 border rounded-lg bg-gray-50 text-sm font-mono"
                             placeholder="e.g. 01ac..., 17bd..., 22ff..."
@@ -272,7 +289,7 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
 
             {/* Model Selection */}
             <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Provider</label>
+                <FieldLabel label="Provider" helpText="Choose model vendor for the answering model." />
                 <select
                     className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
                     value={config.provider}
@@ -290,7 +307,7 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
                     <option value="gemini">Gemini</option>
                 </select>
 
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Model</label>
+                <FieldLabel label="Model" helpText="Select the model variant to benchmark." />
                 {config.provider === 'openai' ? (
                     <select
                         className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
@@ -326,7 +343,7 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
 
             {supportsGpt52Thinking && (
                 <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">GPT-5.2 Thinking</label>
+                    <FieldLabel label="GPT-5.2 Thinking" helpText="Controls reasoning effort for GPT-5.2 thinking-capable models." />
                     <div className="grid grid-cols-5 gap-2">
                         {thinkingModes.map(mode => (
                             <button
@@ -344,7 +361,7 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
 
             {isPrbench && (
                 <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Judge Provider</label>
+                    <FieldLabel label="Judge Provider" helpText="Provider used to score PRBench model answers." />
                     <select
                         className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
                         value={config.judgeProvider}
@@ -362,7 +379,7 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
                         <option value="gemini">Gemini</option>
                     </select>
 
-                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Judge Model</label>
+                    <FieldLabel label="Judge Model" helpText="Specific judge model used for PRBench grading." />
                     {config.judgeProvider === 'openai' ? (
                         <select
                             className="w-full p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
@@ -399,7 +416,7 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
 
             {isPrbench && supportsJudgeThinking && (
                 <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Judge Thinking</label>
+                    <FieldLabel label="Judge Thinking" helpText="Reasoning effort setting for supported judge models." />
                     <div className="grid grid-cols-5 gap-2">
                         {thinkingModes.map(mode => (
                             <button
@@ -417,7 +434,7 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
 
             {/* Prompt Template */}
             <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Prompt Template</label>
+                <FieldLabel label="Prompt Template" helpText="Baseline is concise; CoT asks for explicit reasoning output." />
                 <div className={`grid ${isPrbench ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
                     <button
                         className={`p-2 rounded-lg text-sm font-medium transition-colors ${config.promptTemplate === 'baseline' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
@@ -438,9 +455,10 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
 
             {/* Temperature */}
             <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 uppercase tracking-wider">
                     Temperature: {config.temperature}
-                </label>
+                    <InfoTip label="Higher values increase output diversity; lower values are more deterministic." />
+                </div>
                 <input
                     type="range"
                     min="0" max="1" step="0.1"
@@ -454,7 +472,7 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
 
             {/* Perturbations */}
             <div className="space-y-4">
-                <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Perturbations</label>
+                <FieldLabel label="Perturbations" helpText="Stress-test robustness by modifying inputs or labels." />
 
                 <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-700">Adversarial Text</span>
@@ -485,7 +503,7 @@ export function ConfigPanel({ config, setConfig, onRun, isLoading, subjects, sel
                 <>
                     <hr className="border-gray-100" />
                     <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Judge Prompt (Optional)</label>
+                        <FieldLabel label="Judge Prompt (Optional)" helpText="Extra instructions appended to the judge rubric prompt." />
                         <textarea
                             className="w-full min-h-[120px] p-3 border rounded-lg bg-gray-50 text-sm resize-vertical focus:ring-2 focus:ring-blue-500 outline-none"
                             placeholder="Add custom judge instructions to steer scoring (optional)."

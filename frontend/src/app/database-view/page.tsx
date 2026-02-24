@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Database, Search, X } from 'lucide-react';
+import { AppShell } from '@/components/ui/AppShell';
 
 type SuperGPQAQuestion = {
     id: string;
@@ -158,8 +159,13 @@ export default function DatabaseViewPage() {
     };
 
     return (
-        <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#d8f1e6_0%,#edf7f3_40%,#f8fafc_100%)] px-4 py-8 text-slate-900 sm:px-6 lg:px-10">
-            <div className="mx-auto max-w-7xl">
+        <AppShell
+            eyebrow="Dataset"
+            title="SuperGPQA Database Explorer"
+            subtitle="Search every law question, filter by subfield and difficulty, and inspect full answer choices in one place."
+            maxWidthClassName="max-w-7xl"
+        >
+            <div>
                 <header className="mb-6 rounded-2xl border border-emerald-200/80 bg-white/90 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
@@ -173,10 +179,10 @@ export default function DatabaseViewPage() {
                         </div>
                         <div className="flex items-center gap-3">
                             <Link
-                                href="/"
+                                href="/general-benchmarking"
                                 className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
                             >
-                                Back to Runner
+                                Open Benchmark Runner
                             </Link>
                             <span className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
                                 <Database className="h-4 w-4" />
@@ -424,7 +430,7 @@ export default function DatabaseViewPage() {
                     </section>
                 </div>
             </div>
-        </main>
+        </AppShell>
     );
 }
 
