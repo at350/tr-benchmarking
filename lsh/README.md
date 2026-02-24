@@ -60,6 +60,25 @@ python visualize_pipeline.py
 - `viz_after_instruction.png`: UMAP of instruction-tuned embeddings (clean separation).
 - `viz_cluster_distribution.png`: Bar chart of cluster sizes and verdicts.
 
+### 4. Temperature Sweep Experiment
+Run a temperature sweep for one model and up to two questions, using fixed UMAP/HDBSCAN params and multiple clustering seeds:
+```bash
+python temperature_sweep.py \
+  --model gpt-4o \
+  --question-file ../lsh-IRAC/data/questions/question_q2.txt \
+  --temperatures 0.1,0.2,0.3,0.7 \
+  --responses-per-temp 120 \
+  --seeds 42,43,44
+```
+
+Outputs are saved under `lsh/results/temperature_sweep_<timestamp>/`:
+- `summary_table.json`: cluster count/noise ratio per temperature and stability summaries.
+- `stability_pairs.json`: pairwise ARI/NMI per temperature.
+- `centroid_drift.json`: centroid matching similarity from lowest temperature to higher temperatures.
+- `temperature_only_clusters.json`: high-temperature clusters with low similarity to baseline clusters.
+- `plot_cluster_noise.png` and `plot_stability_drift.png`: quick report plots.
+- `report.md`: one-page markdown summary.
+
 ## Files & Directories
 
 ### Core Logic
