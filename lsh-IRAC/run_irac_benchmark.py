@@ -68,7 +68,8 @@ REPLICATE_MODELS = [
     "anthropic/claude-4.5-sonnet",
     "anthropic/claude-3.5-haiku",
     "deepseek-ai/deepseek-v3",
-    "xai/grok-4"
+    # "xai/grok-4"
+    # Don't use Grok 4 it's so expensive!!!
 ]
 
 # --- Fetch Functions ---
@@ -116,7 +117,7 @@ async def fetch_replicate(model, question, index):
         }
         
         # Handle Gemini models which do not support system_prompt natively in Replicate API
-        if "gemini" in model.lower():
+        if "gemini" in model.lower() or "deepseek" in model.lower():
              input_prompt = f"System Instruction: {SYSTEM_PROMPT}\n\nUser Question: {question}"
              input_data = {
                  "input": {
