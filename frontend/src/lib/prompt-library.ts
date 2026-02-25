@@ -7,7 +7,7 @@ export type PromptTemplate = {
 };
 
 export const PROMPT_LIBRARY_STORAGE_KEY = 'general-benchmarking.prompt-library.v1';
-const BUILTIN_PROMPT_TIMESTAMP = '2026-02-21T00:00:00.000Z';
+const BUILTIN_PROMPT_TIMESTAMP = '2026-02-24T00:00:00.000Z';
 
 export const BUILTIN_PROMPT_TEMPLATES: PromptTemplate[] = [
     {
@@ -28,6 +28,9 @@ export const BUILTIN_PROMPT_TEMPLATES: PromptTemplate[] = [
             '}',
             'Rules:',
             '- answer_letter must be one uppercase letter from the valid options.',
+            '- You must choose exactly one answer_letter.',
+            '- Never return UNKNOWN, null, or multiple letters for answer_letter.',
+            '- If uncertain, pick the single best-supported option and still provide one letter.',
             '- Keep each field concise and fact-grounded.',
             '- Do not include extra keys.',
         ].join('\n'),
@@ -53,6 +56,7 @@ export const BUILTIN_PROMPT_TEMPLATES: PromptTemplate[] = [
             'Map each exception/defense to the specific gate it modifies.',
             '',
             'For this benchmark question, after reasoning, output ONLY the final answer letter (A-J).',
+            'Choose exactly one letter; do not output UNKNOWN or multiple letters.',
             'No explanation in the final output.',
         ].join('\n'),
     },

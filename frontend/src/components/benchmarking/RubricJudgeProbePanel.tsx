@@ -3,13 +3,14 @@
 import { useMemo, useRef, useState } from 'react';
 
 import type { JudgeRubricTemplate } from '@/lib/judge-rubric-library';
-import { type ModelProvider, type ReasoningEffort, REASONING_OPTIONS } from '@/lib/model-options';
+import { getModelOptions, type ModelProvider, type ReasoningEffort, REASONING_OPTIONS } from '@/lib/model-options';
 import { isBuiltinPromptTemplateId, type PromptTemplate } from '@/lib/prompt-library';
 import { InfoTip } from '@/components/ui/InfoTip';
 import type { DatasetQuestion, EditableSingleQuestion, MultiModelSelectionOption } from './SingleQuestionProbePanel';
 
 export type RubricJudgeProbeConfig = {
     runScope: 'single' | 'dataset';
+    runsPerQuestion: number;
     strictnessMode: 'strict' | 'best_effort';
     selectedGenerationPromptId: string;
     selectedJudgeRubricIds: string[];
@@ -349,6 +350,25 @@ export function RubricJudgeProbePanel({
                         })}
                     </div>
                 </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                    <label className="space-y-1">
+                        <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Runs Per Question</span>
+                        <input
+                            type="number"
+                            min={1}
+                            max={20}
+                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                            value={config.runsPerQuestion}
+                            onChange={(event) => setConfig((prev) => ({
+                                ...prev,
+                                runsPerQuestion: Math.min(20, Math.max(1, parseInt(event.target.value || '1', 10))),
+                            }))}
+                        />
+                    </label>
+                </div>
+                <p className="text-xs text-slate-500">
+                    Total calls scale as models x questions x runs per question.
+                </p>
             </section>
 
             <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
@@ -450,7 +470,15 @@ export function RubricJudgeProbePanel({
                         <select
                             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                             value={config.judgeProvider}
-                            onChange={(event) => setConfig((prev) => ({ ...prev, judgeProvider: event.target.value as ModelProvider }))}
+                            onChange={(event) => {
+                                const provider = event.target.value as ModelProvider;
+                                const options = getModelOptions(provider);
+                                setConfig((prev) => ({
+                                    ...prev,
+                                    judgeProvider: provider,
+                                    judgeModel: options[0]?.value || prev.judgeModel,
+                                }));
+                            }}
                         >
                             <option value="openai">OpenAI</option>
                             <option value="anthropic">Anthropic</option>
@@ -459,12 +487,15 @@ export function RubricJudgeProbePanel({
                     </label>
                     <label className="space-y-1">
                         <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Judge Model</span>
-                        <input
-                            type="text"
+                        <select
                             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                             value={config.judgeModel}
                             onChange={(event) => setConfig((prev) => ({ ...prev, judgeModel: event.target.value }))}
-                        />
+                        >
+                            {getModelOptions(config.judgeProvider).map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
                     </label>
                     <label className="space-y-1">
                         <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Judge Reasoning</span>
@@ -479,6 +510,9 @@ export function RubricJudgeProbePanel({
                         </select>
                     </label>
                 </div>
+                <p className="text-xs text-slate-500">
+                    If the selected judge model does not support reasoning controls, the backend automatically retries without reasoning.
+                </p>
             </section>
 
             <section className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">

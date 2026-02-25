@@ -228,6 +228,8 @@ async function runGenerationWithNormalization(input: {
             choicesText,
             '',
             `Valid answer letters: ${validLetters.join(', ')}`,
+            'You must choose exactly one final answer_letter from the valid set.',
+            'Never output multiple letters or UNKNOWN; if uncertain, choose the single best-supported letter.',
             'Return strict JSON only and no markdown.',
             repairBlock,
         ].join('\n');
@@ -242,7 +244,7 @@ async function runGenerationWithNormalization(input: {
         });
         lastOutput = rawOutput;
 
-        const parsed = parseGenerationOutput(rawOutput, validLetters, strictnessMode);
+        const parsed = await parseGenerationOutput(rawOutput, validLetters, strictnessMode);
         lastParsed = parsed;
 
         if (strictnessMode === 'best_effort') {
@@ -280,7 +282,7 @@ async function runGenerationWithNormalization(input: {
     };
 }
 
-function parseGenerationOutput(rawOutput: string, validLetters: string[], strictnessMode: StrictnessMode): GenerationParseResult {
+async function parseGenerationOutput(rawOutput: string, validLetters: string[], strictnessMode: StrictnessMode): Promise<GenerationParseResult> {
     const parsedJson = parseJsonObject(rawOutput);
     const errors: string[] = [];
 
@@ -297,25 +299,32 @@ function parseGenerationOutput(rawOutput: string, validLetters: string[], strict
     }
 
     if (answerLetter === 'Unknown') {
-        const parsedFromText = parseChoiceDeterministic(rawOutput, validLetters);
+        const parsedFromText = await parseChoiceRobust(rawOutput, validLetters);
         if (parsedFromText) {
             answerLetter = parsedFromText;
         }
     }
 
-    const hasRequiredJsonShape = parsedJson
-        ? hasRequiredGenerationJsonShape(parsedJson, validLetters)
+    const normalizedParsedJson = (parsedJson && answerLetter !== 'Unknown')
+        ? {
+            ...parsedJson,
+            answer_letter: answerLetter,
+        }
+        : parsedJson;
+
+    const hasRequiredJsonShape = normalizedParsedJson
+        ? hasRequiredGenerationJsonShape(normalizedParsedJson, validLetters)
         : false;
     const schemaValid = strictnessMode === 'strict'
         ? hasRequiredJsonShape
-        : (parsedJson !== null && answerLetter !== 'Unknown');
+        : (normalizedParsedJson !== null && answerLetter !== 'Unknown');
 
     if (!hasRequiredJsonShape && strictnessMode === 'strict') {
         errors.push('Missing one or more required JSON keys: issue, rule, application, conclusion, answer_letter.');
     }
 
     return {
-        parsedJson,
+        parsedJson: normalizedParsedJson,
         parsedAnswer: answerLetter,
         schemaValid,
         parseErrors: errors,
@@ -556,13 +565,15 @@ async function generateModelResponse({ provider, model, systemPrompt, messages, 
                 format: { type: 'text' },
                 verbosity: 'medium',
             },
-            reasoning: {
-                effort: isGpt52ThinkingModel ? mapReasoningEffort(reasoningEffort) : 'medium',
-                summary: 'auto',
-            },
             tools: [],
             store: true,
             include: ['reasoning.encrypted_content'],
+        };
+
+        // Some models reject reasoning controls; fall back automatically if needed.
+        request.reasoning = {
+            effort: isGpt52ThinkingModel ? mapReasoningEffort(reasoningEffort) : 'medium',
+            summary: 'auto',
         };
 
         if (!isGpt52ThinkingModel) {
@@ -584,11 +595,24 @@ async function generateModelResponse({ provider, model, systemPrompt, messages, 
         try {
             response = await responsesClient.create(request);
         } catch (error) {
-            if (!('temperature' in request) || !isUnsupportedTemperatureError(error)) {
+            if ('reasoning' in request && isUnsupportedReasoningError(error)) {
+                delete request.reasoning;
+                try {
+                    response = await responsesClient.create(request);
+                } catch (secondError) {
+                    if ('temperature' in request && isUnsupportedTemperatureError(secondError)) {
+                        delete request.temperature;
+                        response = await responsesClient.create(request);
+                    } else {
+                        throw secondError;
+                    }
+                }
+            } else if ('temperature' in request && isUnsupportedTemperatureError(error)) {
+                delete request.temperature;
+                response = await responsesClient.create(request);
+            } else {
                 throw error;
             }
-            delete request.temperature;
-            response = await responsesClient.create(request);
         }
 
         return extractResponsesText(response);
@@ -681,25 +705,38 @@ async function generateGeminiResponse({ model, systemPrompt, messages, temperatu
     }
 
     const thinkingLevel = mapGeminiThinkingLevel(reasoningEffort);
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: 'POST',
-        headers: {
-            'content-type': 'application/json',
-            'x-goog-api-key': apiKey,
-        },
-        body: JSON.stringify({
-            contents,
-            generationConfig: {
-                temperature,
-                ...(thinkingLevel ? { thinkingConfig: { thinkingLevel } } : {}),
+    const makeRequest = async (includeThinkingConfig: boolean) => {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                'x-goog-api-key': apiKey,
             },
-        }),
-    });
+            body: JSON.stringify({
+                contents,
+                generationConfig: {
+                    temperature,
+                    ...(includeThinkingConfig && thinkingLevel ? { thinkingConfig: { thinkingLevel } } : {}),
+                },
+            }),
+        });
 
-    const json = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        const error = extractProviderErrorMessage(json);
-        throw new Error(error || `Gemini request failed (${response.status}).`);
+        const json = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const error = extractProviderErrorMessage(json);
+            throw new Error(error || `Gemini request failed (${response.status}).`);
+        }
+        return json;
+    };
+
+    let json: unknown;
+    try {
+        json = await makeRequest(Boolean(thinkingLevel));
+    } catch (error) {
+        if (!thinkingLevel || !isUnsupportedGeminiThinkingError(error)) {
+            throw error;
+        }
+        json = await makeRequest(false);
     }
 
     if (!isRecord(json) || !Array.isArray(json.candidates) || json.candidates.length === 0) {
@@ -905,6 +942,33 @@ function isUnsupportedTemperatureError(error: unknown) {
     return text.toLowerCase().includes('temperature');
 }
 
+function isUnsupportedReasoningError(error: unknown) {
+    if (!error) {
+        return false;
+    }
+    const text = typeof error === 'string'
+        ? error
+        : (isRecord(error) && typeof error.message === 'string' ? error.message : '');
+    const normalized = text.toLowerCase();
+    return normalized.includes('reasoning')
+        && (
+            normalized.includes('not supported')
+            || normalized.includes('unsupported')
+            || normalized.includes('does not support')
+        );
+}
+
+function isUnsupportedGeminiThinkingError(error: unknown) {
+    if (!error) {
+        return false;
+    }
+    const text = typeof error === 'string'
+        ? error
+        : (isRecord(error) && typeof error.message === 'string' ? error.message : '');
+    const normalized = text.toLowerCase();
+    return normalized.includes('thinking') && normalized.includes('not supported');
+}
+
 function extractProviderErrorMessage(json: unknown) {
     if (!isRecord(json)) {
         return null;
@@ -915,6 +979,67 @@ function extractProviderErrorMessage(json: unknown) {
     if (typeof json.message === 'string') {
         return json.message;
     }
+    return null;
+}
+
+async function parseChoiceRobust(output: string, validLetters: string[]) {
+    const deterministic = parseChoiceDeterministic(output, validLetters);
+    if (deterministic) {
+        return deterministic;
+    }
+
+    const llmParsed = await parseChoiceWithTinyModel(output, validLetters);
+    if (llmParsed) {
+        return llmParsed;
+    }
+
+    return null;
+}
+
+async function parseChoiceWithTinyModel(output: string, validLetters: string[]) {
+    if (!process.env.OPENAI_API_KEY) {
+        return null;
+    }
+
+    const validSet = new Set(validLetters);
+
+    try {
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            temperature: 0,
+            messages: [
+                {
+                    role: 'system',
+                    content: 'Extract the model\'s final selected answer letter from the text. Return ONLY one uppercase letter from the valid set, or UNKNOWN.',
+                },
+                {
+                    role: 'user',
+                    content: [
+                        `Valid letters: ${validLetters.join(', ')}`,
+                        '',
+                        'Model output:',
+                        '"""',
+                        output.slice(-6000),
+                        '"""',
+                    ].join('\n'),
+                },
+            ],
+        });
+
+        const text = (completion.choices[0]?.message?.content || '').trim().toUpperCase();
+        const direct = text.replace(/[^A-Z]/g, '');
+        if (direct.length > 0 && validSet.has(direct[0])) {
+            return direct[0];
+        }
+
+        const match = text.match(/\b([A-J])\b/);
+        if (match && validSet.has(match[1])) {
+            return match[1];
+        }
+    } catch (error) {
+        console.error('Rubric fallback answer parsing failed:', error);
+    }
+
     return null;
 }
 

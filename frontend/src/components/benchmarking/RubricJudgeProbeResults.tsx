@@ -21,6 +21,7 @@ type AttemptRow = {
     modelLabel: string;
     modelKey: string;
     questionId: string;
+    repeatIndex: number;
     parsedChoice: string;
     groundTruth: string;
     isCorrect: boolean;
@@ -38,12 +39,15 @@ export function RubricJudgeProbeResults({ summary, results }: RubricJudgeProbeRe
     const pairwiseByRubric = Array.isArray(summary.pairwiseByRubric) ? summary.pairwiseByRubric : [];
     const strengths = Array.isArray(summary.topStrengths) ? summary.topStrengths : [];
     const weaknesses = Array.isArray(summary.topWeaknesses) ? summary.topWeaknesses : [];
+    const requiredN = summary.requiredObservationCount ?? summary.requiredQuestionCount;
+    const actualN = summary.actualObservationCount ?? summary.actualQuestionCount;
 
     return (
         <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-5">
+            <div className="grid gap-3 sm:grid-cols-6">
                 <MetricCard label="Models" value={toIntString(summary.modelCount)} />
                 <MetricCard label="Questions" value={toIntString(summary.questionCount)} />
+                <MetricCard label="Runs / Question" value={toIntString(summary.runsPerQuestion)} />
                 <MetricCard label="Total Calls" value={toIntString(summary.totalCalls)} />
                 <MetricCard label="Gen JSON Compliance" value={toPercent(summary.generationJsonComplianceRate)} />
                 <MetricCard label="Judge JSON Compliance" value={toPercent(summary.judgeJsonComplianceRate)} />
@@ -57,8 +61,8 @@ export function RubricJudgeProbeResults({ summary, results }: RubricJudgeProbeRe
                     </span>
                 </div>
                 <div className="mt-2 grid gap-2 text-xs text-slate-700 sm:grid-cols-3">
-                    <StatText label="Required N" value={toIntString(summary.requiredQuestionCount)} />
-                    <StatText label="Actual N" value={toIntString(summary.actualQuestionCount)} />
+                    <StatText label="Required N" value={toIntString(requiredN)} />
+                    <StatText label="Actual N" value={toIntString(actualN)} />
                     <StatText label="Underpowered" value={toBoolString(summary.underpowered)} />
                 </div>
             </section>
@@ -252,6 +256,7 @@ export function RubricJudgeProbeResults({ summary, results }: RubricJudgeProbeRe
                                 <tr>
                                     <th className="px-2 py-1.5">Model</th>
                                     <th className="px-2 py-1.5">Question</th>
+                                    <th className="px-2 py-1.5">Run</th>
                                     <th className="px-2 py-1.5">Choice</th>
                                     <th className="px-2 py-1.5">Truth</th>
                                     <th className="px-2 py-1.5">Correct</th>
@@ -261,9 +266,10 @@ export function RubricJudgeProbeResults({ summary, results }: RubricJudgeProbeRe
                             </thead>
                             <tbody className="divide-y divide-slate-200">
                                 {rows.map((row, index) => (
-                                    <tr key={`${row.modelKey}-${row.questionId}-${index}`}>
+                                    <tr key={`${row.modelKey}-${row.questionId}-${row.repeatIndex}-${index}`}>
                                         <td className="px-2 py-1.5 text-slate-700">{row.modelLabel}</td>
                                         <td className="px-2 py-1.5 font-mono text-slate-700">{row.questionId}</td>
+                                        <td className="px-2 py-1.5 text-slate-700">{row.repeatIndex}</td>
                                         <td className="px-2 py-1.5 text-slate-700">{row.parsedChoice}</td>
                                         <td className="px-2 py-1.5 text-slate-700">{row.groundTruth}</td>
                                         <td className={`px-2 py-1.5 font-semibold ${row.isCorrect ? 'text-emerald-700' : 'text-rose-700'}`}>{row.isCorrect ? 'Yes' : 'No'}</td>
@@ -283,9 +289,9 @@ export function RubricJudgeProbeResults({ summary, results }: RubricJudgeProbeRe
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">Raw Outputs</p>
                 <div className="mt-2 max-h-72 space-y-2 overflow-auto rounded-xl border border-slate-200 bg-white p-2">
                     {rows.map((row, index) => (
-                        <details key={`raw-${row.modelKey}-${row.questionId}-${index}`} className="rounded border border-slate-200 bg-slate-50 p-2">
+                        <details key={`raw-${row.modelKey}-${row.questionId}-${row.repeatIndex}-${index}`} className="rounded border border-slate-200 bg-slate-50 p-2">
                             <summary className="cursor-pointer text-xs font-semibold text-slate-700">
-                                {row.modelLabel} - {row.questionId} - {row.parsedChoice}/{row.groundTruth}
+                                {row.modelLabel} - {row.questionId} - run {row.repeatIndex} - {row.parsedChoice}/{row.groundTruth}
                             </summary>
                             <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Generation Output</p>
                             <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded border border-slate-200 bg-white p-2 text-[11px] text-slate-700">
@@ -331,6 +337,7 @@ function normalizeRows(results: Record<string, unknown>[]): AttemptRow[] {
                 modelLabel: toText(row.modelLabel),
                 modelKey: toText(row.modelKey),
                 questionId: toText(row.questionId),
+                repeatIndex: toInt(row.repeatIndex),
                 parsedChoice: toText(row.parsedChoice),
                 groundTruth: toText(row.groundTruth),
                 isCorrect: Boolean(row.isCorrect),
@@ -358,6 +365,14 @@ function toText(value: unknown) {
 function toNumber(value: unknown) {
     const n = Number(value);
     return Number.isFinite(n) ? n : null;
+}
+
+function toInt(value: unknown) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) {
+        return 1;
+    }
+    return Math.max(1, Math.round(n));
 }
 
 function toIntString(value: unknown) {
