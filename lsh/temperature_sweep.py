@@ -15,6 +15,8 @@ import numpy as np
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
+from tqdm.asyncio import tqdm_asyncio
+from tqdm import tqdm
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
@@ -176,7 +178,9 @@ async def generate_temperature_bucket(
         generated += 1
         q_idx += 1
 
-    results = await asyncio.gather(*tasks)
+    results = []
+    for coro in tqdm_asyncio.as_completed(tasks, desc=f"T={temperature:.2f} initial", total=len(tasks)):
+        results.append(await coro)
     successes = [x for x in results if "error" not in x]
     failures = [x for x in results if "error" in x]
 
@@ -204,7 +208,9 @@ async def generate_temperature_bucket(
                 )
             )
 
-        retry_results = await asyncio.gather(*retry_tasks)
+        retry_results = []
+        for coro in tqdm_asyncio.as_completed(retry_tasks, desc=f"T={temperature:.2f} retry {retry_count}", total=len(retry_tasks)):
+            retry_results.append(await coro)
         successes.extend([x for x in retry_results if "error" not in x])
         failures.extend([x for x in retry_results if "error" in x])
         retry_count += 1
@@ -463,6 +469,7 @@ async def run(args: argparse.Namespace) -> None:
         raise ValueError("Provide at least 2 seeds for stability metrics.")
 
     load_dotenv(dotenv_path=os.path.join(PROJECT_ROOT, "frontend", ".env"))
+    load_dotenv(dotenv_path=os.path.join(PROJECT_ROOT, "lsh", ".env"))
     load_dotenv()
 
     api_key = os.getenv("OPENAI_API_KEY")
@@ -499,6 +506,11 @@ async def run(args: argparse.Namespace) -> None:
             f"T={t:.2f}: {len(successes)} successes, {len(failures)} failures "
             f"(target={args.responses_per_temp})"
         )
+        if len(successes) == 0:
+            raise RuntimeError(
+                f"No successful generations for temperature {t:.2f}. "
+                "Check OPENAI_API_KEY/model access and network connectivity."
+            )
 
     write_json(os.path.join(out_dir, "responses_by_temperature.json"), generated_by_temp)
     write_json(os.path.join(out_dir, "failures_by_temperature.json"), failures_by_temp)
