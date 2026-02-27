@@ -180,6 +180,7 @@ export default function GeneralBenchmarkingPage() {
         runsPerQuestion: 1,
         strictnessMode: 'strict',
         selectedGenerationPromptId: 'builtin_alan_irac_json_v1',
+        selectedGenerationPromptIds: ['builtin_alan_irac_json_v1'],
         selectedJudgeRubricIds: ['builtin_rubric_balanced_v1'],
         judgeProvider: 'openai',
         judgeModel: getDefaultModelForProvider('openai'),
@@ -237,6 +238,10 @@ export default function GeneralBenchmarkingPage() {
     const selectedPrompt = useMemo(
         () => promptLibrary.find((prompt) => prompt.id === activeGenerationPromptId) || null,
         [activeGenerationPromptId, promptLibrary],
+    );
+    const selectedGenerationPrompts = useMemo(
+        () => promptLibrary.filter((prompt) => rubricJudgeConfig.selectedGenerationPromptIds.includes(prompt.id)),
+        [promptLibrary, rubricJudgeConfig.selectedGenerationPromptIds],
     );
     const selectedJudgeRubricTemplate = useMemo(
         () => judgeRubricLibrary.find((rubric) => rubric.id === selectedJudgeRubricTemplateId) || null,
@@ -336,6 +341,21 @@ export default function GeneralBenchmarkingPage() {
             setJudgeRubricContentDraft('');
         }
     }, [judgeRubricLibrary, selectedJudgeRubricTemplateId]);
+
+    useEffect(() => {
+        const validPromptIds = new Set(promptLibrary.map((prompt) => prompt.id));
+        setRubricJudgeConfig((previous) => ({
+            ...previous,
+            selectedGenerationPromptId: validPromptIds.has(previous.selectedGenerationPromptId)
+                ? previous.selectedGenerationPromptId
+                : (previous.selectedGenerationPromptIds.find((id) => validPromptIds.has(id)) || ''),
+            selectedGenerationPromptIds: previous.selectedGenerationPromptIds.filter((id) => validPromptIds.has(id)),
+        }));
+        setSingleProbeConfig((previous) => ({
+            ...previous,
+            selectedPromptId: validPromptIds.has(previous.selectedPromptId) ? previous.selectedPromptId : '',
+        }));
+    }, [promptLibrary]);
 
     useEffect(() => {
         async function loadSingleDataset() {
@@ -541,8 +561,8 @@ export default function GeneralBenchmarkingPage() {
         if (selectedMultiModelKeys.length === 0) {
             return { canRun: false, reason: 'Select at least one model.' };
         }
-        if (!selectedPrompt) {
-            return { canRun: false, reason: 'Select a generation prompt template.' };
+        if (selectedGenerationPrompts.length === 0) {
+            return { canRun: false, reason: 'Select at least one generation prompt template.' };
         }
         if (selectedJudgeRubrics.length === 0) {
             return { canRun: false, reason: 'Select at least one judge rubric template.' };
@@ -563,9 +583,9 @@ export default function GeneralBenchmarkingPage() {
         rubricJudgeConfig.judgeModel,
         rubricJudgeConfig.runsPerQuestion,
         rubricJudgeConfig.runScope,
+        selectedGenerationPrompts.length,
         selectedJudgeRubrics.length,
         selectedMultiModelKeys.length,
-        selectedPrompt,
     ]);
 
     const mainDashboardResults = results as Parameters<typeof MainResultsDashboard>[0]['results'];
@@ -1006,13 +1026,23 @@ export default function GeneralBenchmarkingPage() {
     };
 
     const runRubricJudgeMultiModelProbe = async (signal: AbortSignal) => {
-        if (!selectedPrompt?.content) {
-            throw new Error('Select a generation prompt template before running rubric benchmark.');
-        }
-
         const selectedOptions = multiModelOptions.filter((option) => selectedMultiModelKeys.includes(option.key));
         if (selectedOptions.length === 0) {
             throw new Error('No models selected.');
+        }
+        const promptVariants: Array<{
+            promptArm: string;
+            promptId: string;
+            promptName: string;
+            promptContent: string;
+        }> = selectedGenerationPrompts.map((prompt, index) => ({
+            promptArm: `Prompt ${index + 1}`,
+            promptId: prompt.id,
+            promptName: prompt.name,
+            promptContent: prompt.content,
+        }));
+        if (promptVariants.length === 0) {
+            throw new Error('Select at least one generation prompt template before running rubric benchmark.');
         }
 
         const runsPerQuestion = Math.min(20, Math.max(1, Math.floor(rubricJudgeConfig.runsPerQuestion)));
@@ -1054,16 +1084,30 @@ export default function GeneralBenchmarkingPage() {
             question: EditableSingleQuestion;
             repeatIndex: number;
             observationId: string;
+            promptArm: string;
+            promptId: string;
+            promptName: string;
+            promptContent: string;
+            modelArmKey: string;
+            modelArmLabel: string;
         }> = [];
         for (const question of questions) {
             for (const option of selectedOptions) {
-                for (let repeatIndex = 1; repeatIndex <= runsPerQuestion; repeatIndex += 1) {
-                    tasks.push({
-                        question,
-                        option,
-                        repeatIndex,
-                        observationId: `${question.id}::r${repeatIndex}`,
-                    });
+                for (const promptVariant of promptVariants) {
+                    for (let repeatIndex = 1; repeatIndex <= runsPerQuestion; repeatIndex += 1) {
+                        tasks.push({
+                            question,
+                            option,
+                            repeatIndex,
+                            observationId: `${question.id}::r${repeatIndex}`,
+                            promptArm: promptVariant.promptArm,
+                            promptId: promptVariant.promptId,
+                            promptName: promptVariant.promptName,
+                            promptContent: promptVariant.promptContent,
+                            modelArmKey: `${option.key}::prompt_${promptVariant.promptId}`,
+                            modelArmLabel: `${option.modelLabel} [Prompt ${promptVariant.promptArm}]`,
+                        });
+                    }
                 }
             }
         }
@@ -1075,7 +1119,18 @@ export default function GeneralBenchmarkingPage() {
         let nextTaskIndex = 0;
 
         const executeTask = async (
-            task: { option: MultiModelSelectionOption; question: EditableSingleQuestion; repeatIndex: number; observationId: string },
+            task: {
+                option: MultiModelSelectionOption;
+                question: EditableSingleQuestion;
+                repeatIndex: number;
+                observationId: string;
+                promptArm: string;
+                promptId: string;
+                promptName: string;
+                promptContent: string;
+                modelArmKey: string;
+                modelArmLabel: string;
+            },
             taskIndex: number,
         ) => {
             if (signal.aborted) {
@@ -1083,14 +1138,14 @@ export default function GeneralBenchmarkingPage() {
             }
 
             setRunStatusText(
-                `Running ${task.option.modelLabel} on ${task.question.id} [run ${task.repeatIndex}/${runsPerQuestion}] (${completed + 1}/${tasks.length})...`
+                `Running ${task.option.modelLabel} ${task.promptArm} on ${task.question.id} [run ${task.repeatIndex}/${runsPerQuestion}] (${completed + 1}/${tasks.length})...`
             );
 
             const json = await requestRubricJudgeProbe(signal, {
                 provider: task.option.provider,
                 model: task.option.model,
                 question: task.question,
-                generationPrompt: selectedPrompt.content,
+                generationPrompt: task.promptContent,
             });
 
             const generation = isRecord(json.generation) ? json.generation : {};
@@ -1104,9 +1159,14 @@ export default function GeneralBenchmarkingPage() {
                 modelLabel: task.option.modelLabel,
                 model: task.option.model,
                 modelKey: task.option.key,
+                modelArmKey: task.modelArmKey,
+                modelArmLabel: task.modelArmLabel,
                 questionId: task.question.id,
                 observationId: task.observationId,
                 repeatIndex: task.repeatIndex,
+                generationPromptArm: task.promptArm,
+                generationPromptId: task.promptId,
+                generationPromptName: task.promptName,
                 questionText: task.question.question,
                 parsedChoice: typeof generation.parsedAnswer === 'string' ? generation.parsedAnswer : 'Unknown',
                 groundTruth: task.question.answerLetter,
@@ -1161,8 +1221,13 @@ export default function GeneralBenchmarkingPage() {
             if (!isRecord(row)) {
                 continue;
             }
-            const modelKey = typeof row.modelKey === 'string' ? row.modelKey : '';
-            const modelLabel = typeof row.modelLabel === 'string' ? row.modelLabel : modelKey;
+            const baseModelKey = typeof row.modelKey === 'string' ? row.modelKey : '';
+            const modelKey = typeof row.modelArmKey === 'string' && row.modelArmKey.length > 0
+                ? row.modelArmKey
+                : baseModelKey;
+            const modelLabel = typeof row.modelArmLabel === 'string' && row.modelArmLabel.length > 0
+                ? row.modelArmLabel
+                : (typeof row.modelLabel === 'string' ? row.modelLabel : modelKey);
             const questionId = typeof row.questionId === 'string' ? row.questionId : '';
             const repeatIndex = typeof row.repeatIndex === 'number' && Number.isFinite(row.repeatIndex)
                 ? Math.max(1, Math.floor(row.repeatIndex))
@@ -1313,6 +1378,7 @@ export default function GeneralBenchmarkingPage() {
             totalCalls: aggregateResults.length,
             questionCount: questions.length,
             runsPerQuestion,
+            generationPromptCount: promptVariants.length,
             effectiveObservationCount: actualObservationCount,
             modelCount: selectedOptions.length,
             generationJsonComplianceRate: aggregateResults.length > 0 ? generationCompliantCount / aggregateResults.length : 0,
@@ -1506,7 +1572,13 @@ export default function GeneralBenchmarkingPage() {
         const created = createPromptTemplate(name, content);
         setPromptLibrary((previous) => [created, ...previous]);
         if (benchmarkMode === 'single_probe_multi_model_rubric_judge') {
-            setRubricJudgeConfig((previous) => ({ ...previous, selectedGenerationPromptId: created.id }));
+            setRubricJudgeConfig((previous) => ({
+                ...previous,
+                selectedGenerationPromptId: created.id,
+                selectedGenerationPromptIds: previous.selectedGenerationPromptIds.includes(created.id)
+                    ? previous.selectedGenerationPromptIds
+                    : [...previous.selectedGenerationPromptIds, created.id],
+            }));
         } else {
             setSingleProbeConfig((previous) => ({ ...previous, selectedPromptId: created.id }));
         }
@@ -1539,6 +1611,7 @@ export default function GeneralBenchmarkingPage() {
         setRubricJudgeConfig((previous) => ({
             ...previous,
             selectedGenerationPromptId: previous.selectedGenerationPromptId === selectedPrompt.id ? '' : previous.selectedGenerationPromptId,
+            selectedGenerationPromptIds: previous.selectedGenerationPromptIds.filter((id) => id !== selectedPrompt.id),
         }));
         setPromptNameDraft('');
         setPromptContentDraft('');
@@ -1675,6 +1748,7 @@ export default function GeneralBenchmarkingPage() {
             multiModelRunsPerArm,
             editableQuestion,
             selectedPrompt,
+            selectedGenerationPrompts,
             selectedJudgeRubrics,
         });
 
@@ -2422,7 +2496,7 @@ function buildBenchmarkDescription(mode: BenchmarkMode) {
         return 'Run multiple models on one question in two arms: without custom prompt and with custom prompt.';
     }
     if (mode === 'single_probe_multi_model_rubric_judge') {
-        return 'Run all selected models with one generation rubric prompt and evaluate outputs with multi-select judge rubrics plus significance testing.';
+        return 'Run all selected models with one or more generation prompts and evaluate outputs with multi-select judge rubrics plus significance testing.';
     }
     return 'Probe any single question with optional custom prompt templates and save runs for cross-run comparison.';
 }
@@ -2437,6 +2511,7 @@ function buildSavedRunConfigSnapshot({
     multiModelRunsPerArm,
     editableQuestion,
     selectedPrompt,
+    selectedGenerationPrompts,
     selectedJudgeRubrics,
 }: {
     benchmarkMode: BenchmarkMode;
@@ -2448,6 +2523,7 @@ function buildSavedRunConfigSnapshot({
     multiModelRunsPerArm: number;
     editableQuestion: EditableSingleQuestion;
     selectedPrompt: PromptTemplate | null;
+    selectedGenerationPrompts: PromptTemplate[];
     selectedJudgeRubrics: JudgeRubricTemplate[];
 }) {
     if (benchmarkMode === 'main') {
@@ -2481,9 +2557,7 @@ function buildSavedRunConfigSnapshot({
             ...rubricJudgeConfig,
             selectedModels: selectedMultiModelKeys,
             question: editableQuestion,
-            generationPrompt: selectedPrompt
-                ? { id: selectedPrompt.id, name: selectedPrompt.name }
-                : null,
+            generationPrompts: selectedGenerationPrompts.map((prompt) => ({ id: prompt.id, name: prompt.name })),
             judgeRubrics: selectedJudgeRubrics.map((rubric) => ({ id: rubric.id, name: rubric.name })),
         };
     }
@@ -2519,7 +2593,8 @@ function buildSavedRunTitle(
     }
     if (benchmarkMode === 'single_probe_multi_model_rubric_judge') {
         const scope = rubricJudgeConfig.runScope === 'dataset' ? 'dataset' : 'single';
-        return `Rubric-first multi-model (${scope}, x${rubricJudgeConfig.runsPerQuestion}/q, ${selectedJudgeRubricCount} rubric${selectedJudgeRubricCount === 1 ? '' : 's'})`;
+        const promptCount = Math.max(1, rubricJudgeConfig.selectedGenerationPromptIds.length);
+        return `Rubric-first multi-model (${scope}, ${promptCount} prompt${promptCount === 1 ? '' : 's'}, x${rubricJudgeConfig.runsPerQuestion}/q, ${selectedJudgeRubricCount} rubric${selectedJudgeRubricCount === 1 ? '' : 's'})`;
     }
     return `${singleProbeConfig.provider}/${singleProbeConfig.model} - single probe`;
 }
@@ -3183,6 +3258,8 @@ function isRubricJudgeProbeConfig(value: unknown): value is RubricJudgeProbeConf
         && providerValid
         && reasoningValid
         && typeof value.selectedGenerationPromptId === 'string'
+        && Array.isArray(value.selectedGenerationPromptIds)
+        && value.selectedGenerationPromptIds.every((id) => typeof id === 'string')
         && Array.isArray(value.selectedJudgeRubricIds)
         && value.selectedJudgeRubricIds.every((id) => typeof id === 'string')
         && typeof value.runsPerQuestion === 'number'
@@ -3219,13 +3296,25 @@ function normalizeRubricJudgeProbeConfig(value: unknown): RubricJudgeProbeConfig
     const candidate = {
         ...value,
         runsPerQuestion: typeof value.runsPerQuestion === 'number' ? value.runsPerQuestion : 1,
+        selectedGenerationPromptIds: Array.isArray(value.selectedGenerationPromptIds)
+            ? value.selectedGenerationPromptIds.filter((id): id is string => typeof id === 'string')
+            : [
+                ...(typeof value.selectedGenerationPromptId === 'string' && value.selectedGenerationPromptId.length > 0
+                    ? [value.selectedGenerationPromptId]
+                    : []),
+                ...(typeof value.selectedGenerationPromptIdB === 'string' && value.selectedGenerationPromptIdB.length > 0
+                    ? [value.selectedGenerationPromptIdB]
+                    : []),
+            ],
     };
     if (!isRubricJudgeProbeConfig(candidate)) {
         return null;
     }
+    const uniquePromptIds = Array.from(new Set(candidate.selectedGenerationPromptIds));
     return {
         ...candidate,
         runsPerQuestion: Math.min(20, Math.max(1, Math.floor(candidate.runsPerQuestion))),
+        selectedGenerationPromptIds: uniquePromptIds,
     };
 }
 

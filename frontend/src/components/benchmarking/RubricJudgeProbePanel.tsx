@@ -13,6 +13,7 @@ export type RubricJudgeProbeConfig = {
     runsPerQuestion: number;
     strictnessMode: 'strict' | 'best_effort';
     selectedGenerationPromptId: string;
+    selectedGenerationPromptIds: string[];
     selectedJudgeRubricIds: string[];
     judgeProvider: ModelProvider;
     judgeModel: string;
@@ -176,7 +177,7 @@ export function RubricJudgeProbePanel({
             <div>
                 <h3 className="text-lg font-bold text-slate-900">Rubric-First Multi-Model Judge</h3>
                 <p className="mt-1 text-sm text-slate-600">
-                    Run all selected models with one generation prompt, force JSON normalization, then grade outputs with multiple judge rubrics.
+                    Run all selected models with one or more generation prompts, force JSON normalization, then grade outputs with multiple judge rubrics.
                 </p>
             </div>
 
@@ -367,17 +368,52 @@ export function RubricJudgeProbePanel({
                     </label>
                 </div>
                 <p className="text-xs text-slate-500">
-                    Total calls scale as models x questions x runs per question.
+                    Total calls scale as models x selected prompts x questions x runs per question.
                 </p>
             </section>
 
             <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
                 <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Generation Prompt Library</p>
-                    <InfoTip label="All models in this run use the selected generation prompt." />
+                    <InfoTip label="All selected generation prompts run for all selected models in this run." />
+                </div>
+                <p className="text-xs text-slate-500">Select one or more generation prompts. Each prompt produces a separate answer that is judged against all selected rubrics.</p>
+                <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-300 bg-white">
+                    {prompts.length === 0 ? (
+                        <p className="px-3 py-2 text-sm text-slate-500">No generation prompts available.</p>
+                    ) : (
+                        <div className="divide-y divide-slate-200">
+                            {prompts.map((prompt) => {
+                                const selected = config.selectedGenerationPromptIds.includes(prompt.id);
+                                return (
+                                    <label key={prompt.id} className={`flex cursor-pointer items-start gap-2 px-3 py-2 ${selected ? 'bg-teal-50' : 'hover:bg-slate-50'}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={selected}
+                                            onChange={() => setConfig((prev) => ({
+                                                ...prev,
+                                                selectedGenerationPromptIds: selected
+                                                    ? prev.selectedGenerationPromptIds.filter((id) => id !== prompt.id)
+                                                    : [...prev.selectedGenerationPromptIds, prompt.id],
+                                            }))}
+                                            className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setConfig((prev) => ({ ...prev, selectedGenerationPromptId: prompt.id }))}
+                                            className="min-w-0 text-left"
+                                        >
+                                            <span className="block text-sm font-semibold text-slate-800">{prompt.name}</span>
+                                            <span className="block text-[11px] text-slate-500">{prompt.id}</span>
+                                        </button>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
                 <label className="space-y-1 block">
-                    <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Selected Generation Prompt</span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Prompt Template (Editor)</span>
                     <select
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                         value={config.selectedGenerationPromptId}

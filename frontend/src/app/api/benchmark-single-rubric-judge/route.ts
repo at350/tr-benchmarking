@@ -203,6 +203,26 @@ async function runGenerationWithNormalization(input: {
     const systemPrompt = 'You are a legal reasoning assistant. Follow output format requirements exactly.';
     const choicesText = question.choices.map((choice, index) => `${String.fromCharCode(65 + index)}. ${choice}`).join('\n');
     const maxAttempts = strictnessMode === 'strict' ? (maxGenerationRetries + 1) : 1;
+    const outputContractBlock = strictnessMode === 'strict'
+        ? [
+            'Required JSON schema (exact keys):',
+            '{',
+            '  "issue": "string",',
+            '  "rule": "string",',
+            '  "application": "string",',
+            '  "conclusion": "string",',
+            '  "answer_letter": "A"',
+            '}',
+            'Do not include extra keys.',
+        ].join('\n')
+        : [
+            'Required JSON schema (minimum keys):',
+            '{',
+            '  "analysis": "string",',
+            '  "answer_letter": "A"',
+            '}',
+            'You may include additional keys, but you must include substantive legal reasoning text.',
+        ].join('\n');
 
     let lastOutput = '';
     let lastParsed: GenerationParseResult | null = null;
@@ -228,6 +248,8 @@ async function runGenerationWithNormalization(input: {
             choicesText,
             '',
             `Valid answer letters: ${validLetters.join(', ')}`,
+            outputContractBlock,
+            '',
             'You must choose exactly one final answer_letter from the valid set.',
             'Never output multiple letters or UNKNOWN; if uncertain, choose the single best-supported letter.',
             'Return strict JSON only and no markdown.',
@@ -305,22 +327,45 @@ async function parseGenerationOutput(rawOutput: string, validLetters: string[], 
         }
     }
 
-    const normalizedParsedJson = (parsedJson && answerLetter !== 'Unknown')
-        ? {
-            ...parsedJson,
+    let normalizedParsedJson: Record<string, unknown> | null = parsedJson;
+    if (normalizedParsedJson && answerLetter !== 'Unknown') {
+        normalizedParsedJson = {
+            ...normalizedParsedJson,
             answer_letter: answerLetter,
-        }
-        : parsedJson;
+        };
+    }
+    if (!normalizedParsedJson && strictnessMode === 'best_effort' && answerLetter !== 'Unknown') {
+        normalizedParsedJson = {
+            answer_letter: answerLetter,
+            raw_reasoning_excerpt: rawOutput.trim().slice(0, 4000),
+        };
+    }
+    if (
+        strictnessMode === 'best_effort'
+        && normalizedParsedJson
+        && !hasBestEffortReasoningShape(normalizedParsedJson)
+    ) {
+        normalizedParsedJson = {
+            ...normalizedParsedJson,
+            raw_reasoning_excerpt: rawOutput.trim().slice(0, 4000),
+        };
+    }
 
     const hasRequiredJsonShape = normalizedParsedJson
         ? hasRequiredGenerationJsonShape(normalizedParsedJson, validLetters)
         : false;
+    const hasBestEffortShape = normalizedParsedJson
+        ? hasBestEffortReasoningShape(normalizedParsedJson)
+        : false;
     const schemaValid = strictnessMode === 'strict'
         ? hasRequiredJsonShape
-        : (normalizedParsedJson !== null && answerLetter !== 'Unknown');
+        : (normalizedParsedJson !== null && answerLetter !== 'Unknown' && hasBestEffortShape);
 
     if (!hasRequiredJsonShape && strictnessMode === 'strict') {
         errors.push('Missing one or more required JSON keys: issue, rule, application, conclusion, answer_letter.');
+    }
+    if (!hasBestEffortShape && strictnessMode === 'best_effort') {
+        errors.push('Best-effort JSON missing substantive reasoning text.');
     }
 
     return {
@@ -328,7 +373,7 @@ async function parseGenerationOutput(rawOutput: string, validLetters: string[], 
         parsedAnswer: answerLetter,
         schemaValid,
         parseErrors: errors,
-        degradedControllability: !hasRequiredJsonShape,
+        degradedControllability: strictnessMode === 'strict' ? !hasRequiredJsonShape : !hasBestEffortShape,
     };
 }
 
@@ -361,6 +406,44 @@ function extractAnswerLetterFromJson(parsedJson: Record<string, unknown>) {
         }
     }
     return null;
+}
+
+function hasBestEffortReasoningShape(parsedJson: Record<string, unknown>) {
+    const answer = extractAnswerLetterFromJson(parsedJson);
+    if (!answer) {
+        return false;
+    }
+    return hasSubstantiveReasoningField(parsedJson);
+}
+
+function hasSubstantiveReasoningField(parsedJson: Record<string, unknown>) {
+    const reasoningKeys = [
+        'issue',
+        'rule',
+        'application',
+        'conclusion',
+        'analysis',
+        'reasoning',
+        'rationale',
+        'explanation',
+        'raw_reasoning_excerpt',
+    ];
+    for (const key of reasoningKeys) {
+        const value = parsedJson[key];
+        if (typeof value === 'string' && isSubstantiveReasoningText(value)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function isSubstantiveReasoningText(value: string) {
+    const trimmed = value.trim();
+    if (trimmed.length < 30) {
+        return false;
+    }
+    const wordCount = (trimmed.match(/[A-Za-z]{3,}/g) || []).length;
+    return wordCount >= 5;
 }
 
 async function runJudge(input: {

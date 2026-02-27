@@ -20,6 +20,8 @@ type NormalizedJudgeResult = {
 type AttemptRow = {
     modelLabel: string;
     modelKey: string;
+    generationPromptArm: string;
+    generationPromptName: string;
     questionId: string;
     repeatIndex: number;
     parsedChoice: string;
@@ -41,11 +43,13 @@ export function RubricJudgeProbeResults({ summary, results }: RubricJudgeProbeRe
     const weaknesses = Array.isArray(summary.topWeaknesses) ? summary.topWeaknesses : [];
     const requiredN = summary.requiredObservationCount ?? summary.requiredQuestionCount;
     const actualN = summary.actualObservationCount ?? summary.actualQuestionCount;
+    const generationPromptCount = summary.generationPromptCount ?? 1;
 
     return (
         <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-6">
+            <div className="grid gap-3 sm:grid-cols-7">
                 <MetricCard label="Models" value={toIntString(summary.modelCount)} />
+                <MetricCard label="Prompt Variants" value={toIntString(generationPromptCount)} />
                 <MetricCard label="Questions" value={toIntString(summary.questionCount)} />
                 <MetricCard label="Runs / Question" value={toIntString(summary.runsPerQuestion)} />
                 <MetricCard label="Total Calls" value={toIntString(summary.totalCalls)} />
@@ -255,6 +259,7 @@ export function RubricJudgeProbeResults({ summary, results }: RubricJudgeProbeRe
                             <thead className="sticky top-0 bg-slate-100 text-slate-600">
                                 <tr>
                                     <th className="px-2 py-1.5">Model</th>
+                                    <th className="px-2 py-1.5">Prompt</th>
                                     <th className="px-2 py-1.5">Question</th>
                                     <th className="px-2 py-1.5">Run</th>
                                     <th className="px-2 py-1.5">Choice</th>
@@ -268,6 +273,9 @@ export function RubricJudgeProbeResults({ summary, results }: RubricJudgeProbeRe
                                 {rows.map((row, index) => (
                                     <tr key={`${row.modelKey}-${row.questionId}-${row.repeatIndex}-${index}`}>
                                         <td className="px-2 py-1.5 text-slate-700">{row.modelLabel}</td>
+                                        <td className="px-2 py-1.5 text-slate-700">
+                                            {row.generationPromptArm}{row.generationPromptName ? ` (${row.generationPromptName})` : ''}
+                                        </td>
                                         <td className="px-2 py-1.5 font-mono text-slate-700">{row.questionId}</td>
                                         <td className="px-2 py-1.5 text-slate-700">{row.repeatIndex}</td>
                                         <td className="px-2 py-1.5 text-slate-700">{row.parsedChoice}</td>
@@ -291,7 +299,7 @@ export function RubricJudgeProbeResults({ summary, results }: RubricJudgeProbeRe
                     {rows.map((row, index) => (
                         <details key={`raw-${row.modelKey}-${row.questionId}-${row.repeatIndex}-${index}`} className="rounded border border-slate-200 bg-slate-50 p-2">
                             <summary className="cursor-pointer text-xs font-semibold text-slate-700">
-                                {row.modelLabel} - {row.questionId} - run {row.repeatIndex} - {row.parsedChoice}/{row.groundTruth}
+                                {row.modelLabel} - {row.generationPromptArm}{row.generationPromptName ? ` (${row.generationPromptName})` : ''} - {row.questionId} - run {row.repeatIndex} - {row.parsedChoice}/{row.groundTruth}
                             </summary>
                             <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Generation Output</p>
                             <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded border border-slate-200 bg-white p-2 text-[11px] text-slate-700">
@@ -335,7 +343,9 @@ function normalizeRows(results: Record<string, unknown>[]): AttemptRow[] {
 
             return {
                 modelLabel: toText(row.modelLabel),
-                modelKey: toText(row.modelKey),
+                modelKey: toText(row.modelArmKey) || toText(row.modelKey),
+                generationPromptArm: toText(row.generationPromptArm) || 'Prompt A',
+                generationPromptName: toText(row.generationPromptName),
                 questionId: toText(row.questionId),
                 repeatIndex: toInt(row.repeatIndex),
                 parsedChoice: toText(row.parsedChoice),
