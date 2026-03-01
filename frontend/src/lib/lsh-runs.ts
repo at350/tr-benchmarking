@@ -16,6 +16,8 @@ type RawTextEntry = {
 type RawCluster = {
     representative?: RawTextEntry;
     members?: unknown;
+    centroid_members?: unknown;
+    edge_members?: unknown;
 };
 
 type RawRunFile = {
@@ -48,10 +50,18 @@ export type LshClusterSummary = {
         model: string;
         count: number;
     }>;
+    members: Array<{ id: string; model: string }>;
     membersPreview: Array<{
         id: string;
         model: string;
         textPreview: string;
+        text: string;
+    }>;
+    edgeMembersPreview?: Array<{
+        id: string;
+        model: string;
+        textPreview: string;
+        text: string;
     }>;
 };
 
@@ -279,6 +289,19 @@ export function getLshRunDetails(fileName: string): LshRunDetails | null {
         totalMembers += members.length;
         const modelBreakdown = buildModelBreakdown(members);
 
+        const centroidMembers = normalizeMembers(cluster?.centroid_members);
+        const edgeMembers = normalizeMembers(cluster?.edge_members);
+
+        const toMemberPreview = (member: RawTextEntry) => {
+            const fullText = extractRepresentativeText(member);
+            return {
+                id: toSafeString(member.id, 'unknown'),
+                model: toSafeString(member.model, 'unknown'),
+                textPreview: toTextPreview(member),
+                text: fullText,
+            };
+        };
+
         return {
             id,
             size: members.length,
@@ -288,11 +311,16 @@ export function getLshRunDetails(fileName: string): LshRunDetails | null {
                 textPreview: toTextPreview(representative), // Pass the whole object for extraction
             },
             modelBreakdown,
-            membersPreview: members.slice(0, MAX_MEMBER_PREVIEW_COUNT).map((member) => ({
-                id: toSafeString(member.id, 'unknown'),
-                model: toSafeString(member.model, 'unknown'),
-                textPreview: toTextPreview(member), // Pass the whole object for extraction
+            members: members.map((m) => ({
+                id: toSafeString(m.id, 'unknown'),
+                model: toSafeString(m.model, 'unknown'),
             })),
+            membersPreview: centroidMembers.length > 0
+                ? centroidMembers.map(toMemberPreview)
+                : members.slice(0, MAX_MEMBER_PREVIEW_COUNT).map(toMemberPreview),
+            edgeMembersPreview: edgeMembers.length > 0
+                ? edgeMembers.map(toMemberPreview)
+                : undefined,
         };
     });
 

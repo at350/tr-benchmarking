@@ -1,12 +1,17 @@
 import os
 import json
+import random
 import asyncio
 import httpx
 import time
 import sys
 import argparse
 
+import numpy as np
 from dotenv import load_dotenv
+
+EDGE_SAMPLE_SEED = 42
+EDGE_SAMPLE_COUNT = 3
 from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm
 
@@ -16,16 +21,21 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from irac_utils import extract_json
 from irac_pipeline import IRACEvaluationPipeline
 
-# Load environment variables
-env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lsh", ".env")
+# Load environment variables (try lsh/.env, project root .env, and current dir)
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+env_path = os.path.join(root_dir, "lsh", ".env")
 load_dotenv(dotenv_path=env_path)
-load_dotenv() 
+load_dotenv(dotenv_path=os.path.join(root_dir, ".env"))
+load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY")
 
 if not REPLICATE_API_TOKEN:
     print("Warning: REPLICATE_API_TOKEN not found.")
+if not ANTHROPIC_API_KEY:
+    print("Warning: ANTHROPIC_API_KEY (or CLAUDE_API_KEY) not found. Claude models via Anthropic API will be skipped.")
 
 openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
@@ -65,11 +75,17 @@ REPLICATE_MODELS = [
     "google/gemini-3-flash",
     "google/gemini-3-pro",
     "meta/llama-4-maverick-instruct",
-    "anthropic/claude-4.5-sonnet",
-    "anthropic/claude-3.5-haiku",
     "deepseek-ai/deepseek-v3",
-    # "xai/grok-4"
-    # Don't use Grok 4 it's so expensive!!!
+]
+
+# Grok 4 is expensive; keep it opt-in.
+if os.getenv("ENABLE_GROK4", "").strip().lower() in {"1", "true", "yes", "on"}:
+    REPLICATE_MODELS.append("xai/grok-4")
+
+# Claude models via Anthropic API (uses ANTHROPIC_API_KEY or CLAUDE_API_KEY)
+ANTHROPIC_MODELS = [
+    "claude-sonnet-4-5-20250929",
+    "claude-3-5-haiku-20241022",
 ]
 
 # --- Fetch Functions ---
@@ -214,6 +230,52 @@ async def fetch_replicate(model, question, index):
             cleaned_model = model.split("/")[-1]
             return {"error": str(e), "model": cleaned_model, "id": f"{cleaned_model}_{index}"}
 
+
+async def fetch_anthropic(model: str, question: str, index: int):
+    """Fetch from Anthropic API using ANTHROPIC_API_KEY or CLAUDE_API_KEY."""
+    if not ANTHROPIC_API_KEY:
+        return {"error": "ANTHROPIC_API_KEY not set", "model": model, "id": f"{model}_{index}"}
+    try:
+        body = {
+            "model": model,
+            "max_tokens": 2048,
+            "messages": [{"role": "user", "content": question}],
+            "system": SYSTEM_PROMPT,
+            "temperature": 0.7,
+        }
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "content-type": "application/json",
+                    "x-api-key": ANTHROPIC_API_KEY,
+                    "anthropic-version": "2023-06-01",
+                },
+                json=body,
+            )
+        if resp.status_code != 200:
+            err = resp.json().get("error", {}).get("message", resp.text)
+            return {"error": f"Anthropic API: {err}", "model": model, "id": f"{model}_{index}"}
+        data = resp.json()
+        content = "".join(
+            p.get("text", "") for p in data.get("content", []) if p.get("type") == "text"
+        )
+        parsed_json = extract_json(content)
+        if not parsed_json:
+            return {"error": f"Failed to parse JSON:\n{content[:200]}...", "model": model, "id": f"{model}_{index}"}
+        if not all(k in parsed_json for k in ("issue", "rule", "application", "conclusion")):
+            return {"error": f"Missing IRAC keys:\n{parsed_json}", "model": model, "id": f"{model}_{index}"}
+        return {
+            "model": model,
+            "prompt": question,
+            "response": parsed_json,
+            "raw_text": content,
+            "id": f"{model}_{index}",
+        }
+    except Exception as e:
+        return {"error": str(e), "model": model, "id": f"{model}_{index}"}
+
+
 # --- Main Flow ---
 
 async def main(args):
@@ -246,6 +308,15 @@ async def main(args):
             if item_id in existing_ids:
                 continue
             tasks.append(fetch_openai(model, test_question, i))
+
+    # Anthropic (Claude via direct API - uses ANTHROPIC_API_KEY or CLAUDE_API_KEY)
+    if ANTHROPIC_API_KEY:
+        for model in ANTHROPIC_MODELS:
+            for i in range(NUM_RESPONSES_PER_MODEL):
+                item_id = f"{model}_{i}"
+                if item_id in existing_ids:
+                    continue
+                tasks.append(fetch_anthropic(model, test_question, i))
             
     # Replicate
     for model in REPLICATE_MODELS:
@@ -329,8 +400,51 @@ async def main(args):
         
         clusters = results['clusters']
         reps = results['representatives']
+        embeddings = pipeline.embeddings
         id_to_irac = {d['id']: d['response'] for d in valid_data}
         id_to_model = {d['id']: d['model'] for d in valid_data}
+
+        def get_centroid_members(cluster_id, member_ids):
+            """Return centroid (representative) plus 2 closest members."""
+            if cluster_id == "noise" or len(member_ids) == 0:
+                return []
+            rep_id = reps.get(cluster_id) if isinstance(cluster_id, int) else None
+            if not rep_id or rep_id not in embeddings:
+                return []
+            centroid = embeddings[rep_id]
+            members_excl_rep = [m for m in member_ids if m in embeddings and m != rep_id]
+            result = [rep_id]
+            if members_excl_rep:
+                distances = [(m, float(np.linalg.norm(embeddings[m] - centroid))) for m in members_excl_rep]
+                distances.sort(key=lambda x: x[1])
+                result.extend([m for m, _ in distances[:2]])
+            return result
+
+        def get_edge_members(cluster_id, member_ids):
+            """Sample 3 random members from the outer third (farthest from centroid)."""
+            if cluster_id == "noise" or len(member_ids) < 2:
+                return []
+            rep_id = reps.get(cluster_id) if isinstance(cluster_id, int) else None
+            if not rep_id or rep_id not in embeddings:
+                return []
+            centroid = embeddings[rep_id]
+            members_with_emb = [m for m in member_ids if m in embeddings]
+            if len(members_with_emb) < 2:
+                return []
+            distances = [(m, float(np.linalg.norm(embeddings[m] - centroid))) for m in members_with_emb]
+            distances.sort(key=lambda x: x[1], reverse=True)
+            outer_third_count = max(1, len(distances) // 3)
+            outer_member_ids = [m for m, _ in distances[:outer_third_count]]
+            rng = random.Random(EDGE_SAMPLE_SEED)
+            sample = rng.sample(outer_member_ids, min(EDGE_SAMPLE_COUNT, len(outer_member_ids)))
+            return sample
+
+        def make_member_obj(member_id):
+            return {
+                "id": member_id,
+                "model": id_to_model.get(member_id, "unknown"),
+                **id_to_irac.get(member_id, {}),
+            }
 
         for cluster_id, members in clusters.items():
             if cluster_id == "noise":
@@ -359,12 +473,14 @@ async def main(args):
                 }
             
             for member_id in members:
-                cluster_data["members"].append({
-                    "id": member_id, 
-                    "model": id_to_model.get(member_id, "unknown"),
-                    **id_to_irac.get(member_id, {})
-                })
-                
+                cluster_data["members"].append(make_member_obj(member_id))
+
+            centroid_ids = get_centroid_members(cluster_id, members)
+            cluster_data["centroid_members"] = [make_member_obj(cid) for cid in centroid_ids]
+
+            edge_ids = get_edge_members(cluster_id, members)
+            cluster_data["edge_members"] = [make_member_obj(eid) for eid in edge_ids]
+
             full_output["clusters"][cluster_key] = cluster_data
 
         os.makedirs(os.path.dirname(RESULTS_FILE), exist_ok=True)

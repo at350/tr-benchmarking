@@ -27,9 +27,10 @@ By forcing Large Language Models to structure their responses into a formal lega
 This module relies on the environment and dependencies of the parent `lsh` folder.
 
 1. Ensure you have installed the requirements in the parent directory.
-2. Your API keys must be located in `lsh/.env`:
-   - `OPENAI_API_KEY`
-   - `REPLICATE_API_TOKEN`
+2. Your API keys must be in `lsh/.env` or the project root `.env`:
+   - `OPENAI_API_KEY` – for GPT models
+   - `REPLICATE_API_TOKEN` – for Gemini, Llama, etc. via Replicate
+   - `ANTHROPIC_API_KEY` or `CLAUDE_API_KEY` – for Claude models via Anthropic API (optional; Claude can also run via Replicate)
 
 ## Running the Benchmark
 
