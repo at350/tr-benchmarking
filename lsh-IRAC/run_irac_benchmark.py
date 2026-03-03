@@ -30,12 +30,8 @@ load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY")
-
 if not REPLICATE_API_TOKEN:
     print("Warning: REPLICATE_API_TOKEN not found.")
-if not ANTHROPIC_API_KEY:
-    print("Warning: ANTHROPIC_API_KEY (or CLAUDE_API_KEY) not found. Claude models via Anthropic API will be skipped.")
 
 openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
@@ -54,6 +50,8 @@ You must formulate your response using the IRAC method (Issue, Rule, Application
 
 You MUST return ONLY a strictly formatted JSON object. 
 Do not include conversational conversational text. Do not use Markdown JSON block wrappers if your API does not support them natively; just return raw JSON text.
+
+CRITICAL INSTRUCTION: Do NOT use acronyms or abbreviations under any circumstances. Spell out all legal terms fully (e.g., use "Intentional Infliction of Emotional Distress" instead of "IIED"). This ensures consistency across different evaluations.
 
 Your JSON must exactly match the following schema:
 {
@@ -75,18 +73,14 @@ REPLICATE_MODELS = [
     "google/gemini-3-flash",
     "google/gemini-3-pro",
     "meta/llama-4-maverick-instruct",
-    "deepseek-ai/deepseek-v3",
+    "deepseek-ai/deepseek-v3.1",
+    "anthropic/claude-4.5-sonnet",
+    "anthropic/claude-3.5-haiku",
 ]
 
 # Grok 4 is expensive; keep it opt-in.
 if os.getenv("ENABLE_GROK4", "").strip().lower() in {"1", "true", "yes", "on"}:
     REPLICATE_MODELS.append("xai/grok-4")
-
-# Claude models via Anthropic API (uses ANTHROPIC_API_KEY or CLAUDE_API_KEY)
-ANTHROPIC_MODELS = [
-    "claude-sonnet-4-5-20250929",
-    "claude-3-5-haiku-20241022",
-]
 
 # --- Fetch Functions ---
 
@@ -132,8 +126,22 @@ async def fetch_replicate(model, question, index):
             "Content-Type": "application/json"
         }
         
-        # Handle Gemini models which do not support system_prompt natively in Replicate API
-        if "gemini" in model.lower() or "deepseek" in model.lower():
+        # Determine strict param inclusion per replicate version schemas
+        input_data = {}
+        if "deepseek" in model.lower():
+             input_prompt = f"{question}\n\n{SYSTEM_PROMPT}"
+             input_data = {
+                 "input": {
+                     "top_p": 1,
+                     "prompt": input_prompt,
+                     "thinking": "None",
+                     "max_tokens": 1024,
+                     "temperature": 0.7,
+                     "presence_penalty": 0,
+                     "frequency_penalty": 0
+                 }
+             }
+        elif "gemini" in model.lower():
              input_prompt = f"System Instruction: {SYSTEM_PROMPT}\n\nUser Question: {question}"
              input_data = {
                  "input": {
@@ -141,17 +149,27 @@ async def fetch_replicate(model, question, index):
                      "temperature": 0.7
                  }
              }
+        elif "claude" in model.lower():
+             # Replicate claude-3.5-haiku errors (404s) if system_prompt is passed loosely.
+             input_prompt = f"System Instruction: {SYSTEM_PROMPT}\n\nUser Question: {question}"
+             input_data = {
+                 "input": {
+                     "prompt": input_prompt,
+                     "max_tokens": 2048 if "sonnet" in model else 1000,
+                     "temperature": 0.7
+                 }
+             }
         else:
+             # Default fallback
              input_data = {
                  "input": {
                      "prompt": question,
                      "system_prompt": SYSTEM_PROMPT,
-                     "max_tokens": 2048 if "claude-4.5-sonnet" in model else 1000,
+                     "max_tokens": 1000,
                      "temperature": 0.7
                  }
              }
         
-        # Handle simple model ID parsing
         try:
             parts = model.split("/")
             if len(parts) >= 2:
@@ -175,12 +193,11 @@ async def fetch_replicate(model, question, index):
                         else:
                             await asyncio.sleep(2 ** attempt + 2)
                             continue
-                    break # Success on getting 201
+                    break
                     
                 prediction = resp.json()
                 get_url = prediction["urls"]["get"]
                 
-                # Poll
                 while True:
                     await asyncio.sleep(3)
                     resp = await client.get(get_url, headers=headers)
@@ -200,15 +217,12 @@ async def fetch_replicate(model, question, index):
                         parsed_json = extract_json(text)
                         
                         if not parsed_json:
-                            # Replicate models are trickier with Markdown blocks
                             return {"error": f"Failed to parse JSON from response:\n{text}", "model": cleaned_model, "id": f"{cleaned_model}_{index}"}
                         
-                        # Validate that the dict contains IRAC keys broadly
                         keys_lower = [k.lower() if isinstance(k, str) else k for k in parsed_json.keys()]
                         if not ('issue' in keys_lower and 'rule' in keys_lower and 'application' in keys_lower and 'conclusion' in keys_lower):
                             return {"error": f"JSON parsed but missing core IRAC keys:\n{parsed_json}", "model": cleaned_model, "id": f"{cleaned_model}_{index}"}
                             
-                        # Standardize dict key casing
                         standardized_json = {
                             "issue": parsed_json.get("issue", parsed_json.get("Issue", "")),
                             "rule": parsed_json.get("rule", parsed_json.get("Rule", "")),
@@ -224,56 +238,14 @@ async def fetch_replicate(model, question, index):
                             "id": f"{cleaned_model}_{index}"
                         }
                     elif status in ["failed", "canceled"]:
-                         return {"error": f"Prediction status: {status}", "model": model, "id": f"{model.split('/')[-1]}_{index}"}
+                         err_payload = pred.get("error", "Unknown explicit failure")
+                         return {"error": f"Prediction status: {status} ({err_payload})", "model": model, "id": f"{model.split('/')[-1]}_{index}"}
                         
         except Exception as e:
             cleaned_model = model.split("/")[-1]
             return {"error": str(e), "model": cleaned_model, "id": f"{cleaned_model}_{index}"}
 
 
-async def fetch_anthropic(model: str, question: str, index: int):
-    """Fetch from Anthropic API using ANTHROPIC_API_KEY or CLAUDE_API_KEY."""
-    if not ANTHROPIC_API_KEY:
-        return {"error": "ANTHROPIC_API_KEY not set", "model": model, "id": f"{model}_{index}"}
-    try:
-        body = {
-            "model": model,
-            "max_tokens": 2048,
-            "messages": [{"role": "user", "content": question}],
-            "system": SYSTEM_PROMPT,
-            "temperature": 0.7,
-        }
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            resp = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "content-type": "application/json",
-                    "x-api-key": ANTHROPIC_API_KEY,
-                    "anthropic-version": "2023-06-01",
-                },
-                json=body,
-            )
-        if resp.status_code != 200:
-            err = resp.json().get("error", {}).get("message", resp.text)
-            return {"error": f"Anthropic API: {err}", "model": model, "id": f"{model}_{index}"}
-        data = resp.json()
-        content = "".join(
-            p.get("text", "") for p in data.get("content", []) if p.get("type") == "text"
-        )
-        parsed_json = extract_json(content)
-        if not parsed_json:
-            return {"error": f"Failed to parse JSON:\n{content[:200]}...", "model": model, "id": f"{model}_{index}"}
-        if not all(k in parsed_json for k in ("issue", "rule", "application", "conclusion")):
-            return {"error": f"Missing IRAC keys:\n{parsed_json}", "model": model, "id": f"{model}_{index}"}
-        return {
-            "model": model,
-            "prompt": question,
-            "response": parsed_json,
-            "raw_text": content,
-            "id": f"{model}_{index}",
-        }
-    except Exception as e:
-        return {"error": str(e), "model": model, "id": f"{model}_{index}"}
 
 
 # --- Main Flow ---
@@ -309,15 +281,6 @@ async def main(args):
                 continue
             tasks.append(fetch_openai(model, test_question, i))
 
-    # Anthropic (Claude via direct API - uses ANTHROPIC_API_KEY or CLAUDE_API_KEY)
-    if ANTHROPIC_API_KEY:
-        for model in ANTHROPIC_MODELS:
-            for i in range(NUM_RESPONSES_PER_MODEL):
-                item_id = f"{model}_{i}"
-                if item_id in existing_ids:
-                    continue
-                tasks.append(fetch_anthropic(model, test_question, i))
-            
     # Replicate
     for model in REPLICATE_MODELS:
         cleaned_model = model.split("/")[-1]
@@ -458,7 +421,8 @@ async def main(args):
                         "application": "N/A",
                         "conclusion": "Outliers"
                      },
-                    "members": []
+                    "members": [],
+                    "topic_signals": {}
                 }
             else:
                 cluster_key = str(cluster_id)
@@ -469,7 +433,8 @@ async def main(args):
                         "model": id_to_model.get(rep_id, "unknown"),
                         **id_to_irac.get(rep_id, {})
                     },
-                    "members": []
+                    "members": [],
+                    "topic_signals": results.get("topic_signals", {}).get(cluster_key, {})
                 }
             
             for member_id in members:

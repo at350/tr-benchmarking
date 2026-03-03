@@ -28,18 +28,16 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 # Redefine _EMBEDDING_MODEL and get_embedding_model as per instructions
-_EMBEDDING_MODEL = None # Resetting global variable for clarity with new get_embedding_model
+_EMBEDDING_NAME = None
 
 def get_embedding_model(model_name: str):
-    global _EMBEDDING_MODEL
+    global _EMBEDDING_MODEL, _EMBEDDING_NAME
     try:
         # If the model is already loaded and it's the same model_name, return it
-        # This assumes _EMBEDDING_MODEL stores the last loaded model.
-        # For a true singleton per model_name, a dictionary would be better,
-        # but for simplicity, we'll just reload if the name changes or it's not loaded.
-        if _EMBEDDING_MODEL is None or _EMBEDDING_MODEL.default_model != model_name:
+        if _EMBEDDING_MODEL is None or _EMBEDDING_NAME != model_name:
             print(f"Loading embedding model: {model_name}...")
             _EMBEDDING_MODEL = SentenceTransformer(model_name)
+            _EMBEDDING_NAME = model_name
         return _EMBEDDING_MODEL
     except Exception as e:
          print(f"Error loading model {model_name}: {e}")
