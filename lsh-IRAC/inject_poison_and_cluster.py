@@ -1,9 +1,12 @@
 import json
 import os
+import sys
 from datetime import datetime
-from irac_pipeline import IRACEvaluationPipeline
 
-# The original question from the benchmark
+# Add parent directory to path so lsh modules can be found
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from irac_pipeline import IRACEvaluationPipeline
 question = "A woman owned a 10-acre tract of rural farmland in fee simple absolute. The woman agreed to sell the farmland to a man, and each signed a writing stating that the farmland was beitig sold: \". . . for $10,000, receipt of which is acknowledged. \" In actuality, the man had not yet paid the woman the $10,000. At the date set for closing, the woman transferred a deed to the farmland to the man, who gave the woman a check for $10,000. Howevei, a few days after the woman deposited the check, she received notice from her bank that the check had not cleared, due to insufficient funds in the account. The woman then brought suit against the man. At trial, the woman seeks to testify that the man did not in fact pay her the $10,000 as recited in their written instrument. The man objects to the woman's proposed testimony. Will the trial court judge be correct in sustaining the man's objection?"
 
 poison_1_nonsensical = {
@@ -46,7 +49,7 @@ poison_3_criminal_law = {
 }
 
 def main():
-    original_file = "data/responses_20260223_233818.json"
+    original_file = os.path.join(os.path.dirname(__file__), "data/responses_20260223_233818.json")
     print(f"Loading {original_file}...")
     with open(original_file, "r") as f:
         data = json.load(f)
@@ -74,7 +77,7 @@ def main():
     data.extend(poisons)
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_file = f"data/responses_poisoned_{timestamp}.json"
+    out_file = os.path.join(os.path.dirname(__file__), f"data/responses_poisoned_{timestamp}.json")
     
     with open(out_file, "w") as f:
         json.dump(data, f, indent=2)
@@ -124,7 +127,8 @@ def main():
                     "application": "N/A",
                     "conclusion": "Outliers"
                  },
-                "members": []
+                "members": [],
+                "topic_signals": {}
             }
         else:
             cluster_key = str(cluster_id)
@@ -135,7 +139,8 @@ def main():
                     "model": id_to_model.get(rep_id, "unknown"),
                     **id_to_irac.get(rep_id, {})
                 },
-                "members": []
+                "members": [],
+                "topic_signals": results.get("topic_signals", {}).get(cluster_key, {})
             }
         
         for member_id in members:
@@ -147,7 +152,7 @@ def main():
             
         full_output["clusters"][cluster_key] = cluster_data
 
-    RESULTS_FILE = f"results/run_{timestamp}_poisoned.json"
+    RESULTS_FILE = os.path.join(os.path.dirname(__file__), f"results/run_{timestamp}_poisoned.json")
     os.makedirs(os.path.dirname(RESULTS_FILE), exist_ok=True)
     with open(RESULTS_FILE, "w") as f:
         json.dump(full_output, f, indent=2)
