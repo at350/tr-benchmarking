@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-export type BenchmarkMode = 'main' | 'forced_tests' | 'single_probe' | 'single_probe_multi_model';
+export type BenchmarkMode = 'main' | 'forced_tests' | 'single_probe' | 'single_probe_multi_model' | 'single_probe_multi_model_rubric_judge';
 
 type BenchmarkSidebarProps = {
     collapsed: boolean;
@@ -35,6 +35,11 @@ const BENCHMARK_OPTIONS: Array<{
         mode: 'single_probe_multi_model',
         title: 'Single Question Multi-Model A/B',
         description: 'Run multiple models on one question in two arms: without prompt and with custom prompt.',
+    },
+    {
+        mode: 'single_probe_multi_model_rubric_judge',
+        title: 'Rubric-First Multi-Model Judge',
+        description: 'Run all models with one generation prompt, then grade with selectable judge rubrics and significance metrics.',
     },
 ];
 
@@ -87,6 +92,9 @@ function shortMode(mode: BenchmarkMode) {
     }
     if (mode === 'single_probe_multi_model') {
         return 'Multi';
+    }
+    if (mode === 'single_probe_multi_model_rubric_judge') {
+        return 'Rubric';
     }
     return 'Single';
 }

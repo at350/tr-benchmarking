@@ -12,6 +12,8 @@ import {
     SingleProbeConfig,
     SingleQuestionProbePanel
 } from '@/components/benchmarking/SingleQuestionProbePanel';
+import { RubricJudgeProbeConfig, RubricJudgeProbePanel } from '@/components/benchmarking/RubricJudgeProbePanel';
+import { RubricJudgeProbeResults } from '@/components/benchmarking/RubricJudgeProbeResults';
 import { ConfigPanel as ForcedConfigPanel, ExperimentConfig as ForcedExperimentConfig } from '@/components/ConfigPanel';
 import { ConfigPanel as MainConfigPanel, ExperimentConfig as MainExperimentConfig } from '@/components/ConfigPanelMain';
 import { ResultsDashboard as ForcedResultsDashboard } from '@/components/ResultsDashboard';
@@ -31,6 +33,17 @@ import {
     readPromptLibraryFromStorage,
     writePromptLibraryToStorage,
 } from '@/lib/prompt-library';
+import {
+    createJudgeRubricTemplate,
+    isBuiltinJudgeRubricTemplateId,
+    judgeRubricLibraryToJson,
+    JudgeRubricTemplate,
+    mergeJudgeRubricLibraries,
+    parseJudgeRubricLibraryImport,
+    readJudgeRubricLibraryFromStorage,
+    writeJudgeRubricLibraryToStorage,
+} from '@/lib/judge-rubric-library';
+import { computeRubricPairwiseComparisons, estimateRequiredSampleSizePaired, RubricScoreObservation } from '@/lib/statistics-rubric';
 import { SavedBenchmarkRun } from '@/lib/run-comparison';
 
 type SuiteMode = 'main' | 'forced_tests';
@@ -83,11 +96,15 @@ type GeneralBenchmarkUiState = {
     mainConfig: MainExperimentConfig;
     forcedConfig: ForcedExperimentConfig;
     singleProbeConfig: SingleProbeConfig;
+    rubricJudgeConfig: RubricJudgeProbeConfig;
     selectedMultiModelKeys: string[];
     multiModelRunsPerArm: number;
     editableQuestion: EditableSingleQuestion;
     promptNameDraft: string;
     promptContentDraft: string;
+    selectedJudgeRubricTemplateId: string;
+    judgeRubricNameDraft: string;
+    judgeRubricContentDraft: string;
 };
 
 export default function GeneralBenchmarkingPage() {
@@ -158,6 +175,28 @@ export default function GeneralBenchmarkingPage() {
         useCustomPrompt: false,
         selectedPromptId: '',
     });
+    const [rubricJudgeConfig, setRubricJudgeConfig] = useState<RubricJudgeProbeConfig>({
+        runScope: 'single',
+        runsPerQuestion: 1,
+        strictnessMode: 'strict',
+        selectedGenerationPromptId: 'builtin_alan_irac_json_v1',
+        selectedGenerationPromptIds: ['builtin_alan_irac_json_v1'],
+        selectedJudgeRubricIds: ['builtin_rubric_balanced_v1'],
+        judgeProvider: 'openai',
+        judgeModel: getDefaultModelForProvider('openai'),
+        judgeReasoningEffort: 'medium',
+        datasetSampleStrategy: 'random',
+        datasetSampleSize: 30,
+        sampleSeed: 42,
+        statValidationEnabled: true,
+        statAlpha: 0.05,
+        statPower: 0.8,
+        statMinEffectSizeDz: 0.35,
+        statMaxQuestions: 120,
+        statPermutations: 10000,
+        statBootstrapSamples: 5000,
+        generationRepairRetries: 2,
+    });
     const [selectedMultiModelKeys, setSelectedMultiModelKeys] = useState<string[]>(DEFAULT_MULTI_MODEL_KEYS);
     const [multiModelRunsPerArm, setMultiModelRunsPerArm] = useState(1);
 
@@ -185,11 +224,32 @@ export default function GeneralBenchmarkingPage() {
     const [promptNameDraft, setPromptNameDraft] = useState('');
     const [promptContentDraft, setPromptContentDraft] = useState('');
     const [promptStatus, setPromptStatus] = useState<string | null>(null);
+
+    const [judgeRubricLibrary, setJudgeRubricLibrary] = useState<JudgeRubricTemplate[]>([]);
+    const [selectedJudgeRubricTemplateId, setSelectedJudgeRubricTemplateId] = useState('');
+    const [judgeRubricNameDraft, setJudgeRubricNameDraft] = useState('');
+    const [judgeRubricContentDraft, setJudgeRubricContentDraft] = useState('');
+    const [judgeRubricStatus, setJudgeRubricStatus] = useState<string | null>(null);
     const [hasHydratedUiState, setHasHydratedUiState] = useState(false);
 
+    const activeGenerationPromptId = benchmarkMode === 'single_probe_multi_model_rubric_judge'
+        ? rubricJudgeConfig.selectedGenerationPromptId
+        : singleProbeConfig.selectedPromptId;
     const selectedPrompt = useMemo(
-        () => promptLibrary.find((prompt) => prompt.id === singleProbeConfig.selectedPromptId) || null,
-        [promptLibrary, singleProbeConfig.selectedPromptId],
+        () => promptLibrary.find((prompt) => prompt.id === activeGenerationPromptId) || null,
+        [activeGenerationPromptId, promptLibrary],
+    );
+    const selectedGenerationPrompts = useMemo(
+        () => promptLibrary.filter((prompt) => rubricJudgeConfig.selectedGenerationPromptIds.includes(prompt.id)),
+        [promptLibrary, rubricJudgeConfig.selectedGenerationPromptIds],
+    );
+    const selectedJudgeRubricTemplate = useMemo(
+        () => judgeRubricLibrary.find((rubric) => rubric.id === selectedJudgeRubricTemplateId) || null,
+        [judgeRubricLibrary, selectedJudgeRubricTemplateId],
+    );
+    const selectedJudgeRubrics = useMemo(
+        () => judgeRubricLibrary.filter((rubric) => rubricJudgeConfig.selectedJudgeRubricIds.includes(rubric.id)),
+        [judgeRubricLibrary, rubricJudgeConfig.selectedJudgeRubricIds],
     );
     const multiModelOptions = useMemo<MultiModelSelectionOption[]>(() => {
         return (Object.keys(MODEL_OPTIONS_BY_PROVIDER) as Array<keyof typeof MODEL_OPTIONS_BY_PROVIDER>)
@@ -206,6 +266,7 @@ export default function GeneralBenchmarkingPage() {
         setRunHistory(readRunHistoryFromStorage());
         setSavedRuns(readSavedRunsFromStorage());
         setPromptLibrary(readPromptLibraryFromStorage());
+        setJudgeRubricLibrary(readJudgeRubricLibraryFromStorage());
 
         const persistedUiState = readGeneralBenchmarkUiStateFromStorage();
         if (persistedUiState) {
@@ -221,11 +282,15 @@ export default function GeneralBenchmarkingPage() {
                 perturbations: { ...persistedUiState.forcedConfig.perturbations },
             });
             setSingleProbeConfig(persistedUiState.singleProbeConfig);
+            setRubricJudgeConfig(persistedUiState.rubricJudgeConfig);
             setSelectedMultiModelKeys(persistedUiState.selectedMultiModelKeys);
             setMultiModelRunsPerArm(persistedUiState.multiModelRunsPerArm);
             setEditableQuestion(persistedUiState.editableQuestion);
             setPromptNameDraft(persistedUiState.promptNameDraft);
             setPromptContentDraft(persistedUiState.promptContentDraft);
+            setSelectedJudgeRubricTemplateId(persistedUiState.selectedJudgeRubricTemplateId);
+            setJudgeRubricNameDraft(persistedUiState.judgeRubricNameDraft);
+            setJudgeRubricContentDraft(persistedUiState.judgeRubricContentDraft);
         }
 
         setHasHydratedUiState(true);
@@ -234,6 +299,10 @@ export default function GeneralBenchmarkingPage() {
     useEffect(() => {
         writePromptLibraryToStorage(promptLibrary);
     }, [promptLibrary]);
+
+    useEffect(() => {
+        writeJudgeRubricLibraryToStorage(judgeRubricLibrary);
+    }, [judgeRubricLibrary]);
 
     useEffect(() => {
         writeSavedRunsToStorage(savedRuns);
@@ -248,9 +317,45 @@ export default function GeneralBenchmarkingPage() {
     }, [selectedPrompt]);
 
     useEffect(() => {
+        if (!selectedJudgeRubricTemplate) {
+            return;
+        }
+        setJudgeRubricNameDraft(selectedJudgeRubricTemplate.name);
+        setJudgeRubricContentDraft(selectedJudgeRubricTemplate.content);
+    }, [selectedJudgeRubricTemplate]);
+
+    useEffect(() => {
         const validKeys = new Set(multiModelOptions.map((option) => option.key));
         setSelectedMultiModelKeys((previous) => previous.filter((key) => validKeys.has(key)));
     }, [multiModelOptions]);
+
+    useEffect(() => {
+        const validIds = new Set(judgeRubricLibrary.map((rubric) => rubric.id));
+        setRubricJudgeConfig((previous) => ({
+            ...previous,
+            selectedJudgeRubricIds: previous.selectedJudgeRubricIds.filter((id) => validIds.has(id)),
+        }));
+        if (selectedJudgeRubricTemplateId && !validIds.has(selectedJudgeRubricTemplateId)) {
+            setSelectedJudgeRubricTemplateId('');
+            setJudgeRubricNameDraft('');
+            setJudgeRubricContentDraft('');
+        }
+    }, [judgeRubricLibrary, selectedJudgeRubricTemplateId]);
+
+    useEffect(() => {
+        const validPromptIds = new Set(promptLibrary.map((prompt) => prompt.id));
+        setRubricJudgeConfig((previous) => ({
+            ...previous,
+            selectedGenerationPromptId: validPromptIds.has(previous.selectedGenerationPromptId)
+                ? previous.selectedGenerationPromptId
+                : (previous.selectedGenerationPromptIds.find((id) => validPromptIds.has(id)) || ''),
+            selectedGenerationPromptIds: previous.selectedGenerationPromptIds.filter((id) => validPromptIds.has(id)),
+        }));
+        setSingleProbeConfig((previous) => ({
+            ...previous,
+            selectedPromptId: validPromptIds.has(previous.selectedPromptId) ? previous.selectedPromptId : '',
+        }));
+    }, [promptLibrary]);
 
     useEffect(() => {
         async function loadSingleDataset() {
@@ -331,6 +436,18 @@ export default function GeneralBenchmarkingPage() {
     }, [promptStatus]);
 
     useEffect(() => {
+        if (!judgeRubricStatus) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => {
+            setJudgeRubricStatus(null);
+        }, 3500);
+
+        return () => window.clearTimeout(timer);
+    }, [judgeRubricStatus]);
+
+    useEffect(() => {
         if (!hasHydratedUiState) {
             return;
         }
@@ -341,11 +458,15 @@ export default function GeneralBenchmarkingPage() {
             mainConfig,
             forcedConfig,
             singleProbeConfig,
+            rubricJudgeConfig,
             selectedMultiModelKeys,
             multiModelRunsPerArm,
             editableQuestion,
             promptNameDraft,
             promptContentDraft,
+            selectedJudgeRubricTemplateId,
+            judgeRubricNameDraft,
+            judgeRubricContentDraft,
         });
     }, [
         benchmarkMode,
@@ -353,10 +474,14 @@ export default function GeneralBenchmarkingPage() {
         forcedConfig,
         hasHydratedUiState,
         isSidebarCollapsed,
+        judgeRubricContentDraft,
+        judgeRubricNameDraft,
         mainConfig,
         multiModelRunsPerArm,
         promptContentDraft,
         promptNameDraft,
+        rubricJudgeConfig,
+        selectedJudgeRubricTemplateId,
         selectedMultiModelKeys,
         singleProbeConfig,
     ]);
@@ -425,6 +550,43 @@ export default function GeneralBenchmarkingPage() {
         }
         return { canRun: true, reason: undefined as string | undefined };
     }, [editableQuestion, multiModelRunsPerArm, selectedMultiModelKeys, selectedPrompt]);
+    const rubricJudgeRunValidation = useMemo(() => {
+        if (!editableQuestion.question.trim()) {
+            return { canRun: false, reason: 'Question text is required.' };
+        }
+        const hasBlankChoice = editableQuestion.choices.some((choice) => !choice.trim());
+        if (hasBlankChoice) {
+            return { canRun: false, reason: 'All answer choices must be filled in.' };
+        }
+        if (selectedMultiModelKeys.length === 0) {
+            return { canRun: false, reason: 'Select at least one model.' };
+        }
+        if (selectedGenerationPrompts.length === 0) {
+            return { canRun: false, reason: 'Select at least one generation prompt template.' };
+        }
+        if (selectedJudgeRubrics.length === 0) {
+            return { canRun: false, reason: 'Select at least one judge rubric template.' };
+        }
+        if (!rubricJudgeConfig.judgeModel.trim()) {
+            return { canRun: false, reason: 'Judge model is required.' };
+        }
+        if (rubricJudgeConfig.runScope === 'dataset' && rubricJudgeConfig.datasetSampleSize < 1) {
+            return { canRun: false, reason: 'Dataset sample size must be at least 1.' };
+        }
+        if (!Number.isInteger(rubricJudgeConfig.runsPerQuestion) || rubricJudgeConfig.runsPerQuestion < 1 || rubricJudgeConfig.runsPerQuestion > 20) {
+            return { canRun: false, reason: 'Runs per question must be between 1 and 20.' };
+        }
+        return { canRun: true, reason: undefined as string | undefined };
+    }, [
+        editableQuestion,
+        rubricJudgeConfig.datasetSampleSize,
+        rubricJudgeConfig.judgeModel,
+        rubricJudgeConfig.runsPerQuestion,
+        rubricJudgeConfig.runScope,
+        selectedGenerationPrompts.length,
+        selectedJudgeRubrics.length,
+        selectedMultiModelKeys.length,
+    ]);
 
     const mainDashboardResults = results as Parameters<typeof MainResultsDashboard>[0]['results'];
     const mainDashboardSummary = summary as Parameters<typeof MainResultsDashboard>[0]['summary'];
@@ -631,7 +793,24 @@ export default function GeneralBenchmarkingPage() {
 
         const selectedOptions = multiModelOptions.filter((option) => selectedMultiModelKeys.includes(option.key));
         const repeatCount = Math.min(Math.max(multiModelRunsPerArm, 1), 20);
-        const aggregateResults: Record<string, unknown>[] = [];
+        const tasks: Array<{
+            option: MultiModelSelectionOption;
+            useCustomPrompt: boolean;
+            repeatIndex: number;
+        }> = [];
+        for (const option of selectedOptions) {
+            for (const promptMode of ['without', 'with'] as const) {
+                for (let repeatIndex = 1; repeatIndex <= repeatCount; repeatIndex += 1) {
+                    tasks.push({
+                        option,
+                        useCustomPrompt: promptMode === 'with',
+                        repeatIndex,
+                    });
+                }
+            }
+        }
+
+        const aggregateResults: Record<string, unknown>[] = new Array(tasks.length);
         const armStats = {
             withPrompt: { correct: 0, total: 0 },
             withoutPrompt: { correct: 0, total: 0 },
@@ -649,82 +828,100 @@ export default function GeneralBenchmarkingPage() {
             ]),
         );
 
+        const MAX_PARALLEL_REQUESTS = 4;
+        const workerCount = Math.min(MAX_PARALLEL_REQUESTS, Math.max(tasks.length, 1));
         let completed = 0;
-        const totalRuns = selectedOptions.length * 2 * repeatCount;
+        let started = 0;
+        let nextTaskIndex = 0;
+        const totalRuns = tasks.length;
 
-        for (const option of selectedOptions) {
-            for (const promptMode of ['without', 'with'] as const) {
-                for (let repeatIndex = 1; repeatIndex <= repeatCount; repeatIndex += 1) {
+        const executeTask = async (task: { option: MultiModelSelectionOption; useCustomPrompt: boolean; repeatIndex: number }, taskIndex: number) => {
+            if (signal.aborted) {
+                throw new DOMException('Aborted', 'AbortError');
+            }
+
+            setRunStatusText(
+                `Running ${task.option.modelLabel} (${task.useCustomPrompt ? 'with prompt' : 'without prompt'}) repeat ${task.repeatIndex}/${repeatCount} (${started}/${totalRuns} started, ${completed}/${totalRuns} completed)...`
+            );
+
+            const json = await requestSingleProbe(signal, {
+                provider: task.option.provider,
+                model: task.option.model,
+                useCustomPrompt: task.useCustomPrompt,
+                customPrompt: selectedPrompt.content,
+            });
+            const responseResult = Array.isArray(json.results) && json.results.length > 0
+                ? json.results[0]
+                : null;
+            const responseSummary = json.summary || {};
+            const isCorrect = responseResult && typeof responseResult.isCorrect === 'boolean'
+                ? responseResult.isCorrect
+                : false;
+
+            aggregateResults[taskIndex] = {
+                modelProvider: task.option.provider,
+                modelLabel: task.option.modelLabel,
+                model: task.option.model,
+                promptMode: task.useCustomPrompt ? 'with_custom_prompt' : 'without_custom_prompt',
+                promptArmLabel: task.useCustomPrompt ? 'With Prompt' : 'Without Prompt',
+                repeatIndex: task.repeatIndex,
+                runsPerArm: repeatCount,
+                questionId: responseResult && typeof responseResult.questionId === 'string' ? responseResult.questionId : editableQuestion.id,
+                groundTruth: responseResult && typeof responseResult.groundTruth === 'string' ? responseResult.groundTruth : editableQuestion.answerLetter,
+                parsedChoice: responseResult && typeof responseResult.parsedChoice === 'string' ? responseResult.parsedChoice : 'Unknown',
+                isCorrect,
+                modelOutput: responseResult && typeof responseResult.modelOutput === 'string' ? responseResult.modelOutput : '',
+                accuracy: typeof responseSummary.accuracy === 'number' ? responseSummary.accuracy : (isCorrect ? 1 : 0),
+            };
+
+            const currentModelStats = perModelStats.get(task.option.key);
+            if (currentModelStats) {
+                if (task.useCustomPrompt) {
+                    currentModelStats.withPrompt.total += 1;
+                    if (isCorrect) {
+                        currentModelStats.withPrompt.correct += 1;
+                    }
+                } else {
+                    currentModelStats.withoutPrompt.total += 1;
+                    if (isCorrect) {
+                        currentModelStats.withoutPrompt.correct += 1;
+                    }
+                }
+            }
+
+            if (task.useCustomPrompt) {
+                armStats.withPrompt.total += 1;
+                if (isCorrect) {
+                    armStats.withPrompt.correct += 1;
+                }
+            } else {
+                armStats.withoutPrompt.total += 1;
+                if (isCorrect) {
+                    armStats.withoutPrompt.correct += 1;
+                }
+            }
+
+            completed += 1;
+        };
+
+        await Promise.all(
+            Array.from({ length: workerCount }, async () => {
+                while (true) {
                     if (signal.aborted) {
                         throw new DOMException('Aborted', 'AbortError');
                     }
 
-                    const useCustomPrompt = promptMode === 'with';
-                    setRunStatusText(
-                        `Running ${option.modelLabel} (${useCustomPrompt ? 'with prompt' : 'without prompt'}) repeat ${repeatIndex}/${repeatCount} (${completed + 1}/${totalRuns})...`
-                    );
-
-                    const json = await requestSingleProbe(signal, {
-                        provider: option.provider,
-                        model: option.model,
-                        useCustomPrompt,
-                        customPrompt: selectedPrompt.content,
-                    });
-                    const responseResult = Array.isArray(json.results) && json.results.length > 0
-                        ? json.results[0]
-                        : null;
-                    const responseSummary = json.summary || {};
-                    const isCorrect = responseResult && typeof responseResult.isCorrect === 'boolean'
-                        ? responseResult.isCorrect
-                        : false;
-
-                    aggregateResults.push({
-                        modelProvider: option.provider,
-                        modelLabel: option.modelLabel,
-                        model: option.model,
-                        promptMode: useCustomPrompt ? 'with_custom_prompt' : 'without_custom_prompt',
-                        promptArmLabel: useCustomPrompt ? 'With Prompt' : 'Without Prompt',
-                        repeatIndex,
-                        runsPerArm: repeatCount,
-                        questionId: responseResult && typeof responseResult.questionId === 'string' ? responseResult.questionId : editableQuestion.id,
-                        groundTruth: responseResult && typeof responseResult.groundTruth === 'string' ? responseResult.groundTruth : editableQuestion.answerLetter,
-                        parsedChoice: responseResult && typeof responseResult.parsedChoice === 'string' ? responseResult.parsedChoice : 'Unknown',
-                        isCorrect,
-                        modelOutput: responseResult && typeof responseResult.modelOutput === 'string' ? responseResult.modelOutput : '',
-                        accuracy: typeof responseSummary.accuracy === 'number' ? responseSummary.accuracy : (isCorrect ? 1 : 0),
-                    });
-
-                    const currentModelStats = perModelStats.get(option.key);
-                    if (currentModelStats) {
-                        if (useCustomPrompt) {
-                            currentModelStats.withPrompt.total += 1;
-                            if (isCorrect) {
-                                currentModelStats.withPrompt.correct += 1;
-                            }
-                        } else {
-                            currentModelStats.withoutPrompt.total += 1;
-                            if (isCorrect) {
-                                currentModelStats.withoutPrompt.correct += 1;
-                            }
-                        }
+                    const taskIndex = nextTaskIndex;
+                    if (taskIndex >= tasks.length) {
+                        return;
                     }
 
-                    if (useCustomPrompt) {
-                        armStats.withPrompt.total += 1;
-                        if (isCorrect) {
-                            armStats.withPrompt.correct += 1;
-                        }
-                    } else {
-                        armStats.withoutPrompt.total += 1;
-                        if (isCorrect) {
-                            armStats.withoutPrompt.correct += 1;
-                        }
-                    }
-
-                    completed += 1;
+                    nextTaskIndex += 1;
+                    started += 1;
+                    await executeTask(tasks[taskIndex], taskIndex);
                 }
-            }
-        }
+            })
+        );
 
         const totalCorrect = armStats.withPrompt.correct + armStats.withoutPrompt.correct;
         const total = armStats.withPrompt.total + armStats.withoutPrompt.total;
@@ -774,6 +971,434 @@ export default function GeneralBenchmarkingPage() {
         });
     };
 
+    const requestRubricJudgeProbe = async (
+        signal: AbortSignal,
+        options: {
+            provider: 'openai' | 'anthropic' | 'gemini';
+            model: string;
+            question: EditableSingleQuestion;
+            generationPrompt: string;
+        }
+    ) => {
+        const response = await fetch('/api/benchmark-single-rubric-judge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal,
+            body: JSON.stringify({
+                provider: options.provider,
+                model: options.model,
+                temperature: singleProbeConfig.temperature,
+                reasoningEffort: singleProbeConfig.reasoningEffort,
+                strictnessMode: rubricJudgeConfig.strictnessMode,
+                generationPrompt: options.generationPrompt,
+                maxGenerationRetries: rubricJudgeConfig.generationRepairRetries,
+                question: {
+                    id: options.question.id,
+                    question: options.question.question,
+                    choices: options.question.choices,
+                    answerLetter: options.question.answerLetter,
+                    subfield: options.question.subfield,
+                    difficulty: options.question.difficulty,
+                },
+                judgeProvider: rubricJudgeConfig.judgeProvider,
+                judgeModel: rubricJudgeConfig.judgeModel,
+                judgeReasoningEffort: rubricJudgeConfig.judgeReasoningEffort,
+                judgeRubrics: selectedJudgeRubrics.map((rubric) => ({
+                    id: rubric.id,
+                    name: rubric.name,
+                    content: rubric.content,
+                })),
+            }),
+        });
+
+        const json = (await response.json()) as {
+            generation?: Record<string, unknown>;
+            evaluation?: Record<string, unknown>;
+            judgeResults?: Array<Record<string, unknown>>;
+            error?: string;
+        };
+
+        if (!response.ok) {
+            throw new Error(json.error || `Rubric judge request failed (${response.status}).`);
+        }
+
+        return json;
+    };
+
+    const runRubricJudgeMultiModelProbe = async (signal: AbortSignal) => {
+        const selectedOptions = multiModelOptions.filter((option) => selectedMultiModelKeys.includes(option.key));
+        if (selectedOptions.length === 0) {
+            throw new Error('No models selected.');
+        }
+        const promptVariants: Array<{
+            promptArm: string;
+            promptId: string;
+            promptName: string;
+            promptContent: string;
+        }> = selectedGenerationPrompts.map((prompt, index) => ({
+            promptArm: `Prompt ${index + 1}`,
+            promptId: prompt.id,
+            promptName: prompt.name,
+            promptContent: prompt.content,
+        }));
+        if (promptVariants.length === 0) {
+            throw new Error('Select at least one generation prompt template before running rubric benchmark.');
+        }
+
+        const runsPerQuestion = Math.min(20, Math.max(1, Math.floor(rubricJudgeConfig.runsPerQuestion)));
+        const requiredObservationCount = rubricJudgeConfig.statValidationEnabled
+            ? estimateRequiredSampleSizePaired(
+                rubricJudgeConfig.statAlpha,
+                rubricJudgeConfig.statPower,
+                rubricJudgeConfig.statMinEffectSizeDz,
+            )
+            : 0;
+        const requiredQuestionCountForPower = rubricJudgeConfig.statValidationEnabled
+            ? Math.max(1, Math.ceil(requiredObservationCount / runsPerQuestion))
+            : 1;
+
+        const targetQuestionCount = rubricJudgeConfig.runScope === 'dataset'
+            ? Math.min(
+                rubricJudgeConfig.statValidationEnabled
+                    ? rubricJudgeConfig.statMaxQuestions
+                    : rubricJudgeConfig.datasetSampleSize,
+                Math.max(rubricJudgeConfig.datasetSampleSize, rubricJudgeConfig.statValidationEnabled ? requiredQuestionCountForPower : 0),
+            )
+            : 1;
+
+        const questions = rubricJudgeConfig.runScope === 'single'
+            ? [editableQuestion]
+            : sampleDatasetQuestionsForRubricRun(
+                singleDatasetRows,
+                targetQuestionCount,
+                rubricJudgeConfig.datasetSampleStrategy,
+                rubricJudgeConfig.sampleSeed,
+            );
+
+        if (questions.length === 0) {
+            throw new Error('No questions selected for rubric benchmark run.');
+        }
+
+        const tasks: Array<{
+            option: MultiModelSelectionOption;
+            question: EditableSingleQuestion;
+            repeatIndex: number;
+            observationId: string;
+            promptArm: string;
+            promptId: string;
+            promptName: string;
+            promptContent: string;
+            modelArmKey: string;
+            modelArmLabel: string;
+        }> = [];
+        for (const question of questions) {
+            for (const option of selectedOptions) {
+                for (const promptVariant of promptVariants) {
+                    for (let repeatIndex = 1; repeatIndex <= runsPerQuestion; repeatIndex += 1) {
+                        tasks.push({
+                            question,
+                            option,
+                            repeatIndex,
+                            observationId: `${question.id}::r${repeatIndex}`,
+                            promptArm: promptVariant.promptArm,
+                            promptId: promptVariant.promptId,
+                            promptName: promptVariant.promptName,
+                            promptContent: promptVariant.promptContent,
+                            modelArmKey: `${option.key}::prompt_${promptVariant.promptId}`,
+                            modelArmLabel: `${option.modelLabel} [Prompt ${promptVariant.promptArm}]`,
+                        });
+                    }
+                }
+            }
+        }
+
+        const aggregateResults: Record<string, unknown>[] = new Array(tasks.length);
+        const MAX_PARALLEL_REQUESTS = 4;
+        const workerCount = Math.min(MAX_PARALLEL_REQUESTS, Math.max(1, tasks.length));
+        let completed = 0;
+        let nextTaskIndex = 0;
+
+        const executeTask = async (
+            task: {
+                option: MultiModelSelectionOption;
+                question: EditableSingleQuestion;
+                repeatIndex: number;
+                observationId: string;
+                promptArm: string;
+                promptId: string;
+                promptName: string;
+                promptContent: string;
+                modelArmKey: string;
+                modelArmLabel: string;
+            },
+            taskIndex: number,
+        ) => {
+            if (signal.aborted) {
+                throw new DOMException('Aborted', 'AbortError');
+            }
+
+            setRunStatusText(
+                `Running ${task.option.modelLabel} ${task.promptArm} on ${task.question.id} [run ${task.repeatIndex}/${runsPerQuestion}] (${completed + 1}/${tasks.length})...`
+            );
+
+            const json = await requestRubricJudgeProbe(signal, {
+                provider: task.option.provider,
+                model: task.option.model,
+                question: task.question,
+                generationPrompt: task.promptContent,
+            });
+
+            const generation = isRecord(json.generation) ? json.generation : {};
+            const evaluation = isRecord(json.evaluation) ? json.evaluation : {};
+            const judgeResults = Array.isArray(json.judgeResults)
+                ? json.judgeResults.filter((entry): entry is Record<string, unknown> => isRecord(entry))
+                : [];
+
+            aggregateResults[taskIndex] = {
+                modelProvider: task.option.provider,
+                modelLabel: task.option.modelLabel,
+                model: task.option.model,
+                modelKey: task.option.key,
+                modelArmKey: task.modelArmKey,
+                modelArmLabel: task.modelArmLabel,
+                questionId: task.question.id,
+                observationId: task.observationId,
+                repeatIndex: task.repeatIndex,
+                generationPromptArm: task.promptArm,
+                generationPromptId: task.promptId,
+                generationPromptName: task.promptName,
+                questionText: task.question.question,
+                parsedChoice: typeof generation.parsedAnswer === 'string' ? generation.parsedAnswer : 'Unknown',
+                groundTruth: task.question.answerLetter,
+                isCorrect: typeof evaluation.isCorrect === 'boolean' ? evaluation.isCorrect : false,
+                generationParseStatus: typeof generation.parseStatus === 'string' ? generation.parseStatus : 'unknown',
+                generationSchemaValid: Boolean(generation.schemaValid),
+                generationDegraded: Boolean(generation.degradedControllability),
+                generationRawOutput: typeof generation.rawOutput === 'string' ? generation.rawOutput : '',
+                generationParsedJson: isRecord(generation.parsedJson) ? generation.parsedJson : null,
+                judgeResults,
+            };
+
+            completed += 1;
+        };
+
+        await Promise.all(
+            Array.from({ length: workerCount }, async () => {
+                while (true) {
+                    if (signal.aborted) {
+                        throw new DOMException('Aborted', 'AbortError');
+                    }
+                    const taskIndex = nextTaskIndex;
+                    if (taskIndex >= tasks.length) {
+                        return;
+                    }
+                    nextTaskIndex += 1;
+                    await executeTask(tasks[taskIndex], taskIndex);
+                }
+            })
+        );
+
+        const generationCompliantCount = aggregateResults.filter((row) => isRecord(row) && row.generationSchemaValid === true).length;
+        const judgeRows = aggregateResults
+            .filter((row): row is Record<string, unknown> => isRecord(row))
+            .flatMap((row) => (Array.isArray(row.judgeResults) ? row.judgeResults : []))
+            .filter((judgeRow): judgeRow is Record<string, unknown> => isRecord(judgeRow));
+        const judgeParseSuccessCount = judgeRows.filter((judgeRow) => judgeRow.parseFailed !== true).length;
+
+        const observations: RubricScoreObservation[] = [];
+        const modelRubricBuckets = new Map<string, {
+            rubricId: string;
+            rubricName: string;
+            modelKey: string;
+            modelLabel: string;
+            sum: number;
+            n: number;
+        }>();
+        const strengthCounts = new Map<string, number>();
+        const weaknessCounts = new Map<string, number>();
+
+        for (const row of aggregateResults) {
+            if (!isRecord(row)) {
+                continue;
+            }
+            const baseModelKey = typeof row.modelKey === 'string' ? row.modelKey : '';
+            const modelKey = typeof row.modelArmKey === 'string' && row.modelArmKey.length > 0
+                ? row.modelArmKey
+                : baseModelKey;
+            const modelLabel = typeof row.modelArmLabel === 'string' && row.modelArmLabel.length > 0
+                ? row.modelArmLabel
+                : (typeof row.modelLabel === 'string' ? row.modelLabel : modelKey);
+            const questionId = typeof row.questionId === 'string' ? row.questionId : '';
+            const repeatIndex = typeof row.repeatIndex === 'number' && Number.isFinite(row.repeatIndex)
+                ? Math.max(1, Math.floor(row.repeatIndex))
+                : 1;
+            const observationId = typeof row.observationId === 'string' && row.observationId.length > 0
+                ? row.observationId
+                : `${questionId}::r${repeatIndex}`;
+            const judgeResultRows = Array.isArray(row.judgeResults)
+                ? row.judgeResults.filter((entry): entry is Record<string, unknown> => isRecord(entry))
+                : [];
+
+            for (const judgeRow of judgeResultRows) {
+                const rubricId = typeof judgeRow.rubricId === 'string' ? judgeRow.rubricId : '';
+                const rubricName = typeof judgeRow.rubricName === 'string' ? judgeRow.rubricName : rubricId;
+                const overallScore = typeof judgeRow.overallScore === 'number' ? judgeRow.overallScore : null;
+
+                if (typeof overallScore === 'number' && Number.isFinite(overallScore)) {
+                    observations.push({
+                        rubricId,
+                        rubricName,
+                        modelKey,
+                        modelLabel,
+                        questionId: observationId,
+                        score: overallScore,
+                    });
+
+                    const key = `${rubricId}::${modelKey}`;
+                    if (!modelRubricBuckets.has(key)) {
+                        modelRubricBuckets.set(key, {
+                            rubricId,
+                            rubricName,
+                            modelKey,
+                            modelLabel,
+                            sum: 0,
+                            n: 0,
+                        });
+                    }
+                    const bucket = modelRubricBuckets.get(key);
+                    if (bucket) {
+                        bucket.sum += overallScore;
+                        bucket.n += 1;
+                    }
+                }
+
+                const strengths = Array.isArray(judgeRow.strengths) ? judgeRow.strengths : [];
+                const weaknesses = Array.isArray(judgeRow.weaknesses) ? judgeRow.weaknesses : [];
+                for (const item of strengths) {
+                    const key = String(item).trim();
+                    if (!key) {
+                        continue;
+                    }
+                    strengthCounts.set(key, (strengthCounts.get(key) || 0) + 1);
+                }
+                for (const item of weaknesses) {
+                    const key = String(item).trim();
+                    if (!key) {
+                        continue;
+                    }
+                    weaknessCounts.set(key, (weaknessCounts.get(key) || 0) + 1);
+                }
+            }
+        }
+
+        const pairwiseByRubric = computeRubricPairwiseComparisons(observations, {
+            alpha: rubricJudgeConfig.statAlpha,
+            permutations: rubricJudgeConfig.statPermutations,
+            bootstrapSamples: rubricJudgeConfig.statBootstrapSamples,
+            seed: rubricJudgeConfig.sampleSeed,
+        });
+
+        const modelRubricMeans = Array.from(modelRubricBuckets.values())
+            .map((bucket) => ({
+                rubricId: bucket.rubricId,
+                rubricName: bucket.rubricName,
+                modelKey: bucket.modelKey,
+                modelLabel: bucket.modelLabel,
+                n: bucket.n,
+                meanScore: bucket.n > 0 ? bucket.sum / bucket.n : 0,
+            }))
+            .sort((a, b) => a.rubricName.localeCompare(b.rubricName) || a.modelLabel.localeCompare(b.modelLabel));
+
+        const scoreBuckets = new Map<string, number[]>();
+        for (const obs of observations) {
+            const key = `${obs.rubricId}::${obs.modelKey}`;
+            if (!scoreBuckets.has(key)) {
+                scoreBuckets.set(key, []);
+            }
+            scoreBuckets.get(key)?.push(obs.score);
+        }
+
+        const rubricLeaderboardMap = new Map<string, {
+            rubricId: string;
+            rubricName: string;
+            rows: Array<{
+                modelKey: string;
+                modelLabel: string;
+                meanScore: number;
+                ciLow: number;
+                ciHigh: number;
+                n: number;
+            }>;
+        }>();
+        for (const entry of modelRubricMeans) {
+            const key = `${entry.rubricId}::${entry.rubricName}`;
+            const scoreKey = `${entry.rubricId}::${entry.modelKey}`;
+            const scores = scoreBuckets.get(scoreKey) || [];
+            const ci = bootstrapCiForScores(scores, rubricJudgeConfig.statBootstrapSamples, rubricJudgeConfig.sampleSeed + scores.length + entry.modelKey.length);
+            if (!rubricLeaderboardMap.has(key)) {
+                rubricLeaderboardMap.set(key, {
+                    rubricId: entry.rubricId,
+                    rubricName: entry.rubricName,
+                    rows: [],
+                });
+            }
+            rubricLeaderboardMap.get(key)?.rows.push({
+                modelKey: entry.modelKey,
+                modelLabel: entry.modelLabel,
+                meanScore: entry.meanScore,
+                ciLow: ci.low,
+                ciHigh: ci.high,
+                n: entry.n,
+            });
+        }
+
+        const rubricLeaderboards = Array.from(rubricLeaderboardMap.values()).map((bucket) => ({
+            rubricId: bucket.rubricId,
+            rubricName: bucket.rubricName,
+            rows: bucket.rows.sort((a, b) => b.meanScore - a.meanScore || a.modelLabel.localeCompare(b.modelLabel)),
+        }));
+
+        const overallMeanJudgeScore = observations.length > 0
+            ? observations.reduce((sum, row) => sum + row.score, 0) / observations.length
+            : 0;
+        const actualObservationCount = questions.length * runsPerQuestion;
+
+        const topStrengths = Array.from(strengthCounts.entries())
+            .map(([label, count]) => ({ label, count }))
+            .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+            .slice(0, 12);
+        const topWeaknesses = Array.from(weaknessCounts.entries())
+            .map(([label, count]) => ({ label, count }))
+            .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+            .slice(0, 12);
+
+        setResults(aggregateResults);
+        setSummary({
+            dataset: 'single_probe_multi_model_rubric_judge',
+            totalCalls: aggregateResults.length,
+            questionCount: questions.length,
+            runsPerQuestion,
+            generationPromptCount: promptVariants.length,
+            effectiveObservationCount: actualObservationCount,
+            modelCount: selectedOptions.length,
+            generationJsonComplianceRate: aggregateResults.length > 0 ? generationCompliantCount / aggregateResults.length : 0,
+            judgeJsonComplianceRate: judgeRows.length > 0 ? judgeParseSuccessCount / judgeRows.length : 0,
+            meanJudgeScore: overallMeanJudgeScore,
+            scoredJudgeCount: observations.length,
+            statValidationEnabled: rubricJudgeConfig.statValidationEnabled,
+            requiredQuestionCount: rubricJudgeConfig.statValidationEnabled ? requiredQuestionCountForPower : questions.length,
+            requiredObservationCount: rubricJudgeConfig.statValidationEnabled ? requiredObservationCount : actualObservationCount,
+            actualQuestionCount: questions.length,
+            actualObservationCount,
+            underpowered: rubricJudgeConfig.statValidationEnabled && actualObservationCount < requiredObservationCount,
+            modelRubricMeans,
+            rubricLeaderboards,
+            pairwiseByRubric,
+            topStrengths,
+            topWeaknesses,
+        });
+    };
+
     const runExperiment = async () => {
         if (isRunning) {
             return;
@@ -787,6 +1412,11 @@ export default function GeneralBenchmarkingPage() {
         } else if (benchmarkMode === 'single_probe_multi_model') {
             if (!multiModelRunValidation.canRun) {
                 alert(multiModelRunValidation.reason || 'Cannot run multi-model single-question test with current inputs.');
+                return;
+            }
+        } else if (benchmarkMode === 'single_probe_multi_model_rubric_judge') {
+            if (!rubricJudgeRunValidation.canRun) {
+                alert(rubricJudgeRunValidation.reason || 'Cannot run rubric-first multi-model judge test with current inputs.');
                 return;
             }
         } else if (!canRunCurrentSelection) {
@@ -818,6 +1448,8 @@ export default function GeneralBenchmarkingPage() {
                 await runForcedExperiment(abortController.signal, forcedConfigSnapshot);
             } else if (benchmarkMode === 'single_probe_multi_model') {
                 await runMultiModelSingleProbe(abortController.signal);
+            } else if (benchmarkMode === 'single_probe_multi_model_rubric_judge') {
+                await runRubricJudgeMultiModelProbe(abortController.signal);
             } else {
                 await runSingleProbe(abortController.signal);
             }
@@ -939,12 +1571,26 @@ export default function GeneralBenchmarkingPage() {
 
         const created = createPromptTemplate(name, content);
         setPromptLibrary((previous) => [created, ...previous]);
-        setSingleProbeConfig((previous) => ({ ...previous, selectedPromptId: created.id }));
+        if (benchmarkMode === 'single_probe_multi_model_rubric_judge') {
+            setRubricJudgeConfig((previous) => ({
+                ...previous,
+                selectedGenerationPromptId: created.id,
+                selectedGenerationPromptIds: previous.selectedGenerationPromptIds.includes(created.id)
+                    ? previous.selectedGenerationPromptIds
+                    : [...previous.selectedGenerationPromptIds, created.id],
+            }));
+        } else {
+            setSingleProbeConfig((previous) => ({ ...previous, selectedPromptId: created.id }));
+        }
         setPromptStatus('Prompt saved.');
     };
 
     const createNewPromptDraft = () => {
-        setSingleProbeConfig((previous) => ({ ...previous, selectedPromptId: '' }));
+        if (benchmarkMode === 'single_probe_multi_model_rubric_judge') {
+            setRubricJudgeConfig((previous) => ({ ...previous, selectedGenerationPromptId: '' }));
+        } else {
+            setSingleProbeConfig((previous) => ({ ...previous, selectedPromptId: '' }));
+        }
         setPromptNameDraft('');
         setPromptContentDraft('');
         setPromptStatus('Started a new prompt draft.');
@@ -962,6 +1608,11 @@ export default function GeneralBenchmarkingPage() {
 
         setPromptLibrary((previous) => previous.filter((prompt) => prompt.id !== selectedPrompt.id));
         setSingleProbeConfig((previous) => ({ ...previous, selectedPromptId: '' }));
+        setRubricJudgeConfig((previous) => ({
+            ...previous,
+            selectedGenerationPromptId: previous.selectedGenerationPromptId === selectedPrompt.id ? '' : previous.selectedGenerationPromptId,
+            selectedGenerationPromptIds: previous.selectedGenerationPromptIds.filter((id) => id !== selectedPrompt.id),
+        }));
         setPromptNameDraft('');
         setPromptContentDraft('');
         setPromptStatus('Prompt deleted.');
@@ -996,6 +1647,91 @@ export default function GeneralBenchmarkingPage() {
         setPromptStatus('Prompt library exported.');
     };
 
+    const saveJudgeRubricTemplate = () => {
+        const content = judgeRubricContentDraft.trim();
+        if (!content) {
+            setJudgeRubricStatus('Judge rubric content is required.');
+            return;
+        }
+
+        const name = judgeRubricNameDraft.trim() || 'Untitled judge rubric';
+        if (selectedJudgeRubricTemplate) {
+            if (isBuiltinJudgeRubricTemplateId(selectedJudgeRubricTemplate.id)) {
+                setJudgeRubricStatus('Built-in judge rubric templates cannot be overwritten.');
+                return;
+            }
+
+            setJudgeRubricLibrary((previous) => previous.map((rubric) => (
+                rubric.id === selectedJudgeRubricTemplate.id
+                    ? { ...rubric, name, content, updatedAt: new Date().toISOString() }
+                    : rubric
+            )));
+            setJudgeRubricStatus('Judge rubric updated.');
+            return;
+        }
+
+        const created = createJudgeRubricTemplate(name, content);
+        setJudgeRubricLibrary((previous) => [created, ...previous]);
+        setSelectedJudgeRubricTemplateId(created.id);
+        setJudgeRubricStatus('Judge rubric saved.');
+    };
+
+    const createNewJudgeRubricDraft = () => {
+        setSelectedJudgeRubricTemplateId('');
+        setJudgeRubricNameDraft('');
+        setJudgeRubricContentDraft('');
+        setJudgeRubricStatus('Started a new judge rubric draft.');
+    };
+
+    const deleteSelectedJudgeRubric = () => {
+        if (!selectedJudgeRubricTemplate) {
+            setJudgeRubricStatus('Select a judge rubric to delete.');
+            return;
+        }
+        if (isBuiltinJudgeRubricTemplateId(selectedJudgeRubricTemplate.id)) {
+            setJudgeRubricStatus('Built-in judge rubric templates cannot be deleted.');
+            return;
+        }
+
+        setJudgeRubricLibrary((previous) => previous.filter((rubric) => rubric.id !== selectedJudgeRubricTemplate.id));
+        setRubricJudgeConfig((previous) => ({
+            ...previous,
+            selectedJudgeRubricIds: previous.selectedJudgeRubricIds.filter((id) => id !== selectedJudgeRubricTemplate.id),
+        }));
+        setSelectedJudgeRubricTemplateId('');
+        setJudgeRubricNameDraft('');
+        setJudgeRubricContentDraft('');
+        setJudgeRubricStatus('Judge rubric deleted.');
+    };
+
+    const importJudgeRubricLibrary = (raw: string) => {
+        const parsed = parseJudgeRubricLibraryImport(raw);
+        if (parsed.error) {
+            setJudgeRubricStatus(parsed.error);
+            return;
+        }
+        setJudgeRubricLibrary((previous) => mergeJudgeRubricLibraries(previous, parsed.rubrics));
+        setJudgeRubricStatus(`Imported ${parsed.rubrics.length} judge rubric${parsed.rubrics.length === 1 ? '' : 's'}.`);
+    };
+
+    const exportJudgeRubricLibrary = () => {
+        if (judgeRubricLibrary.length === 0) {
+            setJudgeRubricStatus('No judge rubrics to export.');
+            return;
+        }
+
+        const blob = new Blob([judgeRubricLibraryToJson(judgeRubricLibrary)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `judge-rubric-library-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+        setJudgeRubricStatus('Judge rubric library exported.');
+    };
+
     const saveCurrentRun = () => {
         if (!summary || results.length === 0) {
             setSavedRunStatus('Run a benchmark first, then save the run.');
@@ -1007,13 +1743,24 @@ export default function GeneralBenchmarkingPage() {
             mainConfig,
             forcedConfig,
             singleProbeConfig,
+            rubricJudgeConfig,
             selectedMultiModelKeys,
             multiModelRunsPerArm,
             editableQuestion,
             selectedPrompt,
+            selectedGenerationPrompts,
+            selectedJudgeRubrics,
         });
 
-        const runTitle = buildSavedRunTitle(benchmarkMode, mainConfig, forcedConfig, singleProbeConfig, multiModelRunsPerArm);
+        const runTitle = buildSavedRunTitle(
+            benchmarkMode,
+            mainConfig,
+            forcedConfig,
+            singleProbeConfig,
+            rubricJudgeConfig,
+            multiModelRunsPerArm,
+            selectedJudgeRubrics.length,
+        );
 
         const nextRun: SavedBenchmarkRun = {
             id: `saved_run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -1099,7 +1846,7 @@ export default function GeneralBenchmarkingPage() {
                             <SectionHeader
                                 title="Active Benchmark"
                                 description={buildBenchmarkDescription(benchmarkMode)}
-                                actions={<InfoTip label="Use the left benchmark selector to switch between main benchmarking, forced-test benchmarking, single-question probing, and multi-model single-question A/B testing." />}
+                                actions={<InfoTip label="Use the left benchmark selector to switch between main benchmarking, forced-test benchmarking, single-question probing, multi-model single-question A/B, and rubric-first multi-model judging." />}
                             />
                         </section>
 
@@ -1158,6 +1905,52 @@ export default function GeneralBenchmarkingPage() {
                                 onSelectAllMultiModels={selectAllMultiModels}
                                 onClearAllMultiModels={clearAllMultiModels}
                                 onMultiModelRunsPerArmChange={setMultiModelRunsPerArm}
+                            />
+                        ) : benchmarkMode === 'single_probe_multi_model_rubric_judge' ? (
+                            <RubricJudgeProbePanel
+                                config={rubricJudgeConfig}
+                                setConfig={setRubricJudgeConfig}
+                                availableQuestions={singleDatasetRows}
+                                selectedDatasetQuestionId={singleProbeConfig.selectedDatasetQuestionId}
+                                onSelectDatasetQuestionId={(id) => setSingleProbeConfig((prev) => ({ ...prev, selectedDatasetQuestionId: id }))}
+                                editableQuestion={editableQuestion}
+                                setEditableQuestion={setEditableQuestion}
+                                prompts={promptLibrary}
+                                selectedPrompt={selectedPrompt}
+                                promptNameDraft={promptNameDraft}
+                                setPromptNameDraft={setPromptNameDraft}
+                                promptContentDraft={promptContentDraft}
+                                setPromptContentDraft={setPromptContentDraft}
+                                promptStatus={promptStatus}
+                                onLoadDatasetQuestion={loadDatasetQuestionIntoEditor}
+                                onSavePrompt={savePromptTemplate}
+                                onCreateNewPrompt={createNewPromptDraft}
+                                onDeletePrompt={deleteSelectedPrompt}
+                                onExportPrompts={exportPromptLibrary}
+                                onImportPrompts={importPromptLibrary}
+                                judgeRubrics={judgeRubricLibrary}
+                                selectedJudgeRubricTemplateId={selectedJudgeRubricTemplateId}
+                                onSelectJudgeRubricTemplateId={setSelectedJudgeRubricTemplateId}
+                                selectedJudgeRubricTemplate={selectedJudgeRubricTemplate}
+                                judgeRubricNameDraft={judgeRubricNameDraft}
+                                setJudgeRubricNameDraft={setJudgeRubricNameDraft}
+                                judgeRubricContentDraft={judgeRubricContentDraft}
+                                setJudgeRubricContentDraft={setJudgeRubricContentDraft}
+                                judgeRubricStatus={judgeRubricStatus}
+                                onSaveJudgeRubric={saveJudgeRubricTemplate}
+                                onCreateNewJudgeRubric={createNewJudgeRubricDraft}
+                                onDeleteJudgeRubric={deleteSelectedJudgeRubric}
+                                onExportJudgeRubrics={exportJudgeRubricLibrary}
+                                onImportJudgeRubrics={importJudgeRubricLibrary}
+                                multiModelOptions={multiModelOptions}
+                                selectedMultiModelKeys={selectedMultiModelKeys}
+                                onToggleMultiModel={toggleMultiModelSelection}
+                                onSelectAllMultiModels={selectAllMultiModels}
+                                onClearAllMultiModels={clearAllMultiModels}
+                                onRun={runExperiment}
+                                isRunning={isRunning}
+                                canRun={rubricJudgeRunValidation.canRun}
+                                runDisabledReason={rubricJudgeRunValidation.reason}
                             />
                         ) : (
                             <SingleQuestionProbePanel
@@ -1274,6 +2067,17 @@ export default function GeneralBenchmarkingPage() {
                                     <EmptyState
                                         title="No multi-model A/B results yet"
                                         description="Choose models and run the multi-model single-question test to compare outputs with and without custom prompt."
+                                    />
+                                )
+                            ) : benchmarkMode === 'single_probe_multi_model_rubric_judge' ? (
+                                isRunning ? (
+                                    <LoadingRunState status={runStatusText} />
+                                ) : summary ? (
+                                    <RubricJudgeProbeResults summary={summary} results={results} />
+                                ) : (
+                                    <EmptyState
+                                        title="No rubric-first results yet"
+                                        description="Run the rubric-first multi-model judge benchmark to view rubric strengths, weaknesses, and significance."
                                     />
                                 )
                             ) : isRunning ? (
@@ -1691,6 +2495,9 @@ function buildBenchmarkDescription(mode: BenchmarkMode) {
     if (mode === 'single_probe_multi_model') {
         return 'Run multiple models on one question in two arms: without custom prompt and with custom prompt.';
     }
+    if (mode === 'single_probe_multi_model_rubric_judge') {
+        return 'Run all selected models with one or more generation prompts and evaluate outputs with multi-select judge rubrics plus significance testing.';
+    }
     return 'Probe any single question with optional custom prompt templates and save runs for cross-run comparison.';
 }
 
@@ -1699,19 +2506,25 @@ function buildSavedRunConfigSnapshot({
     mainConfig,
     forcedConfig,
     singleProbeConfig,
+    rubricJudgeConfig,
     selectedMultiModelKeys,
     multiModelRunsPerArm,
     editableQuestion,
     selectedPrompt,
+    selectedGenerationPrompts,
+    selectedJudgeRubrics,
 }: {
     benchmarkMode: BenchmarkMode;
     mainConfig: MainExperimentConfig;
     forcedConfig: ForcedExperimentConfig;
     singleProbeConfig: SingleProbeConfig;
+    rubricJudgeConfig: RubricJudgeProbeConfig;
     selectedMultiModelKeys: string[];
     multiModelRunsPerArm: number;
     editableQuestion: EditableSingleQuestion;
     selectedPrompt: PromptTemplate | null;
+    selectedGenerationPrompts: PromptTemplate[];
+    selectedJudgeRubrics: JudgeRubricTemplate[];
 }) {
     if (benchmarkMode === 'main') {
         return {
@@ -1738,6 +2551,16 @@ function buildSavedRunConfigSnapshot({
                 : null,
         };
     }
+    if (benchmarkMode === 'single_probe_multi_model_rubric_judge') {
+        return {
+            mode: 'single_probe_multi_model_rubric_judge',
+            ...rubricJudgeConfig,
+            selectedModels: selectedMultiModelKeys,
+            question: editableQuestion,
+            generationPrompts: selectedGenerationPrompts.map((prompt) => ({ id: prompt.id, name: prompt.name })),
+            judgeRubrics: selectedJudgeRubrics.map((rubric) => ({ id: rubric.id, name: rubric.name })),
+        };
+    }
 
     return {
         ...singleProbeConfig,
@@ -1753,7 +2576,9 @@ function buildSavedRunTitle(
     mainConfig: MainExperimentConfig,
     forcedConfig: ForcedExperimentConfig,
     singleProbeConfig: SingleProbeConfig,
-    multiModelRunsPerArm: number
+    rubricJudgeConfig: RubricJudgeProbeConfig,
+    multiModelRunsPerArm: number,
+    selectedJudgeRubricCount: number,
 ) {
     if (benchmarkMode === 'main') {
         return `${mainConfig.dataset.toUpperCase()} - ${mainConfig.model}`;
@@ -1765,6 +2590,11 @@ function buildSavedRunTitle(
     }
     if (benchmarkMode === 'single_probe_multi_model') {
         return `Multi-model single-question A/B (x${Math.min(Math.max(multiModelRunsPerArm, 1), 20)}/arm)`;
+    }
+    if (benchmarkMode === 'single_probe_multi_model_rubric_judge') {
+        const scope = rubricJudgeConfig.runScope === 'dataset' ? 'dataset' : 'single';
+        const promptCount = Math.max(1, rubricJudgeConfig.selectedGenerationPromptIds.length);
+        return `Rubric-first multi-model (${scope}, ${promptCount} prompt${promptCount === 1 ? '' : 's'}, x${rubricJudgeConfig.runsPerQuestion}/q, ${selectedJudgeRubricCount} rubric${selectedJudgeRubricCount === 1 ? '' : 's'})`;
     }
     return `${singleProbeConfig.provider}/${singleProbeConfig.model} - single probe`;
 }
@@ -1988,6 +2818,116 @@ function selectStratifiedSample(questions: DatasetRow[], limit: number) {
     return selected;
 }
 
+function sampleDatasetQuestionsForRubricRun(
+    questions: DatasetQuestion[],
+    limit: number,
+    strategy: 'random' | 'stratified',
+    seed: number,
+) {
+    const safeLimit = Math.max(1, Math.min(limit, questions.length));
+    if (safeLimit <= 0) {
+        return [] as EditableSingleQuestion[];
+    }
+
+    const sorted = [...questions].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    const chosen = strategy === 'stratified'
+        ? selectStratifiedDatasetQuestions(sorted, safeLimit)
+        : deterministicShuffle(sorted, seed).slice(0, safeLimit);
+
+    return chosen
+        .map((question) => toEditableQuestion(question))
+        .filter((item): item is EditableSingleQuestion => item !== null);
+}
+
+function selectStratifiedDatasetQuestions(questions: DatasetQuestion[], limit: number) {
+    const groups = new Map<string, DatasetQuestion[]>();
+    for (const question of questions) {
+        const key = question.subfield || 'Unknown';
+        if (!groups.has(key)) {
+            groups.set(key, []);
+        }
+        groups.get(key)?.push(question);
+    }
+
+    const keys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+    for (const key of keys) {
+        groups.get(key)?.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    }
+
+    const selected: DatasetQuestion[] = [];
+    const indices = new Map<string, number>(keys.map((key) => [key, 0]));
+    while (selected.length < limit) {
+        let pickedAny = false;
+        for (const key of keys) {
+            if (selected.length >= limit) {
+                break;
+            }
+            const group = groups.get(key) || [];
+            const index = indices.get(key) || 0;
+            if (index < group.length) {
+                selected.push(group[index]);
+                indices.set(key, index + 1);
+                pickedAny = true;
+            }
+        }
+        if (!pickedAny) {
+            break;
+        }
+    }
+    return selected;
+}
+
+function toEditableQuestion(question: DatasetQuestion): EditableSingleQuestion | null {
+    const normalizedChoices = question.choices
+        .map((choice) => choice.trim())
+        .filter((choice) => choice.length > 0)
+        .slice(0, 10);
+    if (normalizedChoices.length < 2) {
+        return null;
+    }
+
+    const validLetters = getChoiceLetters(normalizedChoices.length);
+    const incoming = typeof question.answer_letter === 'string' ? question.answer_letter.trim().toUpperCase() : '';
+    const answerLetter = validLetters.includes(incoming) ? incoming : validLetters[0];
+
+    return {
+        id: question.id,
+        question: question.question,
+        choices: normalizedChoices,
+        answerLetter,
+        subfield: question.subfield,
+        difficulty: question.difficulty,
+    };
+}
+
+function bootstrapCiForScores(scores: number[], samples: number, seed: number) {
+    if (scores.length === 0) {
+        return { low: 0, high: 0 };
+    }
+
+    const sampleCount = Math.max(200, Math.floor(samples));
+    const means: number[] = new Array(sampleCount);
+    let state = normalizeSeed(seed);
+
+    for (let i = 0; i < sampleCount; i += 1) {
+        let sum = 0;
+        for (let j = 0; j < scores.length; j += 1) {
+            state = nextSeed(state);
+            const idx = state % scores.length;
+            sum += scores[idx];
+        }
+        means[i] = sum / scores.length;
+    }
+
+    means.sort((a, b) => a - b);
+    const lowIndex = Math.max(0, Math.floor(0.025 * sampleCount));
+    const highIndex = Math.min(sampleCount - 1, Math.ceil(0.975 * sampleCount) - 1);
+    return {
+        low: means[lowIndex],
+        high: means[highIndex],
+    };
+}
+
 function isAbortError(error: unknown) {
     return (
         (error instanceof DOMException && error.name === 'AbortError')
@@ -2026,6 +2966,10 @@ function readGeneralBenchmarkUiStateFromStorage(): GeneralBenchmarkUiState | nul
         if (!isSingleProbeConfig(parsed.singleProbeConfig)) {
             return null;
         }
+        const normalizedRubricJudgeConfig = normalizeRubricJudgeProbeConfig(parsed.rubricJudgeConfig);
+        if (!normalizedRubricJudgeConfig) {
+            return null;
+        }
         if (!Array.isArray(parsed.selectedMultiModelKeys) || !parsed.selectedMultiModelKeys.every((key) => typeof key === 'string')) {
             return null;
         }
@@ -2036,7 +2980,13 @@ function readGeneralBenchmarkUiStateFromStorage(): GeneralBenchmarkUiState | nul
         if (!isEditableSingleQuestion(parsed.editableQuestion)) {
             return null;
         }
-        if (typeof parsed.promptNameDraft !== 'string' || typeof parsed.promptContentDraft !== 'string') {
+        if (
+            typeof parsed.promptNameDraft !== 'string'
+            || typeof parsed.promptContentDraft !== 'string'
+            || typeof parsed.selectedJudgeRubricTemplateId !== 'string'
+            || typeof parsed.judgeRubricNameDraft !== 'string'
+            || typeof parsed.judgeRubricContentDraft !== 'string'
+        ) {
             return null;
         }
 
@@ -2046,11 +2996,15 @@ function readGeneralBenchmarkUiStateFromStorage(): GeneralBenchmarkUiState | nul
             mainConfig: parsed.mainConfig as MainExperimentConfig,
             forcedConfig: parsed.forcedConfig as ForcedExperimentConfig,
             singleProbeConfig: parsed.singleProbeConfig,
+            rubricJudgeConfig: normalizedRubricJudgeConfig,
             selectedMultiModelKeys: parsed.selectedMultiModelKeys,
             multiModelRunsPerArm: runsPerArm,
             editableQuestion: parsed.editableQuestion,
             promptNameDraft: parsed.promptNameDraft,
             promptContentDraft: parsed.promptContentDraft,
+            selectedJudgeRubricTemplateId: parsed.selectedJudgeRubricTemplateId,
+            judgeRubricNameDraft: parsed.judgeRubricNameDraft,
+            judgeRubricContentDraft: parsed.judgeRubricContentDraft,
         };
     } catch (error) {
         console.error('Failed to read general benchmarking UI state:', error);
@@ -2175,7 +3129,13 @@ function normalizeSavedRun(value: unknown): SavedBenchmarkRun | null {
     const mode = value.mode;
     const title = typeof value.title === 'string' ? value.title : '';
 
-    if (!id || !savedAt || !title || (mode !== 'main' && mode !== 'forced_tests' && mode !== 'single_probe' && mode !== 'single_probe_multi_model')) {
+    if (!id || !savedAt || !title || (
+        mode !== 'main'
+        && mode !== 'forced_tests'
+        && mode !== 'single_probe'
+        && mode !== 'single_probe_multi_model'
+        && mode !== 'single_probe_multi_model_rubric_judge'
+    )) {
         return null;
     }
 
@@ -2248,7 +3208,8 @@ function isBenchmarkMode(value: unknown): value is BenchmarkMode {
     return value === 'main'
         || value === 'forced_tests'
         || value === 'single_probe'
-        || value === 'single_probe_multi_model';
+        || value === 'single_probe_multi_model'
+        || value === 'single_probe_multi_model_rubric_judge';
 }
 
 function isSingleProbeConfig(value: unknown): value is SingleProbeConfig {
@@ -2275,6 +3236,86 @@ function isSingleProbeConfig(value: unknown): value is SingleProbeConfig {
         && typeof value.useCustomPrompt === 'boolean'
         && typeof value.selectedPromptId === 'string'
     );
+}
+
+function isRubricJudgeProbeConfig(value: unknown): value is RubricJudgeProbeConfig {
+    if (!isRecord(value)) {
+        return false;
+    }
+
+    const runScopeValid = value.runScope === 'single' || value.runScope === 'dataset';
+    const strictnessValid = value.strictnessMode === 'strict' || value.strictnessMode === 'best_effort';
+    const providerValid = value.judgeProvider === 'openai' || value.judgeProvider === 'anthropic' || value.judgeProvider === 'gemini';
+    const reasoningValid = value.judgeReasoningEffort === 'none'
+        || value.judgeReasoningEffort === 'low'
+        || value.judgeReasoningEffort === 'medium'
+        || value.judgeReasoningEffort === 'high'
+        || value.judgeReasoningEffort === 'xhigh';
+
+    return (
+        runScopeValid
+        && strictnessValid
+        && providerValid
+        && reasoningValid
+        && typeof value.selectedGenerationPromptId === 'string'
+        && Array.isArray(value.selectedGenerationPromptIds)
+        && value.selectedGenerationPromptIds.every((id) => typeof id === 'string')
+        && Array.isArray(value.selectedJudgeRubricIds)
+        && value.selectedJudgeRubricIds.every((id) => typeof id === 'string')
+        && typeof value.runsPerQuestion === 'number'
+        && Number.isFinite(value.runsPerQuestion)
+        && typeof value.judgeModel === 'string'
+        && (value.datasetSampleStrategy === 'random' || value.datasetSampleStrategy === 'stratified')
+        && typeof value.datasetSampleSize === 'number'
+        && Number.isFinite(value.datasetSampleSize)
+        && typeof value.sampleSeed === 'number'
+        && Number.isFinite(value.sampleSeed)
+        && typeof value.statValidationEnabled === 'boolean'
+        && typeof value.statAlpha === 'number'
+        && Number.isFinite(value.statAlpha)
+        && typeof value.statPower === 'number'
+        && Number.isFinite(value.statPower)
+        && typeof value.statMinEffectSizeDz === 'number'
+        && Number.isFinite(value.statMinEffectSizeDz)
+        && typeof value.statMaxQuestions === 'number'
+        && Number.isFinite(value.statMaxQuestions)
+        && typeof value.statPermutations === 'number'
+        && Number.isFinite(value.statPermutations)
+        && typeof value.statBootstrapSamples === 'number'
+        && Number.isFinite(value.statBootstrapSamples)
+        && typeof value.generationRepairRetries === 'number'
+        && Number.isFinite(value.generationRepairRetries)
+    );
+}
+
+function normalizeRubricJudgeProbeConfig(value: unknown): RubricJudgeProbeConfig | null {
+    if (!isRecord(value)) {
+        return null;
+    }
+
+    const candidate = {
+        ...value,
+        runsPerQuestion: typeof value.runsPerQuestion === 'number' ? value.runsPerQuestion : 1,
+        selectedGenerationPromptIds: Array.isArray(value.selectedGenerationPromptIds)
+            ? value.selectedGenerationPromptIds.filter((id): id is string => typeof id === 'string')
+            : [
+                ...(typeof value.selectedGenerationPromptId === 'string' && value.selectedGenerationPromptId.length > 0
+                    ? [value.selectedGenerationPromptId]
+                    : []),
+                ...(typeof value.selectedGenerationPromptIdB === 'string' && value.selectedGenerationPromptIdB.length > 0
+                    ? [value.selectedGenerationPromptIdB]
+                    : []),
+            ],
+    };
+    if (!isRubricJudgeProbeConfig(candidate)) {
+        return null;
+    }
+    const uniquePromptIds = Array.from(new Set(candidate.selectedGenerationPromptIds));
+    return {
+        ...candidate,
+        runsPerQuestion: Math.min(20, Math.max(1, Math.floor(candidate.runsPerQuestion))),
+        selectedGenerationPromptIds: uniquePromptIds,
+    };
 }
 
 function isEditableSingleQuestion(value: unknown): value is EditableSingleQuestion {

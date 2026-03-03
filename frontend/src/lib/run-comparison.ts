@@ -1,4 +1,9 @@
-export type BenchmarkMode = 'main' | 'forced_tests' | 'single_probe' | 'single_probe_multi_model';
+export type BenchmarkMode =
+    'main'
+    | 'forced_tests'
+    | 'single_probe'
+    | 'single_probe_multi_model'
+    | 'single_probe_multi_model_rubric_judge';
 
 export type SavedBenchmarkRun = {
     id: string;
@@ -50,6 +55,16 @@ export function extractRunMetric(run: SavedBenchmarkRun): RunMetric {
         return {
             label: 'Mean Score',
             value: summary.meanScore.toFixed(1),
+            detailLabel: 'Scored',
+            detailValue: `${scored}`,
+        };
+    }
+
+    if (typeof summary.meanJudgeScore === 'number') {
+        const scored = typeof summary.scoredJudgeCount === 'number' ? summary.scoredJudgeCount : run.results.length;
+        return {
+            label: 'Mean Judge',
+            value: summary.meanJudgeScore.toFixed(1),
             detailLabel: 'Scored',
             detailValue: `${scored}`,
         };

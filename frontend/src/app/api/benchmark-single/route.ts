@@ -70,7 +70,7 @@ export async function POST(req: Request) {
             choicesText,
             '',
             `Valid answer letters: ${validLetters.join(', ')}`,
-            'Return ONLY the final answer letter (e.g., A, B, C, D). Do not include explanation.'
+            'Provide your full analysis, then on the final line write exactly: FINAL ANSWER: <LETTER>.'
         );
 
         const output = await generateModelResponse({
@@ -561,17 +561,20 @@ function clampTemperature(value: number) {
 }
 
 function extractResponsesText(response: { output_text?: string; output?: Array<{ content?: Array<{ text?: string }> }> }) {
-    if (typeof response.output_text === 'string') {
+    if (typeof response.output_text === 'string' && response.output_text.length > 0) {
         return response.output_text;
     }
 
-    const content = response.output?.[0]?.content;
-    if (!content || content.length === 0) {
-        return '';
+    const chunks: string[] = [];
+    for (const outputItem of response.output || []) {
+        for (const contentItem of outputItem.content || []) {
+            if (typeof contentItem.text === 'string' && contentItem.text.length > 0) {
+                chunks.push(contentItem.text);
+            }
+        }
     }
 
-    const firstText = content[0]?.text;
-    return typeof firstText === 'string' ? firstText : '';
+    return chunks.join('\n');
 }
 
 function extractProviderErrorMessage(value: unknown) {

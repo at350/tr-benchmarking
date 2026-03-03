@@ -1,8 +1,13 @@
 import asyncio
 import json
 import os
+import random
 import time
+import numpy as np
 from lsh.pipeline import LSHEvaluationPipeline
+
+EDGE_SAMPLE_SEED = 42
+EDGE_SAMPLE_COUNT = 3
 
 DATA_FILE = "lsh/data/responses.json"
 RESULTS_DIR = "lsh/results"
@@ -47,7 +52,43 @@ def main():
 
     clusters = results['clusters']
     reps = results['representatives']
-    
+    embeddings = pipeline.embeddings
+
+    def get_centroid_members(cluster_id, member_ids):
+        """Return centroid (representative) plus 2 closest members."""
+        if cluster_id == "noise" or len(member_ids) == 0:
+            return []
+        rep_id = reps.get(cluster_id) if isinstance(cluster_id, int) else None
+        if not rep_id or rep_id not in embeddings:
+            return []
+        centroid = embeddings[rep_id]
+        members_excl_rep = [m for m in member_ids if m in embeddings and m != rep_id]
+        result = [rep_id]
+        if members_excl_rep:
+            distances = [(m, float(np.linalg.norm(embeddings[m] - centroid))) for m in members_excl_rep]
+            distances.sort(key=lambda x: x[1])
+            result.extend([m for m, _ in distances[:2]])
+        return result
+
+    def get_edge_members(cluster_id, member_ids):
+        """Sample 3 random members from the outer third (farthest from centroid)."""
+        if cluster_id == "noise" or len(member_ids) < 2:
+            return []
+        rep_id = reps.get(cluster_id) if isinstance(cluster_id, int) else None
+        if not rep_id or rep_id not in embeddings:
+            return []
+        centroid = embeddings[rep_id]
+        members_with_emb = [m for m in member_ids if m in embeddings]
+        if len(members_with_emb) < 2:
+            return []
+        distances = [(m, float(np.linalg.norm(embeddings[m] - centroid))) for m in members_with_emb]
+        distances.sort(key=lambda x: x[1], reverse=True)
+        outer_third_count = max(1, len(distances) // 3)
+        outer_member_ids = [m for m, _ in distances[:outer_third_count]]
+        rng = random.Random(EDGE_SAMPLE_SEED)
+        sample = rng.sample(outer_member_ids, min(EDGE_SAMPLE_COUNT, len(outer_member_ids)))
+        return sample
+
     # Sort clusters by size
     sorted_clusters = sorted(clusters.items(), key=lambda x: len(x[1]), reverse=True)
     
@@ -82,6 +123,18 @@ def main():
                 "model": id_to_model.get(member_id, "unknown"),
                 "text": id_to_text.get(member_id, "")
             })
+
+        centroid_ids = get_centroid_members(cluster_id, members)
+        cluster_data["centroid_members"] = [
+            {"id": cid, "model": id_to_model.get(cid, "unknown"), "text": id_to_text.get(cid, "")}
+            for cid in centroid_ids
+        ]
+
+        edge_ids = get_edge_members(cluster_id, members)
+        cluster_data["edge_members"] = [
+            {"id": eid, "model": id_to_model.get(eid, "unknown"), "text": id_to_text.get(eid, "")}
+            for eid in edge_ids
+        ]
             
         full_output["clusters"][str(cluster_id)] = cluster_data
         
