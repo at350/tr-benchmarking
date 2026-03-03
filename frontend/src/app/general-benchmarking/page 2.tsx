@@ -199,6 +199,8 @@ export default function GeneralBenchmarkingPage() {
     const [promptNameDraft, setPromptNameDraft] = useState('');
     const [promptContentDraft, setPromptContentDraft] = useState('');
     const [promptStatus, setPromptStatus] = useState<string | null>(null);
+    const [hasHydratedPromptLibrary, setHasHydratedPromptLibrary] = useState(false);
+    const [hasHydratedSavedRuns, setHasHydratedSavedRuns] = useState(false);
 
     const selectedPrompt = useMemo(
         () => promptLibrary.find((prompt) => prompt.id === singleProbeConfig.selectedPromptId) || null,
@@ -218,16 +220,24 @@ export default function GeneralBenchmarkingPage() {
     useEffect(() => {
         setRunHistory(readRunHistoryFromStorage());
         setSavedRuns(readSavedRunsFromStorage());
+        setHasHydratedSavedRuns(true);
         setPromptLibrary(readPromptLibraryFromStorage());
+        setHasHydratedPromptLibrary(true);
     }, []);
 
     useEffect(() => {
+        if (!hasHydratedPromptLibrary) {
+            return;
+        }
         writePromptLibraryToStorage(promptLibrary);
-    }, [promptLibrary]);
+    }, [hasHydratedPromptLibrary, promptLibrary]);
 
     useEffect(() => {
+        if (!hasHydratedSavedRuns) {
+            return;
+        }
         writeSavedRunsToStorage(savedRuns);
-    }, [savedRuns]);
+    }, [hasHydratedSavedRuns, savedRuns]);
 
     useEffect(() => {
         if (!selectedPrompt) {
@@ -1290,6 +1300,7 @@ export default function GeneralBenchmarkingPage() {
                             onClearAll={clearAllSavedRuns}
                             onCompareSelected={compareSelectedSavedRuns}
                             onHideComparison={hideComparison}
+                            onOpenRun={() => {}}
                         />
                     </div>
                 </div>

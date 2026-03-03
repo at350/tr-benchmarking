@@ -46,8 +46,6 @@ import {
 import { computeRubricPairwiseComparisons, estimateRequiredSampleSizePaired, RubricScoreObservation } from '@/lib/statistics-rubric';
 import { SavedBenchmarkRun } from '@/lib/run-comparison';
 
-type SuiteMode = 'main' | 'forced_tests';
-
 type DatasetRow = {
     id: string;
     question?: string;
@@ -69,13 +67,11 @@ type SelectionPreview = {
     bucketCounts: Array<{ label: string; count: number }>;
 };
 
-type HistoryConfig = MainExperimentConfig | ForcedExperimentConfig;
-
 type RunHistoryEntry = {
     id: string;
     createdAt: string;
-    suiteMode: SuiteMode;
-    config: HistoryConfig;
+    mode: BenchmarkMode;
+    config: Record<string, unknown>;
     results: Record<string, unknown>[];
     summary: Record<string, unknown> | null;
 };
@@ -231,6 +227,9 @@ export default function GeneralBenchmarkingPage() {
     const [judgeRubricContentDraft, setJudgeRubricContentDraft] = useState('');
     const [judgeRubricStatus, setJudgeRubricStatus] = useState<string | null>(null);
     const [hasHydratedUiState, setHasHydratedUiState] = useState(false);
+    const [hasHydratedSavedRuns, setHasHydratedSavedRuns] = useState(false);
+    const [hasHydratedPromptLibrary, setHasHydratedPromptLibrary] = useState(false);
+    const [hasHydratedJudgeRubricLibrary, setHasHydratedJudgeRubricLibrary] = useState(false);
 
     const activeGenerationPromptId = benchmarkMode === 'single_probe_multi_model_rubric_judge'
         ? rubricJudgeConfig.selectedGenerationPromptId
@@ -261,12 +260,26 @@ export default function GeneralBenchmarkingPage() {
                 modelLabel: option.label,
             })));
     }, []);
+    const visibleRunHistory = useMemo(
+        () => runHistory.filter((entry) => entry.mode === benchmarkMode),
+        [benchmarkMode, runHistory],
+    );
+    const visibleSavedRuns = useMemo(
+        () => savedRuns.filter((run) => run.mode === benchmarkMode),
+        [benchmarkMode, savedRuns],
+    );
+    const validPromptIdSet = useMemo(() => new Set(promptLibrary.map((prompt) => prompt.id)), [promptLibrary]);
+    const validJudgeRubricIdSet = useMemo(() => new Set(judgeRubricLibrary.map((rubric) => rubric.id)), [judgeRubricLibrary]);
+    const validModelKeySet = useMemo(() => new Set(multiModelOptions.map((option) => option.key)), [multiModelOptions]);
 
     useEffect(() => {
         setRunHistory(readRunHistoryFromStorage());
         setSavedRuns(readSavedRunsFromStorage());
+        setHasHydratedSavedRuns(true);
         setPromptLibrary(readPromptLibraryFromStorage());
+        setHasHydratedPromptLibrary(true);
         setJudgeRubricLibrary(readJudgeRubricLibraryFromStorage());
+        setHasHydratedJudgeRubricLibrary(true);
 
         const persistedUiState = readGeneralBenchmarkUiStateFromStorage();
         if (persistedUiState) {
@@ -297,16 +310,43 @@ export default function GeneralBenchmarkingPage() {
     }, []);
 
     useEffect(() => {
+        if (!hasHydratedPromptLibrary) {
+            return;
+        }
         writePromptLibraryToStorage(promptLibrary);
-    }, [promptLibrary]);
+    }, [hasHydratedPromptLibrary, promptLibrary]);
 
     useEffect(() => {
+        if (!hasHydratedJudgeRubricLibrary) {
+            return;
+        }
         writeJudgeRubricLibraryToStorage(judgeRubricLibrary);
-    }, [judgeRubricLibrary]);
+    }, [hasHydratedJudgeRubricLibrary, judgeRubricLibrary]);
 
     useEffect(() => {
+        if (!hasHydratedSavedRuns) {
+            return;
+        }
         writeSavedRunsToStorage(savedRuns);
-    }, [savedRuns]);
+    }, [hasHydratedSavedRuns, savedRuns]);
+
+    useEffect(() => {
+        const visibleIds = new Set(visibleSavedRuns.map((run) => run.id));
+        setSelectedSavedRunIds((previous) => {
+            const next = previous.filter((id) => visibleIds.has(id));
+            if (next.length === previous.length && next.every((id, index) => id === previous[index])) {
+                return previous;
+            }
+            return next;
+        });
+        setComparisonRunIds((previous) => {
+            const next = previous.filter((id) => visibleIds.has(id));
+            if (next.length === previous.length && next.every((id, index) => id === previous[index])) {
+                return previous;
+            }
+            return next;
+        });
+    }, [visibleSavedRuns]);
 
     useEffect(() => {
         if (!selectedPrompt) {
@@ -592,6 +632,133 @@ export default function GeneralBenchmarkingPage() {
     const mainDashboardSummary = summary as Parameters<typeof MainResultsDashboard>[0]['summary'];
     const forcedDashboardResults = results as Parameters<typeof ForcedResultsDashboard>[0]['results'];
     const forcedDashboardSummary = summary as Parameters<typeof ForcedResultsDashboard>[0]['summary'];
+    const buildCurrentSavedRunConfigSnapshot = (mode: BenchmarkMode): Record<string, unknown> => (
+        buildSavedRunConfigSnapshot({
+            benchmarkMode: mode,
+            mainConfig,
+            forcedConfig,
+            singleProbeConfig,
+            rubricJudgeConfig,
+            selectedMultiModelKeys,
+            multiModelRunsPerArm,
+            editableQuestion,
+            selectedPrompt,
+            selectedGenerationPrompts,
+            selectedJudgeRubrics,
+        })
+    );
+
+    const restoreRunConfigFromSnapshot = (mode: BenchmarkMode, configSnapshot: Record<string, unknown>) => {
+        if (mode === 'main') {
+            const restoredMainConfig = normalizeMainConfigForRestore(configSnapshot);
+            if (restoredMainConfig) {
+                setMainConfig(restoredMainConfig);
+            }
+            return;
+        }
+
+        if (mode === 'forced_tests') {
+            const restoredForcedConfig = normalizeForcedConfigForRestore(configSnapshot);
+            if (restoredForcedConfig) {
+                setForcedConfig(restoredForcedConfig);
+            }
+            return;
+        }
+
+        const restoredQuestion = extractEditableQuestionFromSnapshot(configSnapshot);
+        if (restoredQuestion) {
+            setEditableQuestion(restoredQuestion);
+            setSingleProbeConfig((previous) => ({ ...previous, selectedDatasetQuestionId: restoredQuestion.id }));
+        }
+
+        if (mode === 'single_probe') {
+            const restoredSingleProbeConfig = normalizeSingleProbeConfigForRestore(configSnapshot);
+            if (restoredSingleProbeConfig) {
+                setSingleProbeConfig({
+                    ...restoredSingleProbeConfig,
+                    selectedPromptId: validPromptIdSet.has(restoredSingleProbeConfig.selectedPromptId)
+                        ? restoredSingleProbeConfig.selectedPromptId
+                        : '',
+                });
+                return;
+            }
+
+            const restoredPromptId = extractPromptIdFromSnapshot(configSnapshot);
+            if (restoredPromptId && validPromptIdSet.has(restoredPromptId)) {
+                setSingleProbeConfig((previous) => ({ ...previous, selectedPromptId: restoredPromptId }));
+            }
+            return;
+        }
+
+        const restoredModels = extractSelectedModelKeysFromSnapshot(configSnapshot).filter((key) => validModelKeySet.has(key));
+        setSelectedMultiModelKeys(restoredModels);
+
+        if (mode === 'single_probe_multi_model') {
+            const restoredRunsPerArm = extractRunsPerArmFromSnapshot(configSnapshot);
+            if (restoredRunsPerArm !== null) {
+                setMultiModelRunsPerArm(restoredRunsPerArm);
+            }
+
+            const restoredPromptId = extractPromptIdFromSnapshot(configSnapshot);
+            setSingleProbeConfig((previous) => ({
+                ...previous,
+                selectedPromptId: restoredPromptId && validPromptIdSet.has(restoredPromptId)
+                    ? restoredPromptId
+                    : '',
+            }));
+            return;
+        }
+
+        const restoredRubricConfig = normalizeRubricJudgeProbeConfig(configSnapshot);
+        if (restoredRubricConfig) {
+            const restoredPromptIds = extractGenerationPromptIdsFromSnapshot(configSnapshot, restoredRubricConfig.selectedGenerationPromptIds)
+                .filter((id) => validPromptIdSet.has(id));
+            const restoredRubricIds = extractJudgeRubricIdsFromSnapshot(configSnapshot, restoredRubricConfig.selectedJudgeRubricIds)
+                .filter((id) => validJudgeRubricIdSet.has(id));
+
+            const selectedGenerationPromptId = restoredPromptIds.includes(restoredRubricConfig.selectedGenerationPromptId)
+                ? restoredRubricConfig.selectedGenerationPromptId
+                : (restoredPromptIds[0] || '');
+
+            setRubricJudgeConfig({
+                ...restoredRubricConfig,
+                selectedGenerationPromptId,
+                selectedGenerationPromptIds: restoredPromptIds,
+                selectedJudgeRubricIds: restoredRubricIds,
+            });
+        }
+    };
+
+    const loadRunSnapshot = ({
+        mode,
+        config,
+        results: runResults,
+        summary: runSummary,
+        activeHistoryRunId,
+        statusMessage,
+    }: {
+        mode: BenchmarkMode;
+        config: Record<string, unknown>;
+        results: Record<string, unknown>[];
+        summary: Record<string, unknown> | null;
+        activeHistoryRunId?: string;
+        statusMessage?: string;
+    }) => {
+        if (isRunning) {
+            return;
+        }
+
+        setBenchmarkMode(mode);
+        setResults(runResults);
+        setSummary(runSummary);
+        setRunStatusText('Preparing experiment...');
+        setActiveRunId(activeHistoryRunId || null);
+        restoreRunConfigFromSnapshot(mode, config);
+
+        if (statusMessage) {
+            setSavedRunStatus(statusMessage);
+        }
+    };
 
     const addRunToHistory = (entry: Omit<RunHistoryEntry, 'id' | 'createdAt'>) => {
         const nextEntry: RunHistoryEntry = {
@@ -609,42 +776,29 @@ export default function GeneralBenchmarkingPage() {
     };
 
     const clearRunHistory = () => {
-        setRunHistory([]);
-        setActiveRunId(null);
-        clearRunHistoryInStorage();
-    };
-
-    const loadRunFromHistory = (entry: RunHistoryEntry) => {
-        if (isRunning) {
+        const removedIds = new Set(visibleRunHistory.map((entry) => entry.id));
+        if (removedIds.size === 0) {
             return;
         }
 
-        setBenchmarkMode(entry.suiteMode);
-        setResults(entry.results);
-        setSummary(entry.summary);
-        setRunStatusText('Preparing experiment...');
-        setActiveRunId(entry.id);
-
-        if (isMainConfig(entry.config)) {
-            setMainConfig({
-                ...entry.config,
-                perturbations: { ...entry.config.perturbations },
-                questionSelectionMode: entry.config.questionSelectionMode || 'auto',
-                autoSelectionOrder: entry.config.autoSelectionOrder || 'random',
-                sampleSeed: typeof entry.config.sampleSeed === 'number' ? entry.config.sampleSeed : 42,
-                manualQuestionIds: entry.config.manualQuestionIds || '',
-            });
-        } else if (isForcedConfig(entry.config)) {
-            setForcedConfig({
-                ...entry.config,
-                controlled: { ...entry.config.controlled },
-                perturbations: { ...entry.config.perturbations },
-                questionSelectionMode: entry.config.questionSelectionMode || 'auto',
-                autoSelectionOrder: entry.config.autoSelectionOrder || 'ordered',
-                sampleSeed: typeof entry.config.sampleSeed === 'number' ? entry.config.sampleSeed : 42,
-                manualQuestionIds: entry.config.manualQuestionIds || '',
-            });
+        setRunHistory((previous) => {
+            const nextHistory = previous.filter((entry) => entry.mode !== benchmarkMode);
+            writeRunHistoryToStorage(nextHistory);
+            return nextHistory;
+        });
+        if (activeRunId && removedIds.has(activeRunId)) {
+            setActiveRunId(null);
         }
+    };
+
+    const loadRunFromHistory = (entry: RunHistoryEntry) => {
+        loadRunSnapshot({
+            mode: entry.mode,
+            config: entry.config,
+            results: entry.results,
+            summary: entry.summary,
+            activeHistoryRunId: entry.id,
+        });
     };
 
     const runMainExperiment = async (signal: AbortSignal, configSnapshot: MainExperimentConfig) => {
@@ -677,8 +831,8 @@ export default function GeneralBenchmarkingPage() {
             setResults(json.results);
             setSummary(json.summary);
             addRunToHistory({
-                suiteMode: 'main',
-                config: configSnapshot,
+                mode: 'main',
+                config: configSnapshot as Record<string, unknown>,
                 results: json.results,
                 summary: json.summary,
             });
@@ -720,8 +874,8 @@ export default function GeneralBenchmarkingPage() {
             setResults(json.results);
             setSummary(json.summary);
             addRunToHistory({
-                suiteMode: 'forced_tests',
-                config: configSnapshot,
+                mode: 'forced_tests',
+                config: configSnapshot as Record<string, unknown>,
                 results: json.results,
                 summary: json.summary,
             });
@@ -784,6 +938,12 @@ export default function GeneralBenchmarkingPage() {
         if (json.results && json.summary) {
             setResults(json.results);
             setSummary(json.summary);
+            addRunToHistory({
+                mode: 'single_probe',
+                config: buildCurrentSavedRunConfigSnapshot('single_probe'),
+                results: json.results,
+                summary: json.summary,
+            });
         }
     };
     const runMultiModelSingleProbe = async (signal: AbortSignal) => {
@@ -949,8 +1109,7 @@ export default function GeneralBenchmarkingPage() {
             };
         });
 
-        setResults(aggregateResults);
-        setSummary({
+        const nextSummary = {
             dataset: 'single_probe_multi_model',
             runsPerArm: repeatCount,
             totalRuns: total,
@@ -968,6 +1127,15 @@ export default function GeneralBenchmarkingPage() {
                 correct: armStats.withoutPrompt.correct,
                 accuracy: armStats.withoutPrompt.total > 0 ? armStats.withoutPrompt.correct / armStats.withoutPrompt.total : 0,
             },
+        };
+
+        setResults(aggregateResults);
+        setSummary(nextSummary);
+        addRunToHistory({
+            mode: 'single_probe_multi_model',
+            config: buildCurrentSavedRunConfigSnapshot('single_probe_multi_model'),
+            results: aggregateResults,
+            summary: nextSummary,
         });
     };
 
@@ -1372,8 +1540,7 @@ export default function GeneralBenchmarkingPage() {
             .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
             .slice(0, 12);
 
-        setResults(aggregateResults);
-        setSummary({
+        const nextSummary = {
             dataset: 'single_probe_multi_model_rubric_judge',
             totalCalls: aggregateResults.length,
             questionCount: questions.length,
@@ -1396,6 +1563,15 @@ export default function GeneralBenchmarkingPage() {
             pairwiseByRubric,
             topStrengths,
             topWeaknesses,
+        };
+
+        setResults(aggregateResults);
+        setSummary(nextSummary);
+        addRunToHistory({
+            mode: 'single_probe_multi_model_rubric_judge',
+            config: buildCurrentSavedRunConfigSnapshot('single_probe_multi_model_rubric_judge'),
+            results: aggregateResults,
+            summary: nextSummary,
         });
     };
 
@@ -1738,19 +1914,7 @@ export default function GeneralBenchmarkingPage() {
             return;
         }
 
-        const configSnapshot = buildSavedRunConfigSnapshot({
-            benchmarkMode,
-            mainConfig,
-            forcedConfig,
-            singleProbeConfig,
-            rubricJudgeConfig,
-            selectedMultiModelKeys,
-            multiModelRunsPerArm,
-            editableQuestion,
-            selectedPrompt,
-            selectedGenerationPrompts,
-            selectedJudgeRubrics,
-        });
+        const configSnapshot = buildCurrentSavedRunConfigSnapshot(benchmarkMode);
 
         const runTitle = buildSavedRunTitle(
             benchmarkMode,
@@ -1787,7 +1951,7 @@ export default function GeneralBenchmarkingPage() {
     };
 
     const selectAllSavedRuns = () => {
-        setSelectedSavedRunIds(savedRuns.map((run) => run.id));
+        setSelectedSavedRunIds(visibleSavedRuns.map((run) => run.id));
     };
 
     const clearSavedRunSelection = () => {
@@ -1806,10 +1970,10 @@ export default function GeneralBenchmarkingPage() {
     };
 
     const clearAllSavedRuns = () => {
-        setSavedRuns([]);
+        setSavedRuns((previous) => previous.filter((run) => run.mode !== benchmarkMode));
         setSelectedSavedRunIds([]);
         setComparisonRunIds([]);
-        setSavedRunStatus('All saved runs removed.');
+        setSavedRunStatus('All saved runs in this mode removed.');
     };
 
     const compareSelectedSavedRuns = () => {
@@ -1824,6 +1988,21 @@ export default function GeneralBenchmarkingPage() {
 
     const hideComparison = () => {
         setComparisonRunIds([]);
+    };
+
+    const openSavedRun = (runId: string) => {
+        const selectedRun = savedRuns.find((run) => run.id === runId);
+        if (!selectedRun) {
+            return;
+        }
+
+        loadRunSnapshot({
+            mode: selectedRun.mode,
+            config: selectedRun.config,
+            results: selectedRun.results,
+            summary: selectedRun.summary,
+            statusMessage: 'Saved run loaded into Run Results.',
+        });
     };
 
     return (
@@ -1985,9 +2164,9 @@ export default function GeneralBenchmarkingPage() {
                             <div className="flex items-start justify-between gap-4">
                                 <div>
                                     <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-600">Recent Runs</h2>
-                                    <p className="mt-1 text-xs text-slate-500">Loads recent Main/Forced run results in this browser session.</p>
+                                    <p className="mt-1 text-xs text-slate-500">Loads recent {getBenchmarkModeLabel(benchmarkMode)} run results in this browser session.</p>
                                 </div>
-                                {runHistory.length > 0 && (
+                                {visibleRunHistory.length > 0 && (
                                     <button
                                         type="button"
                                         onClick={clearRunHistory}
@@ -1999,11 +2178,11 @@ export default function GeneralBenchmarkingPage() {
                                 )}
                             </div>
 
-                            {runHistory.length === 0 ? (
+                            {visibleRunHistory.length === 0 ? (
                                 <p className="mt-3 text-sm text-slate-500">No recent runs yet.</p>
                             ) : (
                                 <div className="mt-3 space-y-2 max-h-56 overflow-y-auto pr-1">
-                                    {runHistory.map((entry) => {
+                                    {visibleRunHistory.map((entry) => {
                                         const isActive = activeRunId === entry.id;
                                         return (
                                             <button
@@ -2015,7 +2194,7 @@ export default function GeneralBenchmarkingPage() {
                                             >
                                                 <div className="flex items-center justify-between gap-3">
                                                     <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                                                        {entry.suiteMode === 'main' ? 'Main' : 'Forced'}
+                                                        {getBenchmarkModeLabel(entry.mode)}
                                                     </span>
                                                     <span className="text-xs text-slate-500">{formatHistoryTimestamp(entry.createdAt)}</span>
                                                 </div>
@@ -2093,7 +2272,7 @@ export default function GeneralBenchmarkingPage() {
                         </section>
 
                         <SavedRunComparisonPanel
-                            savedRuns={savedRuns}
+                            savedRuns={visibleSavedRuns}
                             selectedRunIds={selectedSavedRunIds}
                             comparisonRunIds={comparisonRunIds}
                             statusMessage={savedRunStatus}
@@ -2104,6 +2283,7 @@ export default function GeneralBenchmarkingPage() {
                             onClearAll={clearAllSavedRuns}
                             onCompareSelected={compareSelectedSavedRuns}
                             onHideComparison={hideComparison}
+                            onOpenRun={openSavedRun}
                         />
                     </div>
                 </div>
@@ -2957,10 +3137,10 @@ function readGeneralBenchmarkUiStateFromStorage(): GeneralBenchmarkUiState | nul
         if (typeof parsed.isSidebarCollapsed !== 'boolean') {
             return null;
         }
-        if (!isRecord(parsed.mainConfig) || !isMainConfig(parsed.mainConfig as HistoryConfig)) {
+        if (!isRecord(parsed.mainConfig) || !isMainConfig(parsed.mainConfig)) {
             return null;
         }
-        if (!isRecord(parsed.forcedConfig) || !isForcedConfig(parsed.forcedConfig as HistoryConfig)) {
+        if (!isRecord(parsed.forcedConfig) || !isForcedConfig(parsed.forcedConfig)) {
             return null;
         }
         if (!isSingleProbeConfig(parsed.singleProbeConfig)) {
@@ -3040,7 +3220,11 @@ function readRunHistoryFromStorage(): RunHistoryEntry[] {
             return [];
         }
 
-        return parsed.filter(isRunHistoryEntry).slice(0, MAX_RUN_HISTORY_ENTRIES);
+        return parsed
+            .map((entry) => normalizeRunHistoryEntry(entry))
+            .filter((entry): entry is RunHistoryEntry => entry !== null)
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+            .slice(0, MAX_RUN_HISTORY_ENTRIES);
     } catch (error) {
         console.error('Failed to read run history from storage', error);
         return [];
@@ -3059,26 +3243,34 @@ function writeRunHistoryToStorage(history: RunHistoryEntry[]) {
     }
 }
 
-function clearRunHistoryInStorage() {
-    if (typeof window === 'undefined') {
-        return;
-    }
-    window.localStorage.removeItem(RUN_HISTORY_STORAGE_KEY);
-}
-
-function isRunHistoryEntry(value: unknown): value is RunHistoryEntry {
+function normalizeRunHistoryEntry(value: unknown): RunHistoryEntry | null {
     if (!isRecord(value)) {
-        return false;
+        return null;
     }
 
-    return (
-        typeof value.id === 'string'
-        && typeof value.createdAt === 'string'
-        && (value.suiteMode === 'main' || value.suiteMode === 'forced_tests')
-        && Array.isArray(value.results)
-        && 'summary' in value
-        && isRecord(value.config)
-    );
+    const id = typeof value.id === 'string' ? value.id : '';
+    const createdAt = typeof value.createdAt === 'string' ? value.createdAt : '';
+    const mode = isBenchmarkMode(value.mode)
+        ? value.mode
+        : (value.suiteMode === 'main' || value.suiteMode === 'forced_tests' ? value.suiteMode : null);
+    if (!id || !createdAt || !mode) {
+        return null;
+    }
+
+    const config = isRecord(value.config) ? value.config : {};
+    const summary = isRecord(value.summary) ? value.summary : null;
+    const results = Array.isArray(value.results)
+        ? value.results.filter((item): item is Record<string, unknown> => isRecord(item))
+        : [];
+
+    return {
+        id,
+        createdAt,
+        mode,
+        config,
+        results,
+        summary,
+    };
 }
 
 function readSavedRunsFromStorage(): SavedBenchmarkRun[] {
@@ -3156,11 +3348,11 @@ function normalizeSavedRun(value: unknown): SavedBenchmarkRun | null {
     };
 }
 
-function isMainConfig(config: HistoryConfig): config is MainExperimentConfig {
+function isMainConfig(config: Record<string, unknown>): config is MainExperimentConfig {
     return 'dataset' in config && 'judgeModel' in config;
 }
 
-function isForcedConfig(config: HistoryConfig): config is ForcedExperimentConfig {
+function isForcedConfig(config: Record<string, unknown>): config is ForcedExperimentConfig {
     return 'evaluationMode' in config && 'benchmarkProfile' in config && 'controlled' in config;
 }
 
@@ -3174,7 +3366,16 @@ function buildHistoryTitle(entry: RunHistoryEntry) {
         }
         return entry.config.model;
     }
-    return `${entry.suiteMode === 'main' ? 'Main' : 'Forced'} Run`;
+    if (entry.mode === 'single_probe' && isSingleProbeConfig(entry.config)) {
+        return `${entry.config.provider}/${entry.config.model} - single probe`;
+    }
+    if (entry.mode === 'single_probe_multi_model') {
+        return 'Multi-model single-question A/B';
+    }
+    if (entry.mode === 'single_probe_multi_model_rubric_judge') {
+        return 'Rubric-first multi-model judge';
+    }
+    return `${getBenchmarkModeLabel(entry.mode)} Run`;
 }
 
 function buildHistorySubtitle(entry: RunHistoryEntry) {
@@ -3194,6 +3395,151 @@ function buildHistorySubtitle(entry: RunHistoryEntry) {
     }
 
     return `${entry.results.length} result${entry.results.length === 1 ? '' : 's'}`;
+}
+
+function getBenchmarkModeLabel(mode: BenchmarkMode) {
+    if (mode === 'main') {
+        return 'Main';
+    }
+    if (mode === 'forced_tests') {
+        return 'Forced';
+    }
+    if (mode === 'single_probe') {
+        return 'Single Probe';
+    }
+    if (mode === 'single_probe_multi_model') {
+        return 'Multi-Model';
+    }
+    return 'Rubric-First';
+}
+
+function normalizeMainConfigForRestore(config: Record<string, unknown>): MainExperimentConfig | null {
+    if (!isMainConfig(config)) {
+        return null;
+    }
+
+    const perturbations = isRecord(config.perturbations) ? config.perturbations : {};
+    return {
+        ...config,
+        perturbations: {
+            adversarialText: typeof perturbations.adversarialText === 'boolean' ? perturbations.adversarialText : false,
+            labelNoise: typeof perturbations.labelNoise === 'number' ? perturbations.labelNoise : 0,
+        },
+        questionSelectionMode: config.questionSelectionMode === 'manual' ? 'manual' : 'auto',
+        autoSelectionOrder: config.autoSelectionOrder === 'ordered' ? 'ordered' : 'random',
+        sampleSeed: typeof config.sampleSeed === 'number' ? config.sampleSeed : 42,
+        manualQuestionIds: typeof config.manualQuestionIds === 'string' ? config.manualQuestionIds : '',
+    };
+}
+
+function normalizeForcedConfigForRestore(config: Record<string, unknown>): ForcedExperimentConfig | null {
+    if (!isForcedConfig(config)) {
+        return null;
+    }
+
+    const perturbations = isRecord(config.perturbations) ? config.perturbations : {};
+    const controlled = isRecord(config.controlled) ? config.controlled : {};
+    return {
+        ...config,
+        controlled: {
+            deterministicSplit: typeof controlled.deterministicSplit === 'boolean' ? controlled.deterministicSplit : true,
+            stochasticTemperature: typeof controlled.stochasticTemperature === 'number' ? controlled.stochasticTemperature : 0.7,
+        },
+        perturbations: {
+            adversarialText: typeof perturbations.adversarialText === 'boolean' ? perturbations.adversarialText : false,
+            labelNoise: typeof perturbations.labelNoise === 'number' ? perturbations.labelNoise : 0,
+        },
+        questionSelectionMode: config.questionSelectionMode === 'manual' ? 'manual' : 'auto',
+        autoSelectionOrder: config.autoSelectionOrder === 'random' ? 'random' : 'ordered',
+        sampleSeed: typeof config.sampleSeed === 'number' ? config.sampleSeed : 42,
+        manualQuestionIds: typeof config.manualQuestionIds === 'string' ? config.manualQuestionIds : '',
+    };
+}
+
+function normalizeSingleProbeConfigForRestore(config: Record<string, unknown>): SingleProbeConfig | null {
+    if (!isSingleProbeConfig(config)) {
+        return null;
+    }
+    return {
+        ...config,
+    };
+}
+
+function extractEditableQuestionFromSnapshot(config: Record<string, unknown>): EditableSingleQuestion | null {
+    if (!isRecord(config.question) || !isEditableSingleQuestion(config.question)) {
+        return null;
+    }
+    return {
+        ...config.question,
+        choices: [...config.question.choices],
+    };
+}
+
+function extractSelectedModelKeysFromSnapshot(config: Record<string, unknown>) {
+    const selectedModels = extractStringArray(config.selectedModels);
+    return Array.from(new Set(selectedModels));
+}
+
+function extractRunsPerArmFromSnapshot(config: Record<string, unknown>) {
+    if (typeof config.runsPerArm !== 'number' || !Number.isFinite(config.runsPerArm)) {
+        return null;
+    }
+    return Math.min(20, Math.max(1, Math.floor(config.runsPerArm)));
+}
+
+function extractPromptIdFromSnapshot(config: Record<string, unknown>) {
+    if (isRecord(config.prompt) && typeof config.prompt.id === 'string' && config.prompt.id.length > 0) {
+        return config.prompt.id;
+    }
+    if (typeof config.selectedPromptId === 'string' && config.selectedPromptId.length > 0) {
+        return config.selectedPromptId;
+    }
+    return null;
+}
+
+function extractGenerationPromptIdsFromSnapshot(config: Record<string, unknown>, fallback: string[]) {
+    const selectedIds = extractStringArray(config.selectedGenerationPromptIds);
+    if (selectedIds.length > 0) {
+        return Array.from(new Set(selectedIds));
+    }
+
+    if (Array.isArray(config.generationPrompts)) {
+        const generationPromptIds = config.generationPrompts
+            .filter((entry): entry is Record<string, unknown> => isRecord(entry))
+            .map((entry) => (typeof entry.id === 'string' ? entry.id : ''))
+            .filter((id) => id.length > 0);
+        if (generationPromptIds.length > 0) {
+            return Array.from(new Set(generationPromptIds));
+        }
+    }
+
+    return Array.from(new Set(fallback));
+}
+
+function extractJudgeRubricIdsFromSnapshot(config: Record<string, unknown>, fallback: string[]) {
+    const selectedIds = extractStringArray(config.selectedJudgeRubricIds);
+    if (selectedIds.length > 0) {
+        return Array.from(new Set(selectedIds));
+    }
+
+    if (Array.isArray(config.judgeRubrics)) {
+        const rubricIds = config.judgeRubrics
+            .filter((entry): entry is Record<string, unknown> => isRecord(entry))
+            .map((entry) => (typeof entry.id === 'string' ? entry.id : ''))
+            .filter((id) => id.length > 0);
+        if (rubricIds.length > 0) {
+            return Array.from(new Set(rubricIds));
+        }
+    }
+
+    return Array.from(new Set(fallback));
+}
+
+function extractStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
 }
 
 function formatHistoryTimestamp(isoDate: string) {
