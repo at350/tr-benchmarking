@@ -4,7 +4,7 @@ import json
 import os
 from collections import defaultdict
 
-from lsh.utils import clean_text, encode_responses
+from lsh.utils import clean_text, encode_responses, encode_responses_legalbert
 from lsh.lsh_index import LSHIndex
 from lsh.clustering import build_similarity_graph, cluster_graph, get_cluster_representatives
 from lsh.density_clustering import run_density_clustering
@@ -15,12 +15,16 @@ class LSHEvaluationPipeline:
                  num_bands=32, 
                  sim_threshold=0.7, 
                  min_cluster_size=1,
-                 resolution=1.0):
+                 resolution=1.0,
+                 embedding_backend="instructor",
+                 embedding_model_name=None):
         self.num_bits = num_bits
         self.num_bands = num_bands
         self.sim_threshold = sim_threshold
         self.min_cluster_size = min_cluster_size
         self.resolution = resolution
+        self.embedding_backend = embedding_backend
+        self.embedding_model_name = embedding_model_name
         self.lsh_index = None
         self.embeddings = {} # id -> np.array
         self.responses = {}  # id -> text/metadata
@@ -37,18 +41,28 @@ class LSHEvaluationPipeline:
         print("Preprocessing and encoding data...")
         for item in data:
             doc_id = item['id']
-            text = clean_text(item['response'])
+            response_obj = item['response']
+            if isinstance(response_obj, dict):
+                text = clean_text(" ".join(str(v) for v in response_obj.values()))
+            else:
+                text = clean_text(str(response_obj))
             
             self.responses[doc_id] = item
             texts.append(text)
             ids.append(doc_id)
             
-        # Bulk encode with instruction to focus on legal conclusion
-        embs = encode_responses(
-            texts, 
-            model_name="hkunlp/instructor-large", 
-            instruction="Represent the legal conclusion and reasoning of this text:"
-        )
+        if self.embedding_backend == "legalbert":
+            embs = encode_responses_legalbert(
+                texts,
+                model_name=self.embedding_model_name or "nlpaueb/legal-bert-base-uncased",
+            )
+        else:
+            # Bulk encode with instruction to focus on legal conclusion
+            embs = encode_responses(
+                texts, 
+                model_name=self.embedding_model_name or "hkunlp/instructor-large", 
+                instruction="Represent the legal conclusion and reasoning of this text:"
+            )
         
         # Store embeddings
         for doc_id, emb in zip(ids, embs):
@@ -56,7 +70,7 @@ class LSHEvaluationPipeline:
             
         print(f"Encoded {len(texts)} responses.")
 
-    def run_clustering(self, method="lsh") -> Dict[str, Any]:
+    def run_clustering(self, method="lsh", random_state=42) -> Dict[str, Any]:
         """
         Runs the clustering pipeline.
         
@@ -73,7 +87,7 @@ class LSHEvaluationPipeline:
                 min_cluster_size=5,
                 min_samples=2,
                 n_components=10, 
-                random_state=42
+                random_state=random_state
             )
             num_clusters = len(set(partition.values())) - (1 if -1 in partition.values() else 0)
         else:

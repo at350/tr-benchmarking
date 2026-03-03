@@ -89,3 +89,14 @@ This directs the model to embed the *outcome* of the legal argument, ensuring th
 
 ### Density Clustering
 We use **UMAP** (Uniform Manifold Approximation and Projection) to reduce embeddings to a lower-dimensional space, followed by **HDBSCAN** (Hierarchical Density-Based Spatial Clustering of Applications with Noise) to identify dense clusters of varying shapes and sizes, while automatically classifying outliers as noise.
+
+## LegalBERT Experiment
+
+To run the same experiment pipeline with LegalBERT embeddings, use:
+
+```bash
+python run_experiment.py \
+  --embedding-backend legalbert \
+  --embedding-model-name nlpaueb/legal-bert-base-uncased \
+  --seeds 42 43 44
+```

@@ -1,6 +1,7 @@
 import re
 import numpy as np
 import os
+from typing import List
 
 # Try to import sentence_transformers, handle case where it's not installed
 try:
@@ -9,6 +10,15 @@ try:
 except ImportError:
     _EMBEDDING_MODEL = None
     print("Warning: sentence-transformers not installed. Embeddings will be random.")
+
+try:
+    import torch
+    from transformers import AutoModel, AutoTokenizer
+except ImportError:
+    torch = None
+    AutoModel = None
+    AutoTokenizer = None
+    print("Warning: transformers/torch not installed. LegalBERT embeddings unavailable.")
 
 def clean_text(text: str) -> str:
     """
@@ -27,6 +37,7 @@ def clean_text(text: str) -> str:
 
 # Redefine _EMBEDDING_MODEL and get_embedding_model as per instructions
 _EMBEDDING_MODEL = None # Resetting global variable for clarity with new get_embedding_model
+_LEGALBERT_ENCODER = None
 
 def get_embedding_model(model_name: str):
     global _EMBEDDING_MODEL
@@ -74,4 +85,56 @@ def encode_responses(texts: List[str], model_name: str = 'hkunlp/instructor-larg
         # Fallback for testing without model
         print("Using random embeddings (mock mode)")
         # Default dimension for Instructor-Large is 768
+        return np.random.randn(len(texts), 768)
+
+
+class LegalBERTEncoder:
+    def __init__(self, model_name: str = "nlpaueb/legal-bert-base-uncased", device: str = None):
+        if AutoTokenizer is None or AutoModel is None or torch is None:
+            raise RuntimeError("transformers/torch not available for LegalBERT encoding.")
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(model_name).to(self.device)
+        self.model.eval()
+
+    @torch.no_grad()
+    def encode(self, texts: List[str], batch_size: int = 8, max_length: int = 512) -> np.ndarray:
+        vectors = []
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i : i + batch_size]
+            inputs = self.tokenizer(
+                batch,
+                padding=True,
+                truncation=True,
+                max_length=max_length,
+                return_tensors="pt",
+            ).to(self.device)
+            outputs = self.model(**inputs)
+
+            token_embeddings = outputs.last_hidden_state
+            attention_mask = inputs["attention_mask"]
+            mask = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+            summed = (token_embeddings * mask).sum(dim=1).cpu().numpy()
+            summed_mask = mask.sum(dim=1).clamp(min=1e-9).cpu().numpy()
+            mean_pooled = summed / summed_mask
+            vectors.append(mean_pooled)
+
+        return np.vstack(vectors)
+
+
+def encode_responses_legalbert(
+    texts: List[str],
+    model_name: str = "nlpaueb/legal-bert-base-uncased",
+    batch_size: int = 8,
+    max_length: int = 512,
+) -> np.ndarray:
+    global _LEGALBERT_ENCODER
+    try:
+        if _LEGALBERT_ENCODER is None:
+            print(f"Loading LegalBERT model: {model_name}...")
+            _LEGALBERT_ENCODER = LegalBERTEncoder(model_name=model_name)
+        return _LEGALBERT_ENCODER.encode(texts, batch_size=batch_size, max_length=max_length)
+    except Exception as e:
+        print(f"Error loading/encoding with LegalBERT {model_name}: {e}")
+        print("Using random embeddings (mock mode)")
         return np.random.randn(len(texts), 768)
