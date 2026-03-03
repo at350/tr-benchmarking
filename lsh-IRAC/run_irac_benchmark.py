@@ -76,8 +76,11 @@ REPLICATE_MODELS = [
     "google/gemini-3-pro",
     "meta/llama-4-maverick-instruct",
     "deepseek-ai/deepseek-v3",
-    "xai/grok-4",
 ]
+
+# Grok 4 is expensive; keep it opt-in.
+if os.getenv("ENABLE_GROK4", "").strip().lower() in {"1", "true", "yes", "on"}:
+    REPLICATE_MODELS.append("xai/grok-4")
 
 # Claude models via Anthropic API (uses ANTHROPIC_API_KEY or CLAUDE_API_KEY)
 ANTHROPIC_MODELS = [
@@ -130,7 +133,7 @@ async def fetch_replicate(model, question, index):
         }
         
         # Handle Gemini models which do not support system_prompt natively in Replicate API
-        if "gemini" in model.lower():
+        if "gemini" in model.lower() or "deepseek" in model.lower():
              input_prompt = f"System Instruction: {SYSTEM_PROMPT}\n\nUser Question: {question}"
              input_data = {
                  "input": {
