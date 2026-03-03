@@ -45,6 +45,10 @@ type LshClusterSummary = {
         text: string;
         irac?: { issue: string; rule: string; application: string; conclusion: string };
     }>;
+    topicSignals?: Array<{
+        topic: string;
+        score: number;
+    }>;
 };
 
 type LshRunDetails = {
@@ -1192,6 +1196,31 @@ export default function LshRunsPage() {
                                                             {' '}({focusCluster.representative.model})
                                                         </p>
                                                         <p className="text-xs text-slate-600">{focusCluster.representative.textPreview || 'No representative preview available.'}</p>
+
+                                                        {focusCluster.topicSignals && focusCluster.topicSignals.length > 0 && (
+                                                            <div>
+                                                                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Topic signals</p>
+                                                                <div className="mt-1.5 space-y-1">
+                                                                    {focusCluster.topicSignals.map((signal) => (
+                                                                        <div
+                                                                            key={`${focusCluster.id}-topic-${signal.topic}`}
+                                                                            className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5"
+                                                                        >
+                                                                            <div className="flex items-center justify-between gap-2">
+                                                                                <span className="text-[11px] font-semibold text-slate-700">{signal.topic}</span>
+                                                                                <span className="text-[11px] font-semibold text-slate-700">{signal.score.toFixed(1)}</span>
+                                                                            </div>
+                                                                            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                                                                                <div
+                                                                                    className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500"
+                                                                                    style={{ width: `${clampNumber(signal.score, 0, 100)}%` }}
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
 
                                                         <div className="space-y-1">
                                                             {focusCluster.modelBreakdown.map((entry) => (

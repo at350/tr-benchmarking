@@ -3,7 +3,7 @@ import 'server-only';
 import fs from 'fs';
 import path from 'path';
 
-const RUN_FILE_NAME_PATTERN = /^run_\d{8}_\d{6}\.json$/;
+const RUN_FILE_NAME_PATTERN = /^run_\d{8}_\d{6}(?:_poisoned)?\.json$/;
 const MAX_TEXT_PREVIEW_LENGTH = 240;
 const MAX_MEMBER_PREVIEW_COUNT = 8;
 
@@ -22,6 +22,7 @@ type RawCluster = {
     members?: unknown;
     centroid_members?: unknown;
     edge_members?: unknown;
+    topic_signals?: unknown;
 };
 
 type RawRunFile = {
@@ -68,6 +69,10 @@ export type LshClusterSummary = {
         textPreview: string;
         text: string;
         irac?: { issue: string; rule: string; application: string; conclusion: string };
+    }>;
+    topicSignals?: Array<{
+        topic: string;
+        score: number;
     }>;
 };
 
@@ -128,7 +133,7 @@ function resolveRunFileLocation(fileName: string): string | null {
 }
 
 function parseRunTimestamp(fileName: string) {
-    const match = /^run_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.json$/.exec(fileName);
+    const match = /^run_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})(?:_poisoned)?\.json$/.exec(fileName);
     if (!match) {
         return null;
     }
@@ -207,6 +212,18 @@ function sortClusterEntries(entries: Array<{ id: string; size: number }>) {
         }
         return a.id.localeCompare(b.id);
     });
+}
+
+function normalizeTopicSignals(value: unknown): Array<{ topic: string; score: number }> {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return [];
+    }
+
+    const signals = Object.entries(value as Record<string, unknown>)
+        .filter(([topic, score]) => typeof topic === 'string' && topic.trim().length > 0 && typeof score === 'number' && Number.isFinite(score))
+        .map(([topic, score]) => ({ topic: topic.trim(), score }));
+
+    return signals.sort((a, b) => b.score - a.score || a.topic.localeCompare(b.topic));
 }
 
 export function isValidRunFileName(fileName: string) {
@@ -297,6 +314,7 @@ export function getLshRunDetails(fileName: string): LshRunDetails | null {
 
         const centroidMembers = normalizeMembers(cluster?.centroid_members);
         const edgeMembers = normalizeMembers(cluster?.edge_members);
+        const topicSignals = normalizeTopicSignals(cluster?.topic_signals);
 
         const toMemberPreview = (member: RawTextEntry) => {
             const fullText = extractRepresentativeText(member);
@@ -341,6 +359,7 @@ export function getLshRunDetails(fileName: string): LshRunDetails | null {
             edgeMembersPreview: edgeMembers.length > 0
                 ? edgeMembers.map(toMemberPreview)
                 : undefined,
+            topicSignals,
         };
     });
 
