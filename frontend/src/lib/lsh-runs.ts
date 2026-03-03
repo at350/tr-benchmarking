@@ -11,6 +11,10 @@ type RawTextEntry = {
     id?: unknown;
     model?: unknown;
     text?: unknown;
+    issue?: unknown;
+    rule?: unknown;
+    application?: unknown;
+    conclusion?: unknown;
 };
 
 type RawCluster = {
@@ -56,12 +60,14 @@ export type LshClusterSummary = {
         model: string;
         textPreview: string;
         text: string;
+        irac?: { issue: string; rule: string; application: string; conclusion: string };
     }>;
     edgeMembersPreview?: Array<{
         id: string;
         model: string;
         textPreview: string;
         text: string;
+        irac?: { issue: string; rule: string; application: string; conclusion: string };
     }>;
 };
 
@@ -294,11 +300,25 @@ export function getLshRunDetails(fileName: string): LshRunDetails | null {
 
         const toMemberPreview = (member: RawTextEntry) => {
             const fullText = extractRepresentativeText(member);
+            const obj = member as Record<string, unknown>;
+            const irac =
+                typeof obj.issue === 'string' &&
+                typeof obj.rule === 'string' &&
+                typeof obj.application === 'string' &&
+                typeof obj.conclusion === 'string'
+                    ? {
+                          issue: obj.issue,
+                          rule: obj.rule,
+                          application: obj.application,
+                          conclusion: obj.conclusion,
+                      }
+                    : undefined;
             return {
                 id: toSafeString(member.id, 'unknown'),
                 model: toSafeString(member.model, 'unknown'),
                 textPreview: toTextPreview(member),
                 text: fullText,
+                irac,
             };
         };
 

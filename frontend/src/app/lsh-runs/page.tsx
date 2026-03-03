@@ -36,12 +36,14 @@ type LshClusterSummary = {
         model: string;
         textPreview: string;
         text: string;
+        irac?: { issue: string; rule: string; application: string; conclusion: string };
     }>;
     edgeMembersPreview?: Array<{
         id: string;
         model: string;
         textPreview: string;
         text: string;
+        irac?: { issue: string; rule: string; application: string; conclusion: string };
     }>;
 };
 
@@ -63,6 +65,7 @@ type ClusterMapPoint = {
     model: string;
     clusterId: string;
     memberId?: string;
+    isCentroid?: boolean;
 };
 
 type ClusterMapRegion = {
@@ -92,6 +95,7 @@ type ClusterSeed = {
     note: string;
     visibleBreakdown: ModelBreakdownEntry[];
     members: Array<{ id: string; model: string }>;
+    representativeId: string;
 };
 
 type ModelStat = {
@@ -240,6 +244,7 @@ export default function LshRunsPage() {
     const [showClusterHulls, setShowClusterHulls] = useState(true);
     const [sampleMembersMode, setSampleMembersMode] = useState<'centroid' | 'edge'>('centroid');
     const [selectedSampleMemberId, setSelectedSampleMemberId] = useState<string | null>(null);
+    const [isIracComparisonExpanded, setIsIracComparisonExpanded] = useState(false);
     const [visibleModels, setVisibleModels] = useState<string[]>([]);
     const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
     const [hoveredClusterId, setHoveredClusterId] = useState<string | null>(null);
@@ -1083,24 +1088,30 @@ export default function LshRunsPage() {
                                                         const active = activeClusterId === point.clusterId;
                                                         const muted = Boolean(activeClusterId) && !active;
                                                         const isSelectedSample = selectedSampleMemberId === point.memberId;
+                                                        const isCentroid = point.isCentroid ?? false;
+                                                        const baseRadius = isSelectedSample ? 7 : active ? 4.8 : 3.4;
+                                                        const strokeColor = isSelectedSample ? '#fbbf24' : isCentroid ? '#0d9488' : 'none';
+                                                        const strokeWidth = isSelectedSample ? 3 : isCentroid ? 2 : 0;
                                                         return (
-                                                            <circle
-                                                                key={`${point.clusterId}-${index}`}
-                                                                cx={toSvgX(point.x, axisDomain)}
-                                                                cy={toSvgY(point.y, axisDomain)}
-                                                                r={isSelectedSample ? 7 : active ? 4.8 : 3.4}
-                                                                fill={modelColorMap.get(point.model) || '#94a3b8'}
-                                                                fillOpacity={muted && !isSelectedSample ? 0.18 : 0.9}
-                                                                stroke={isSelectedSample ? '#fbbf24' : 'none'}
-                                                                strokeWidth={isSelectedSample ? 3 : 0}
-                                                                onMouseEnter={() => setHoveredClusterId(point.clusterId)}
-                                                                onMouseLeave={() => setHoveredClusterId((current) => (current === point.clusterId ? null : current))}
-                                                                onClick={(event) => {
-                                                                    event.stopPropagation();
-                                                                    setSelectedClusterId(point.clusterId);
-                                                                }}
-                                                                className="cursor-pointer"
-                                                            />
+                                                            <g key={`${point.clusterId}-${index}`}>
+                                                                <title>{isCentroid ? `${point.memberId} (cluster centroid)` : point.memberId ?? point.model}</title>
+                                                                <circle
+                                                                    cx={toSvgX(point.x, axisDomain)}
+                                                                    cy={toSvgY(point.y, axisDomain)}
+                                                                    r={isCentroid && !isSelectedSample ? baseRadius + 0.8 : baseRadius}
+                                                                    fill={modelColorMap.get(point.model) || '#94a3b8'}
+                                                                    fillOpacity={muted && !isSelectedSample ? 0.18 : 0.9}
+                                                                    stroke={strokeColor}
+                                                                    strokeWidth={strokeWidth}
+                                                                    onMouseEnter={() => setHoveredClusterId(point.clusterId)}
+                                                                    onMouseLeave={() => setHoveredClusterId((current) => (current === point.clusterId ? null : current))}
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        setSelectedClusterId(point.clusterId);
+                                                                    }}
+                                                                    className="cursor-pointer"
+                                                                />
+                                                            </g>
                                                         );
                                                     })}
 
@@ -1231,14 +1242,22 @@ export default function LshRunsPage() {
                                                                             : focusCluster.edgeMembersPreview ?? []
                                                                         ).map((member) => {
                                                                             const isSelected = selectedSampleMemberId === member.id;
+                                                                            const isActualCentroid = sampleMembersMode === 'centroid' && member.id === focusCluster.representative.id;
                                                                             return (
                                                                                 <button
                                                                                     key={`${focusCluster.id}-${member.id}`}
                                                                                     type="button"
                                                                                     onClick={() => setSelectedSampleMemberId(isSelected ? null : member.id)}
-                                                                                    className={`w-full rounded border px-2 py-1.5 text-left transition ${isSelected ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-300' : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100'}`}
+                                                                                    className={`w-full rounded border px-2 py-1.5 text-left transition ${isSelected ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-300' : isActualCentroid ? 'border-teal-400 bg-teal-50 ring-1 ring-teal-300' : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100'}`}
                                                                                 >
-                                                                                    <p className="text-[11px] font-semibold text-slate-700">{member.id} ({member.model})</p>
+                                                                                    <p className="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
+                                                                                        {member.id} ({member.model})
+                                                                                        {isActualCentroid && (
+                                                                                            <span className="rounded bg-teal-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                                                                                                Centroid
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </p>
                                                                                     <p className="mt-0.5 text-[11px] text-slate-600">{member.textPreview}</p>
                                                                                 </button>
                                                                             );
@@ -1251,10 +1270,18 @@ export default function LshRunsPage() {
                                                                         : focusCluster.edgeMembersPreview ?? [];
                                                                     const selectedMember = sampleList.find((m) => m.id === selectedSampleMemberId);
                                                                     if (!selectedMember) return null;
+                                                                    const isActualCentroid = sampleMembersMode === 'centroid' && selectedMember.id === focusCluster.representative.id;
                                                                     return (
-                                                                        <div className="mt-2 rounded-lg border-2 border-blue-300 bg-blue-50/80 p-3">
+                                                                        <div className={`mt-2 rounded-lg border-2 p-3 ${isActualCentroid ? 'border-teal-400 bg-teal-50/80' : 'border-blue-300 bg-blue-50/80'}`}>
                                                                             <div className="flex items-center justify-between gap-2">
-                                                                                <p className="text-xs font-bold text-slate-800">Full response: {selectedMember.id}</p>
+                                                                                <p className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                                                                                    Full response: {selectedMember.id}
+                                                                                    {isActualCentroid && (
+                                                                                        <span className="rounded bg-teal-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                                                                                            Cluster centroid
+                                                                                        </span>
+                                                                                    )}
+                                                                                </p>
                                                                                 <button
                                                                                     type="button"
                                                                                     onClick={() => setSelectedSampleMemberId(null)}
@@ -1269,6 +1296,154 @@ export default function LshRunsPage() {
                                                                         </div>
                                                                     );
                                                                 })()}
+                                                                {selectedRun?.schema === 'IRAC' &&
+                                                                    focusCluster?.membersPreview &&
+                                                                    focusCluster.membersPreview.length > 0 &&
+                                                                    focusCluster.edgeMembersPreview &&
+                                                                    focusCluster.edgeMembersPreview.length > 0 &&
+                                                                    focusCluster.membersPreview.some((m) => m.irac) &&
+                                                                    focusCluster.edgeMembersPreview.some((m) => m.irac) && (
+                                                                        <div className="mt-3 rounded-lg border border-slate-300 bg-slate-50/80 p-3">
+                                                                            <div className="flex items-center justify-between gap-2">
+                                                                                <div>
+                                                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">IRAC section comparison</p>
+                                                                                    <p className="mt-0.5 text-[10px] text-slate-500">Centroid vs edge cases by section</p>
+                                                                                </div>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => setIsIracComparisonExpanded(true)}
+                                                                                    className="rounded border border-slate-300 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-100"
+                                                                                >
+                                                                                    Expand view
+                                                                                </button>
+                                                                            </div>
+                                                                            <div className="mt-2 space-y-3">
+                                                                                {(['issue', 'rule', 'application', 'conclusion'] as const).map((section) => {
+                                                                                    const label = section.charAt(0).toUpperCase() + section.slice(1);
+                                                                                    const centroidTexts = focusCluster.membersPreview!.slice(0, 3)
+                                                                                        .filter((m) => m.irac?.[section])
+                                                                                        .map((m) => ({ id: m.id, model: m.model, text: m.irac![section] }));
+                                                                                    const edgeTexts = focusCluster.edgeMembersPreview!
+                                                                                        .filter((m) => m.irac?.[section])
+                                                                                        .map((m) => ({ id: m.id, model: m.model, text: m.irac![section] }));
+                                                                                    if (centroidTexts.length === 0 && edgeTexts.length === 0) return null;
+                                                                                    return (
+                                                                                        <div key={section} className="rounded border border-slate-200 bg-white overflow-hidden">
+                                                                                            <p className="bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">{label}</p>
+                                                                                            <div className="grid grid-cols-2 divide-x divide-slate-200">
+                                                                                                <div className="p-2 min-w-0">
+                                                                                                    <p className="text-[10px] font-semibold text-teal-700 mb-1">Centroids</p>
+                                                                                                    <div className="space-y-2 max-h-32 overflow-y-auto text-[10px] text-slate-600">
+                                                                                                        {centroidTexts.map(({ id, model, text }) => {
+                                                                                                            const isActualCentroid = id === focusCluster.representative.id;
+                                                                                                            return (
+                                                                                                                <div key={id} className={`rounded border p-1.5 ${isActualCentroid ? 'border-teal-400 bg-teal-100 ring-1 ring-teal-300' : 'border-slate-100 bg-teal-50/30'}`}>
+                                                                                                                    <p className="font-semibold text-slate-700 flex items-center gap-1.5">
+                                                                                                                        {id} ({model})
+                                                                                                                        {isActualCentroid && (
+                                                                                                                            <span className="rounded bg-teal-600 px-1 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">Centroid</span>
+                                                                                                                        )}
+                                                                                                                    </p>
+                                                                                                                    <p className="mt-0.5 whitespace-pre-wrap">{text}</p>
+                                                                                                                </div>
+                                                                                                            );
+                                                                                                        })}
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                                <div className="p-2 min-w-0">
+                                                                                                    <p className="text-[10px] font-semibold text-amber-700 mb-1">Edge cases</p>
+                                                                                                    <div className="space-y-2 max-h-32 overflow-y-auto text-[10px] text-slate-600">
+                                                                                                        {edgeTexts.map(({ id, model, text }) => (
+                                                                                                            <div key={id} className="rounded border border-slate-100 bg-amber-50/30 p-1.5">
+                                                                                                                <p className="font-semibold text-slate-700">{id} ({model})</p>
+                                                                                                                <p className="mt-0.5 whitespace-pre-wrap">{text}</p>
+                                                                                                            </div>
+                                                                                                        ))}
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                            {isIracComparisonExpanded && (
+                                                                                <div
+                                                                                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                                                                                    onClick={() => setIsIracComparisonExpanded(false)}
+                                                                                    role="dialog"
+                                                                                    aria-modal="true"
+                                                                                    aria-label="IRAC comparison expanded view"
+                                                                                >
+                                                                                    <div
+                                                                                        className="relative max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-xl border border-slate-300 bg-white shadow-2xl"
+                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                    >
+                                                                                        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+                                                                                            <p className="text-sm font-bold text-slate-800">IRAC section comparison — expanded</p>
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={() => setIsIracComparisonExpanded(false)}
+                                                                                                className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                                                                                            >
+                                                                                                Close
+                                                                                            </button>
+                                                                                        </div>
+                                                                                        <div className="max-h-[calc(90vh-4rem)] overflow-y-auto p-4">
+                                                                                            <div className="space-y-4">
+                                                                                                {(['issue', 'rule', 'application', 'conclusion'] as const).map((section) => {
+                                                                                                    const label = section.charAt(0).toUpperCase() + section.slice(1);
+                                                                                                    const centroidTexts = focusCluster.membersPreview!.slice(0, 3)
+                                                                                                        .filter((m) => m.irac?.[section])
+                                                                                                        .map((m) => ({ id: m.id, model: m.model, text: m.irac![section] }));
+                                                                                                    const edgeTexts = focusCluster.edgeMembersPreview!
+                                                                                                        .filter((m) => m.irac?.[section])
+                                                                                                        .map((m) => ({ id: m.id, model: m.model, text: m.irac![section] }));
+                                                                                                    if (centroidTexts.length === 0 && edgeTexts.length === 0) return null;
+                                                                                                    return (
+                                                                                                        <div key={section} className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+                                                                                                            <p className="bg-slate-100 px-3 py-2 text-sm font-bold uppercase tracking-wider text-slate-600">{label}</p>
+                                                                                                            <div className="grid grid-cols-2 divide-x divide-slate-200">
+                                                                                                                <div className="p-4 min-w-0">
+                                                                                                                    <p className="text-sm font-semibold text-teal-700 mb-2">Centroids</p>
+                                                                                                                    <div className="space-y-3 text-sm text-slate-600">
+                                                                                                                        {centroidTexts.map(({ id, model, text }) => {
+                                                                                                                            const isActualCentroid = id === focusCluster.representative.id;
+                                                                                                                            return (
+                                                                                                                                <div key={id} className={`rounded-lg border p-3 ${isActualCentroid ? 'border-teal-400 bg-teal-100 ring-2 ring-teal-300' : 'border-slate-200 bg-teal-50/40'}`}>
+                                                                                                                                    <p className="font-semibold text-slate-700 flex items-center gap-2">
+                                                                                                                                        {id} ({model})
+                                                                                                                                        {isActualCentroid && (
+                                                                                                                                            <span className="rounded bg-teal-600 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white">Cluster centroid</span>
+                                                                                                                                        )}
+                                                                                                                                    </p>
+                                                                                                                                    <p className="mt-2 whitespace-pre-wrap leading-relaxed">{text}</p>
+                                                                                                                                </div>
+                                                                                                                            );
+                                                                                                                        })}
+                                                                                                                    </div>
+                                                                                                                </div>
+                                                                                                                <div className="p-4 min-w-0">
+                                                                                                                    <p className="text-sm font-semibold text-amber-700 mb-2">Edge cases</p>
+                                                                                                                    <div className="space-y-3 text-sm text-slate-600">
+                                                                                                                        {edgeTexts.map(({ id, model, text }) => (
+                                                                                                                            <div key={id} className="rounded-lg border border-slate-200 bg-amber-50/40 p-3">
+                                                                                                                                <p className="font-semibold text-slate-700">{id} ({model})</p>
+                                                                                                                                <p className="mt-2 whitespace-pre-wrap leading-relaxed">{text}</p>
+                                                                                                                            </div>
+                                                                                                                        ))}
+                                                                                                                    </div>
+                                                                                                                </div>
+                                                                                                            </div>
+                                                                                                        </div>
+                                                                                                    );
+                                                                                                })}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
                                                             </div>
                                                         )}
                                                     </div>
@@ -1854,6 +2029,7 @@ function buildClusterMapData(
                 note: cluster.representative.textPreview,
                 visibleBreakdown,
                 members,
+                representativeId: cluster.representative.id,
             };
         })
         .filter((seed): seed is ClusterSeed => seed !== null);
@@ -1919,6 +2095,7 @@ function buildClusterMapData(
                 model,
                 clusterId: seed.clusterId,
                 memberId,
+                isCentroid: memberId === seed.representativeId,
             });
         });
     }
