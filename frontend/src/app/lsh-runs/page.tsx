@@ -177,6 +177,22 @@ type SavedGradeRecord = {
     memberCount: number;
 };
 
+type BatchJudgeRunRecord = {
+    id: string;
+    runFile: string;
+    startedAt: string;
+    completedAt: string;
+    judgeConfig: JudgeConfig;
+    snapshots: ClusterJudgeSnapshot[];
+    errors: Array<{ clusterId: string; message: string }>;
+};
+
+type SavedBatchGradeRecord = {
+    id: string;
+    savedAt: string;
+    batchRun: BatchJudgeRunRecord;
+};
+
 type JudgeModelComparisonRow = {
     key: string;
     provider: JudgeProvider;
@@ -224,11 +240,53 @@ type BatchJudgeProgress = {
     failed: number;
 };
 
+type BatchJudgeAspectStat = {
+    rowKey: typeof JUDGE_ROW_ORDER[number];
+    label: string;
+    averageScore: number;
+    averagePoints: number;
+    maxedCount: number;
+    lowScoreCount: number;
+};
+
+type BatchJudgeClusterStatRow = {
+    clusterId: string;
+    memberCount: number;
+    finalScore: number;
+    subtotal: number;
+    penaltyTotal: number;
+    cap: JudgeCap;
+    outcome: string;
+    correctness: string;
+    reasoning: string;
+    rowScores: Record<string, number>;
+};
+
+type BatchJudgeStatistics = {
+    runId: string;
+    startedAt: string;
+    completedAt: string;
+    judgeConfig: JudgeConfig;
+    gradedClusterCount: number;
+    failureCount: number;
+    averageFinalScore: number;
+    averageSubtotal: number;
+    averagePenalty: number;
+    bestCluster: BatchJudgeClusterStatRow | null;
+    weakestCluster: BatchJudgeClusterStatRow | null;
+    aspectRows: BatchJudgeAspectStat[];
+    clusterRows: BatchJudgeClusterStatRow[];
+    outcomeCounts: Array<{ label: string; count: number }>;
+    correctnessCounts: Array<{ label: string; count: number }>;
+    reasoningCounts: Array<{ label: string; count: number }>;
+};
+
 const MAP_WIDTH = 980;
 const MAP_HEIGHT = 640;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const MODEL_PALETTE = ['#22c55e', '#ef4444', '#94a3b8', '#3b82f6', '#f97316', '#14b8a6', '#eab308', '#a855f7', '#06b6d4', '#f43f5e'];
 const SAVED_GRADES_STORAGE_KEY = 'lsh-runs-saved-grades-v1';
+const SAVED_BATCH_GRADES_STORAGE_KEY = 'lsh-runs-saved-batch-grades-v1';
 const LSH_JUDGE_RUBRIC_LIBRARY_STORAGE_KEY = 'lsh-runs.judge-rubric-library.v1';
 const LSH_JUDGE_UI_STATE_STORAGE_KEY = 'lsh-runs.judge-ui-state.v1';
 const LSH_BUILTIN_RUBRIC_TIMESTAMP = '2026-03-06T00:00:00.000Z';
@@ -309,6 +367,21 @@ const JUDGE_MODEL_OPTIONS: Record<JudgeProvider, Array<{ value: string; label: s
 };
 
 const JUDGE_ROW_ORDER = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'] as const;
+const JUDGE_ROW_LABELS: Record<typeof JUDGE_ROW_ORDER[number], string> = {
+    A: 'Issue spotting + prioritization',
+    B: 'Formation framing + consideration vs conditional gift',
+    C: 'SoF categories + triggers and enforceability vs proof distinction',
+    D: 'One-year SoF test + application',
+    E: 'Suretyship nuance + main purpose prerequisites',
+    F: 'SoF exceptions/workarounds + limits',
+    G: 'Promissory estoppel alternative + reliance rigor',
+    H: 'Defenses/conditions/mistake: motive vs condition precedent',
+    I: 'Factual fidelity + internal consistency',
+    J: 'Clear bottom line + structured reasoning',
+    K: 'Barrier stacking + exception mapping',
+    L: 'Scope calibration / claim discipline',
+    M: 'Relevance discipline / prompt adherence',
+};
 const JUDGE_REASONING_OPTIONS: Array<{ value: JudgeReasoningEffort; label: string }> = [
     { value: 'auto', label: 'Auto (default)' },
     { value: 'low', label: 'Low' },
@@ -357,8 +430,11 @@ export default function LshRunsPage() {
     const [judgeError, setJudgeError] = useState<string | null>(null);
     const [judgeResultsByCluster, setJudgeResultsByCluster] = useState<Record<string, ClusterJudgeSnapshot>>({});
     const [savedGrades, setSavedGrades] = useState<SavedGradeRecord[]>([]);
+    const [savedBatchGrades, setSavedBatchGrades] = useState<SavedBatchGradeRecord[]>([]);
+    const [latestBatchJudgeRun, setLatestBatchJudgeRun] = useState<BatchJudgeRunRecord | null>(null);
     const [selectedSavedGradeIds, setSelectedSavedGradeIds] = useState<string[]>([]);
     const [savedGradesStatus, setSavedGradesStatus] = useState<string | null>(null);
+    const [savedBatchGradesStatus, setSavedBatchGradesStatus] = useState<string | null>(null);
     const [comparisonGradeIds, setComparisonGradeIds] = useState<string[]>([]);
     const [isComparisonVisible, setIsComparisonVisible] = useState(false);
     const [inspectorPanePercent, setInspectorPanePercent] = useState(28);
@@ -434,6 +510,7 @@ export default function LshRunsPage() {
     useEffect(() => {
         const loaded = readSavedGradesFromStorage();
         setSavedGrades(loaded);
+        setSavedBatchGrades(readSavedBatchGradesFromStorage());
     }, []);
 
     useEffect(() => {
@@ -478,6 +555,10 @@ export default function LshRunsPage() {
     useEffect(() => {
         writeSavedGradesToStorage(savedGrades);
     }, [savedGrades]);
+
+    useEffect(() => {
+        writeSavedBatchGradesToStorage(savedBatchGrades);
+    }, [savedBatchGrades]);
 
     useEffect(() => {
         if (!hasHydratedJudgeRubricLibrary) {
@@ -659,6 +740,14 @@ export default function LshRunsPage() {
         const timer = window.setTimeout(() => setSavedGradesStatus(null), 2500);
         return () => window.clearTimeout(timer);
     }, [savedGradesStatus]);
+
+    useEffect(() => {
+        if (!savedBatchGradesStatus) {
+            return;
+        }
+        const timer = window.setTimeout(() => setSavedBatchGradesStatus(null), 2500);
+        return () => window.clearTimeout(timer);
+    }, [savedBatchGradesStatus]);
 
     useEffect(() => {
         if (!isResizingPanes) {
@@ -861,6 +950,10 @@ export default function LshRunsPage() {
             consensusReasoning: findMostCommon(comparedSavedGrades.map((grade) => grade.grading.outcomes.reasoningAlignment)),
         };
     }, [comparedSavedGrades, judgeModelComparisonRows]);
+    const visibleBatchJudgeStats = useMemo(
+        () => buildBatchJudgeStatistics(latestBatchJudgeRun, selectedRunFile, selectedRun),
+        [latestBatchJudgeRun, selectedRun, selectedRunFile],
+    );
     const allSavedGradesSelected = savedGrades.length > 0 && selectedSavedGradeIds.length === savedGrades.length;
 
     const toggleJudgeOutlineSelection = (outlineId: string) => {
@@ -982,14 +1075,16 @@ export default function LshRunsPage() {
         }
     };
 
-    const handleJudgeAllCentroids = async () => {
+    const handleJudgeAllCentroids = useCallback(async () => {
         if (!selectedRunFile || !selectedRun) {
             return;
         }
 
+        const startedAt = new Date().toISOString();
         setIsBatchJudging(true);
         setJudgeError(null);
         setBatchErrors([]);
+        setLatestBatchJudgeRun(null);
 
         const targets = selectedRun.clusters.map((cluster) => ({ id: cluster.id, size: cluster.size }));
         const total = targets.length;
@@ -999,7 +1094,7 @@ export default function LshRunsPage() {
         let succeeded = 0;
         let failed = 0;
         const errorRows: Array<{ clusterId: string; message: string }> = [];
-        const savedRecords: SavedGradeRecord[] = [];
+        const successfulSnapshots: ClusterJudgeSnapshot[] = [];
 
         for (const target of targets) {
             try {
@@ -1010,10 +1105,7 @@ export default function LshRunsPage() {
                     contextMode: 'centroid_only',
                 });
                 upsertSnapshot(snapshot);
-                const savedRecord = buildSavedRecord(snapshot);
-                savedRecords.push(savedRecord);
-                setSavedGrades((previous) => [savedRecord, ...previous]);
-                setSelectedSavedGradeIds((previous) => [savedRecord.id, ...previous.filter((id) => id !== savedRecord.id)]);
+                successfulSnapshots.push(snapshot);
                 succeeded += 1;
             } catch (error) {
                 failed += 1;
@@ -1026,11 +1118,27 @@ export default function LshRunsPage() {
         }
 
         setBatchErrors(errorRows);
+        setLatestBatchJudgeRun({
+            id: `batch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            runFile: selectedRunFile,
+            startedAt,
+            completedAt: new Date().toISOString(),
+            judgeConfig: {
+                provider: judgeProvider,
+                model: judgeModel,
+                reasoningEffort: judgeReasoningEffort,
+                customInstructions: judgeInstructions,
+                contextMode: 'centroid_only',
+                judgeOutlineIds: [...selectedJudgeOutlineIds],
+            },
+            snapshots: successfulSnapshots,
+            errors: errorRows,
+        });
         setSavedGradesStatus(
-            `Batch grading complete: ${succeeded} succeeded, ${failed} failed. ${savedRecords.length} grade${savedRecords.length === 1 ? '' : 's'} auto-saved.`
+            `Batch grading complete: ${succeeded} succeeded, ${failed} failed. Save the all-cluster run explicitly if you want to keep it.`
         );
         setIsBatchJudging(false);
-    };
+    }, [judgeInstructions, judgeModel, judgeProvider, judgeReasoningEffort, requestClusterJudge, selectedJudgeOutlineIds, selectedRun, selectedRunFile, upsertSnapshot]);
 
     const handleSaveLatestGrade = () => {
         if (!selectedClusterSnapshot) {
@@ -1043,6 +1151,21 @@ export default function LshRunsPage() {
         setSelectedSavedGradeIds((previous) => [savedRecord.id, ...previous.filter((id) => id !== savedRecord.id)]);
         setSavedGradesStatus('Grade saved for comparison.');
     };
+
+    const handleSaveLatestBatchGrade = useCallback(() => {
+        if (!latestBatchJudgeRun) {
+            return;
+        }
+
+        const savedBatchGrade: SavedBatchGradeRecord = {
+            id: `saved_batch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            savedAt: new Date().toISOString(),
+            batchRun: latestBatchJudgeRun,
+        };
+
+        setSavedBatchGrades((previous) => [savedBatchGrade, ...previous]);
+        setSavedBatchGradesStatus('All-cluster grade saved.');
+    }, [latestBatchJudgeRun]);
 
     const toggleSavedGradeSelection = (gradeId: string) => {
         setSelectedSavedGradeIds((previous) => {
@@ -1084,6 +1207,16 @@ export default function LshRunsPage() {
         setComparisonGradeIds((previous) => previous.filter((id) => id !== gradeId));
         setSavedGradesStatus('Saved grade deleted.');
     };
+
+    const deleteSavedBatchGrade = useCallback((gradeId: string) => {
+        setSavedBatchGrades((previous) => previous.filter((grade) => grade.id !== gradeId));
+        setSavedBatchGradesStatus('Saved all-cluster grade deleted.');
+    }, []);
+
+    const clearAllSavedBatchGrades = useCallback(() => {
+        setSavedBatchGrades([]);
+        setSavedBatchGradesStatus('All saved all-cluster grades cleared.');
+    }, []);
 
     const handleCompareSelected = () => {
         if (selectedSavedGradeIds.length === 0) {
@@ -1195,6 +1328,869 @@ export default function LshRunsPage() {
         setJudgeRubricNameDraft('');
         setJudgeRubricStatus('Judge rubric deleted.');
     }, [selectedJudgeRubricTemplate]);
+
+    const judgeControlsPanel = (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">LLM-as-Judge</p>
+            {!selectedCluster ? (
+                <p className="mt-2 text-xs text-slate-600">Select a cluster to configure judging.</p>
+            ) : (
+                <div className="mt-2 space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                        <label className="text-[11px] font-semibold text-slate-600">
+                            Provider
+                            <select
+                                value={judgeProvider}
+                                onChange={(event) => setJudgeProvider(event.target.value as JudgeProvider)}
+                                className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
+                            >
+                                <option value="openai">OpenAI</option>
+                                <option value="anthropic">Anthropic</option>
+                                <option value="gemini">Google Gemini</option>
+                            </select>
+                        </label>
+                        <label className="text-[11px] font-semibold text-slate-600">
+                            Judge model
+                            <select
+                                value={judgeModel}
+                                onChange={(event) => setJudgeModel(event.target.value)}
+                                className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
+                            >
+                                {judgeModelOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
+
+                    {judgeSupportsReasoningControl ? (
+                        <label className="block text-[11px] font-semibold text-slate-600">
+                            Reasoning mode
+                            <select
+                                value={judgeReasoningEffort}
+                                onChange={(event) => setJudgeReasoningEffort(event.target.value as JudgeReasoningEffort)}
+                                className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
+                            >
+                                {JUDGE_REASONING_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    ) : (
+                        <p className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-[11px] text-slate-600">
+                            This model does not expose judge reasoning controls. Default provider behavior is used.
+                        </p>
+                    )}
+
+                    <div className="space-y-2 rounded border border-slate-200 bg-slate-50 p-2">
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600">Judge Rubrics</p>
+                            <span className="text-[11px] font-semibold text-slate-500">{judgeRubricLibrary.length} saved</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                            Saved rubrics on this page persist locally and stay separate from rubric-first multi-model judge. Selecting a single mapped outline auto-loads its paired rubric.
+                        </p>
+                        <label className="block text-[11px] font-semibold text-slate-600">
+                            Saved rubric
+                            <select
+                                value={selectedJudgeRubricTemplateId}
+                                onChange={(event) => handleSelectJudgeRubricTemplate(event.target.value)}
+                                className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
+                            >
+                                <option value="">New draft</option>
+                                {judgeRubricLibrary.map((rubric) => (
+                                    <option key={rubric.id} value={rubric.id}>
+                                        {rubric.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <details className="rounded border border-slate-200 bg-white">
+                            <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-semibold text-slate-700">
+                                View enforced JSON output contract
+                            </summary>
+                            <div className="space-y-2 border-t border-slate-200 px-2 py-2">
+                                <p className="text-[11px] text-slate-500">
+                                    This format is enforced by the judge route itself, not by the selected rubric text.
+                                </p>
+                                <pre className="overflow-x-auto rounded border border-slate-200 bg-slate-50 p-2 text-[10px] text-slate-700">{LSH_JUDGE_OUTPUT_JSON_SCHEMA}</pre>
+                                <div className="space-y-1 text-[11px] text-slate-600">
+                                    {LSH_JUDGE_OUTPUT_RULES.map((rule) => (
+                                        <p key={rule}>{rule}</p>
+                                    ))}
+                                    <p>- summary must be concise and specific to this cluster.</p>
+                                </div>
+                            </div>
+                        </details>
+                        <label className="block text-[11px] font-semibold text-slate-600">
+                            Rubric name
+                            <input
+                                value={judgeRubricNameDraft}
+                                onChange={(event) => setJudgeRubricNameDraft(event.target.value)}
+                                placeholder="Contract Law Outline Compliance"
+                                className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400"
+                            />
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={saveJudgeRubricTemplate}
+                                className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                            >
+                                {selectedJudgeRubricTemplate ? 'Update rubric' : 'Save rubric'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={createNewJudgeRubricDraft}
+                                className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                            >
+                                New draft
+                            </button>
+                            <button
+                                type="button"
+                                onClick={deleteSelectedJudgeRubric}
+                                disabled={!selectedJudgeRubricTemplate}
+                                className="rounded border border-rose-300 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-800 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                        {judgeRubricStatus ? (
+                            <p className="rounded border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-600">
+                                {judgeRubricStatus}
+                            </p>
+                        ) : null}
+                    </div>
+
+                    <label className="block text-[11px] font-semibold text-slate-600">
+                        Judge rubric instructions
+                        <textarea
+                            value={judgeInstructions}
+                            onChange={(event) => setJudgeInstructions(event.target.value)}
+                            rows={4}
+                            placeholder="Add saved or ad hoc grading preferences (optional). Base rubric is always applied."
+                            className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-2 text-xs text-slate-700 placeholder:text-slate-400"
+                        />
+                    </label>
+
+                    <div className="space-y-1.5 rounded border border-slate-200 bg-slate-50 p-2">
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600">Outline Rubrics (Judge)</p>
+                            <span className="text-[11px] font-semibold text-slate-500">{selectedJudgeOutlineIds.length} selected</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                            Checked outlines are retrieved with RAG and treated as additional rubric context for judging this cluster.
+                        </p>
+                        <div className="max-h-32 overflow-y-auto rounded border border-slate-300 bg-white">
+                            {availableOutlines.length === 0 ? (
+                                <p className="px-2 py-1.5 text-[11px] text-slate-500">No outlines available.</p>
+                            ) : (
+                                <div className="divide-y divide-slate-200">
+                                    {availableOutlines.map((outline) => {
+                                        const selected = selectedJudgeOutlineIds.includes(outline.id);
+                                        return (
+                                            <label key={`lsh-judge-outline-${outline.id}`} className={`flex cursor-pointer items-start gap-2 px-2 py-1.5 ${selected ? 'bg-teal-50' : 'hover:bg-slate-50'}`}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selected}
+                                                    onChange={() => toggleJudgeOutlineSelection(outline.id)}
+                                                    className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300"
+                                                />
+                                                <span className="min-w-0">
+                                                    <span className="block text-[11px] font-semibold text-slate-800">{outline.title}</span>
+                                                    <span className="block text-[10px] text-slate-500">{outline.fileName}</span>
+                                                </span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={handleJudgeCluster}
+                            disabled={isJudgingCluster || isBatchJudging}
+                            className="rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {isJudgingCluster ? 'Grading cluster...' : `Grade ${selectedCluster.id === 'noise' ? 'Noise Cluster' : `Cluster ${selectedCluster.id}`}`}
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={handleJudgeAllCentroids}
+                            disabled={isBatchJudging || isJudgingCluster || !selectedRun}
+                            className="rounded-md border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {isBatchJudging ? 'Grading all centroids...' : 'Grade All Cluster Centroids'}
+                        </button>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500">
+                        Latest grade is temporary. Use Save grade to keep it for comparison.
+                    </p>
+
+                    {batchProgress && (
+                        <p className="rounded border border-indigo-200 bg-indigo-50 px-2 py-1.5 text-[11px] text-indigo-800">
+                            {batchProgress.completed}/{batchProgress.total} completed • {batchProgress.succeeded} succeeded • {batchProgress.failed} failed
+                        </p>
+                    )}
+
+                    {batchErrors.length > 0 && (
+                        <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900">
+                            <p className="font-semibold">Batch failures:</p>
+                            <div className="mt-1 space-y-0.5">
+                                {batchErrors.slice(0, 6).map((row) => (
+                                    <p key={`${row.clusterId}-${row.message}`}>
+                                        {row.clusterId}: {row.message}
+                                    </p>
+                                ))}
+                                {batchErrors.length > 6 && (
+                                    <p>...and {batchErrors.length - 6} more</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {judgeError && (
+                        <p className="rounded border border-red-200 bg-red-50 px-2 py-1.5 text-xs text-red-700">{judgeError}</p>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+
+    const judgeResultsPanel = (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Judge Results</p>
+            {!selectedCluster ? (
+                <p className="mt-2 text-xs text-slate-600">Select a cluster to view grading results.</p>
+            ) : (
+                <div className="mt-2 space-y-3">
+                    <p className="text-[11px] text-slate-500">
+                        Latest grade is temporary. Use Save grade to keep it for comparison.
+                    </p>
+
+                    {selectedClusterGrade && (
+                        <div className="space-y-2 rounded border border-slate-200 bg-slate-50 p-2.5">
+                            <div className="flex items-center justify-between gap-2">
+                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Selected cluster grade</p>
+                                <p className="text-sm font-extrabold text-slate-900">{selectedClusterGrade.finalScore.toFixed(2)} / 100</p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleSaveLatestGrade}
+                                    className="rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                                >
+                                    Save grade
+                                </button>
+                                {savedGradesStatus && (
+                                    <p className="text-[11px] text-emerald-700">{savedGradesStatus}</p>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                                <div className="rounded border border-slate-200 bg-white px-2 py-1">
+                                    <p className="font-semibold text-slate-500">Subtotal</p>
+                                    <p className="mt-0.5 font-bold text-slate-800">{selectedClusterGrade.subtotal.toFixed(2)}</p>
+                                </div>
+                                <div className="rounded border border-slate-200 bg-white px-2 py-1">
+                                    <p className="font-semibold text-slate-500">Penalties</p>
+                                    <p className="mt-0.5 font-bold text-slate-800">-{selectedClusterGrade.penaltyTotal.toFixed(2)}</p>
+                                </div>
+                                <div className="rounded border border-slate-200 bg-white px-2 py-1">
+                                    <p className="font-semibold text-slate-500">Cap</p>
+                                    <p className="mt-0.5 font-bold text-slate-800">{formatJudgeCap(selectedClusterGrade.cap)}</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-4 gap-1 text-[11px]">
+                                {JUDGE_ROW_ORDER.map((row) => {
+                                    const rowScore = selectedClusterGrade.rowScores[row] ?? 0;
+                                    const rowPoint = selectedClusterGrade.rowPoints[row] ?? 0;
+                                    return (
+                                        <div key={row} className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                                            <p className="font-semibold text-slate-500">{row}</p>
+                                            <p className="font-bold text-slate-800">{rowScore} / 4</p>
+                                            <p className="text-slate-600">{rowPoint.toFixed(2)}</p>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {selectedClusterGrade.penaltiesApplied.length > 0 && (
+                                <div className="space-y-1">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Penalties applied</p>
+                                    {selectedClusterGrade.penaltiesApplied.map((penalty) => (
+                                        <p key={penalty.key} className="text-[11px] text-slate-700">
+                                            - {penalty.label} (-{penalty.points})
+                                        </p>
+                                    ))}
+                                </div>
+                            )}
+
+                            {selectedClusterGrade.parseFailed && (
+                                <details className="rounded border border-amber-200 bg-amber-50 p-2">
+                                    <summary className="cursor-pointer text-[11px] font-semibold text-amber-800">
+                                        Judge JSON parse failed (show raw output)
+                                    </summary>
+                                    <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-[10px] text-amber-900">
+                                        {selectedClusterGrade.rawJudgeOutput}
+                                    </pre>
+                                </details>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="space-y-3 rounded border border-slate-200 bg-slate-50 p-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Latest cross-cluster run statistics</p>
+                                <p className="mt-0.5 text-[11px] text-slate-600">
+                                    Batch centroid judging across all clusters, grouped as one reproducible run.
+                                </p>
+                            </div>
+                            {visibleBatchJudgeStats ? (
+                                <p className="text-[10px] font-semibold text-slate-500">
+                                    Completed {formatDateTime(visibleBatchJudgeStats.completedAt)}
+                                </p>
+                            ) : null}
+                        </div>
+
+                        {!visibleBatchJudgeStats ? (
+                            <p className="text-xs text-slate-600">
+                                Run `Grade All Cluster Centroids` to populate all-cluster statistics for the selected run.
+                            </p>
+                        ) : (
+                            <div className="space-y-3">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleSaveLatestBatchGrade}
+                                        className="rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                                    >
+                                        Save all-cluster grade
+                                    </button>
+                                    {savedBatchGradesStatus ? (
+                                        <p className="text-[11px] text-emerald-700">{savedBatchGradesStatus}</p>
+                                    ) : null}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
+                                    <div className="rounded border border-slate-200 bg-white px-2 py-1.5">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Clusters graded</p>
+                                        <p className="mt-1 text-sm font-bold text-slate-900">{visibleBatchJudgeStats.gradedClusterCount}</p>
+                                        <p className="text-[10px] text-slate-500">{visibleBatchJudgeStats.failureCount} failures</p>
+                                    </div>
+                                    <div className="rounded border border-slate-200 bg-white px-2 py-1.5">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Average final</p>
+                                        <p className="mt-1 text-sm font-bold text-slate-900">{visibleBatchJudgeStats.averageFinalScore.toFixed(2)}</p>
+                                        <p className="text-[10px] text-slate-500">centroid-only batch judge</p>
+                                    </div>
+                                    <div className="rounded border border-slate-200 bg-white px-2 py-1.5">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Average subtotal</p>
+                                        <p className="mt-1 text-sm font-bold text-slate-900">{visibleBatchJudgeStats.averageSubtotal.toFixed(2)}</p>
+                                        <p className="text-[10px] text-slate-500">before penalties/caps</p>
+                                    </div>
+                                    <div className="rounded border border-slate-200 bg-white px-2 py-1.5">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Average penalties</p>
+                                        <p className="mt-1 text-sm font-bold text-slate-900">-{visibleBatchJudgeStats.averagePenalty.toFixed(2)}</p>
+                                        <p className="text-[10px] text-slate-500">
+                                            {visibleBatchJudgeStats.judgeConfig.provider}/{visibleBatchJudgeStats.judgeConfig.model}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-2 lg:grid-cols-2">
+                                    <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700">Best cluster</p>
+                                        {visibleBatchJudgeStats.bestCluster ? (
+                                            <>
+                                                <p className="mt-1 text-sm font-bold text-emerald-900">
+                                                    {visibleBatchJudgeStats.bestCluster.clusterId} • {visibleBatchJudgeStats.bestCluster.finalScore.toFixed(2)}
+                                                </p>
+                                                <p className="text-[11px] text-emerald-800">
+                                                    {visibleBatchJudgeStats.bestCluster.outcome} • {visibleBatchJudgeStats.bestCluster.correctness}
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <p className="mt-1 text-xs text-emerald-800">No successful cluster grades yet.</p>
+                                        )}
+                                    </div>
+                                    <div className="rounded border border-rose-200 bg-rose-50 px-3 py-2">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-rose-700">Lowest-scoring cluster</p>
+                                        {visibleBatchJudgeStats.weakestCluster ? (
+                                            <>
+                                                <p className="mt-1 text-sm font-bold text-rose-900">
+                                                    {visibleBatchJudgeStats.weakestCluster.clusterId} • {visibleBatchJudgeStats.weakestCluster.finalScore.toFixed(2)}
+                                                </p>
+                                                <p className="text-[11px] text-rose-800">
+                                                    {visibleBatchJudgeStats.weakestCluster.outcome} • {visibleBatchJudgeStats.weakestCluster.correctness}
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <p className="mt-1 text-xs text-rose-800">No successful cluster grades yet.</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-2 lg:grid-cols-3">
+                                    <div className="rounded border border-slate-200 bg-white px-3 py-2">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Outcome distribution</p>
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                            {visibleBatchJudgeStats.outcomeCounts.map((entry) => (
+                                                <span key={`batch-outcome-${entry.label}`} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
+                                                    {entry.label}: {entry.count}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="rounded border border-slate-200 bg-white px-3 py-2">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Correctness distribution</p>
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                            {visibleBatchJudgeStats.correctnessCounts.map((entry) => (
+                                                <span key={`batch-correctness-${entry.label}`} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
+                                                    {entry.label}: {entry.count}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="rounded border border-slate-200 bg-white px-3 py-2">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Reasoning distribution</p>
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                            {visibleBatchJudgeStats.reasoningCounts.map((entry) => (
+                                                <span key={`batch-reasoning-${entry.label}`} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
+                                                    {entry.label}: {entry.count}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="rounded border border-slate-200 bg-white p-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Average rubric performance by aspect</p>
+                                        <p className="text-[10px] text-slate-500">Average score is on the 0-4 row scale.</p>
+                                    </div>
+                                    <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                                        {visibleBatchJudgeStats.aspectRows.map((aspect) => (
+                                            <div key={`aspect-${aspect.rowKey}`} className="rounded border border-slate-200 bg-slate-50 px-2.5 py-2">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div>
+                                                        <p className="text-[11px] font-bold text-slate-800">{aspect.rowKey}</p>
+                                                        <p className="text-[10px] leading-4 text-slate-600">{aspect.label}</p>
+                                                    </div>
+                                                    <p className="text-xs font-bold text-slate-900">{aspect.averageScore.toFixed(2)} / 4</p>
+                                                </div>
+                                                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                                                    <div
+                                                        className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"
+                                                        style={{ width: `${clampNumber((aspect.averageScore / 4) * 100, 0, 100)}%` }}
+                                                    />
+                                                </div>
+                                                <div className="mt-2 flex items-center justify-between text-[10px] text-slate-600">
+                                                    <span>Avg points: {aspect.averagePoints.toFixed(2)}</span>
+                                                    <span>4/4 in {aspect.maxedCount}</span>
+                                                </div>
+                                                <p className="mt-1 text-[10px] text-slate-500">Scores of 0-1 in {aspect.lowScoreCount} clusters.</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="rounded border border-slate-200 bg-white p-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div>
+                                            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Per-cluster rubric table</p>
+                                            <p className="mt-0.5 text-[10px] text-slate-500">Each row is one cluster from the latest cross-cluster centroid run.</p>
+                                        </div>
+                                        <p className="text-[10px] text-slate-500">Rows A-M are the rubric aspect scores.</p>
+                                    </div>
+                                    <div className="mt-2 rounded border border-slate-200 bg-slate-50 px-2.5 py-2">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">A-M key</p>
+                                        <div className="mt-1.5 grid gap-x-3 gap-y-1 md:grid-cols-2 xl:grid-cols-3">
+                                            {JUDGE_ROW_ORDER.map((rowKey) => (
+                                                <p key={`cluster-table-key-${rowKey}`} className="text-[10px] leading-4 text-slate-600">
+                                                    <span className="font-bold text-slate-800">{rowKey}</span>: {JUDGE_ROW_LABELS[rowKey]}
+                                                </p>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="mt-2 overflow-x-auto">
+                                        <table className="min-w-[1380px] divide-y divide-slate-200 text-[11px]">
+                                            <thead>
+                                                <tr className="bg-slate-50 text-left text-slate-600">
+                                                    <th className="px-2 py-1.5 font-semibold">Cluster</th>
+                                                    <th className="px-2 py-1.5 font-semibold">Members</th>
+                                                    <th className="px-2 py-1.5 font-semibold">Final</th>
+                                                    <th className="px-2 py-1.5 font-semibold">Subtotal</th>
+                                                    <th className="px-2 py-1.5 font-semibold">Penalty</th>
+                                                    <th className="px-2 py-1.5 font-semibold">Cap</th>
+                                                    <th className="px-2 py-1.5 font-semibold">Outcome</th>
+                                                    <th className="px-2 py-1.5 font-semibold">Correctness</th>
+                                                    {JUDGE_ROW_ORDER.map((rowKey) => (
+                                                        <th
+                                                            key={`batch-header-${rowKey}`}
+                                                            title={JUDGE_ROW_LABELS[rowKey]}
+                                                            className="px-2 py-1.5 text-center font-semibold"
+                                                        >
+                                                            {rowKey}
+                                                        </th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {visibleBatchJudgeStats.clusterRows.map((clusterRow) => (
+                                                    <tr key={`batch-cluster-${clusterRow.clusterId}`} className="align-top text-slate-700">
+                                                        <td className="px-2 py-1.5 font-semibold text-slate-900">{clusterRow.clusterId}</td>
+                                                        <td className="px-2 py-1.5">{clusterRow.memberCount}</td>
+                                                        <td className="px-2 py-1.5 font-semibold text-slate-900">{clusterRow.finalScore.toFixed(2)}</td>
+                                                        <td className="px-2 py-1.5">{clusterRow.subtotal.toFixed(2)}</td>
+                                                        <td className="px-2 py-1.5">-{clusterRow.penaltyTotal.toFixed(2)}</td>
+                                                        <td className="px-2 py-1.5">{formatJudgeCap(clusterRow.cap)}</td>
+                                                        <td className="max-w-[220px] px-2 py-1.5">{clusterRow.outcome}</td>
+                                                        <td className="max-w-[220px] px-2 py-1.5">{clusterRow.correctness}</td>
+                                                        {JUDGE_ROW_ORDER.map((rowKey) => {
+                                                            const score = clusterRow.rowScores[rowKey] ?? 0;
+                                                            return (
+                                                                <td key={`batch-cell-${clusterRow.clusterId}-${rowKey}`} className="px-2 py-1.5 text-center">
+                                                                    <span className={`inline-flex min-w-8 items-center justify-center rounded-full px-1.5 py-0.5 font-semibold ${
+                                                                        score >= 3 ? 'bg-emerald-50 text-emerald-800'
+                                                                            : score >= 2 ? 'bg-amber-50 text-amber-800'
+                                                                                : 'bg-rose-50 text-rose-800'
+                                                                    }`}>
+                                                                        {score}
+                                                                    </span>
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {visibleBatchJudgeStats.failureCount > 0 && (
+                                        <p className="mt-2 text-[10px] text-amber-700">
+                                            {visibleBatchJudgeStats.failureCount} cluster grades failed in this batch run. See the batch failure list in the left judge panel for details.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="space-y-2 rounded border border-slate-200 bg-slate-50 p-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Saved all-cluster grades</p>
+                            <p className="text-xs font-semibold text-slate-700">{savedBatchGrades.length}</p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={clearAllSavedBatchGrades}
+                                disabled={savedBatchGrades.length === 0}
+                                className="rounded border border-red-300 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-800 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                Clear all
+                            </button>
+                        </div>
+
+                        {savedBatchGradesStatus ? (
+                            <p className="text-[11px] text-emerald-700">{savedBatchGradesStatus}</p>
+                        ) : null}
+
+                        {savedBatchGrades.length === 0 ? (
+                            <p className="text-xs text-slate-600">
+                                No saved all-cluster grades yet. Batch runs must be saved explicitly.
+                            </p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <div className="flex gap-2 pb-1">
+                                    {savedBatchGrades.map((grade) => {
+                                        const stats = buildBatchJudgeStatistics(grade.batchRun, grade.batchRun.runFile, selectedRun?.fileName === grade.batchRun.runFile ? selectedRun : null);
+                                        return (
+                                            <div
+                                                key={grade.id}
+                                                className="min-w-[260px] rounded border border-slate-200 bg-white px-2.5 py-2 text-[11px]"
+                                            >
+                                                <div className="min-w-0">
+                                                    <span className="block truncate font-semibold text-slate-800">
+                                                        {grade.batchRun.judgeConfig.provider}/{grade.batchRun.judgeConfig.model}
+                                                    </span>
+                                                    <span className="mt-0.5 block text-slate-600">
+                                                        {stats ? `${stats.averageFinalScore.toFixed(1)} avg` : `${grade.batchRun.snapshots.length} clusters`}
+                                                    </span>
+                                                    <span className="block text-[10px] text-slate-500">
+                                                        {grade.batchRun.snapshots.length} graded clusters
+                                                        {grade.batchRun.errors.length > 0 ? ` • ${grade.batchRun.errors.length} failures` : ''}
+                                                    </span>
+                                                    {grade.batchRun.judgeConfig.judgeOutlineIds.length > 0 && (
+                                                        <span className="block text-[10px] text-slate-500">
+                                                            outlines: {grade.batchRun.judgeConfig.judgeOutlineIds.length}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="mt-2 flex items-center justify-between gap-2">
+                                                    <span className="text-[10px] text-slate-500">{formatDateTime(grade.savedAt)}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => deleteSavedBatchGrade(grade.id)}
+                                                        className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-200"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="space-y-2 rounded border border-slate-200 bg-slate-50 p-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Saved cluster grades</p>
+                            <p className="text-xs font-semibold text-slate-700">{savedGrades.length}</p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={allSavedGradesSelected ? clearSavedGradeSelection : selectAllSavedGrades}
+                                disabled={savedGrades.length === 0}
+                                className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {allSavedGradesSelected ? 'Clear selection' : 'Select all'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleCompareSelected}
+                                disabled={selectedSavedGradeIds.length === 0}
+                                className="rounded border border-blue-300 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                Compare selected ({selectedSavedGradeIds.length})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={removeSelectedSavedGrades}
+                                disabled={selectedSavedGradeIds.length === 0}
+                                className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                Delete selected
+                            </button>
+                            <button
+                                type="button"
+                                onClick={clearAllSavedGrades}
+                                disabled={savedGrades.length === 0}
+                                className="rounded border border-red-300 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-800 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                Clear all
+                            </button>
+                        </div>
+
+                        {savedGradesStatus && (
+                            <p className="text-[11px] text-emerald-700">{savedGradesStatus}</p>
+                        )}
+
+                        {savedGrades.length === 0 ? (
+                            <p className="text-xs text-slate-600">
+                                No saved grades yet. Saved grades persist even when you do not compare.
+                            </p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <div className="flex gap-2 pb-1">
+                                    {savedGrades.map((grade) => {
+                                        const selected = selectedSavedGradeIds.includes(grade.id);
+                                        return (
+                                            <div
+                                                key={grade.id}
+                                                className={`min-w-[210px] rounded border px-2 py-1.5 text-[11px] ${selected ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                                            >
+                                                <label className="flex items-start gap-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selected}
+                                                        onChange={() => toggleSavedGradeSelection(grade.id)}
+                                                        className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300"
+                                                    />
+                                                    <span className="min-w-0 flex-1">
+                                                        <span className="block truncate font-semibold text-slate-800">
+                                                            {grade.judgeConfig.provider}/{grade.judgeConfig.model}
+                                                        </span>
+                                                        <span className="block text-slate-600">
+                                                            {grade.grading.finalScore.toFixed(1)} - c{grade.clusterId}
+                                                        </span>
+                                                        {grade.judgeConfig.judgeOutlineIds.length > 0 && (
+                                                            <span className="block text-[10px] text-slate-500">
+                                                                outlines: {grade.judgeConfig.judgeOutlineIds.length}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                </label>
+                                                <div className="mt-1 flex items-center justify-between gap-2">
+                                                    <span className="text-[10px] text-slate-500">{formatDateTime(grade.savedAt)}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => deleteSavedGrade(grade.id)}
+                                                        className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-200"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {isComparisonVisible && (
+                            <div className="space-y-3 rounded-xl border border-slate-200 bg-[linear-gradient(165deg,#ffffff_0%,#f8fbff_55%,#eef6ff_100%)] p-3 shadow-sm">
+                                <div className="flex items-center justify-between gap-2">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600">
+                                        Comparison results ({comparedSavedGrades.length})
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsComparisonVisible(false)}
+                                        className="rounded border border-slate-300 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-200"
+                                    >
+                                        Hide
+                                    </button>
+                                </div>
+
+                                {judgeModelComparisonRows.length === 0 ? (
+                                    <p className="text-xs text-slate-600">No comparable grades selected.</p>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700">Highest average score</p>
+                                                <p className="mt-0.5 text-xs font-bold text-emerald-900">
+                                                    {comparisonHighlights.bestModel?.provider}/{comparisonHighlights.bestModel?.model}
+                                                </p>
+                                                <p className="text-sm font-extrabold text-emerald-900">
+                                                    {comparisonHighlights.bestModel?.averageFinalScore.toFixed(2) ?? '0.00'}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-rose-700">Highest average penalties</p>
+                                                <p className="mt-0.5 text-xs font-bold text-rose-900">
+                                                    {comparisonHighlights.strictestModel?.provider}/{comparisonHighlights.strictestModel?.model}
+                                                </p>
+                                                <p className="text-sm font-extrabold text-rose-900">
+                                                    {comparisonHighlights.strictestModel?.averagePenalty.toFixed(2) ?? '0.00'}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px]">
+                                            <p className="font-semibold text-slate-700">Selection consensus</p>
+                                            <div className="mt-1 flex flex-wrap gap-1.5">
+                                                <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                                                    Outcome: {comparisonHighlights.consensusOutcome || 'N/A'}
+                                                </span>
+                                                <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+                                                    Reasoning: {comparisonHighlights.consensusReasoning || 'N/A'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            {judgeModelComparisonRows.map((row) => (
+                                                <div key={row.key} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2.5">
+                                                    <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                                        <p className="text-[11px] font-bold text-slate-800">
+                                                            {row.provider}/{row.model}
+                                                        </p>
+                                                        <span
+                                                            className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${row.provider === 'openai'
+                                                                ? 'border-blue-200 bg-blue-50 text-blue-700'
+                                                                : row.provider === 'anthropic'
+                                                                    ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                                                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                                }`}
+                                                        >
+                                                            N={row.sampleCount}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="mt-2 space-y-1.5">
+                                                        <div>
+                                                            <div className="flex items-center justify-between text-[10px] font-semibold text-slate-600">
+                                                                <span>Avg final score</span>
+                                                                <span>{row.averageFinalScore.toFixed(2)}</span>
+                                                            </div>
+                                                            <div className="mt-0.5 h-2 overflow-hidden rounded-full bg-slate-200">
+                                                                <div
+                                                                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500"
+                                                                    style={{ width: `${clampNumber(row.averageFinalScore, 0, 100)}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center justify-between text-[10px] font-semibold text-slate-600">
+                                                                <span>Avg penalties</span>
+                                                                <span>{row.averagePenalty.toFixed(2)}</span>
+                                                            </div>
+                                                            <div className="mt-0.5 h-2 overflow-hidden rounded-full bg-slate-200">
+                                                                <div
+                                                                    className="h-full rounded-full bg-gradient-to-r from-rose-500 to-orange-500"
+                                                                    style={{ width: `${clampNumber((row.averagePenalty / maxPenaltyScale) * 100, 0, 100)}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-2 flex flex-wrap gap-1">
+                                                        <span className="rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-700">
+                                                            {row.commonOutcome}
+                                                        </span>
+                                                        <span className="rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-700">
+                                                            {row.commonReasoning}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedPenaltyTrends.length > 0 && (
+                                    <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-2">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Frequent penalties</p>
+                                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                            {selectedPenaltyTrends.map((penalty) => (
+                                                <span
+                                                    key={penalty.key}
+                                                    className="rounded-full border px-2 py-0.5 text-[10px] font-semibold text-slate-700"
+                                                    style={{
+                                                        borderColor: `rgba(148, 163, 184, ${0.3 + (penalty.count / maxPenaltyTrendCount) * 0.5})`,
+                                                        backgroundColor: `rgba(15, 23, 42, ${0.04 + (penalty.count / maxPenaltyTrendCount) * 0.08})`,
+                                                    }}
+                                                >
+                                                    {penalty.label}: {penalty.count}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 
     return (
         <AppShell
@@ -1402,7 +2398,7 @@ export default function LshRunsPage() {
                                             ['--inspector-pane-basis' as string]: `calc(${inspectorPanePercent}% - 6px)`,
                                         }}
                                     >
-                                        <div className="min-w-0 xl:shrink-0 xl:basis-[var(--map-pane-basis)]">
+                                        <div className="min-w-0 xl:order-3 xl:shrink-0 xl:basis-[var(--map-pane-basis)]">
                                             <div className="relative overflow-hidden rounded-xl border border-slate-700 bg-slate-950">
                                                 <svg
                                                     key={selectedRun.fileName}
@@ -1529,9 +2525,58 @@ export default function LshRunsPage() {
                                             <p className="mt-2 text-xs text-slate-500">
                                                 Filtered clusters: {filteredClusters.length} / {selectedRun.clusters.length} - Visible points: {mapData.points.length}
                                             </p>
+
+                                            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <h3 className="text-sm font-bold text-slate-900">Selected Cluster Outcomes</h3>
+                                                    {selectedCluster ? (
+                                                        <p className="text-[11px] font-semibold text-slate-500">
+                                                            {selectedCluster.id === 'noise' ? 'Noise Cluster' : `Cluster ${selectedCluster.id}`}
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+
+                                                {selectedClusterGrade ? (
+                                                    <div className="mt-3 space-y-3">
+                                                        <p className="text-xs text-slate-600">
+                                                            These tags describe the currently selected cluster grade. They are not a whole-run or all-cluster aggregate.
+                                                        </p>
+
+                                                        <div className="grid gap-2 sm:grid-cols-2">
+                                                            <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Cluster conclusion tag</p>
+                                                                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedClusterGrade.outcomes.bottomLineOutcome}</p>
+                                                            </div>
+                                                            <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Legal correctness tag</p>
+                                                                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedClusterGrade.outcomes.outcomeCorrectness}</p>
+                                                            </div>
+                                                            <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Reasoning alignment tag</p>
+                                                                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedClusterGrade.outcomes.reasoningAlignment}</p>
+                                                            </div>
+                                                            <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Jurisdiction assumption</p>
+                                                                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedClusterGrade.outcomes.jurisdictionAssumption}</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="rounded border border-slate-200 bg-slate-50 px-3 py-3">
+                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Judge summary</p>
+                                                            <p className="mt-2 text-sm leading-6 text-slate-700">{selectedClusterGrade.summary}</p>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <p className="mt-3 text-sm text-slate-600">
+                                                        Grade a cluster, or select a graded cluster after batch judging, to see its outcome tags and summary here.
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {judgeResultsPanel}
                                         </div>
 
-                                        <div className="hidden xl:flex xl:w-3 xl:shrink-0 xl:items-center xl:justify-center">
+                                        <div className="hidden xl:order-2 xl:flex xl:w-3 xl:shrink-0 xl:items-center xl:justify-center">
                                             <button
                                                 type="button"
                                                 onMouseDown={(event) => {
@@ -1546,7 +2591,7 @@ export default function LshRunsPage() {
                                             </button>
                                         </div>
 
-                                        <aside className="min-w-0 xl:shrink-0 xl:basis-[var(--inspector-pane-basis)]">
+                                        <aside className="min-w-0 xl:order-1 xl:shrink-0 xl:basis-[var(--inspector-pane-basis)]">
                                             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                                                 <div className="flex items-center justify-between gap-2">
                                                     <h3 className="text-sm font-bold text-slate-900">Cluster Inspector</h3>
@@ -1862,551 +2907,7 @@ export default function LshRunsPage() {
                                                     <p className="mt-3 text-sm text-slate-600">Click or hover a cluster to inspect details.</p>
                                                 )}
 
-                                                <div className="mt-4 border-t border-slate-200 pt-3">
-                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">LLM-as-Judge</p>
-                                                    {!selectedCluster ? (
-                                                        <p className="mt-2 text-xs text-slate-600">Select a cluster to configure judging.</p>
-                                                    ) : (
-                                                        <div className="mt-2 space-y-3">
-                                                            <div className="grid grid-cols-2 gap-2">
-                                                                <label className="text-[11px] font-semibold text-slate-600">
-                                                                    Provider
-                                                                    <select
-                                                                        value={judgeProvider}
-                                                                        onChange={(event) => setJudgeProvider(event.target.value as JudgeProvider)}
-                                                                        className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
-                                                                    >
-                                                                        <option value="openai">OpenAI</option>
-                                                                        <option value="anthropic">Anthropic</option>
-                                                                        <option value="gemini">Google Gemini</option>
-                                                                    </select>
-                                                                </label>
-                                                                <label className="text-[11px] font-semibold text-slate-600">
-                                                                    Judge model
-                                                                    <select
-                                                                        value={judgeModel}
-                                                                        onChange={(event) => setJudgeModel(event.target.value)}
-                                                                        className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
-                                                                    >
-                                                                        {judgeModelOptions.map((option) => (
-                                                                            <option key={option.value} value={option.value}>
-                                                                                {option.label}
-                                                                            </option>
-                                                                        ))}
-                                                                    </select>
-                                                                </label>
-                                                            </div>
-
-                                                            {judgeSupportsReasoningControl ? (
-                                                                <label className="block text-[11px] font-semibold text-slate-600">
-                                                                    Reasoning mode
-                                                                    <select
-                                                                        value={judgeReasoningEffort}
-                                                                        onChange={(event) => setJudgeReasoningEffort(event.target.value as JudgeReasoningEffort)}
-                                                                        className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
-                                                                    >
-                                                                        {JUDGE_REASONING_OPTIONS.map((option) => (
-                                                                            <option key={option.value} value={option.value}>
-                                                                                {option.label}
-                                                                            </option>
-                                                                        ))}
-                                                                    </select>
-                                                                </label>
-                                                            ) : (
-                                                                <p className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-[11px] text-slate-600">
-                                                                    This model does not expose judge reasoning controls. Default provider behavior is used.
-                                                                </p>
-                                                            )}
-
-                                                            <div className="space-y-2 rounded border border-slate-200 bg-slate-50 p-2">
-                                                                <div className="flex items-center justify-between gap-2">
-                                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600">Judge Rubrics</p>
-                                                                    <span className="text-[11px] font-semibold text-slate-500">{judgeRubricLibrary.length} saved</span>
-                                                                </div>
-                                                                <p className="text-[11px] text-slate-500">
-                                                                    Saved rubrics on this page persist locally and stay separate from rubric-first multi-model judge. Selecting a single mapped outline auto-loads its paired rubric.
-                                                                </p>
-                                                                <label className="block text-[11px] font-semibold text-slate-600">
-                                                                    Saved rubric
-                                                                    <select
-                                                                        value={selectedJudgeRubricTemplateId}
-                                                                        onChange={(event) => handleSelectJudgeRubricTemplate(event.target.value)}
-                                                                        className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
-                                                                    >
-                                                                        <option value="">New draft</option>
-                                                                        {judgeRubricLibrary.map((rubric) => (
-                                                                            <option key={rubric.id} value={rubric.id}>
-                                                                                {rubric.name}
-                                                                            </option>
-                                                                        ))}
-                                                                    </select>
-                                                                </label>
-                                                                <details className="rounded border border-slate-200 bg-white">
-                                                                    <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-semibold text-slate-700">
-                                                                        View enforced JSON output contract
-                                                                    </summary>
-                                                                    <div className="space-y-2 border-t border-slate-200 px-2 py-2">
-                                                                        <p className="text-[11px] text-slate-500">
-                                                                            This format is enforced by the judge route itself, not by the selected rubric text.
-                                                                        </p>
-                                                                        <pre className="overflow-x-auto rounded border border-slate-200 bg-slate-50 p-2 text-[10px] text-slate-700">{LSH_JUDGE_OUTPUT_JSON_SCHEMA}</pre>
-                                                                        <div className="space-y-1 text-[11px] text-slate-600">
-                                                                            {LSH_JUDGE_OUTPUT_RULES.map((rule) => (
-                                                                                <p key={rule}>{rule}</p>
-                                                                            ))}
-                                                                            <p>- summary must be concise and specific to this cluster.</p>
-                                                                        </div>
-                                                                    </div>
-                                                                </details>
-                                                                <label className="block text-[11px] font-semibold text-slate-600">
-                                                                    Rubric name
-                                                                    <input
-                                                                        value={judgeRubricNameDraft}
-                                                                        onChange={(event) => setJudgeRubricNameDraft(event.target.value)}
-                                                                        placeholder="Contract Law Outline Compliance"
-                                                                        className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400"
-                                                                    />
-                                                                </label>
-                                                                <div className="flex flex-wrap gap-2">
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={saveJudgeRubricTemplate}
-                                                                        className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
-                                                                    >
-                                                                        {selectedJudgeRubricTemplate ? 'Update rubric' : 'Save rubric'}
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={createNewJudgeRubricDraft}
-                                                                        className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
-                                                                    >
-                                                                        New draft
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={deleteSelectedJudgeRubric}
-                                                                        disabled={!selectedJudgeRubricTemplate}
-                                                                        className="rounded border border-rose-300 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-800 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                                                    >
-                                                                        Delete
-                                                                    </button>
-                                                                </div>
-                                                                {judgeRubricStatus ? (
-                                                                    <p className="rounded border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-600">
-                                                                        {judgeRubricStatus}
-                                                                    </p>
-                                                                ) : null}
-                                                            </div>
-
-                                                            <label className="block text-[11px] font-semibold text-slate-600">
-                                                                Judge rubric instructions
-                                                                <textarea
-                                                                    value={judgeInstructions}
-                                                                    onChange={(event) => setJudgeInstructions(event.target.value)}
-                                                                    rows={4}
-                                                                    placeholder="Add saved or ad hoc grading preferences (optional). Base rubric is always applied."
-                                                                    className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-2 text-xs text-slate-700 placeholder:text-slate-400"
-                                                                />
-                                                            </label>
-
-                                                            <div className="space-y-1.5 rounded border border-slate-200 bg-slate-50 p-2">
-                                                                <div className="flex items-center justify-between gap-2">
-                                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600">Outline Rubrics (Judge)</p>
-                                                                    <span className="text-[11px] font-semibold text-slate-500">{selectedJudgeOutlineIds.length} selected</span>
-                                                                </div>
-                                                                <p className="text-[11px] text-slate-500">
-                                                                    Checked outlines are retrieved with RAG and treated as additional rubric context for judging this cluster.
-                                                                </p>
-                                                                <div className="max-h-32 overflow-y-auto rounded border border-slate-300 bg-white">
-                                                                    {availableOutlines.length === 0 ? (
-                                                                        <p className="px-2 py-1.5 text-[11px] text-slate-500">No outlines available.</p>
-                                                                    ) : (
-                                                                        <div className="divide-y divide-slate-200">
-                                                                            {availableOutlines.map((outline) => {
-                                                                                const selected = selectedJudgeOutlineIds.includes(outline.id);
-                                                                                return (
-                                                                                    <label key={`lsh-judge-outline-${outline.id}`} className={`flex cursor-pointer items-start gap-2 px-2 py-1.5 ${selected ? 'bg-teal-50' : 'hover:bg-slate-50'}`}>
-                                                                                        <input
-                                                                                            type="checkbox"
-                                                                                            checked={selected}
-                                                                                            onChange={() => toggleJudgeOutlineSelection(outline.id)}
-                                                                                            className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300"
-                                                                                        />
-                                                                                        <span className="min-w-0">
-                                                                                            <span className="block text-[11px] font-semibold text-slate-800">{outline.title}</span>
-                                                                                            <span className="block text-[10px] text-slate-500">{outline.fileName}</span>
-                                                                                        </span>
-                                                                                    </label>
-                                                                                );
-                                                                            })}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-
-                                                            <button
-                                                                type="button"
-                                                                onClick={handleJudgeCluster}
-                                                                disabled={isJudgingCluster || isBatchJudging}
-                                                                className="rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                                            >
-                                                                {isJudgingCluster ? 'Grading cluster...' : `Grade ${selectedCluster.id === 'noise' ? 'Noise Cluster' : `Cluster ${selectedCluster.id}`}`}
-                                                            </button>
-
-                                                            <button
-                                                                type="button"
-                                                                onClick={handleJudgeAllCentroids}
-                                                                disabled={isBatchJudging || isJudgingCluster || !selectedRun}
-                                                                className="rounded-md border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                                            >
-                                                                {isBatchJudging ? 'Grading all centroids...' : 'Grade All Cluster Centroids'}
-                                                            </button>
-
-                                                            <p className="text-[11px] text-slate-500">
-                                                                Latest grade is temporary. Use Save grade to keep it for comparison.
-                                                            </p>
-
-                                                            {batchProgress && (
-                                                                <p className="rounded border border-indigo-200 bg-indigo-50 px-2 py-1.5 text-[11px] text-indigo-800">
-                                                                    {batchProgress.completed}/{batchProgress.total} completed • {batchProgress.succeeded} succeeded • {batchProgress.failed} failed
-                                                                </p>
-                                                            )}
-
-                                                            {batchErrors.length > 0 && (
-                                                                <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900">
-                                                                    <p className="font-semibold">Batch failures:</p>
-                                                                    <div className="mt-1 space-y-0.5">
-                                                                        {batchErrors.slice(0, 6).map((row) => (
-                                                                            <p key={`${row.clusterId}-${row.message}`}>
-                                                                                {row.clusterId}: {row.message}
-                                                                            </p>
-                                                                        ))}
-                                                                        {batchErrors.length > 6 && (
-                                                                            <p>...and {batchErrors.length - 6} more</p>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                            {judgeError && (
-                                                                <p className="rounded border border-red-200 bg-red-50 px-2 py-1.5 text-xs text-red-700">{judgeError}</p>
-                                                            )}
-
-                                                            {selectedClusterGrade && (
-                                                                <div className="space-y-2 rounded border border-slate-200 bg-slate-50 p-2.5">
-                                                                    <div className="flex items-center justify-between gap-2">
-                                                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Latest grade</p>
-                                                                        <p className="text-sm font-extrabold text-slate-900">{selectedClusterGrade.finalScore.toFixed(2)} / 100</p>
-                                                                    </div>
-                                                                    <div className="flex flex-wrap items-center gap-2">
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={handleSaveLatestGrade}
-                                                                            className="rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
-                                                                        >
-                                                                            Save grade
-                                                                        </button>
-                                                                        {savedGradesStatus && (
-                                                                            <p className="text-[11px] text-emerald-700">{savedGradesStatus}</p>
-                                                                        )}
-                                                                    </div>
-
-                                                                    <div className="grid grid-cols-3 gap-1.5 text-[11px]">
-                                                                        <div className="rounded border border-slate-200 bg-white px-2 py-1">
-                                                                            <p className="font-semibold text-slate-500">Subtotal</p>
-                                                                            <p className="mt-0.5 font-bold text-slate-800">{selectedClusterGrade.subtotal.toFixed(2)}</p>
-                                                                        </div>
-                                                                        <div className="rounded border border-slate-200 bg-white px-2 py-1">
-                                                                            <p className="font-semibold text-slate-500">Penalties</p>
-                                                                            <p className="mt-0.5 font-bold text-slate-800">-{selectedClusterGrade.penaltyTotal.toFixed(2)}</p>
-                                                                        </div>
-                                                                        <div className="rounded border border-slate-200 bg-white px-2 py-1">
-                                                                            <p className="font-semibold text-slate-500">Cap</p>
-                                                                            <p className="mt-0.5 font-bold text-slate-800">{formatJudgeCap(selectedClusterGrade.cap)}</p>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <div className="grid grid-cols-4 gap-1 text-[11px]">
-                                                                        {JUDGE_ROW_ORDER.map((row) => {
-                                                                            const rowScore = selectedClusterGrade.rowScores[row] ?? 0;
-                                                                            const rowPoint = selectedClusterGrade.rowPoints[row] ?? 0;
-                                                                            return (
-                                                                                <div key={row} className="rounded border border-slate-200 bg-white px-1.5 py-1">
-                                                                                    <p className="font-semibold text-slate-500">{row}</p>
-                                                                                    <p className="font-bold text-slate-800">{rowScore} / 4</p>
-                                                                                    <p className="text-slate-600">{rowPoint.toFixed(2)}</p>
-                                                                                </div>
-                                                                            );
-                                                                        })}
-                                                                    </div>
-
-                                                                    <div className="space-y-1 text-[11px] text-slate-700">
-                                                                        <p><span className="font-semibold">Outcome:</span> {selectedClusterGrade.outcomes.bottomLineOutcome}</p>
-                                                                        <p><span className="font-semibold">Correctness:</span> {selectedClusterGrade.outcomes.outcomeCorrectness}</p>
-                                                                        <p><span className="font-semibold">Reasoning:</span> {selectedClusterGrade.outcomes.reasoningAlignment}</p>
-                                                                        <p><span className="font-semibold">Jurisdiction:</span> {selectedClusterGrade.outcomes.jurisdictionAssumption}</p>
-                                                                    </div>
-
-                                                                    <p className="text-xs text-slate-700">{selectedClusterGrade.summary}</p>
-
-                                                                    {selectedClusterGrade.penaltiesApplied.length > 0 && (
-                                                                        <div className="space-y-1">
-                                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Penalties applied</p>
-                                                                            {selectedClusterGrade.penaltiesApplied.map((penalty) => (
-                                                                                <p key={penalty.key} className="text-[11px] text-slate-700">
-                                                                                    - {penalty.label} (-{penalty.points})
-                                                                                </p>
-                                                                            ))}
-                                                                        </div>
-                                                                    )}
-
-                                                                    {selectedClusterGrade.parseFailed && (
-                                                                        <details className="rounded border border-amber-200 bg-amber-50 p-2">
-                                                                            <summary className="cursor-pointer text-[11px] font-semibold text-amber-800">
-                                                                                Judge JSON parse failed (show raw output)
-                                                                            </summary>
-                                                                            <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-[10px] text-amber-900">
-                                                                                {selectedClusterGrade.rawJudgeOutput}
-                                                                            </pre>
-                                                                        </details>
-                                                                    )}
-                                                                </div>
-                                                            )}
-
-                                                            <div className="space-y-2 rounded border border-slate-200 bg-slate-50 p-2.5">
-                                                                <div className="flex items-center justify-between gap-2">
-                                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Saved grades</p>
-                                                                    <p className="text-xs font-semibold text-slate-700">{savedGrades.length}</p>
-                                                                </div>
-
-                                                                <div className="flex flex-wrap gap-2">
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={allSavedGradesSelected ? clearSavedGradeSelection : selectAllSavedGrades}
-                                                                        disabled={savedGrades.length === 0}
-                                                                        className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                                                    >
-                                                                        {allSavedGradesSelected ? 'Clear selection' : 'Select all'}
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={handleCompareSelected}
-                                                                        disabled={selectedSavedGradeIds.length === 0}
-                                                                        className="rounded border border-blue-300 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                                                    >
-                                                                        Compare selected ({selectedSavedGradeIds.length})
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={removeSelectedSavedGrades}
-                                                                        disabled={selectedSavedGradeIds.length === 0}
-                                                                        className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                                                    >
-                                                                        Delete selected
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={clearAllSavedGrades}
-                                                                        disabled={savedGrades.length === 0}
-                                                                        className="rounded border border-red-300 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-800 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                                                    >
-                                                                        Clear all
-                                                                    </button>
-                                                                </div>
-
-                                                                {savedGradesStatus && (
-                                                                    <p className="text-[11px] text-emerald-700">{savedGradesStatus}</p>
-                                                                )}
-
-                                                                {savedGrades.length === 0 ? (
-                                                                    <p className="text-xs text-slate-600">
-                                                                        No saved grades yet. Saved grades persist even when you do not compare.
-                                                                    </p>
-                                                                ) : (
-                                                                    <div className="overflow-x-auto">
-                                                                        <div className="flex gap-2 pb-1">
-                                                                            {savedGrades.map((grade) => {
-                                                                                const selected = selectedSavedGradeIds.includes(grade.id);
-                                                                                return (
-                                                                                    <div
-                                                                                        key={grade.id}
-                                                                                        className={`min-w-[210px] rounded border px-2 py-1.5 text-[11px] ${selected ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}
-                                                                                    >
-                                                                                        <label className="flex items-start gap-2">
-                                                                                            <input
-                                                                                                type="checkbox"
-                                                                                                checked={selected}
-                                                                                                onChange={() => toggleSavedGradeSelection(grade.id)}
-                                                                                                className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300"
-                                                                                            />
-                                                                                            <span className="min-w-0 flex-1">
-                                                                                                <span className="block truncate font-semibold text-slate-800">
-                                                                                                    {grade.judgeConfig.provider}/{grade.judgeConfig.model}
-                                                                                                </span>
-                                                                                                <span className="block text-slate-600">
-                                                                                                    {grade.grading.finalScore.toFixed(1)} - c{grade.clusterId}
-                                                                                                </span>
-                                                                                                {grade.judgeConfig.judgeOutlineIds.length > 0 && (
-                                                                                                    <span className="block text-[10px] text-slate-500">
-                                                                                                        outlines: {grade.judgeConfig.judgeOutlineIds.length}
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </span>
-                                                                                        </label>
-                                                                                        <div className="mt-1 flex items-center justify-between gap-2">
-                                                                                            <span className="text-[10px] text-slate-500">{formatDateTime(grade.savedAt)}</span>
-                                                                                            <button
-                                                                                                type="button"
-                                                                                                onClick={() => deleteSavedGrade(grade.id)}
-                                                                                                className="rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 hover:bg-red-100"
-                                                                                            >
-                                                                                                Delete
-                                                                                            </button>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                );
-                                                                            })}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-
-                                                                {isComparisonVisible && (
-                                                                    <div className="space-y-3 rounded-xl border border-slate-200 bg-[linear-gradient(165deg,#ffffff_0%,#f8fbff_55%,#eef6ff_100%)] p-3 shadow-sm">
-                                                                        <div className="flex items-center justify-between gap-2">
-                                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600">
-                                                                                Comparison results ({comparedSavedGrades.length})
-                                                                            </p>
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => setIsComparisonVisible(false)}
-                                                                                className="rounded border border-slate-300 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-200"
-                                                                            >
-                                                                                Hide
-                                                                            </button>
-                                                                        </div>
-
-                                                                        {judgeModelComparisonRows.length === 0 ? (
-                                                                            <p className="text-xs text-slate-600">No comparable grades selected.</p>
-                                                                        ) : (
-                                                                            <div className="space-y-3">
-                                                                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                                                                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2">
-                                                                                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700">Highest average score</p>
-                                                                                        <p className="mt-0.5 text-xs font-bold text-emerald-900">
-                                                                                            {comparisonHighlights.bestModel?.provider}/{comparisonHighlights.bestModel?.model}
-                                                                                        </p>
-                                                                                        <p className="text-sm font-extrabold text-emerald-900">
-                                                                                            {comparisonHighlights.bestModel?.averageFinalScore.toFixed(2) ?? '0.00'}
-                                                                                        </p>
-                                                                                    </div>
-                                                                                    <div className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2">
-                                                                                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-rose-700">Highest average penalties</p>
-                                                                                        <p className="mt-0.5 text-xs font-bold text-rose-900">
-                                                                                            {comparisonHighlights.strictestModel?.provider}/{comparisonHighlights.strictestModel?.model}
-                                                                                        </p>
-                                                                                        <p className="text-sm font-extrabold text-rose-900">
-                                                                                            {comparisonHighlights.strictestModel?.averagePenalty.toFixed(2) ?? '0.00'}
-                                                                                        </p>
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px]">
-                                                                                    <p className="font-semibold text-slate-700">Selection consensus</p>
-                                                                                    <div className="mt-1 flex flex-wrap gap-1.5">
-                                                                                        <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
-                                                                                            Outcome: {comparisonHighlights.consensusOutcome || 'N/A'}
-                                                                                        </span>
-                                                                                        <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
-                                                                                            Reasoning: {comparisonHighlights.consensusReasoning || 'N/A'}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                <div className="space-y-2">
-                                                                                    {judgeModelComparisonRows.map((row) => (
-                                                                                        <div key={row.key} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2.5">
-                                                                                            <div className="flex flex-wrap items-center justify-between gap-1.5">
-                                                                                                <p className="text-[11px] font-bold text-slate-800">
-                                                                                                    {row.provider}/{row.model}
-                                                                                                </p>
-                                                                                                <span
-                                                                                                    className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${row.provider === 'openai'
-                                                                                                        ? 'border-blue-200 bg-blue-50 text-blue-700'
-                                                                                                        : row.provider === 'anthropic'
-                                                                                                            ? 'border-amber-200 bg-amber-50 text-amber-700'
-                                                                                                            : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                                                                                        }`}
-                                                                                                >
-                                                                                                    N={row.sampleCount}
-                                                                                                </span>
-                                                                                            </div>
-
-                                                                                            <div className="mt-2 space-y-1.5">
-                                                                                                <div>
-                                                                                                    <div className="flex items-center justify-between text-[10px] font-semibold text-slate-600">
-                                                                                                        <span>Avg final score</span>
-                                                                                                        <span>{row.averageFinalScore.toFixed(2)}</span>
-                                                                                                    </div>
-                                                                                                    <div className="mt-0.5 h-2 overflow-hidden rounded-full bg-slate-200">
-                                                                                                        <div
-                                                                                                            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500"
-                                                                                                            style={{ width: `${clampNumber(row.averageFinalScore, 0, 100)}%` }}
-                                                                                                        />
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                                <div>
-                                                                                                    <div className="flex items-center justify-between text-[10px] font-semibold text-slate-600">
-                                                                                                        <span>Avg penalties</span>
-                                                                                                        <span>{row.averagePenalty.toFixed(2)}</span>
-                                                                                                    </div>
-                                                                                                    <div className="mt-0.5 h-2 overflow-hidden rounded-full bg-slate-200">
-                                                                                                        <div
-                                                                                                            className="h-full rounded-full bg-gradient-to-r from-rose-500 to-orange-500"
-                                                                                                            style={{ width: `${clampNumber((row.averagePenalty / maxPenaltyScale) * 100, 0, 100)}%` }}
-                                                                                                        />
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            </div>
-
-                                                                                            <div className="mt-2 flex flex-wrap gap-1">
-                                                                                                <span className="rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-700">
-                                                                                                    {row.commonOutcome}
-                                                                                                </span>
-                                                                                                <span className="rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-700">
-                                                                                                    {row.commonReasoning}
-                                                                                                </span>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    ))}
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-
-                                                                        {selectedPenaltyTrends.length > 0 && (
-                                                                            <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-2">
-                                                                                <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Frequent penalties</p>
-                                                                                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                                                                    {selectedPenaltyTrends.map((penalty) => (
-                                                                                        <span
-                                                                                            key={penalty.key}
-                                                                                            className="rounded-full border px-2 py-0.5 text-[10px] font-semibold text-slate-700"
-                                                                                            style={{
-                                                                                                borderColor: `rgba(148, 163, 184, ${0.3 + (penalty.count / maxPenaltyTrendCount) * 0.5})`,
-                                                                                                backgroundColor: `rgba(15, 23, 42, ${0.04 + (penalty.count / maxPenaltyTrendCount) * 0.08})`,
-                                                                                            }}
-                                                                                        >
-                                                                                            {penalty.label}: {penalty.count}
-                                                                                        </span>
-                                                                                    ))}
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                {judgeControlsPanel}
 
                                                 <div className="mt-4 border-t border-slate-200 pt-3">
                                                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Visible cluster list</p>
@@ -2968,6 +3469,30 @@ function readSavedGradesFromStorage(): SavedGradeRecord[] {
     }
 }
 
+function readSavedBatchGradesFromStorage(): SavedBatchGradeRecord[] {
+    if (typeof window === 'undefined') {
+        return [];
+    }
+
+    try {
+        const raw = window.localStorage.getItem(SAVED_BATCH_GRADES_STORAGE_KEY);
+        if (!raw) {
+            return [];
+        }
+        const parsed = JSON.parse(raw) as unknown;
+        if (!Array.isArray(parsed)) {
+            return [];
+        }
+
+        return parsed
+            .map((entry) => normalizeSavedBatchGrade(entry))
+            .filter((entry): entry is SavedBatchGradeRecord => entry !== null)
+            .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+    } catch {
+        return [];
+    }
+}
+
 function writeSavedGradesToStorage(savedGrades: SavedGradeRecord[]) {
     if (typeof window === 'undefined') {
         return;
@@ -2977,6 +3502,18 @@ function writeSavedGradesToStorage(savedGrades: SavedGradeRecord[]) {
         window.localStorage.setItem(SAVED_GRADES_STORAGE_KEY, JSON.stringify(savedGrades));
     } catch (error) {
         console.error('Failed to persist saved grades:', error);
+    }
+}
+
+function writeSavedBatchGradesToStorage(savedBatchGrades: SavedBatchGradeRecord[]) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.localStorage.setItem(SAVED_BATCH_GRADES_STORAGE_KEY, JSON.stringify(savedBatchGrades));
+    } catch (error) {
+        console.error('Failed to persist saved batch grades:', error);
     }
 }
 
@@ -3037,6 +3574,137 @@ function normalizeSavedGrade(value: unknown): SavedGradeRecord | null {
             judgeOutlineIds,
         },
     };
+}
+
+function normalizeSavedBatchGrade(value: unknown): SavedBatchGradeRecord | null {
+    if (!value || typeof value !== 'object') {
+        return null;
+    }
+
+    const source = value as Record<string, unknown>;
+    const id = typeof source.id === 'string' ? source.id : '';
+    const savedAt = typeof source.savedAt === 'string' ? source.savedAt : '';
+    const batchRun = normalizeBatchJudgeRun(source.batchRun);
+    if (!id || !savedAt || !batchRun) {
+        return null;
+    }
+
+    return {
+        id,
+        savedAt,
+        batchRun,
+    };
+}
+
+function normalizeBatchJudgeRun(value: unknown): BatchJudgeRunRecord | null {
+    if (!value || typeof value !== 'object') {
+        return null;
+    }
+
+    const source = value as Record<string, unknown>;
+    const id = typeof source.id === 'string' ? source.id : '';
+    const runFile = typeof source.runFile === 'string' ? source.runFile : '';
+    const startedAt = typeof source.startedAt === 'string' ? source.startedAt : '';
+    const completedAt = typeof source.completedAt === 'string' ? source.completedAt : '';
+    const judgeConfig = normalizeJudgeConfig(source.judgeConfig, 'centroid_only');
+    const snapshots = Array.isArray(source.snapshots)
+        ? source.snapshots
+            .map((entry) => normalizeClusterJudgeSnapshot(entry))
+            .filter((entry): entry is ClusterJudgeSnapshot => entry !== null)
+        : [];
+    const errors = Array.isArray(source.errors)
+        ? source.errors
+            .map((entry) => normalizeBatchJudgeError(entry))
+            .filter((entry): entry is { clusterId: string; message: string } => entry !== null)
+        : [];
+
+    if (!id || !runFile || !startedAt || !completedAt || !judgeConfig) {
+        return null;
+    }
+
+    return {
+        id,
+        runFile,
+        startedAt,
+        completedAt,
+        judgeConfig,
+        snapshots,
+        errors,
+    };
+}
+
+function normalizeClusterJudgeSnapshot(value: unknown): ClusterJudgeSnapshot | null {
+    if (!value || typeof value !== 'object') {
+        return null;
+    }
+
+    const source = value as Record<string, unknown>;
+    const grading = source.grading as ClusterJudgeResult | undefined;
+    const judgeConfig = normalizeJudgeConfig(source.judgeConfig, 'full_cluster');
+    const runFile = typeof source.runFile === 'string' ? source.runFile : '';
+    const clusterId = typeof source.clusterId === 'string' ? source.clusterId : '';
+    const memberCount = typeof source.memberCount === 'number' && Number.isFinite(source.memberCount)
+        ? source.memberCount
+        : 0;
+    const gradedAt = typeof source.gradedAt === 'string' ? source.gradedAt : '';
+
+    if (!grading || !judgeConfig || !runFile || !clusterId || !gradedAt) {
+        return null;
+    }
+
+    return {
+        grading,
+        judgeConfig,
+        runFile,
+        clusterId,
+        memberCount,
+        gradedAt,
+    };
+}
+
+function normalizeJudgeConfig(value: unknown, fallbackContextMode: JudgeContextMode): JudgeConfig | null {
+    if (!value || typeof value !== 'object') {
+        return null;
+    }
+
+    const source = value as Record<string, unknown>;
+    const provider = source.provider;
+    const model = source.model;
+    if (
+        (provider !== 'openai' && provider !== 'anthropic' && provider !== 'gemini')
+        || typeof model !== 'string'
+        || model.trim().length === 0
+    ) {
+        return null;
+    }
+
+    return {
+        provider,
+        model,
+        reasoningEffort: normalizeReasoningEffort(source.reasoningEffort),
+        customInstructions: typeof source.customInstructions === 'string' ? source.customInstructions : '',
+        contextMode: normalizeJudgeContextMode(source.contextMode, fallbackContextMode),
+        judgeOutlineIds: Array.isArray(source.judgeOutlineIds)
+            ? source.judgeOutlineIds
+                .filter((id): id is string => typeof id === 'string')
+                .map((id) => id.trim())
+                .filter((id) => id.length > 0)
+            : [],
+    };
+}
+
+function normalizeBatchJudgeError(value: unknown) {
+    if (!value || typeof value !== 'object') {
+        return null;
+    }
+
+    const source = value as Record<string, unknown>;
+    const clusterId = typeof source.clusterId === 'string' ? source.clusterId : '';
+    const message = typeof source.message === 'string' ? source.message : '';
+    if (!clusterId || !message) {
+        return null;
+    }
+    return { clusterId, message };
 }
 
 function normalizeJudgeContextMode(value: unknown, fallback: JudgeContextMode = 'full_cluster'): JudgeContextMode {
@@ -3111,6 +3779,110 @@ function buildPenaltyTrendRows(savedGrades: SavedGradeRecord[]) {
     }
 
     return Array.from(totals.values()).sort((a, b) => b.count - a.count);
+}
+
+function buildBatchJudgeStatistics(
+    batchRun: BatchJudgeRunRecord | null,
+    selectedRunFile: string | null,
+    selectedRun: LshRunDetails | null,
+): BatchJudgeStatistics | null {
+    if (!batchRun || !selectedRunFile || batchRun.runFile !== selectedRunFile || batchRun.snapshots.length === 0) {
+        return null;
+    }
+
+    const clusterOrder = new Map(
+        (selectedRun?.clusters || []).map((cluster, index) => [cluster.id, index]),
+    );
+    const clusterRows = batchRun.snapshots
+        .map<BatchJudgeClusterStatRow>((snapshot) => ({
+            clusterId: snapshot.clusterId,
+            memberCount: snapshot.memberCount,
+            finalScore: snapshot.grading.finalScore,
+            subtotal: snapshot.grading.subtotal,
+            penaltyTotal: snapshot.grading.penaltyTotal,
+            cap: snapshot.grading.cap,
+            outcome: snapshot.grading.outcomes.bottomLineOutcome,
+            correctness: snapshot.grading.outcomes.outcomeCorrectness,
+            reasoning: snapshot.grading.outcomes.reasoningAlignment,
+            rowScores: snapshot.grading.rowScores,
+        }))
+        .sort((a, b) => {
+            const orderA = clusterOrder.get(a.clusterId);
+            const orderB = clusterOrder.get(b.clusterId);
+            if (typeof orderA === 'number' && typeof orderB === 'number' && orderA !== orderB) {
+                return orderA - orderB;
+            }
+            if (typeof orderA === 'number') {
+                return -1;
+            }
+            if (typeof orderB === 'number') {
+                return 1;
+            }
+            return a.clusterId.localeCompare(b.clusterId, undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+    const gradedClusterCount = clusterRows.length;
+    const averageFinalScore = clusterRows.reduce((sum, cluster) => sum + cluster.finalScore, 0) / gradedClusterCount;
+    const averageSubtotal = clusterRows.reduce((sum, cluster) => sum + cluster.subtotal, 0) / gradedClusterCount;
+    const averagePenalty = clusterRows.reduce((sum, cluster) => sum + cluster.penaltyTotal, 0) / gradedClusterCount;
+    const aspectRows = JUDGE_ROW_ORDER.map<BatchJudgeAspectStat>((rowKey) => {
+        const totalScore = clusterRows.reduce((sum, cluster) => sum + (cluster.rowScores[rowKey] ?? 0), 0);
+        const totalPoints = batchRun.snapshots.reduce((sum, snapshot) => sum + (snapshot.grading.rowPoints[rowKey] ?? 0), 0);
+        const maxedCount = clusterRows.filter((cluster) => (cluster.rowScores[rowKey] ?? 0) >= 4).length;
+        const lowScoreCount = clusterRows.filter((cluster) => (cluster.rowScores[rowKey] ?? 0) <= 1).length;
+        return {
+            rowKey,
+            label: JUDGE_ROW_LABELS[rowKey],
+            averageScore: totalScore / gradedClusterCount,
+            averagePoints: totalPoints / gradedClusterCount,
+            maxedCount,
+            lowScoreCount,
+        };
+    });
+
+    return {
+        runId: batchRun.id,
+        startedAt: batchRun.startedAt,
+        completedAt: batchRun.completedAt,
+        judgeConfig: batchRun.judgeConfig,
+        gradedClusterCount,
+        failureCount: batchRun.errors.length,
+        averageFinalScore,
+        averageSubtotal,
+        averagePenalty,
+        bestCluster: clusterRows.reduce<BatchJudgeClusterStatRow | null>((best, cluster) => {
+            if (!best || cluster.finalScore > best.finalScore) {
+                return cluster;
+            }
+            return best;
+        }, null),
+        weakestCluster: clusterRows.reduce<BatchJudgeClusterStatRow | null>((weakest, cluster) => {
+            if (!weakest || cluster.finalScore < weakest.finalScore) {
+                return cluster;
+            }
+            return weakest;
+        }, null),
+        aspectRows,
+        clusterRows,
+        outcomeCounts: countLabelFrequency(clusterRows.map((cluster) => cluster.outcome)),
+        correctnessCounts: countLabelFrequency(clusterRows.map((cluster) => cluster.correctness)),
+        reasoningCounts: countLabelFrequency(clusterRows.map((cluster) => cluster.reasoning)),
+    };
+}
+
+function countLabelFrequency(values: string[]) {
+    const counts = new Map<string, number>();
+    for (const value of values) {
+        counts.set(value, (counts.get(value) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+        .map(([label, count]) => ({ label, count }))
+        .sort((a, b) => {
+            if (b.count !== a.count) {
+                return b.count - a.count;
+            }
+            return a.label.localeCompare(b.label);
+        });
 }
 
 function findMostCommon(values: string[]) {
