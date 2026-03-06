@@ -14,7 +14,6 @@ type SavedRunComparisonPanelProps = {
     onClearAll: () => void;
     onCompareSelected: () => void;
     onHideComparison: () => void;
-    onOpenRun: (runId: string) => void;
 };
 
 export function SavedRunComparisonPanel({
@@ -29,7 +28,6 @@ export function SavedRunComparisonPanel({
     onClearAll,
     onCompareSelected,
     onHideComparison,
-    onOpenRun,
 }: SavedRunComparisonPanelProps) {
     const allSelected = savedRuns.length > 0 && savedRuns.length === selectedRunIds.length;
     const comparedRuns = savedRuns.filter((run) => comparisonRunIds.includes(run.id));
@@ -93,15 +91,13 @@ export function SavedRunComparisonPanel({
                         const metric = extractRunMetric(run);
                         const selected = selectedRunIds.includes(run.id);
                         return (
-                            <div
+                            <label
                                 key={run.id}
-                                onClick={() => onOpenRun(run.id)}
                                 className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 ${selected ? 'border-teal-300 bg-teal-50' : 'border-slate-200 bg-slate-50'}`}
                             >
                                 <input
                                     type="checkbox"
                                     checked={selected}
-                                    onClick={(event) => event.stopPropagation()}
                                     onChange={() => onToggleRun(run.id)}
                                     className="mt-0.5 h-4 w-4 rounded border-slate-300"
                                 />
@@ -110,7 +106,7 @@ export function SavedRunComparisonPanel({
                                     <span className="block text-xs text-slate-500">{run.mode} - {new Date(run.savedAt).toLocaleString()}</span>
                                     <span className="mt-1 block text-xs text-slate-700">{metric.label}: <strong>{metric.value}</strong> - {metric.detailLabel}: {metric.detailValue}</span>
                                 </span>
-                            </div>
+                            </label>
                         );
                     })}
                 </div>

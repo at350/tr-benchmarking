@@ -8,13 +8,6 @@ import { isBuiltinPromptTemplateId, type PromptTemplate } from '@/lib/prompt-lib
 import { InfoTip } from '@/components/ui/InfoTip';
 import type { DatasetQuestion, EditableSingleQuestion, MultiModelSelectionOption } from './SingleQuestionProbePanel';
 
-export type OutlineReferenceOption = {
-    id: string;
-    fileName: string;
-    title: string;
-    viewUrl: string;
-};
-
 export type RubricJudgeProbeConfig = {
     runScope: 'single' | 'dataset';
     runsPerQuestion: number;
@@ -22,8 +15,6 @@ export type RubricJudgeProbeConfig = {
     selectedGenerationPromptId: string;
     selectedGenerationPromptIds: string[];
     selectedJudgeRubricIds: string[];
-    selectedGenerationOutlineIds: string[];
-    selectedJudgeOutlineIds: string[];
     judgeProvider: ModelProvider;
     judgeModel: string;
     judgeReasoningEffort: ReasoningEffort;
@@ -75,7 +66,6 @@ type RubricJudgeProbePanelProps = {
     onDeleteJudgeRubric: () => void;
     onExportJudgeRubrics: () => void;
     onImportJudgeRubrics: (raw: string) => void;
-    availableOutlines: OutlineReferenceOption[];
     multiModelOptions: MultiModelSelectionOption[];
     selectedMultiModelKeys: string[];
     onToggleMultiModel: (key: string) => void;
@@ -122,7 +112,6 @@ export function RubricJudgeProbePanel({
     onDeleteJudgeRubric,
     onExportJudgeRubrics,
     onImportJudgeRubrics,
-    availableOutlines,
     multiModelOptions,
     selectedMultiModelKeys,
     onToggleMultiModel,
@@ -171,36 +160,6 @@ export function RubricJudgeProbePanel({
             return {
                 ...previous,
                 selectedJudgeRubricIds: [...previous.selectedJudgeRubricIds, rubricId],
-            };
-        });
-    };
-
-    const toggleGenerationOutlineSelection = (outlineId: string) => {
-        setConfig((previous) => {
-            if (previous.selectedGenerationOutlineIds.includes(outlineId)) {
-                return {
-                    ...previous,
-                    selectedGenerationOutlineIds: previous.selectedGenerationOutlineIds.filter((id) => id !== outlineId),
-                };
-            }
-            return {
-                ...previous,
-                selectedGenerationOutlineIds: [...previous.selectedGenerationOutlineIds, outlineId],
-            };
-        });
-    };
-
-    const toggleJudgeOutlineSelection = (outlineId: string) => {
-        setConfig((previous) => {
-            if (previous.selectedJudgeOutlineIds.includes(outlineId)) {
-                return {
-                    ...previous,
-                    selectedJudgeOutlineIds: previous.selectedJudgeOutlineIds.filter((id) => id !== outlineId),
-                };
-            }
-            return {
-                ...previous,
-                selectedJudgeOutlineIds: [...previous.selectedJudgeOutlineIds, outlineId],
             };
         });
     };
@@ -453,38 +412,6 @@ export function RubricJudgeProbePanel({
                         </div>
                     )}
                 </div>
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Outline References (Generation)</p>
-                        <span className="text-xs font-semibold text-slate-500">{config.selectedGenerationOutlineIds.length} selected</span>
-                    </div>
-                    <p className="text-xs text-slate-500">Selected outlines are retrieved via RAG snippets and appended to generation context.</p>
-                    <div className="max-h-36 overflow-y-auto rounded-lg border border-slate-300 bg-white">
-                        {availableOutlines.length === 0 ? (
-                            <p className="px-3 py-2 text-sm text-slate-500">No outlines available.</p>
-                        ) : (
-                            <div className="divide-y divide-slate-200">
-                                {availableOutlines.map((outline) => {
-                                    const selected = config.selectedGenerationOutlineIds.includes(outline.id);
-                                    return (
-                                        <label key={`generation-${outline.id}`} className={`flex cursor-pointer items-start gap-2 px-3 py-2 ${selected ? 'bg-teal-50' : 'hover:bg-slate-50'}`}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selected}
-                                                onChange={() => toggleGenerationOutlineSelection(outline.id)}
-                                                className="mt-0.5 h-4 w-4 rounded border-slate-300"
-                                            />
-                                            <span className="min-w-0">
-                                                <span className="block text-sm font-semibold text-slate-800">{outline.title}</span>
-                                                <span className="block text-[11px] text-slate-500">{outline.fileName}</span>
-                                            </span>
-                                        </label>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </div>
                 <label className="space-y-1 block">
                     <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Prompt Template (Editor)</span>
                     <select
@@ -655,38 +582,6 @@ export function RubricJudgeProbePanel({
                             })}
                         </div>
                     )}
-                </div>
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Outline References (Judge)</p>
-                        <span className="text-xs font-semibold text-slate-500">{config.selectedJudgeOutlineIds.length} selected</span>
-                    </div>
-                    <p className="text-xs text-slate-500">Selected outlines are retrieved via RAG snippets and appended to judge rubric context.</p>
-                    <div className="max-h-36 overflow-y-auto rounded-lg border border-slate-300 bg-white">
-                        {availableOutlines.length === 0 ? (
-                            <p className="px-3 py-2 text-sm text-slate-500">No outlines available.</p>
-                        ) : (
-                            <div className="divide-y divide-slate-200">
-                                {availableOutlines.map((outline) => {
-                                    const selected = config.selectedJudgeOutlineIds.includes(outline.id);
-                                    return (
-                                        <label key={`judge-${outline.id}`} className={`flex cursor-pointer items-start gap-2 px-3 py-2 ${selected ? 'bg-teal-50' : 'hover:bg-slate-50'}`}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selected}
-                                                onChange={() => toggleJudgeOutlineSelection(outline.id)}
-                                                className="mt-0.5 h-4 w-4 rounded border-slate-300"
-                                            />
-                                            <span className="min-w-0">
-                                                <span className="block text-sm font-semibold text-slate-800">{outline.title}</span>
-                                                <span className="block text-[11px] text-slate-500">{outline.fileName}</span>
-                                            </span>
-                                        </label>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                     <label className="space-y-1">
