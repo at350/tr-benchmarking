@@ -14,6 +14,7 @@ const openai = new OpenAI({
 
 type Provider = 'openai' | 'anthropic' | 'gemini';
 type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh';
+type ContextMode = 'full_cluster' | 'centroid_only';
 type RowKey = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M';
 type CapKey = 'none' | 'cap_60' | 'cap_70';
 
@@ -116,6 +117,7 @@ type RequestBody = {
     judgeModel?: string;
     reasoningEffort?: ReasoningEffort;
     customInstructions?: string;
+    contextMode?: ContextMode;
     judgeOutlineIds?: string[];
 };
 
@@ -141,6 +143,7 @@ export async function POST(req: Request) {
         const judgeModel = toRequiredString(body.judgeModel, 'judgeModel');
         const judgeProvider = normalizeProvider(body.judgeProvider);
         const reasoningEffort = normalizeReasoningEffort(body.reasoningEffort);
+        const contextMode = normalizeContextMode(body.contextMode);
         const judgeOutlineIds = normalizeOutlineIds(body.judgeOutlineIds);
 
         if (!judgeProvider) {
@@ -156,12 +159,14 @@ export async function POST(req: Request) {
             ? body.customInstructions.trim()
             : '';
 
-        const clusterContext = buildClusterContext(cluster);
+        const clusterContext = contextMode === 'centroid_only'
+            ? buildClusterCentroidContext(cluster)
+            : buildClusterContext(cluster);
         const outlineContext = judgeOutlineIds.length > 0
             ? await retrieveOutlineContext({
                 selectedOutlineIds: judgeOutlineIds,
-                stageLabel: `lsh-cluster-judge:${cluster.clusterId}`,
-                query: buildOutlineJudgeQuery(cluster, customInstructions),
+                stageLabel: `lsh-cluster-judge:${cluster.clusterId}:${contextMode}`,
+                query: buildOutlineJudgeQuery(cluster, customInstructions, contextMode),
             })
             : { snippets: [], contextBlock: '', retrievalMode: 'none' as const };
         const systemPrompt = [
@@ -172,7 +177,9 @@ export async function POST(req: Request) {
         ].join('\n');
 
         const userPrompt = [
-            'Grade this cluster of LLM responses using the rubric below.',
+            contextMode === 'centroid_only'
+                ? 'Grade this cluster centroid response using the rubric below.'
+                : 'Grade this cluster of LLM responses using the rubric below.',
             '',
             'Return JSON in this exact shape:',
             '{',
@@ -238,6 +245,7 @@ export async function POST(req: Request) {
                 model: judgeModel,
                 reasoningEffort,
                 customInstructions,
+                contextMode,
                 judgeOutlineIds,
             },
         });
@@ -270,6 +278,13 @@ function normalizeReasoningEffort(value: unknown): ReasoningEffort {
         return value;
     }
     return 'auto';
+}
+
+function normalizeContextMode(value: unknown): ContextMode {
+    if (value === 'centroid_only') {
+        return 'centroid_only';
+    }
+    return 'full_cluster';
 }
 
 function normalizeOutlineIds(value: unknown) {
@@ -310,23 +325,43 @@ function buildClusterContext(cluster: NonNullable<ReturnType<typeof getLshCluste
     ].join('\n');
 }
 
+function buildClusterCentroidContext(cluster: NonNullable<ReturnType<typeof getLshClusterJudgePayload>>) {
+    const modelLine = cluster.modelBreakdown.map((entry) => `${entry.model}: ${entry.count}`).join(', ');
+
+    return [
+        `Run file: ${cluster.fileName}`,
+        `Cluster ID: ${cluster.clusterId}`,
+        `Cluster size: ${cluster.members.length}`,
+        `Model breakdown: ${modelLine}`,
+        '',
+        'Centroid/representative response:',
+        `id=${cluster.representative.id}; model=${cluster.representative.model}`,
+        cluster.representative.text || '[empty]',
+    ].join('\n');
+}
+
 function buildOutlineJudgeQuery(
     cluster: NonNullable<ReturnType<typeof getLshClusterJudgePayload>>,
     customInstructions: string,
+    contextMode: ContextMode,
 ) {
-    const outlineSampleMembers = sampleMembersEvenly(cluster.members, 8).map((member, index) => (
+    const outlineSampleMembers = sampleMembersEvenly(
+        contextMode === 'centroid_only' ? [cluster.representative] : cluster.members,
+        contextMode === 'centroid_only' ? 1 : 8,
+    ).map((member, index) => (
         `[${index + 1}] id=${member.id}; model=${member.model}\n${limitText(member.text, 750) || '[empty]'}`
     ));
 
     return [
         `Cluster ID: ${cluster.clusterId}`,
         `Run file: ${cluster.fileName}`,
+        `Evaluation mode: ${contextMode === 'centroid_only' ? 'cluster centroid only' : 'full cluster'}`,
         '',
         'Representative response:',
         `id=${cluster.representative.id}; model=${cluster.representative.model}`,
         limitText(cluster.representative.text, 1200) || '[empty]',
         '',
-        'Cluster member sample:',
+        contextMode === 'centroid_only' ? 'Centroid sample:' : 'Cluster member sample:',
         ...outlineSampleMembers,
         '',
         customInstructions
