@@ -101,6 +101,7 @@ type JudgeConfig = {
     reasoningEffort: JudgeReasoningEffort;
     rubricText: string;
     contextMode: JudgeContextMode;
+    judgeOutlineIds: string[];
 };
 
 type ClusterJudgeResult = {
@@ -173,7 +174,19 @@ type JudgeApiResponse = {
         reasoningEffort?: string;
         rubricText?: string;
         contextMode?: string;
+        judgeOutlineIds?: string[];
     };
+};
+
+type OutlineReferenceOption = {
+    id: string;
+    fileName: string;
+    title: string;
+    viewUrl: string;
+};
+
+type OutlinesApiResponse = {
+    outlines?: OutlineReferenceOption[];
 };
 
 type BatchJudgeProgress = {
@@ -251,6 +264,8 @@ export default function LshRunsPage() {
     const [judgeModel, setJudgeModel] = useState<string>(JUDGE_MODEL_OPTIONS.openai[0].value);
     const [judgeReasoningEffort, setJudgeReasoningEffort] = useState<JudgeReasoningEffort>('auto');
     const [rubricText, setRubricText] = useState<string>(DEFAULT_JUDGE_RUBRIC_TEXT);
+    const [availableOutlines, setAvailableOutlines] = useState<OutlineReferenceOption[]>([]);
+    const [selectedJudgeOutlineIds, setSelectedJudgeOutlineIds] = useState<string[]>([]);
     const [isJudgingCluster, setIsJudgingCluster] = useState(false);
     const [isBatchJudging, setIsBatchJudging] = useState(false);
     const [batchProgress, setBatchProgress] = useState<BatchJudgeProgress | null>(null);
@@ -333,8 +348,32 @@ export default function LshRunsPage() {
     }, []);
 
     useEffect(() => {
+        async function loadOutlines() {
+            try {
+                const res = await fetch('/api/outlines', { cache: 'no-store' });
+                const json = (await res.json()) as OutlinesApiResponse;
+                if (!Array.isArray(json.outlines)) {
+                    setAvailableOutlines([]);
+                    return;
+                }
+                setAvailableOutlines(json.outlines);
+            } catch (error) {
+                console.error('Failed to load outlines', error);
+                setAvailableOutlines([]);
+            }
+        }
+
+        void loadOutlines();
+    }, []);
+
+    useEffect(() => {
         writeSavedGradesToStorage(savedGrades);
     }, [savedGrades]);
+
+    useEffect(() => {
+        const validOutlineIds = new Set(availableOutlines.map((outline) => outline.id));
+        setSelectedJudgeOutlineIds((previous) => previous.filter((id) => validOutlineIds.has(id)));
+    }, [availableOutlines]);
 
     useEffect(() => {
         const stream = new EventSource('/api/lsh-runs/stream');
@@ -638,6 +677,15 @@ export default function LshRunsPage() {
     }, [comparedSavedGrades, judgeModelComparisonRows]);
     const allSavedGradesSelected = savedGrades.length > 0 && selectedSavedGradeIds.length === savedGrades.length;
 
+    const toggleJudgeOutlineSelection = (outlineId: string) => {
+        setSelectedJudgeOutlineIds((previous) => {
+            if (previous.includes(outlineId)) {
+                return previous.filter((id) => id !== outlineId);
+            }
+            return [...previous, outlineId];
+        });
+    };
+
     const upsertSnapshot = useCallback((snapshot: ClusterJudgeSnapshot) => {
         const key = buildJudgeResultKey(snapshot.runFile, snapshot.clusterId);
         setJudgeResultsByCluster((previous) => ({
@@ -674,6 +722,7 @@ export default function LshRunsPage() {
             judgeModel: string;
             rubricText: string;
             contextMode: JudgeContextMode;
+            judgeOutlineIds: string[];
             reasoningEffort?: Exclude<JudgeReasoningEffort, 'auto'>;
         } = {
             runFile: params.runFile,
@@ -682,6 +731,7 @@ export default function LshRunsPage() {
             judgeModel,
             rubricText: trimmedRubric,
             contextMode: params.contextMode,
+            judgeOutlineIds: selectedJudgeOutlineIds,
         };
 
         if (judgeSupportsReasoningControl && judgeReasoningEffort !== 'auto') {
@@ -709,6 +759,9 @@ export default function LshRunsPage() {
                     ? data.judgeConfig.rubricText
                     : trimmedRubric,
                 contextMode: normalizeJudgeContextMode(data.judgeConfig?.contextMode, params.contextMode),
+                judgeOutlineIds: Array.isArray(data.judgeConfig?.judgeOutlineIds)
+                    ? data.judgeConfig.judgeOutlineIds.filter((id): id is string => typeof id === 'string')
+                    : selectedJudgeOutlineIds,
             },
             runFile: data.cluster?.runFile || params.runFile,
             clusterId: data.cluster?.clusterId || params.clusterId,
@@ -721,6 +774,7 @@ export default function LshRunsPage() {
         judgeReasoningEffort,
         judgeSupportsReasoningControl,
         rubricText,
+        selectedJudgeOutlineIds,
     ]);
 
     const handleJudgeCluster = async () => {
@@ -1336,6 +1390,41 @@ export default function LshRunsPage() {
                                                                 </span>
                                                             </label>
 
+                                                            <div className="space-y-1.5 rounded border border-slate-200 bg-slate-50 p-2">
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600">Outline Rubrics (Judge)</p>
+                                                                    <span className="text-[11px] font-semibold text-slate-500">{selectedJudgeOutlineIds.length} selected</span>
+                                                                </div>
+                                                                <p className="text-[11px] text-slate-500">
+                                                                    Checked outlines are retrieved and appended as rubric context for both single-cluster grading and batch centroid grading.
+                                                                </p>
+                                                                <div className="max-h-32 overflow-y-auto rounded border border-slate-300 bg-white">
+                                                                    {availableOutlines.length === 0 ? (
+                                                                        <p className="px-2 py-1.5 text-[11px] text-slate-500">No outlines available.</p>
+                                                                    ) : (
+                                                                        <div className="divide-y divide-slate-200">
+                                                                            {availableOutlines.map((outline) => {
+                                                                                const selected = selectedJudgeOutlineIds.includes(outline.id);
+                                                                                return (
+                                                                                    <label key={`lsh-judge-outline-${outline.id}`} className={`flex cursor-pointer items-start gap-2 px-2 py-1.5 ${selected ? 'bg-teal-50' : 'hover:bg-slate-50'}`}>
+                                                                                        <input
+                                                                                            type="checkbox"
+                                                                                            checked={selected}
+                                                                                            onChange={() => toggleJudgeOutlineSelection(outline.id)}
+                                                                                            className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300"
+                                                                                        />
+                                                                                        <span className="min-w-0">
+                                                                                            <span className="block text-[11px] font-semibold text-slate-800">{outline.title}</span>
+                                                                                            <span className="block text-[10px] text-slate-500">{outline.fileName}</span>
+                                                                                        </span>
+                                                                                    </label>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
                                                             <button
                                                                 type="button"
                                                                 onClick={handleJudgeCluster}
@@ -1538,6 +1627,11 @@ export default function LshRunsPage() {
                                                                                                 <span className="block text-slate-600">
                                                                                                     {grade.grading.finalScore.toFixed(1)} - c{grade.clusterId}
                                                                                                 </span>
+                                                                                                {grade.judgeConfig.judgeOutlineIds.length > 0 && (
+                                                                                                    <span className="block text-[10px] text-teal-700">
+                                                                                                        outlines: {grade.judgeConfig.judgeOutlineIds.length}
+                                                                                                    </span>
+                                                                                                )}
                                                                                             </span>
                                                                                         </label>
                                                                                         <div className="mt-1 flex items-center justify-between gap-2">
@@ -2149,6 +2243,9 @@ function normalizeSavedGrade(value: unknown): SavedGradeRecord | null {
                 ? rawJudgeConfig.rubricText
                 : '',
             contextMode: normalizeJudgeContextMode(rawJudgeConfig?.contextMode, 'full_cluster'),
+            judgeOutlineIds: Array.isArray(rawJudgeConfig?.judgeOutlineIds)
+                ? rawJudgeConfig.judgeOutlineIds.filter((id): id is string => typeof id === 'string')
+                : [],
         },
     };
 }

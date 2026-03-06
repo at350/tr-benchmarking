@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
 import { getLshClusterJudgePayload } from '@/lib/lsh-runs';
+import { retrieveOutlineContext } from '@/lib/outline-rag';
+import { isValidOutlineFileName } from '@/lib/outlines';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -69,6 +71,7 @@ type RequestBody = {
     reasoningEffort?: ReasoningEffort;
     rubricText?: string;
     contextMode?: ContextMode;
+    judgeOutlineIds?: string[];
 };
 
 type ChatMessage = {
@@ -95,6 +98,7 @@ export async function POST(req: Request) {
         const reasoningEffort = normalizeReasoningEffort(body.reasoningEffort);
         const contextMode = normalizeContextMode(body.contextMode);
         const rubricText = toOptionalTrimmedString(body.rubricText);
+        const judgeOutlineIds = normalizeOutlineIds(body.judgeOutlineIds);
 
         if (!judgeProvider) {
             return NextResponse.json({ error: 'Invalid judge provider.' }, { status: 400 });
@@ -111,6 +115,13 @@ export async function POST(req: Request) {
         const clusterContext = contextMode === 'centroid_only'
             ? buildClusterCentroidContext(cluster)
             : buildClusterContext(cluster);
+        const outlineContext = judgeOutlineIds.length > 0
+            ? await retrieveOutlineContext({
+                selectedOutlineIds: judgeOutlineIds,
+                stageLabel: `lsh-cluster-judge:${cluster.clusterId}:${contextMode}`,
+                query: buildOutlineJudgeQuery(cluster, contextMode),
+            })
+            : { snippets: [], contextBlock: '', retrievalMode: 'none' as const };
         const systemPrompt = [
             'You are an expert legal writing evaluator and strict rubric grader.',
             'Apply the provided rubric exactly.',
@@ -149,6 +160,13 @@ export async function POST(req: Request) {
             'Rubric:',
             rubricText,
             '',
+            ...(outlineContext.contextBlock
+                ? [
+                    'Outline rubric context (from selected outline checkboxes):',
+                    outlineContext.contextBlock,
+                    '',
+                ]
+                : []),
             'Cluster data to grade:',
             clusterContext,
         ].join('\n');
@@ -179,6 +197,7 @@ export async function POST(req: Request) {
                 reasoningEffort,
                 contextMode,
                 rubricText,
+                judgeOutlineIds,
             },
         });
     } catch (error) {
@@ -226,6 +245,18 @@ function normalizeContextMode(value: unknown): ContextMode {
     return 'full_cluster';
 }
 
+function normalizeOutlineIds(value: unknown) {
+    if (!Array.isArray(value)) {
+        return [] as string[];
+    }
+    return Array.from(new Set(
+        value
+            .filter((entry): entry is string => typeof entry === 'string')
+            .map((entry) => entry.trim())
+            .filter((entry) => entry.length > 0 && isValidOutlineFileName(entry))
+    ));
+}
+
 function buildClusterContext(cluster: NonNullable<ReturnType<typeof getLshClusterJudgePayload>>) {
     const sampledMembers = sampleMembersEvenly(cluster.members, 22).map((member, index) => ({
         ...member,
@@ -264,6 +295,33 @@ function buildClusterCentroidContext(cluster: NonNullable<ReturnType<typeof getL
         'Centroid/representative response:',
         `id=${cluster.representative.id}; model=${cluster.representative.model}`,
         cluster.representative.text || '[empty]',
+    ].join('\n');
+}
+
+function buildOutlineJudgeQuery(
+    cluster: NonNullable<ReturnType<typeof getLshClusterJudgePayload>>,
+    contextMode: ContextMode,
+) {
+    const outlineSampleMembers = sampleMembersEvenly(
+        contextMode === 'centroid_only' ? [cluster.representative] : cluster.members,
+        contextMode === 'centroid_only' ? 1 : 8,
+    ).map((member, index) => (
+        `[${index + 1}] id=${member.id}; model=${member.model}\n${limitText(member.text, 750) || '[empty]'}`
+    ));
+
+    return [
+        `Cluster ID: ${cluster.clusterId}`,
+        `Run file: ${cluster.fileName}`,
+        `Evaluation mode: ${contextMode === 'centroid_only' ? 'cluster centroid only' : 'full cluster'}`,
+        '',
+        'Representative response:',
+        `id=${cluster.representative.id}; model=${cluster.representative.model}`,
+        limitText(cluster.representative.text, 1200) || '[empty]',
+        '',
+        contextMode === 'centroid_only' ? 'Centroid sample:' : 'Cluster member sample:',
+        ...outlineSampleMembers,
+        '',
+        'Retrieve outline snippets that provide rubric criteria for evaluating legal IRAC quality and reasoning accuracy.',
     ].join('\n');
 }
 
