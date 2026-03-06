@@ -84,20 +84,28 @@ export function createJudgeRubricTemplate(name: string, content: string): JudgeR
     };
 }
 
-export function readJudgeRubricLibraryFromStorage() {
+type JudgeRubricLibraryStorageOptions = {
+    storageKey?: string;
+    builtinTemplates?: JudgeRubricTemplate[];
+};
+
+export function readJudgeRubricLibraryFromStorage(options: JudgeRubricLibraryStorageOptions = {}) {
+    const storageKey = options.storageKey ?? JUDGE_RUBRIC_LIBRARY_STORAGE_KEY;
+    const builtinTemplates = options.builtinTemplates ?? BUILTIN_JUDGE_RUBRIC_TEMPLATES;
+
     if (typeof window === 'undefined') {
-        return BUILTIN_JUDGE_RUBRIC_TEMPLATES;
+        return builtinTemplates;
     }
 
     try {
-        const raw = window.localStorage.getItem(JUDGE_RUBRIC_LIBRARY_STORAGE_KEY);
+        const raw = window.localStorage.getItem(storageKey);
         if (!raw) {
-            return BUILTIN_JUDGE_RUBRIC_TEMPLATES;
+            return builtinTemplates;
         }
 
         const parsed = JSON.parse(raw) as unknown;
         if (!Array.isArray(parsed)) {
-            return BUILTIN_JUDGE_RUBRIC_TEMPLATES;
+            return builtinTemplates;
         }
 
         const userRubrics = parsed
@@ -105,20 +113,23 @@ export function readJudgeRubricLibraryFromStorage() {
             .filter((item): item is JudgeRubricTemplate => item !== null)
             .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
-        return mergeJudgeRubricLibraries(BUILTIN_JUDGE_RUBRIC_TEMPLATES, userRubrics);
+        return mergeJudgeRubricLibraries(builtinTemplates, userRubrics);
     } catch (error) {
         console.error('Failed to read judge rubric library:', error);
-        return BUILTIN_JUDGE_RUBRIC_TEMPLATES;
+        return builtinTemplates;
     }
 }
 
-export function writeJudgeRubricLibraryToStorage(rubrics: JudgeRubricTemplate[]) {
+export function writeJudgeRubricLibraryToStorage(
+    rubrics: JudgeRubricTemplate[],
+    storageKey = JUDGE_RUBRIC_LIBRARY_STORAGE_KEY,
+) {
     if (typeof window === 'undefined') {
         return;
     }
 
     try {
-        window.localStorage.setItem(JUDGE_RUBRIC_LIBRARY_STORAGE_KEY, JSON.stringify(rubrics));
+        window.localStorage.setItem(storageKey, JSON.stringify(rubrics));
     } catch (error) {
         console.error('Failed to persist judge rubric library:', error);
     }
@@ -177,8 +188,11 @@ export function judgeRubricLibraryToJson(rubrics: JudgeRubricTemplate[]) {
     return JSON.stringify({ rubrics }, null, 2);
 }
 
-export function isBuiltinJudgeRubricTemplateId(id: string) {
-    return BUILTIN_JUDGE_RUBRIC_TEMPLATES.some((template) => template.id === id);
+export function isBuiltinJudgeRubricTemplateId(
+    id: string,
+    builtinTemplates: JudgeRubricTemplate[] = BUILTIN_JUDGE_RUBRIC_TEMPLATES,
+) {
+    return builtinTemplates.some((template) => template.id === id);
 }
 
 function normalizeJudgeRubricTemplate(value: unknown): JudgeRubricTemplate | null {

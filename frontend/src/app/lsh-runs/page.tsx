@@ -3,6 +3,17 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/ui/AppShell';
+import {
+    createJudgeRubricTemplate,
+    isBuiltinJudgeRubricTemplateId,
+    readJudgeRubricLibraryFromStorage,
+    writeJudgeRubricLibraryToStorage,
+    type JudgeRubricTemplate,
+} from '@/lib/judge-rubric-library';
+import {
+    LSH_JUDGE_OUTPUT_JSON_SCHEMA,
+    LSH_JUDGE_OUTPUT_RULES,
+} from '@/lib/lsh-judge-output-format';
 
 type LshRunSummary = {
     fileName: string;
@@ -218,6 +229,57 @@ const MAP_HEIGHT = 640;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const MODEL_PALETTE = ['#22c55e', '#ef4444', '#94a3b8', '#3b82f6', '#f97316', '#14b8a6', '#eab308', '#a855f7', '#06b6d4', '#f43f5e'];
 const SAVED_GRADES_STORAGE_KEY = 'lsh-runs-saved-grades-v1';
+const LSH_JUDGE_RUBRIC_LIBRARY_STORAGE_KEY = 'lsh-runs.judge-rubric-library.v1';
+const LSH_JUDGE_UI_STATE_STORAGE_KEY = 'lsh-runs.judge-ui-state.v1';
+const LSH_BUILTIN_RUBRIC_TIMESTAMP = '2026-03-06T00:00:00.000Z';
+const LSH_BUILTIN_JUDGE_RUBRICS: JudgeRubricTemplate[] = [
+    {
+        id: 'lsh_builtin_contract_outline_rubric_v1',
+        name: 'Contract Law Outline Compliance',
+        createdAt: LSH_BUILTIN_RUBRIC_TIMESTAMP,
+        updatedAt: LSH_BUILTIN_RUBRIC_TIMESTAMP,
+        content: [
+            'Use the selected Contract Law Outline as the substantive expectations for what a strong answer should spot and analyze.',
+            '',
+            'Operationalize it this way:',
+            '- Evaluate the model answer as free-form response text; do not expect the answer itself to be JSON or IRAC-labeled.',
+            '- Reward answers that identify the controlling contract formation and enforceability issues before secondary issues.',
+            '- Reward correct rule statements only when they are tied to the facts.',
+            '- Do not give substantial credit for merely naming outline topics without applying them.',
+            '- Penalize answers that omit dispositive doctrines clearly implicated by the facts.',
+            '- Do not penalize omission of outline sections that are not factually relevant.',
+            '- Treat incorrect doctrinal statements as more serious than incomplete organization.',
+            '- If the answer follows the outline mechanically but misses the case-dispositive issue, apply low scores on A, C, and K and consider controlling_doctrine_omitted.',
+            '- Prefer concise, hierarchy-aware legal reasoning over exhaustive issue dumping.',
+            '- Evaluate compliance with the outline as: issue selection, doctrinal accuracy, exception handling, and application to facts.',
+        ].join('\n'),
+    },
+    {
+        id: 'lsh_builtin_tort_outline_rubric_v1',
+        name: 'Tort Law Outline Compliance',
+        createdAt: LSH_BUILTIN_RUBRIC_TIMESTAMP,
+        updatedAt: LSH_BUILTIN_RUBRIC_TIMESTAMP,
+        content: [
+            'Use the selected Tort Law Outline as the substantive expectations for what a strong answer should spot and analyze.',
+            '',
+            'Operationalize it this way:',
+            '- Evaluate the model answer as free-form response text; do not expect the answer itself to be JSON or IRAC-labeled.',
+            '- Reward answers that identify the controlling tort claim, defenses, and causation/damages issues before secondary issues.',
+            '- Reward correct element-by-element analysis only when it is tied to the facts.',
+            '- Do not give substantial credit for merely naming tort doctrines without applying them.',
+            '- Penalize answers that omit dispositive duty, breach, causation, intent, privilege, or damages issues clearly implicated by the facts.',
+            '- Do not penalize omission of outline sections that are not factually relevant.',
+            '- Treat incorrect doctrinal statements as more serious than incomplete organization.',
+            '- If the answer recites the outline mechanically but misses the dispositive liability or defense issue, apply low scores on A, C, and K and consider controlling_doctrine_omitted or material_rule_misstatement as appropriate.',
+            '- Prefer concise, hierarchy-aware legal reasoning over exhaustive issue dumping.',
+            '- Evaluate compliance with the outline as: claim selection, doctrinal accuracy, defense handling, and application to facts.',
+        ].join('\n'),
+    },
+];
+const LSH_OUTLINE_TO_RUBRIC_ID: Record<string, string> = {
+    'contract_law_outline.pdf': 'lsh_builtin_contract_outline_rubric_v1',
+    'tort_law_outline.pdf': 'lsh_builtin_tort_outline_rubric_v1',
+};
 
 const JUDGE_MODEL_OPTIONS: Record<JudgeProvider, Array<{ value: string; label: string }>> = {
     openai: [
@@ -280,6 +342,12 @@ export default function LshRunsPage() {
     const [judgeModel, setJudgeModel] = useState<string>(JUDGE_MODEL_OPTIONS.openai[0].value);
     const [judgeReasoningEffort, setJudgeReasoningEffort] = useState<JudgeReasoningEffort>('auto');
     const [judgeInstructions, setJudgeInstructions] = useState('');
+    const [judgeRubricLibrary, setJudgeRubricLibrary] = useState<JudgeRubricTemplate[]>([]);
+    const [selectedJudgeRubricTemplateId, setSelectedJudgeRubricTemplateId] = useState('');
+    const [judgeRubricNameDraft, setJudgeRubricNameDraft] = useState('');
+    const [judgeRubricStatus, setJudgeRubricStatus] = useState<string | null>(null);
+    const [hasHydratedJudgeRubricLibrary, setHasHydratedJudgeRubricLibrary] = useState(false);
+    const [hasHydratedJudgeUiState, setHasHydratedJudgeUiState] = useState(false);
     const [availableOutlines, setAvailableOutlines] = useState<OutlineReferenceOption[]>([]);
     const [selectedJudgeOutlineIds, setSelectedJudgeOutlineIds] = useState<string[]>([]);
     const [isJudgingCluster, setIsJudgingCluster] = useState(false);
@@ -369,6 +437,26 @@ export default function LshRunsPage() {
     }, []);
 
     useEffect(() => {
+        setJudgeRubricLibrary(readJudgeRubricLibraryFromStorage({
+            storageKey: LSH_JUDGE_RUBRIC_LIBRARY_STORAGE_KEY,
+            builtinTemplates: LSH_BUILTIN_JUDGE_RUBRICS,
+        }));
+        setHasHydratedJudgeRubricLibrary(true);
+
+        const persistedJudgeUiState = readLshJudgeUiStateFromStorage();
+        if (persistedJudgeUiState) {
+            setJudgeProvider(persistedJudgeUiState.provider);
+            setJudgeModel(persistedJudgeUiState.model);
+            setJudgeReasoningEffort(persistedJudgeUiState.reasoningEffort);
+            setJudgeInstructions(persistedJudgeUiState.judgeInstructions);
+            setSelectedJudgeOutlineIds(persistedJudgeUiState.selectedJudgeOutlineIds);
+            setSelectedJudgeRubricTemplateId(persistedJudgeUiState.selectedJudgeRubricTemplateId);
+            setJudgeRubricNameDraft(persistedJudgeUiState.judgeRubricNameDraft);
+        }
+        setHasHydratedJudgeUiState(true);
+    }, []);
+
+    useEffect(() => {
         async function loadOutlines() {
             try {
                 const res = await fetch('/api/outlines', { cache: 'no-store' });
@@ -392,9 +480,78 @@ export default function LshRunsPage() {
     }, [savedGrades]);
 
     useEffect(() => {
+        if (!hasHydratedJudgeRubricLibrary) {
+            return;
+        }
+        writeJudgeRubricLibraryToStorage(judgeRubricLibrary, LSH_JUDGE_RUBRIC_LIBRARY_STORAGE_KEY);
+    }, [hasHydratedJudgeRubricLibrary, judgeRubricLibrary]);
+
+    useEffect(() => {
+        if (!hasHydratedJudgeUiState) {
+            return;
+        }
+        writeLshJudgeUiStateToStorage({
+            provider: judgeProvider,
+            model: judgeModel,
+            reasoningEffort: judgeReasoningEffort,
+            judgeInstructions,
+            selectedJudgeOutlineIds,
+            selectedJudgeRubricTemplateId,
+            judgeRubricNameDraft,
+        });
+    }, [
+        hasHydratedJudgeUiState,
+        judgeInstructions,
+        judgeModel,
+        judgeProvider,
+        judgeReasoningEffort,
+        judgeRubricNameDraft,
+        selectedJudgeOutlineIds,
+        selectedJudgeRubricTemplateId,
+    ]);
+
+    useEffect(() => {
         const validOutlineIds = new Set(availableOutlines.map((outline) => outline.id));
         setSelectedJudgeOutlineIds((previous) => previous.filter((id) => validOutlineIds.has(id)));
     }, [availableOutlines]);
+
+    useEffect(() => {
+        const validIds = new Set(judgeRubricLibrary.map((rubric) => rubric.id));
+        if (selectedJudgeRubricTemplateId && !validIds.has(selectedJudgeRubricTemplateId)) {
+            setSelectedJudgeRubricTemplateId('');
+        }
+    }, [judgeRubricLibrary, selectedJudgeRubricTemplateId]);
+
+    useEffect(() => {
+        const autoRubricId = getAutoJudgeRubricIdForOutlineSelection(selectedJudgeOutlineIds);
+        if (!autoRubricId) {
+            return;
+        }
+
+        const autoRubric = judgeRubricLibrary.find((rubric) => rubric.id === autoRubricId);
+        if (!autoRubric) {
+            return;
+        }
+
+        const shouldUpdateSelection = selectedJudgeRubricTemplateId !== autoRubric.id;
+        const shouldUpdateName = judgeRubricNameDraft !== autoRubric.name;
+        const shouldUpdateInstructions = judgeInstructions !== autoRubric.content;
+
+        if (!shouldUpdateSelection && !shouldUpdateName && !shouldUpdateInstructions) {
+            return;
+        }
+
+        setSelectedJudgeRubricTemplateId(autoRubric.id);
+        setJudgeRubricNameDraft(autoRubric.name);
+        setJudgeInstructions(autoRubric.content);
+        setJudgeRubricStatus(`Auto-loaded "${autoRubric.name}" from the selected outline.`);
+    }, [
+        judgeInstructions,
+        judgeRubricLibrary,
+        judgeRubricNameDraft,
+        selectedJudgeOutlineIds,
+        selectedJudgeRubricTemplateId,
+    ]);
 
     useEffect(() => {
         const stream = new EventSource('/api/lsh-runs/stream');
@@ -426,6 +583,10 @@ export default function LshRunsPage() {
     const activeRunSummary = useMemo(
         () => runs.find((run) => run.fileName === selectedRunFile) || null,
         [runs, selectedRunFile]
+    );
+    const selectedJudgeRubricTemplate = useMemo(
+        () => judgeRubricLibrary.find((rubric) => rubric.id === selectedJudgeRubricTemplateId) || null,
+        [judgeRubricLibrary, selectedJudgeRubricTemplateId],
     );
 
     const modelStats = useMemo(() => buildModelStats(selectedRun), [selectedRun]);
@@ -963,6 +1124,77 @@ export default function LshRunsPage() {
             setIsRunningBenchmark(false);
         }
     };
+
+    const handleSelectJudgeRubricTemplate = useCallback((templateId: string) => {
+        setSelectedJudgeRubricTemplateId(templateId);
+        if (!templateId) {
+            setJudgeRubricStatus('Started a new judge rubric draft.');
+            return;
+        }
+
+        const selectedTemplate = judgeRubricLibrary.find((rubric) => rubric.id === templateId);
+        if (!selectedTemplate) {
+            return;
+        }
+
+        setJudgeRubricNameDraft(selectedTemplate.name);
+        setJudgeInstructions(selectedTemplate.content);
+        setJudgeRubricStatus(`Loaded judge rubric "${selectedTemplate.name}".`);
+    }, [judgeRubricLibrary]);
+
+    const saveJudgeRubricTemplate = useCallback(() => {
+        const content = judgeInstructions.trim();
+        if (!content) {
+            setJudgeRubricStatus('Judge rubric instructions are required.');
+            return;
+        }
+
+        const name = judgeRubricNameDraft.trim() || 'Untitled judge rubric';
+        if (selectedJudgeRubricTemplate) {
+            if (isBuiltinJudgeRubricTemplateId(selectedJudgeRubricTemplate.id, LSH_BUILTIN_JUDGE_RUBRICS)) {
+                setJudgeRubricStatus('Built-in judge rubrics cannot be overwritten.');
+                return;
+            }
+
+            setJudgeRubricLibrary((previous) => previous.map((rubric) => (
+                rubric.id === selectedJudgeRubricTemplate.id
+                    ? { ...rubric, name, content, updatedAt: new Date().toISOString() }
+                    : rubric
+            )));
+            setJudgeRubricNameDraft(name);
+            setJudgeRubricStatus('Judge rubric updated.');
+            return;
+        }
+
+        const created = createJudgeRubricTemplate(name, content);
+        setJudgeRubricLibrary((previous) => [created, ...previous]);
+        setSelectedJudgeRubricTemplateId(created.id);
+        setJudgeRubricNameDraft(created.name);
+        setJudgeRubricStatus('Judge rubric saved.');
+    }, [judgeInstructions, judgeRubricNameDraft, selectedJudgeRubricTemplate]);
+
+    const createNewJudgeRubricDraft = useCallback(() => {
+        setSelectedJudgeRubricTemplateId('');
+        setJudgeRubricNameDraft('');
+        setJudgeInstructions('');
+        setJudgeRubricStatus('Started a new judge rubric draft.');
+    }, []);
+
+    const deleteSelectedJudgeRubric = useCallback(() => {
+        if (!selectedJudgeRubricTemplate) {
+            setJudgeRubricStatus('Select a judge rubric to delete.');
+            return;
+        }
+        if (isBuiltinJudgeRubricTemplateId(selectedJudgeRubricTemplate.id, LSH_BUILTIN_JUDGE_RUBRICS)) {
+            setJudgeRubricStatus('Built-in judge rubrics cannot be deleted.');
+            return;
+        }
+
+        setJudgeRubricLibrary((previous) => previous.filter((rubric) => rubric.id !== selectedJudgeRubricTemplate.id));
+        setSelectedJudgeRubricTemplateId('');
+        setJudgeRubricNameDraft('');
+        setJudgeRubricStatus('Judge rubric deleted.');
+    }, [selectedJudgeRubricTemplate]);
 
     return (
         <AppShell
@@ -1686,13 +1918,93 @@ export default function LshRunsPage() {
                                                                 </p>
                                                             )}
 
+                                                            <div className="space-y-2 rounded border border-slate-200 bg-slate-50 p-2">
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600">Judge Rubrics</p>
+                                                                    <span className="text-[11px] font-semibold text-slate-500">{judgeRubricLibrary.length} saved</span>
+                                                                </div>
+                                                                <p className="text-[11px] text-slate-500">
+                                                                    Saved rubrics on this page persist locally and stay separate from rubric-first multi-model judge. Selecting a single mapped outline auto-loads its paired rubric.
+                                                                </p>
+                                                                <label className="block text-[11px] font-semibold text-slate-600">
+                                                                    Saved rubric
+                                                                    <select
+                                                                        value={selectedJudgeRubricTemplateId}
+                                                                        onChange={(event) => handleSelectJudgeRubricTemplate(event.target.value)}
+                                                                        className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
+                                                                    >
+                                                                        <option value="">New draft</option>
+                                                                        {judgeRubricLibrary.map((rubric) => (
+                                                                            <option key={rubric.id} value={rubric.id}>
+                                                                                {rubric.name}
+                                                                            </option>
+                                                                        ))}
+                                                                    </select>
+                                                                </label>
+                                                                <details className="rounded border border-slate-200 bg-white">
+                                                                    <summary className="cursor-pointer px-2 py-1.5 text-[11px] font-semibold text-slate-700">
+                                                                        View enforced JSON output contract
+                                                                    </summary>
+                                                                    <div className="space-y-2 border-t border-slate-200 px-2 py-2">
+                                                                        <p className="text-[11px] text-slate-500">
+                                                                            This format is enforced by the judge route itself, not by the selected rubric text.
+                                                                        </p>
+                                                                        <pre className="overflow-x-auto rounded border border-slate-200 bg-slate-50 p-2 text-[10px] text-slate-700">{LSH_JUDGE_OUTPUT_JSON_SCHEMA}</pre>
+                                                                        <div className="space-y-1 text-[11px] text-slate-600">
+                                                                            {LSH_JUDGE_OUTPUT_RULES.map((rule) => (
+                                                                                <p key={rule}>{rule}</p>
+                                                                            ))}
+                                                                            <p>- summary must be concise and specific to this cluster.</p>
+                                                                        </div>
+                                                                    </div>
+                                                                </details>
+                                                                <label className="block text-[11px] font-semibold text-slate-600">
+                                                                    Rubric name
+                                                                    <input
+                                                                        value={judgeRubricNameDraft}
+                                                                        onChange={(event) => setJudgeRubricNameDraft(event.target.value)}
+                                                                        placeholder="Contract Law Outline Compliance"
+                                                                        className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400"
+                                                                    />
+                                                                </label>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={saveJudgeRubricTemplate}
+                                                                        className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                                                                    >
+                                                                        {selectedJudgeRubricTemplate ? 'Update rubric' : 'Save rubric'}
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={createNewJudgeRubricDraft}
+                                                                        className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                                                                    >
+                                                                        New draft
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={deleteSelectedJudgeRubric}
+                                                                        disabled={!selectedJudgeRubricTemplate}
+                                                                        className="rounded border border-rose-300 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-800 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                                                    >
+                                                                        Delete
+                                                                    </button>
+                                                                </div>
+                                                                {judgeRubricStatus ? (
+                                                                    <p className="rounded border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-600">
+                                                                        {judgeRubricStatus}
+                                                                    </p>
+                                                                ) : null}
+                                                            </div>
+
                                                             <label className="block text-[11px] font-semibold text-slate-600">
-                                                                Custom judge instructions
+                                                                Judge rubric instructions
                                                                 <textarea
                                                                     value={judgeInstructions}
                                                                     onChange={(event) => setJudgeInstructions(event.target.value)}
                                                                     rows={4}
-                                                                    placeholder="Add custom grading preferences (optional). Base rubric is always applied."
+                                                                    placeholder="Add saved or ad hoc grading preferences (optional). Base rubric is always applied."
                                                                     className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-2 text-xs text-slate-700 placeholder:text-slate-400"
                                                                 />
                                                             </label>
@@ -2557,6 +2869,79 @@ function normalizeReasoningEffort(value: unknown): JudgeReasoningEffort {
         return 'high';
     }
     return 'auto';
+}
+
+function getAutoJudgeRubricIdForOutlineSelection(selectedOutlineIds: string[]) {
+    if (selectedOutlineIds.length !== 1) {
+        return null;
+    }
+    return LSH_OUTLINE_TO_RUBRIC_ID[selectedOutlineIds[0]] || null;
+}
+
+type LshJudgeUiState = {
+    provider: JudgeProvider;
+    model: string;
+    reasoningEffort: JudgeReasoningEffort;
+    judgeInstructions: string;
+    selectedJudgeOutlineIds: string[];
+    selectedJudgeRubricTemplateId: string;
+    judgeRubricNameDraft: string;
+};
+
+function readLshJudgeUiStateFromStorage(): LshJudgeUiState | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        const raw = window.localStorage.getItem(LSH_JUDGE_UI_STATE_STORAGE_KEY);
+        if (!raw) {
+            return null;
+        }
+
+        const parsed = JSON.parse(raw) as unknown;
+        if (!parsed || typeof parsed !== 'object') {
+            return null;
+        }
+
+        const source = parsed as Record<string, unknown>;
+        const provider = source.provider === 'openai' || source.provider === 'anthropic' || source.provider === 'gemini'
+            ? source.provider
+            : 'openai';
+        const model = typeof source.model === 'string' && source.model.trim().length > 0
+            ? source.model.trim()
+            : JUDGE_MODEL_OPTIONS[provider][0].value;
+
+        return {
+            provider,
+            model,
+            reasoningEffort: normalizeReasoningEffort(source.reasoningEffort),
+            judgeInstructions: typeof source.judgeInstructions === 'string' ? source.judgeInstructions : '',
+            selectedJudgeOutlineIds: Array.isArray(source.selectedJudgeOutlineIds)
+                ? source.selectedJudgeOutlineIds.filter((id): id is string => typeof id === 'string')
+                : [],
+            selectedJudgeRubricTemplateId: typeof source.selectedJudgeRubricTemplateId === 'string'
+                ? source.selectedJudgeRubricTemplateId
+                : '',
+            judgeRubricNameDraft: typeof source.judgeRubricNameDraft === 'string'
+                ? source.judgeRubricNameDraft
+                : '',
+        };
+    } catch {
+        return null;
+    }
+}
+
+function writeLshJudgeUiStateToStorage(state: LshJudgeUiState) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.localStorage.setItem(LSH_JUDGE_UI_STATE_STORAGE_KEY, JSON.stringify(state));
+    } catch (error) {
+        console.error('Failed to persist LSH judge UI state:', error);
+    }
 }
 
 function readSavedGradesFromStorage(): SavedGradeRecord[] {
