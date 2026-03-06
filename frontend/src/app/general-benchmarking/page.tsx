@@ -12,7 +12,7 @@ import {
     SingleProbeConfig,
     SingleQuestionProbePanel
 } from '@/components/benchmarking/SingleQuestionProbePanel';
-import { RubricJudgeProbeConfig, RubricJudgeProbePanel } from '@/components/benchmarking/RubricJudgeProbePanel';
+import { OutlineReferenceOption, RubricJudgeProbeConfig, RubricJudgeProbePanel } from '@/components/benchmarking/RubricJudgeProbePanel';
 import { RubricJudgeProbeResults } from '@/components/benchmarking/RubricJudgeProbeResults';
 import { ConfigPanel as ForcedConfigPanel, ExperimentConfig as ForcedExperimentConfig } from '@/components/ConfigPanel';
 import { ConfigPanel as MainConfigPanel, ExperimentConfig as MainExperimentConfig } from '@/components/ConfigPanelMain';
@@ -56,6 +56,10 @@ type DatasetRow = {
     difficulty?: string;
     topic?: string;
     field?: string;
+};
+
+type OutlinesApiResponse = {
+    outlines?: OutlineReferenceOption[];
 };
 
 type SelectionPreview = {
@@ -110,6 +114,7 @@ export default function GeneralBenchmarkingPage() {
     const [subjects, setSubjects] = useState<string[]>([]);
     const [datasetRows, setDatasetRows] = useState<DatasetRow[]>([]);
     const [singleDatasetRows, setSingleDatasetRows] = useState<DatasetQuestion[]>([]);
+    const [availableOutlines, setAvailableOutlines] = useState<OutlineReferenceOption[]>([]);
 
     const [mainConfig, setMainConfig] = useState<MainExperimentConfig>({
         dataset: 'supergpqa',
@@ -178,6 +183,8 @@ export default function GeneralBenchmarkingPage() {
         selectedGenerationPromptId: 'builtin_alan_irac_json_v1',
         selectedGenerationPromptIds: ['builtin_alan_irac_json_v1'],
         selectedJudgeRubricIds: ['builtin_rubric_balanced_v1'],
+        selectedGenerationOutlineIds: [],
+        selectedJudgeOutlineIds: [],
         judgeProvider: 'openai',
         judgeModel: getDefaultModelForProvider('openai'),
         judgeReasoningEffort: 'medium',
@@ -270,6 +277,7 @@ export default function GeneralBenchmarkingPage() {
     );
     const validPromptIdSet = useMemo(() => new Set(promptLibrary.map((prompt) => prompt.id)), [promptLibrary]);
     const validJudgeRubricIdSet = useMemo(() => new Set(judgeRubricLibrary.map((rubric) => rubric.id)), [judgeRubricLibrary]);
+    const validOutlineIdSet = useMemo(() => new Set(availableOutlines.map((outline) => outline.id)), [availableOutlines]);
     const validModelKeySet = useMemo(() => new Set(multiModelOptions.map((option) => option.key)), [multiModelOptions]);
 
     useEffect(() => {
@@ -415,6 +423,34 @@ export default function GeneralBenchmarkingPage() {
 
         loadSingleDataset();
     }, []);
+
+    useEffect(() => {
+        async function loadOutlines() {
+            try {
+                const res = await fetch('/api/outlines', { cache: 'no-store' });
+                const json = (await res.json()) as OutlinesApiResponse;
+                if (!Array.isArray(json.outlines)) {
+                    setAvailableOutlines([]);
+                    return;
+                }
+                setAvailableOutlines(json.outlines);
+            } catch (error) {
+                console.error('Failed to load outlines', error);
+                setAvailableOutlines([]);
+            }
+        }
+
+        loadOutlines();
+    }, []);
+
+    useEffect(() => {
+        const validOutlineIds = new Set(availableOutlines.map((outline) => outline.id));
+        setRubricJudgeConfig((previous) => ({
+            ...previous,
+            selectedGenerationOutlineIds: previous.selectedGenerationOutlineIds.filter((id) => validOutlineIds.has(id)),
+            selectedJudgeOutlineIds: previous.selectedJudgeOutlineIds.filter((id) => validOutlineIds.has(id)),
+        }));
+    }, [availableOutlines]);
 
     useEffect(() => {
         async function loadMainOrForcedDataset() {
@@ -715,6 +751,12 @@ export default function GeneralBenchmarkingPage() {
                 .filter((id) => validPromptIdSet.has(id));
             const restoredRubricIds = extractJudgeRubricIdsFromSnapshot(configSnapshot, restoredRubricConfig.selectedJudgeRubricIds)
                 .filter((id) => validJudgeRubricIdSet.has(id));
+            const restoredGenerationOutlineIds = validOutlineIdSet.size > 0
+                ? restoredRubricConfig.selectedGenerationOutlineIds.filter((id) => validOutlineIdSet.has(id))
+                : restoredRubricConfig.selectedGenerationOutlineIds;
+            const restoredJudgeOutlineIds = validOutlineIdSet.size > 0
+                ? restoredRubricConfig.selectedJudgeOutlineIds.filter((id) => validOutlineIdSet.has(id))
+                : restoredRubricConfig.selectedJudgeOutlineIds;
 
             const selectedGenerationPromptId = restoredPromptIds.includes(restoredRubricConfig.selectedGenerationPromptId)
                 ? restoredRubricConfig.selectedGenerationPromptId
@@ -725,6 +767,8 @@ export default function GeneralBenchmarkingPage() {
                 selectedGenerationPromptId,
                 selectedGenerationPromptIds: restoredPromptIds,
                 selectedJudgeRubricIds: restoredRubricIds,
+                selectedGenerationOutlineIds: restoredGenerationOutlineIds,
+                selectedJudgeOutlineIds: restoredJudgeOutlineIds,
             });
         }
     };
@@ -1176,6 +1220,8 @@ export default function GeneralBenchmarkingPage() {
                     name: rubric.name,
                     content: rubric.content,
                 })),
+                generationOutlineIds: rubricJudgeConfig.selectedGenerationOutlineIds,
+                judgeOutlineIds: rubricJudgeConfig.selectedJudgeOutlineIds,
             }),
         });
 
@@ -2121,6 +2167,7 @@ export default function GeneralBenchmarkingPage() {
                                 onDeleteJudgeRubric={deleteSelectedJudgeRubric}
                                 onExportJudgeRubrics={exportJudgeRubricLibrary}
                                 onImportJudgeRubrics={importJudgeRubricLibrary}
+                                availableOutlines={availableOutlines}
                                 multiModelOptions={multiModelOptions}
                                 selectedMultiModelKeys={selectedMultiModelKeys}
                                 onToggleMultiModel={toggleMultiModelSelection}
@@ -3418,7 +3465,7 @@ function normalizeMainConfigForRestore(config: Record<string, unknown>): MainExp
         return null;
     }
 
-    const perturbations = isRecord(config.perturbations) ? config.perturbations : {};
+    const perturbations: Record<string, unknown> = isRecord(config.perturbations) ? config.perturbations : {};
     return {
         ...config,
         perturbations: {
@@ -3437,8 +3484,8 @@ function normalizeForcedConfigForRestore(config: Record<string, unknown>): Force
         return null;
     }
 
-    const perturbations = isRecord(config.perturbations) ? config.perturbations : {};
-    const controlled = isRecord(config.controlled) ? config.controlled : {};
+    const perturbations: Record<string, unknown> = isRecord(config.perturbations) ? config.perturbations : {};
+    const controlled: Record<string, unknown> = isRecord(config.controlled) ? config.controlled : {};
     return {
         ...config,
         controlled: {
@@ -3608,6 +3655,10 @@ function isRubricJudgeProbeConfig(value: unknown): value is RubricJudgeProbeConf
         && value.selectedGenerationPromptIds.every((id) => typeof id === 'string')
         && Array.isArray(value.selectedJudgeRubricIds)
         && value.selectedJudgeRubricIds.every((id) => typeof id === 'string')
+        && Array.isArray(value.selectedGenerationOutlineIds)
+        && value.selectedGenerationOutlineIds.every((id) => typeof id === 'string')
+        && Array.isArray(value.selectedJudgeOutlineIds)
+        && value.selectedJudgeOutlineIds.every((id) => typeof id === 'string')
         && typeof value.runsPerQuestion === 'number'
         && Number.isFinite(value.runsPerQuestion)
         && typeof value.judgeModel === 'string'
@@ -3652,15 +3703,25 @@ function normalizeRubricJudgeProbeConfig(value: unknown): RubricJudgeProbeConfig
                     ? [value.selectedGenerationPromptIdB]
                     : []),
             ],
+        selectedGenerationOutlineIds: Array.isArray(value.selectedGenerationOutlineIds)
+            ? value.selectedGenerationOutlineIds.filter((id): id is string => typeof id === 'string')
+            : [],
+        selectedJudgeOutlineIds: Array.isArray(value.selectedJudgeOutlineIds)
+            ? value.selectedJudgeOutlineIds.filter((id): id is string => typeof id === 'string')
+            : [],
     };
     if (!isRubricJudgeProbeConfig(candidate)) {
         return null;
     }
     const uniquePromptIds = Array.from(new Set(candidate.selectedGenerationPromptIds));
+    const uniqueGenerationOutlineIds = Array.from(new Set(candidate.selectedGenerationOutlineIds));
+    const uniqueJudgeOutlineIds = Array.from(new Set(candidate.selectedJudgeOutlineIds));
     return {
         ...candidate,
         runsPerQuestion: Math.min(20, Math.max(1, Math.floor(candidate.runsPerQuestion))),
         selectedGenerationPromptIds: uniquePromptIds,
+        selectedGenerationOutlineIds: uniqueGenerationOutlineIds,
+        selectedJudgeOutlineIds: uniqueJudgeOutlineIds,
     };
 }
 

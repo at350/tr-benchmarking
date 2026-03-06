@@ -1,4 +1,4 @@
-import { ArrowRight, BarChart3, Database, Orbit } from 'lucide-react';
+import { ArrowRight, BarChart3, BookOpenText, Database, Orbit } from 'lucide-react';
 
 import { AppShell } from '@/components/ui/AppShell';
 import { PanelCard } from '@/components/ui/PanelCard';
@@ -8,10 +8,10 @@ export default function HomePage() {
         <AppShell
             eyebrow="Benchmark Workspace"
             title="Legal AI Benchmarking Portal"
-            subtitle="Choose a tool: inspect datasets, analyze LSH-RUHS clusters, or run full general benchmarking with configurable model evaluations."
+            subtitle="Choose a tool: inspect datasets, browse legal outlines, analyze LSH-RUHS clusters, or run full general benchmarking with configurable model evaluations."
             maxWidthClassName="max-w-7xl"
         >
-            <section className="grid gap-5 md:grid-cols-3">
+            <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                 <PanelCard
                     href="/database-view"
                     title="Dataset"
@@ -21,6 +21,18 @@ export default function HomePage() {
                 >
                     <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
                         Open dataset explorer <ArrowRight className="h-3.5 w-3.5" />
+                    </div>
+                </PanelCard>
+
+                <PanelCard
+                    href="/outlines"
+                    title="Outlines"
+                    description="View available legal outlines as PDFs and use them as retrieval references in rubric-first generation and judging workflows."
+                    icon={<BookOpenText className="h-5 w-5" />}
+                    badge="Reference"
+                >
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                        Open outlines library <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>
 

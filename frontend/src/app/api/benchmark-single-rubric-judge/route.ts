@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
+import { retrieveOutlineContext } from '@/lib/outline-rag';
+import { isValidOutlineFileName } from '@/lib/outlines';
+
 type Provider = 'openai' | 'anthropic' | 'gemini';
 type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh';
 type StrictnessMode = 'strict' | 'best_effort';
@@ -33,6 +36,8 @@ type RequestBody = {
     judgeReasoningEffort?: ReasoningEffort;
     judgeRubrics?: JudgeRubricPayload[];
     maxGenerationRetries?: number;
+    generationOutlineIds?: string[];
+    judgeOutlineIds?: string[];
 };
 
 type ChatMessage = {
@@ -85,6 +90,8 @@ export async function POST(req: Request) {
         const generationPrompt = normalizeNonEmptyString(body.generationPrompt);
         const strictnessMode = normalizeStrictnessMode(body.strictnessMode);
         const judgeRubrics = normalizeJudgeRubrics(body.judgeRubrics);
+        const generationOutlineIds = normalizeOutlineIds(body.generationOutlineIds);
+        const judgeOutlineIds = normalizeOutlineIds(body.judgeOutlineIds);
 
         if (!provider) {
             return NextResponse.json({ error: 'Invalid provider.' }, { status: 400 });
@@ -113,6 +120,20 @@ export async function POST(req: Request) {
         const judgeReasoningEffort = normalizeReasoningEffort(body.judgeReasoningEffort);
         const maxGenerationRetries = normalizeRetries(body.maxGenerationRetries);
 
+        const generationOutlineContext = generationOutlineIds.length > 0
+            ? await retrieveOutlineContext({
+                selectedOutlineIds: generationOutlineIds,
+                stageLabel: 'generation',
+                query: [
+                    generationPrompt,
+                    '',
+                    question.question,
+                    '',
+                    question.choices.map((choice, index) => `${String.fromCharCode(65 + index)}. ${choice}`).join('\n'),
+                ].join('\n'),
+            })
+            : { snippets: [], contextBlock: '', retrievalMode: 'none' as const };
+
         const validLetters = getValidLetters(question.choices.length);
         const generation = await runGenerationWithNormalization({
             provider,
@@ -124,6 +145,7 @@ export async function POST(req: Request) {
             reasoningEffort,
             maxGenerationRetries,
             validLetters,
+            outlineContextBlock: generationOutlineContext.contextBlock,
         });
 
         const isCorrect = generation.parsedAnswer === question.answerLetter;
@@ -136,6 +158,7 @@ export async function POST(req: Request) {
                     rubric,
                     question,
                     generation,
+                    judgeOutlineIds,
                 });
                 const normalized = normalizeJudgeOutput(rawJudgeOutput);
                 return {
@@ -163,6 +186,8 @@ export async function POST(req: Request) {
                 degradedControllability: generation.degradedControllability,
                 parseErrors: generation.parseErrors,
                 rawOutput: generation.rawOutput,
+                outlineContextMode: generationOutlineContext.retrievalMode,
+                outlineContextSnippetCount: generationOutlineContext.snippets.length,
             },
             evaluation: {
                 isCorrect,
@@ -187,6 +212,7 @@ async function runGenerationWithNormalization(input: {
     reasoningEffort: ReasoningEffort;
     maxGenerationRetries: number;
     validLetters: string[];
+    outlineContextBlock: string;
 }) {
     const {
         provider,
@@ -198,6 +224,7 @@ async function runGenerationWithNormalization(input: {
         reasoningEffort,
         maxGenerationRetries,
         validLetters,
+        outlineContextBlock,
     } = input;
 
     const systemPrompt = 'You are a legal reasoning assistant. Follow output format requirements exactly.';
@@ -241,6 +268,12 @@ async function runGenerationWithNormalization(input: {
             'Generation prompt template:',
             generationPrompt,
             '',
+            ...(outlineContextBlock
+                ? [
+                    outlineContextBlock,
+                    '',
+                ]
+                : []),
             'Question:',
             question.question,
             '',
@@ -457,6 +490,7 @@ async function runJudge(input: {
         parsedAnswer: string;
         rawOutput: string;
     };
+    judgeOutlineIds: string[];
 }) {
     const {
         judgeProvider,
@@ -465,7 +499,24 @@ async function runJudge(input: {
         rubric,
         question,
         generation,
+        judgeOutlineIds,
     } = input;
+
+    const outlineContext = judgeOutlineIds.length > 0
+        ? await retrieveOutlineContext({
+            selectedOutlineIds: judgeOutlineIds,
+            stageLabel: `judge:${rubric.id}`,
+            query: [
+                question.question,
+                '',
+                `Parsed answer: ${generation.parsedAnswer}`,
+                '',
+                JSON.stringify(generation.parsedJson ?? {}, null, 2).slice(0, 3000),
+                '',
+                rubric.content,
+            ].join('\n'),
+        })
+        : { snippets: [], contextBlock: '', retrievalMode: 'none' as const };
 
     const systemPrompt = [
         'You are an expert legal writing evaluator and strict rubric grader.',
@@ -492,11 +543,17 @@ async function runJudge(input: {
         'Question:',
         question.question,
         '',
-        'Model generated JSON (if parseable):',
-        JSON.stringify(generation.parsedJson ?? {}, null, 2),
-        '',
+        ...(outlineContext.contextBlock
+            ? [
+                outlineContext.contextBlock,
+                '',
+            ]
+            : []),
         'Model parsed answer letter:',
         generation.parsedAnswer,
+        '',
+        'Model generated JSON (if parseable):',
+        JSON.stringify(generation.parsedJson ?? {}, null, 2),
         '',
         'Model raw output:',
         generation.rawOutput.slice(0, 5000),
@@ -921,6 +978,18 @@ function normalizeJudgeRubrics(value: unknown) {
             return { id, name, content };
         })
         .filter((entry): entry is JudgeRubricPayload => entry !== null);
+}
+
+function normalizeOutlineIds(value: unknown) {
+    if (!Array.isArray(value)) {
+        return [] as string[];
+    }
+    return Array.from(new Set(
+        value
+            .filter((entry): entry is string => typeof entry === 'string')
+            .map((entry) => entry.trim())
+            .filter((entry) => entry.length > 0 && isValidOutlineFileName(entry))
+    ));
 }
 
 function normalizeProvider(value: unknown): Provider | null {
