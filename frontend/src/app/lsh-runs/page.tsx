@@ -2444,17 +2444,12 @@ export default function LshRunsPage() {
                                                         const active = activeClusterId === region.clusterId;
                                                         const muted = Boolean(activeClusterId) && !active;
                                                         const color = modelColorMap.get(region.dominantModel) || '#94a3b8';
+                                                        const labelX = toSvgX(region.centerX, axisDomain);
+                                                        const labelY = toSvgY(region.centerY, axisDomain);
+                                                        const label = region.clusterId.toLowerCase() === 'noise' ? 'Noise' : `C${region.clusterId}`;
                                                         return (
-                                                            <circle
+                                                            <g
                                                                 key={`region-${region.clusterId}`}
-                                                                cx={toSvgX(region.centerX, axisDomain)}
-                                                                cy={toSvgY(region.centerY, axisDomain)}
-                                                                r={Math.max((region.radius / (axisDomain.maxX - axisDomain.minX || 1)) * MAP_WIDTH, 8)}
-                                                                fill={color}
-                                                                fillOpacity={active ? 0.22 : muted ? 0.05 : 0.12}
-                                                                stroke={color}
-                                                                strokeOpacity={active ? 0.95 : muted ? 0.2 : 0.55}
-                                                                strokeWidth={active ? 2.2 : 1.2}
                                                                 onMouseEnter={() => setHoveredClusterId(region.clusterId)}
                                                                 onMouseLeave={() => setHoveredClusterId((current) => (current === region.clusterId ? null : current))}
                                                                 onClick={(event) => {
@@ -2462,7 +2457,30 @@ export default function LshRunsPage() {
                                                                     setSelectedClusterId(region.clusterId);
                                                                 }}
                                                                 className="cursor-pointer"
-                                                            />
+                                                            >
+                                                                <circle
+                                                                    cx={labelX}
+                                                                    cy={labelY}
+                                                                    r={Math.max((region.radius / (axisDomain.maxX - axisDomain.minX || 1)) * MAP_WIDTH, 8)}
+                                                                    fill={color}
+                                                                    fillOpacity={active ? 0.22 : muted ? 0.05 : 0.12}
+                                                                    stroke={color}
+                                                                    strokeOpacity={active ? 0.95 : muted ? 0.2 : 0.55}
+                                                                    strokeWidth={active ? 2.2 : 1.2}
+                                                                />
+                                                                <text
+                                                                    x={labelX}
+                                                                    y={labelY + 4}
+                                                                    textAnchor="middle"
+                                                                    fontSize={active ? '11' : '10'}
+                                                                    fontWeight={active ? '700' : '600'}
+                                                                    fill={color}
+                                                                    fillOpacity={active ? 0.9 : muted ? 0.35 : 0.65}
+                                                                    pointerEvents="none"
+                                                                >
+                                                                    {label}
+                                                                </text>
+                                                            </g>
                                                         );
                                                     })}
 
