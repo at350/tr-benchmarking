@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/ui/AppShell';
+import { BUILTIN_PROMPT_TEMPLATES } from '@/lib/prompt-library';
 
 type LshRunSummary = {
     fileName: string;
@@ -92,12 +93,14 @@ type ModelStat = {
 type JudgeProvider = 'openai' | 'anthropic' | 'gemini';
 type JudgeReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
 type JudgeCap = 'none' | 'cap_60' | 'cap_70';
+type JudgeContextMode = 'full_cluster' | 'centroid_only';
 
 type JudgeConfig = {
     provider: JudgeProvider;
     model: string;
     reasoningEffort: JudgeReasoningEffort;
-    customInstructions: string;
+    rubricText: string;
+    contextMode: JudgeContextMode;
 };
 
 type ClusterJudgeResult = {
@@ -168,8 +171,16 @@ type JudgeApiResponse = {
         provider?: JudgeProvider;
         model?: string;
         reasoningEffort?: string;
-        customInstructions?: string;
+        rubricText?: string;
+        contextMode?: string;
     };
+};
+
+type BatchJudgeProgress = {
+    total: number;
+    completed: number;
+    succeeded: number;
+    failed: number;
 };
 
 const MAP_WIDTH = 980;
@@ -213,6 +224,10 @@ const JUDGE_REASONING_OPTIONS: Array<{ value: JudgeReasoningEffort; label: strin
     { value: 'high', label: 'High' },
 ];
 
+const DEFAULT_JUDGE_RUBRIC_TEXT = (
+    BUILTIN_PROMPT_TEMPLATES.find((template) => template.id === 'builtin_lsh_grading_rubric_v1')?.content || ''
+).trim();
+
 export default function LshRunsPage() {
     const [runs, setRuns] = useState<LshRunSummary[]>([]);
     const [isLoadingRuns, setIsLoadingRuns] = useState(true);
@@ -235,8 +250,11 @@ export default function LshRunsPage() {
     const [judgeProvider, setJudgeProvider] = useState<JudgeProvider>('openai');
     const [judgeModel, setJudgeModel] = useState<string>(JUDGE_MODEL_OPTIONS.openai[0].value);
     const [judgeReasoningEffort, setJudgeReasoningEffort] = useState<JudgeReasoningEffort>('auto');
-    const [judgeInstructions, setJudgeInstructions] = useState('');
+    const [rubricText, setRubricText] = useState<string>(DEFAULT_JUDGE_RUBRIC_TEXT);
     const [isJudgingCluster, setIsJudgingCluster] = useState(false);
+    const [isBatchJudging, setIsBatchJudging] = useState(false);
+    const [batchProgress, setBatchProgress] = useState<BatchJudgeProgress | null>(null);
+    const [batchErrors, setBatchErrors] = useState<Array<{ clusterId: string; message: string }>>([]);
     const [judgeError, setJudgeError] = useState<string | null>(null);
     const [judgeResultsByCluster, setJudgeResultsByCluster] = useState<Record<string, ClusterJudgeSnapshot>>({});
     const [savedGrades, setSavedGrades] = useState<SavedGradeRecord[]>([]);
@@ -370,6 +388,9 @@ export default function LshRunsPage() {
         setSelectedClusterId(null);
         setHoveredClusterId(null);
         setIsResizingPanes(false);
+        setIsBatchJudging(false);
+        setBatchProgress(null);
+        setBatchErrors([]);
     }, [selectedRun?.fileName]);
 
     useEffect(() => {
@@ -617,8 +638,97 @@ export default function LshRunsPage() {
     }, [comparedSavedGrades, judgeModelComparisonRows]);
     const allSavedGradesSelected = savedGrades.length > 0 && selectedSavedGradeIds.length === savedGrades.length;
 
+    const upsertSnapshot = useCallback((snapshot: ClusterJudgeSnapshot) => {
+        const key = buildJudgeResultKey(snapshot.runFile, snapshot.clusterId);
+        setJudgeResultsByCluster((previous) => ({
+            ...previous,
+            [key]: snapshot,
+        }));
+    }, []);
+
+    const buildSavedRecord = useCallback((snapshot: ClusterJudgeSnapshot): SavedGradeRecord => ({
+        id: `saved_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        savedAt: new Date().toISOString(),
+        grading: snapshot.grading,
+        judgeConfig: snapshot.judgeConfig,
+        runFile: snapshot.runFile,
+        clusterId: snapshot.clusterId,
+        memberCount: snapshot.memberCount,
+    }), []);
+
+    const requestClusterJudge = useCallback(async (params: {
+        runFile: string;
+        clusterId: string;
+        clusterSizeHint: number;
+        contextMode: JudgeContextMode;
+    }): Promise<ClusterJudgeSnapshot> => {
+        const trimmedRubric = rubricText.trim();
+        if (!trimmedRubric) {
+            throw new Error('Rubric text is required.');
+        }
+
+        const payload: {
+            runFile: string;
+            clusterId: string;
+            judgeProvider: JudgeProvider;
+            judgeModel: string;
+            rubricText: string;
+            contextMode: JudgeContextMode;
+            reasoningEffort?: Exclude<JudgeReasoningEffort, 'auto'>;
+        } = {
+            runFile: params.runFile,
+            clusterId: params.clusterId,
+            judgeProvider,
+            judgeModel,
+            rubricText: trimmedRubric,
+            contextMode: params.contextMode,
+        };
+
+        if (judgeSupportsReasoningControl && judgeReasoningEffort !== 'auto') {
+            payload.reasoningEffort = judgeReasoningEffort;
+        }
+
+        const response = await fetch('/api/lsh-runs/judge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        const data = (await response.json()) as JudgeApiResponse & { error?: string };
+        if (!response.ok) {
+            throw new Error(data.error || `Judge request failed (${response.status}).`);
+        }
+
+        return {
+            grading: data.grading,
+            judgeConfig: {
+                provider: data.judgeConfig?.provider || judgeProvider,
+                model: data.judgeConfig?.model || judgeModel,
+                reasoningEffort: normalizeReasoningEffort(data.judgeConfig?.reasoningEffort),
+                rubricText: typeof data.judgeConfig?.rubricText === 'string'
+                    ? data.judgeConfig.rubricText
+                    : trimmedRubric,
+                contextMode: normalizeJudgeContextMode(data.judgeConfig?.contextMode, params.contextMode),
+            },
+            runFile: data.cluster?.runFile || params.runFile,
+            clusterId: data.cluster?.clusterId || params.clusterId,
+            memberCount: Number.isFinite(data.cluster?.memberCount) ? data.cluster.memberCount : params.clusterSizeHint,
+            gradedAt: new Date().toISOString(),
+        };
+    }, [
+        judgeModel,
+        judgeProvider,
+        judgeReasoningEffort,
+        judgeSupportsReasoningControl,
+        rubricText,
+    ]);
+
     const handleJudgeCluster = async () => {
         if (!selectedRunFile || !selectedCluster) {
+            return;
+        }
+        if (!rubricText.trim()) {
+            setJudgeError('Rubric text is required.');
             return;
         }
 
@@ -626,55 +736,13 @@ export default function LshRunsPage() {
         setJudgeError(null);
 
         try {
-            const payload: {
-                runFile: string;
-                clusterId: string;
-                judgeProvider: JudgeProvider;
-                judgeModel: string;
-                customInstructions: string;
-                reasoningEffort?: Exclude<JudgeReasoningEffort, 'auto'>;
-            } = {
+            const snapshot = await requestClusterJudge({
                 runFile: selectedRunFile,
                 clusterId: selectedCluster.id,
-                judgeProvider,
-                judgeModel,
-                customInstructions: judgeInstructions,
-            };
-
-            if (judgeSupportsReasoningControl && judgeReasoningEffort !== 'auto') {
-                payload.reasoningEffort = judgeReasoningEffort;
-            }
-
-            const response = await fetch('/api/lsh-runs/judge', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                clusterSizeHint: selectedCluster.size,
+                contextMode: 'full_cluster',
             });
-
-            const data = (await response.json()) as JudgeApiResponse & { error?: string };
-            if (!response.ok) {
-                throw new Error(data.error || `Judge request failed (${response.status}).`);
-            }
-
-            const key = buildJudgeResultKey(selectedRunFile, selectedCluster.id);
-            setJudgeResultsByCluster((previous) => ({
-                ...previous,
-                [key]: {
-                    grading: data.grading,
-                    judgeConfig: {
-                        provider: data.judgeConfig?.provider || judgeProvider,
-                        model: data.judgeConfig?.model || judgeModel,
-                        reasoningEffort: normalizeReasoningEffort(data.judgeConfig?.reasoningEffort),
-                        customInstructions: typeof data.judgeConfig?.customInstructions === 'string'
-                            ? data.judgeConfig.customInstructions
-                            : judgeInstructions,
-                    },
-                    runFile: data.cluster?.runFile || selectedRunFile,
-                    clusterId: data.cluster?.clusterId || selectedCluster.id,
-                    memberCount: Number.isFinite(data.cluster?.memberCount) ? data.cluster.memberCount : selectedCluster.size,
-                    gradedAt: new Date().toISOString(),
-                },
-            }));
+            upsertSnapshot(snapshot);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to judge cluster.';
             setJudgeError(message);
@@ -683,20 +751,66 @@ export default function LshRunsPage() {
         }
     };
 
+    const handleJudgeAllCentroids = async () => {
+        if (!selectedRunFile || !selectedRun) {
+            return;
+        }
+        if (!rubricText.trim()) {
+            setJudgeError('Rubric text is required.');
+            return;
+        }
+
+        setIsBatchJudging(true);
+        setJudgeError(null);
+        setBatchErrors([]);
+
+        const targets = selectedRun.clusters.map((cluster) => ({ id: cluster.id, size: cluster.size }));
+        const total = targets.length;
+        setBatchProgress({ total, completed: 0, succeeded: 0, failed: 0 });
+
+        let completed = 0;
+        let succeeded = 0;
+        let failed = 0;
+        const errorRows: Array<{ clusterId: string; message: string }> = [];
+        const savedRecords: SavedGradeRecord[] = [];
+
+        for (const target of targets) {
+            try {
+                const snapshot = await requestClusterJudge({
+                    runFile: selectedRunFile,
+                    clusterId: target.id,
+                    clusterSizeHint: target.size,
+                    contextMode: 'centroid_only',
+                });
+                upsertSnapshot(snapshot);
+                const savedRecord = buildSavedRecord(snapshot);
+                savedRecords.push(savedRecord);
+                setSavedGrades((previous) => [savedRecord, ...previous]);
+                setSelectedSavedGradeIds((previous) => [savedRecord.id, ...previous.filter((id) => id !== savedRecord.id)]);
+                succeeded += 1;
+            } catch (error) {
+                failed += 1;
+                const message = error instanceof Error ? error.message : 'Failed to grade cluster centroid.';
+                errorRows.push({ clusterId: target.id, message });
+            } finally {
+                completed += 1;
+                setBatchProgress({ total, completed, succeeded, failed });
+            }
+        }
+
+        setBatchErrors(errorRows);
+        setSavedGradesStatus(
+            `Batch grading complete: ${succeeded} succeeded, ${failed} failed. ${savedRecords.length} grade${savedRecords.length === 1 ? '' : 's'} auto-saved.`
+        );
+        setIsBatchJudging(false);
+    };
+
     const handleSaveLatestGrade = () => {
         if (!selectedClusterSnapshot) {
             return;
         }
 
-        const savedRecord: SavedGradeRecord = {
-            id: `saved_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            savedAt: new Date().toISOString(),
-            grading: selectedClusterSnapshot.grading,
-            judgeConfig: selectedClusterSnapshot.judgeConfig,
-            runFile: selectedClusterSnapshot.runFile,
-            clusterId: selectedClusterSnapshot.clusterId,
-            memberCount: selectedClusterSnapshot.memberCount,
-        };
+        const savedRecord = buildSavedRecord(selectedClusterSnapshot);
 
         setSavedGrades((previous) => [savedRecord, ...previous]);
         setSelectedSavedGradeIds((previous) => [savedRecord.id, ...previous.filter((id) => id !== savedRecord.id)]);
@@ -1209,28 +1323,62 @@ export default function LshRunsPage() {
                                                             )}
 
                                                             <label className="block text-[11px] font-semibold text-slate-600">
-                                                                Custom judge instructions
+                                                                Rubric text
                                                                 <textarea
-                                                                    value={judgeInstructions}
-                                                                    onChange={(event) => setJudgeInstructions(event.target.value)}
-                                                                    rows={4}
-                                                                    placeholder="Add custom grading preferences (optional). Base rubric is always applied."
+                                                                    value={rubricText}
+                                                                    onChange={(event) => setRubricText(event.target.value)}
+                                                                    rows={7}
+                                                                    placeholder="Paste the full rubric text used for grading."
                                                                     className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-2 text-xs text-slate-700 placeholder:text-slate-400"
                                                                 />
+                                                                <span className="mt-1 block text-[10px] font-normal text-slate-500">
+                                                                    This rubric is sent as-is to the judge model.
+                                                                </span>
                                                             </label>
 
                                                             <button
                                                                 type="button"
                                                                 onClick={handleJudgeCluster}
-                                                                disabled={isJudgingCluster}
+                                                                disabled={isJudgingCluster || isBatchJudging || rubricText.trim().length === 0}
                                                                 className="rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                                                             >
                                                                 {isJudgingCluster ? 'Grading cluster...' : `Grade ${selectedCluster.id === 'noise' ? 'Noise Cluster' : `Cluster ${selectedCluster.id}`}`}
                                                             </button>
 
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleJudgeAllCentroids}
+                                                                disabled={isBatchJudging || isJudgingCluster || !selectedRun || rubricText.trim().length === 0}
+                                                                className="rounded-md border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                                            >
+                                                                {isBatchJudging ? 'Grading all centroids...' : 'Grade All Cluster Centroids'}
+                                                            </button>
+
                                                             <p className="text-[11px] text-slate-500">
                                                                 Latest grade is temporary. Use Save grade to keep it for comparison.
                                                             </p>
+
+                                                            {batchProgress && (
+                                                                <p className="rounded border border-indigo-200 bg-indigo-50 px-2 py-1.5 text-[11px] text-indigo-800">
+                                                                    {batchProgress.completed}/{batchProgress.total} completed • {batchProgress.succeeded} succeeded • {batchProgress.failed} failed
+                                                                </p>
+                                                            )}
+
+                                                            {batchErrors.length > 0 && (
+                                                                <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900">
+                                                                    <p className="font-semibold">Batch failures:</p>
+                                                                    <div className="mt-1 space-y-0.5">
+                                                                        {batchErrors.slice(0, 6).map((row) => (
+                                                                            <p key={`${row.clusterId}-${row.message}`}>
+                                                                                {row.clusterId}: {row.message}
+                                                                            </p>
+                                                                        ))}
+                                                                        {batchErrors.length > 6 && (
+                                                                            <p>...and {batchErrors.length - 6} more</p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
 
                                                             {judgeError && (
                                                                 <p className="rounded border border-red-200 bg-red-50 px-2 py-1.5 text-xs text-red-700">{judgeError}</p>
@@ -1997,11 +2145,22 @@ function normalizeSavedGrade(value: unknown): SavedGradeRecord | null {
             provider,
             model,
             reasoningEffort: normalizeReasoningEffort(rawJudgeConfig?.reasoningEffort),
-            customInstructions: typeof rawJudgeConfig?.customInstructions === 'string'
-                ? rawJudgeConfig.customInstructions
+            rubricText: typeof rawJudgeConfig?.rubricText === 'string'
+                ? rawJudgeConfig.rubricText
                 : '',
+            contextMode: normalizeJudgeContextMode(rawJudgeConfig?.contextMode, 'full_cluster'),
         },
     };
+}
+
+function normalizeJudgeContextMode(value: unknown, fallback: JudgeContextMode = 'full_cluster'): JudgeContextMode {
+    if (value === 'centroid_only') {
+        return 'centroid_only';
+    }
+    if (value === 'full_cluster') {
+        return 'full_cluster';
+    }
+    return fallback;
 }
 
 function buildJudgeModelComparisonRows(savedGrades: SavedGradeRecord[]): JudgeModelComparisonRow[] {

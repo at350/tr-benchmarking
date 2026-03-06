@@ -12,6 +12,7 @@ const openai = new OpenAI({
 
 type Provider = 'openai' | 'anthropic' | 'gemini';
 type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh';
+type ContextMode = 'full_cluster' | 'centroid_only';
 type RowKey = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M';
 type CapKey = 'none' | 'cap_60' | 'cap_70';
 
@@ -60,60 +61,14 @@ const OUTCOME_OPTIONS = {
     ],
 } as const;
 
-const BASE_RUBRIC = `
-Outcome tags (metadata only):
-- Bottom-line outcome: Enforceable | Not enforceable | Mixed / depends | No clear conclusion
-- Outcome correctness: Correct | Arguably correct / jurisdiction-dependent | Incorrect | Indeterminate (insufficient info)
-- Reasoning alignment: Right result / right reason | Right result / wrong or incomplete reason | Wrong result / plausible reasoning | Wrong result / poor reasoning
-- Jurisdiction assumption if prompt is silent
-
-Scoring anchors for each row A-M:
-0 = absent or materially wrong
-1 = mentioned but incorrect/superficial
-2 = partially correct
-3 = mostly correct
-4 = strong
-
-Points formula:
-row_points = row_weight * (row_score / 4)
-
-Core rubric rows and weights:
-A Issue spotting + prioritization (15)
-B Formation framing + consideration vs conditional gift (11)
-C SoF categories + triggers and enforceability vs proof distinction (15)
-D One-year SoF test + application (5)
-E Suretyship nuance + main purpose prerequisites (9)
-F SoF exceptions/workarounds + limits (7)
-G Promissory estoppel alternative + reliance rigor (7)
-H Defenses/conditions/mistake: motive vs condition precedent (5)
-I Factual fidelity + internal consistency (5)
-J Clear bottom line + structured reasoning (5)
-K Barrier stacking + exception mapping (8)
-L Scope calibration / claim discipline (4)
-M Relevance discipline / prompt adherence (4)
-
-Penalty options (subtract after subtotal):
-- controlling_doctrine_omitted (-15)
-- material_rule_misstatement (-10)
-- material_fact_timeline_error (-10)
-- exception_bleed_over (-10)
-- irrelevant_doctrine_invoked (-5)
-- excessive_hedging (-5)
-- reliance_by_performance_only (-5)
-- jurisdiction_drift (-5)
-
-Optional caps:
-- cap_60 if most dispositive SoF category / controlling doctrine omitted
-- cap_70 if key doctrines are mentioned but no bottom-line conclusion
-`;
-
 type RequestBody = {
     runFile?: string;
     clusterId?: string;
     judgeProvider?: Provider;
     judgeModel?: string;
     reasoningEffort?: ReasoningEffort;
-    customInstructions?: string;
+    rubricText?: string;
+    contextMode?: ContextMode;
 };
 
 type ChatMessage = {
@@ -138,9 +93,14 @@ export async function POST(req: Request) {
         const judgeModel = toRequiredString(body.judgeModel, 'judgeModel');
         const judgeProvider = normalizeProvider(body.judgeProvider);
         const reasoningEffort = normalizeReasoningEffort(body.reasoningEffort);
+        const contextMode = normalizeContextMode(body.contextMode);
+        const rubricText = toOptionalTrimmedString(body.rubricText);
 
         if (!judgeProvider) {
             return NextResponse.json({ error: 'Invalid judge provider.' }, { status: 400 });
+        }
+        if (!rubricText) {
+            return NextResponse.json({ error: 'rubricText is required.' }, { status: 400 });
         }
 
         const cluster = getLshClusterJudgePayload(runFile, clusterId);
@@ -148,11 +108,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Cluster not found.' }, { status: 404 });
         }
 
-        const customInstructions = typeof body.customInstructions === 'string'
-            ? body.customInstructions.trim()
-            : '';
-
-        const clusterContext = buildClusterContext(cluster);
+        const clusterContext = contextMode === 'centroid_only'
+            ? buildClusterCentroidContext(cluster)
+            : buildClusterContext(cluster);
         const systemPrompt = [
             'You are an expert legal writing evaluator and strict rubric grader.',
             'Apply the provided rubric exactly.',
@@ -161,7 +119,9 @@ export async function POST(req: Request) {
         ].join('\n');
 
         const userPrompt = [
-            'Grade this cluster of LLM responses using the rubric below.',
+            contextMode === 'centroid_only'
+                ? 'Grade this cluster centroid response using the rubric below.'
+                : 'Grade this cluster of LLM responses using the rubric below.',
             '',
             'Return JSON in this exact shape:',
             '{',
@@ -187,9 +147,7 @@ export async function POST(req: Request) {
             '- summary must be concise and specific to this cluster.',
             '',
             'Rubric:',
-            BASE_RUBRIC,
-            '',
-            customInstructions ? `Additional judge instructions:\n${customInstructions}` : 'Additional judge instructions: none',
+            rubricText,
             '',
             'Cluster data to grade:',
             clusterContext,
@@ -219,7 +177,8 @@ export async function POST(req: Request) {
                 provider: judgeProvider,
                 model: judgeModel,
                 reasoningEffort,
-                customInstructions,
+                contextMode,
+                rubricText,
             },
         });
     } catch (error) {
@@ -232,6 +191,13 @@ export async function POST(req: Request) {
 function toRequiredString(value: unknown, field: string) {
     if (typeof value !== 'string' || value.trim().length === 0) {
         throw new Error(`${field} is required.`);
+    }
+    return value.trim();
+}
+
+function toOptionalTrimmedString(value: unknown) {
+    if (typeof value !== 'string') {
+        return '';
     }
     return value.trim();
 }
@@ -251,6 +217,13 @@ function normalizeReasoningEffort(value: unknown): ReasoningEffort {
         return value;
     }
     return 'auto';
+}
+
+function normalizeContextMode(value: unknown): ContextMode {
+    if (value === 'centroid_only') {
+        return 'centroid_only';
+    }
+    return 'full_cluster';
 }
 
 function buildClusterContext(cluster: NonNullable<ReturnType<typeof getLshClusterJudgePayload>>) {
@@ -276,6 +249,21 @@ function buildClusterContext(cluster: NonNullable<ReturnType<typeof getLshCluste
         ...sampledMembers.map((member) => (
             `[${member.index}] id=${member.id}; model=${member.model}\n${member.text || '[empty]'}`
         )),
+    ].join('\n');
+}
+
+function buildClusterCentroidContext(cluster: NonNullable<ReturnType<typeof getLshClusterJudgePayload>>) {
+    const modelLine = cluster.modelBreakdown.map((entry) => `${entry.model}: ${entry.count}`).join(', ');
+
+    return [
+        `Run file: ${cluster.fileName}`,
+        `Cluster ID: ${cluster.clusterId}`,
+        `Cluster size: ${cluster.members.length}`,
+        `Model breakdown: ${modelLine}`,
+        '',
+        'Centroid/representative response:',
+        `id=${cluster.representative.id}; model=${cluster.representative.model}`,
+        cluster.representative.text || '[empty]',
     ].join('\n');
 }
 
