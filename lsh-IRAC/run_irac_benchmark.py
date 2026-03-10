@@ -345,6 +345,10 @@ async def main(args):
         pipeline.ingest_data(valid_data)
         results = pipeline.run_clustering(method="density") # Using Density clusterer by default 
         
+        # Compute cluster quality metrics
+        cluster_metrics = pipeline.compute_cluster_metrics(results['partition'])
+        print(f"Cluster Metrics: Silhouette={cluster_metrics['silhouette']}, Davies-Bouldin={cluster_metrics['davies_bouldin']}")
+        
         # Prepare output
         full_output = {
             "metadata": {
@@ -356,7 +360,8 @@ async def main(args):
                 "schema": "IRAC",
                 "total_items": len(valid_data),
                 "num_clusters": results['num_clusters'],
-                "failures": fail_counts if failures else {}
+                "failures": fail_counts if failures else {},
+                "cluster_metrics": cluster_metrics,
             },
             "clusters": {}
         }

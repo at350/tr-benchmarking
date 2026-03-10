@@ -1,6 +1,8 @@
 import numpy as np
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict
+
+from sklearn.metrics import silhouette_score, davies_bouldin_score
 
 # Reuse existing utilities from the lsh module 
 from lsh.utils import get_embedding_model
@@ -88,37 +90,54 @@ class IRACEvaluationPipeline:
             
         print(f"Encoded {len(texts)} IRAC structured responses.")
 
-    def run_clustering(self, method="lsh") -> Dict[str, Any]:
+    def compute_cluster_metrics(self, partition: Dict[str, int]) -> Dict[str, Optional[float]]:
         """
-        Runs the clustering pipeline using density (UMAP + HDBSCAN) or standard LSH.
+        Computes cluster quality metrics on the current embeddings and a given partition.
+
+        Returns a dict with:
+          - silhouette: float in [-1, 1], higher is better (-1 on failure)
+          - davies_bouldin: float >= 0, lower is better (-1 on failure)
+          - n_noise: int, number of noise points (label -1)
+          - n_clusters: int, number of non-noise clusters
         """
-        if method == "density":
-            print("Running Density-Based Clustering (UMAP + HDBSCAN)...")
-            partition = run_density_clustering(
-                self.embeddings,
-                n_neighbors=5,
-                min_dist=0.1,
-                min_cluster_size=5,
-                min_samples=2,
-                n_components=10, 
-                random_state=42
-            )
-            num_clusters = len(set(partition.values())) - (1 if -1 in partition.values() else 0)
+        doc_ids = list(self.embeddings.keys())
+        if not doc_ids:
+            return {"silhouette": None, "davies_bouldin": None, "n_noise": 0, "n_clusters": 0}
+
+        labels = np.array([partition.get(doc_id, -1) for doc_id in doc_ids])
+        X = np.stack([self.embeddings[doc_id] for doc_id in doc_ids])
+
+        n_noise = int(np.sum(labels == -1))
+        unique_labels = set(labels[labels != -1])
+        n_clusters = len(unique_labels)
+
+        # sklearn metrics require at least 2 clusters and >0 non-noise points
+        mask = labels != -1
+        X_valid = X[mask]
+        labels_valid = labels[mask]
+        n_valid_clusters = len(set(labels_valid))
+
+        silhouette = None
+        davies_bouldin = None
+
+        if n_valid_clusters >= 2 and len(X_valid) > n_valid_clusters:
+            try:
+                silhouette = float(silhouette_score(X_valid, labels_valid, metric='cosine'))
+            except Exception as e:
+                print(f"Warning: silhouette_score failed: {e}")
+            try:
+                davies_bouldin = float(davies_bouldin_score(X_valid, labels_valid))
+            except Exception as e:
+                print(f"Warning: davies_bouldin_score failed: {e}")
         else:
-            if not self.lsh_index:
-                self.build_index()
-                
-            print("Retrieving candidates...")
-            candidates = self.lsh_index.get_candidates()
-            
-            print("Building similarity graph...")
-            G = build_similarity_graph(candidates, self.embeddings, self.sim_threshold)
-            
-            print(f"Clustering (resolution={self.resolution})...")
-            partition = cluster_graph(G, resolution=self.resolution)
-            num_clusters = len(set(partition.values())) if partition else 0
-            
-        print(f"Found {num_clusters} clusters.")
+            print(f"Skipping metrics: only {n_valid_clusters} valid clusters with {len(X_valid)} points.")
+
+        return {
+            "silhouette": round(silhouette, 4) if silhouette is not None else None,
+            "davies_bouldin": round(davies_bouldin, 4) if davies_bouldin is not None else None,
+            "n_clusters": n_clusters,
+            "n_noise": n_noise,
+        }
         
     def extract_cluster_topics(self, cluster_texts: List[str], num_topics: int = 3) -> List[str]:
         """

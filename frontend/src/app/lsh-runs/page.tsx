@@ -103,6 +103,41 @@ type ModelStat = {
     count: number;
 };
 
+type AnnotationVerdict = 'correct' | 'incorrect' | 'ambiguous';
+
+type ClusterAnnotation = {
+    id: string;
+    runFile: string;
+    clusterId: string;
+    verdict: AnnotationVerdict;
+    label: string;
+    annotatedAt: string;
+    memberCount: number;
+};
+
+const ANNOTATIONS_STORAGE_KEY = 'lsh-runs-annotations-v1';
+
+function readAnnotationsFromStorage(): ClusterAnnotation[] {
+    if (typeof window === 'undefined') return [];
+    try {
+        const raw = localStorage.getItem(ANNOTATIONS_STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+function writeAnnotationsToStorage(annotations: ClusterAnnotation[]) {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.setItem(ANNOTATIONS_STORAGE_KEY, JSON.stringify(annotations));
+    } catch {
+        // Ignore storage errors
+    }
+}
+
 type JudgeProvider = 'openai' | 'anthropic' | 'gemini';
 type JudgeReasoningEffort = 'auto' | 'low' | 'medium' | 'high';
 type JudgeCap = 'none' | 'cap_60' | 'cap_70';
@@ -264,6 +299,12 @@ export default function LshRunsPage() {
     const [isResizingPanes, setIsResizingPanes] = useState(false);
     const splitPaneRef = useRef<HTMLDivElement | null>(null);
 
+    const [annotations, setAnnotations] = useState<ClusterAnnotation[]>([]);
+    const [annotationVerdict, setAnnotationVerdict] = useState<AnnotationVerdict>('correct');
+    const [annotationLabel, setAnnotationLabel] = useState('');
+    const [annotationStatus, setAnnotationStatus] = useState<string | null>(null);
+    const [inspectorTab, setInspectorTab] = useState<'members' | 'judge' | 'annotate'>('members');
+
     const [isRunModalOpen, setIsRunModalOpen] = useState(false);
     const [runQuestion, setRunQuestion] = useState('');
     const [isRunningBenchmark, setIsRunningBenchmark] = useState(false);
@@ -336,6 +377,15 @@ export default function LshRunsPage() {
     }, []);
 
     useEffect(() => {
+        const loaded = readAnnotationsFromStorage();
+        setAnnotations(loaded);
+    }, []);
+
+    useEffect(() => {
+        writeAnnotationsToStorage(annotations);
+    }, [annotations]);
+
+    useEffect(() => {
         writeSavedGradesToStorage(savedGrades);
     }, [savedGrades]);
 
@@ -391,7 +441,16 @@ export default function LshRunsPage() {
         setSelectedClusterId(null);
         setHoveredClusterId(null);
         setIsResizingPanes(false);
+        setAnnotationVerdict('correct');
+        setAnnotationLabel('');
+        setAnnotationStatus(null);
     }, [selectedRun?.fileName]);
+
+    useEffect(() => {
+        setAnnotationVerdict('correct');
+        setAnnotationLabel('');
+        setAnnotationStatus(null);
+    }, [selectedClusterId]);
 
     useEffect(() => {
         if (minClusterSize > maxClusterSize) {
@@ -809,6 +868,48 @@ export default function LshRunsPage() {
         }
     };
 
+    const handleSaveAnnotation = () => {
+        if (!selectedRunFile || !selectedCluster) return;
+        if (!annotationLabel.trim()) {
+            setAnnotationStatus('Please enter a reasoning label.');
+            return;
+        }
+        const record: ClusterAnnotation = {
+            id: `ann_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            runFile: selectedRunFile,
+            clusterId: selectedCluster.id,
+            verdict: annotationVerdict,
+            label: annotationLabel.trim(),
+            annotatedAt: new Date().toISOString(),
+            memberCount: selectedCluster.size,
+        };
+        setAnnotations((prev) => [record, ...prev]);
+        setAnnotationLabel('');
+        setAnnotationStatus(`Annotation saved for Cluster ${selectedCluster.id}.`);
+    };
+
+    const handleDownloadAnnotationsCsv = () => {
+        if (annotations.length === 0) return;
+        const header = 'id,runFile,clusterId,verdict,label,annotatedAt,memberCount';
+        const rows = annotations.map((a) =>
+            [a.id, a.runFile, a.clusterId, a.verdict, `"${a.label.replace(/"/g, '""')}"`, a.annotatedAt, a.memberCount].join(',')
+        );
+        const csv = [header, ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `annotations_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const deleteAnnotation = (annId: string) => {
+        setAnnotations((prev) => prev.filter((a) => a.id !== annId));
+    };
+
+    const runAnnotations = annotations.filter((a) => a.runFile === selectedRunFile);
+
     return (
         <AppShell
             eyebrow="LSH-RUHS"
@@ -1171,8 +1272,26 @@ export default function LshRunsPage() {
                                                     )}
                                                 </div>
 
+                                                {/* Inspector tab strip */}
+                                                <div className="mt-3 flex gap-1 rounded-lg border border-slate-200 bg-slate-100 p-0.5">
+                                                    {(['members', 'judge', 'annotate'] as const).map((tab) => (
+                                                        <button
+                                                            key={tab}
+                                                            type="button"
+                                                            onClick={() => setInspectorTab(tab)}
+                                                            className={`flex-1 rounded-md px-2 py-1 text-[11px] font-semibold capitalize transition ${
+                                                                inspectorTab === tab
+                                                                    ? 'bg-white text-slate-900 shadow-sm'
+                                                                    : 'text-slate-500 hover:text-slate-700'
+                                                            }`}
+                                                        >
+                                                            {tab === 'annotate' ? '✏️ Annotate' : tab === 'judge' ? '⚖️ Judge' : '🔍 Members'}
+                                                        </button>
+                                                    ))}
+                                                </div>
+
                                                 {focusCluster ? (
-                                                    <div className="mt-3 space-y-3">
+                                                    <div className={inspectorTab === 'members' ? 'mt-3 space-y-3' : 'hidden'}>
                                                         <div>
                                                             <p className="text-sm font-bold text-slate-900">
                                                                 {focusCluster.id === 'noise' ? 'Noise Cluster' : `Cluster ${focusCluster.id}`}
@@ -1302,10 +1421,11 @@ export default function LshRunsPage() {
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <p className="mt-3 text-sm text-slate-600">Click or hover a cluster to inspect details.</p>
+                                                    <p className={inspectorTab === 'members' ? 'mt-3 text-sm text-slate-600' : 'hidden'}>Click or hover a cluster to inspect details.</p>
                                                 )}
 
-                                                <div className="mt-4 border-t border-slate-200 pt-3">
+                                                {/* JUDGE TAB */}
+                                                <div className={inspectorTab === 'judge' ? 'mt-4 border-t border-slate-200 pt-3' : 'hidden'}>
                                                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">LLM-as-Judge</p>
                                                     {!selectedCluster ? (
                                                         <p className="mt-2 text-xs text-slate-600">Select a cluster to configure judging.</p>
@@ -1698,6 +1818,134 @@ export default function LshRunsPage() {
                                                             </div>
                                                         </div>
                                                     )}
+                                                </div>
+
+                                                {/* ANNOTATE TAB */}
+                                                <div className={inspectorTab === 'annotate' ? 'mt-4 border-t border-slate-200 pt-3' : 'hidden'}>
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Human Annotation</p>
+
+                                                    {!selectedCluster ? (
+                                                        <p className="mt-2 text-xs text-slate-600">Select a cluster to annotate.</p>
+                                                    ) : (
+                                                        <div className="mt-2 space-y-3">
+                                                            <div className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-2">
+                                                                <p className="text-[11px] font-semibold text-violet-800">
+                                                                    Cluster {selectedCluster.id} &middot; {selectedCluster.size} members
+                                                                </p>
+                                                                <p className="mt-0.5 text-[11px] text-violet-700 line-clamp-2">
+                                                                    {selectedCluster.representative.textPreview || 'No preview.'}
+                                                                </p>
+                                                            </div>
+
+                                                            <label className="block text-[11px] font-semibold text-slate-600">
+                                                                Verdict
+                                                                <div className="mt-1 flex gap-1.5">
+                                                                    {(['correct', 'incorrect', 'ambiguous'] as AnnotationVerdict[]).map((v) => {
+                                                                        const active = annotationVerdict === v;
+                                                                        const color = v === 'correct'
+                                                                            ? active ? 'border-emerald-400 bg-emerald-100 text-emerald-900' : 'border-slate-200 bg-white text-slate-500 hover:border-emerald-300 hover:bg-emerald-50'
+                                                                            : v === 'incorrect'
+                                                                            ? active ? 'border-rose-400 bg-rose-100 text-rose-900' : 'border-slate-200 bg-white text-slate-500 hover:border-rose-300 hover:bg-rose-50'
+                                                                            : active ? 'border-amber-400 bg-amber-100 text-amber-900' : 'border-slate-200 bg-white text-slate-500 hover:border-amber-300 hover:bg-amber-50';
+                                                                        return (
+                                                                            <button
+                                                                                key={v}
+                                                                                id={`annotation-verdict-${v}`}
+                                                                                type="button"
+                                                                                onClick={() => setAnnotationVerdict(v)}
+                                                                                className={`flex-1 rounded border px-1.5 py-1 text-[11px] font-semibold capitalize transition ${color}`}
+                                                                            >
+                                                                                {v === 'correct' ? '✓ Correct' : v === 'incorrect' ? '✗ Incorrect' : '? Ambiguous'}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </label>
+
+                                                            <label className="block text-[11px] font-semibold text-slate-600">
+                                                                Legal reasoning label
+                                                                <input
+                                                                    id="annotation-label-input"
+                                                                    type="text"
+                                                                    value={annotationLabel}
+                                                                    onChange={(e) => setAnnotationLabel(e.target.value)}
+                                                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveAnnotation(); } }}
+                                                                    placeholder="e.g. Irrevocability + Unilateral Contract"
+                                                                    className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-300"
+                                                                />
+                                                            </label>
+
+                                                            <button
+                                                                id="annotation-save-btn"
+                                                                type="button"
+                                                                onClick={handleSaveAnnotation}
+                                                                disabled={!annotationLabel.trim()}
+                                                                className="rounded-md border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-800 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
+                                                            >
+                                                                Save Annotation
+                                                            </button>
+
+                                                            {annotationStatus && (
+                                                                <p className="text-[11px] text-violet-700">{annotationStatus}</p>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* All annotations for this run */}
+                                                    <div className="mt-4 space-y-2 border-t border-slate-200 pt-3">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                                                Run annotations ({runAnnotations.length})
+                                                            </p>
+                                                            <button
+                                                                id="annotation-download-csv-btn"
+                                                                type="button"
+                                                                onClick={handleDownloadAnnotationsCsv}
+                                                                disabled={runAnnotations.length === 0}
+                                                                className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                                            >
+                                                                Download CSV
+                                                            </button>
+                                                        </div>
+
+                                                        {runAnnotations.length === 0 ? (
+                                                            <p className="text-[11px] text-slate-500">No annotations for this run yet.</p>
+                                                        ) : (
+                                                            <div className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
+                                                                {runAnnotations.map((ann) => {
+                                                                    const verdictColor = ann.verdict === 'correct'
+                                                                        ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                                                                        : ann.verdict === 'incorrect'
+                                                                        ? 'text-rose-700 bg-rose-50 border-rose-200'
+                                                                        : 'text-amber-700 bg-amber-50 border-amber-200';
+                                                                    return (
+                                                                        <div
+                                                                            key={ann.id}
+                                                                            className="flex items-start gap-2 rounded border border-slate-200 bg-slate-50 px-2 py-1.5"
+                                                                        >
+                                                                            <div className="min-w-0 flex-1">
+                                                                                <p className="text-[11px] font-semibold text-slate-700">
+                                                                                    C{ann.clusterId} &middot; {ann.memberCount} members
+                                                                                </p>
+                                                                                <span className={`inline-block rounded border px-1.5 py-0.5 text-[10px] font-semibold capitalize ${verdictColor}`}>
+                                                                                    {ann.verdict === 'correct' ? '✓' : ann.verdict === 'incorrect' ? '✗' : '?'} {ann.verdict}
+                                                                                </span>
+                                                                                <p className="mt-0.5 text-[11px] text-slate-600 break-words">{ann.label}</p>
+                                                                                <p className="text-[10px] text-slate-400">{formatDateTime(ann.annotatedAt)}</p>
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => deleteAnnotation(ann.id)}
+                                                                                className="flex-shrink-0 rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 hover:bg-red-100"
+                                                                            >
+                                                                                ×
+                                                                            </button>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
 
                                                 <div className="mt-4 border-t border-slate-200 pt-3">

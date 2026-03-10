@@ -1,0 +1,156 @@
+{
+  "annotations": [
+    {
+      "id": "ann_expert_10",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "10",
+      "verdict": "correct",
+      "label": "SOF \u2013 Marriage Provision (Unenforceable, correct)",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 8,
+      "rationale": "Correctly applies SoF marriage provision and notes lack of sufficient detrimental reliance to invoke PE exception."
+    },
+    {
+      "id": "ann_expert_11",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "11",
+      "verdict": "incorrect",
+      "label": "SOF \u2013 Part Performance Exception (Enforceable)",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 20,
+      "rationale": "Concludes enforceable because full performance takes contract out of SoF. Wrong: part-performance doctrine does not apply to the marriage provision of SoF; oral promise remains unenforceable."
+    },
+    {
+      "id": "ann_expert_1",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "1",
+      "verdict": "incorrect",
+      "label": "Main Purpose Doctrine \u2013 tax motivation (Enforceable)",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 19,
+      "rationale": "Argues tax motive triggers main-purpose doctrine. Wrong doctrine applied to wrong provision."
+    },
+    {
+      "id": "ann_expert_12",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "12",
+      "verdict": "ambiguous",
+      "label": "SOF \u2013 Assumption of Debt (Unenforceable, wrong rule)",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 11,
+      "rationale": "Correct outcome but wrong doctrinal hook (assumption of another's debt rather than consideration of marriage)."
+    },
+    {
+      "id": "ann_expert_13",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "13",
+      "verdict": "incorrect",
+      "label": "Promissory Estoppel (Enforceable)",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 8,
+      "rationale": "Concludes enforceable purely on promissory estoppel without adequately addressing SoF bar."
+    },
+    {
+      "id": "ann_expert_14",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "14",
+      "verdict": "incorrect",
+      "label": "Promissory Estoppel (Enforceable)",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 10,
+      "rationale": "Holds enforceable via promissory estoppel on reliance. Wrong: PE does not override SoF marriage provision in most jurisdictions."
+    },
+    {
+      "id": "ann_expert_0",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "0",
+      "verdict": "incorrect",
+      "label": "Main Purpose / Leading-Object Exception (Enforceable)",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 20,
+      "rationale": "Invokes leading-object/main-purpose exception. Wrong: that exception applies to suretyship, not marriage provision."
+    },
+    {
+      "id": "ann_expert_3",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "3",
+      "verdict": "correct",
+      "label": "SOF \u2013 Marriage Provision (Unenforceable)",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 29,
+      "rationale": "Correctly identifies SoF makes oral promise unenforceable; top topic 'Suretyship' reveals the specific provision cited is often wrong (suretyship rather than marriage), but conclusion is correct."
+    },
+    {
+      "id": "ann_expert_2",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "2",
+      "verdict": "correct",
+      "label": "SOF \u2013 Marriage Provision, explicitly correct",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 11,
+      "rationale": "Correctly applies SoF marriage provision: oral promise made in consideration of marriage must be in writing."
+    },
+    {
+      "id": "ann_expert_6",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "6",
+      "verdict": "incorrect",
+      "label": "Original Promise Doctrine (Enforceable)",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 5,
+      "rationale": "Invokes original-promise (as opposed to collateral-promise/suretyship) to find no SoF bar. Wrong provision analyzed."
+    },
+    {
+      "id": "ann_expert_5",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "5",
+      "verdict": "incorrect",
+      "label": "Past Consideration (Unenforceable, wrong reason)",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 11,
+      "rationale": "Arrives at unenforceable but for wrong reason (past consideration). The son had not yet performed when the promise was made, so consideration was present; SoF is the operative bar."
+    },
+    {
+      "id": "ann_expert_8",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "8",
+      "verdict": "incorrect",
+      "label": "Valid Oral Contract / Substantial Performance (Enforceable)",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 8,
+      "rationale": "Ignores SoF entirely; concludes valid oral contract enforceable on general contract elements plus substantial performance."
+    },
+    {
+      "id": "ann_expert_7",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "7",
+      "verdict": "incorrect",
+      "label": "Consideration Present \u2013 Oral Enforceable",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 8,
+      "rationale": "Finds consideration sufficient but fails to apply SoF marriage provision as dispositive bar."
+    },
+    {
+      "id": "ann_expert_9",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "9",
+      "verdict": "ambiguous",
+      "label": "SOF \u2013 Suretyship Provision (Unenforceable, wrong rule)",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 12,
+      "rationale": "Reaches correct 'unenforceable' conclusion but frames issue as suretyship (promise to pay debt of another) rather than marriage provision. Wrong SoF category."
+    },
+    {
+      "id": "ann_expert_4",
+      "runFile": "run_20260310_153754.json",
+      "clusterId": "4",
+      "verdict": "incorrect",
+      "label": "Promissory Estoppel (Enforceable)",
+      "annotatedAt": "2026-03-10T20:53:15.279816",
+      "memberCount": 13,
+      "rationale": "Promissory estoppel cited to overcome SoF. Most jurisdictions do not allow PE to circumvent SoF marriage provision."
+    }
+  ],
+  "generated_by": "expert_legal_annotation",
+  "ts": "2026-03-10T20:53:15.279816"
+}

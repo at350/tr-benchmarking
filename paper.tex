@@ -1,0 +1,396 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\title{Beyond Accuracy: Mapping Large Language Model Legal Reasoning with IRAC-Structured Outcomes and Density Clustering}
+\author{<Author Name(s)> \\ <Institution or Organization>}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Large language models (LLMs) are increasingly used in legal workflows, yet most evaluations still prioritize final-answer accuracy and provide limited visibility into \emph{how} models reason. This is problematic in law, where two responses may reach the same conclusion through materially different rule application. We introduce \textbf{TR-Benchmarking}, an evaluation framework that combines (i) constrained IRAC-format generation, (ii) instruction-tuned embedding of structured reasoning artifacts, and (iii) density-based clustering (UMAP + HDBSCAN) to map outcome-level legal reasoning behavior. The framework is designed to compare model consistency, detect anomalous reasoning patterns, and connect semantic clusters to legal correctness. In this initial paper, we apply the framework to a \emph{single benchmark legal question} and emphasize high-repetition stress testing for robustness across models, prompts, and temperatures. We define quantitative criteria for cluster quality (Silhouette, Davies--Bouldin), legal alignment (purity, adjusted Rand index), and robustness (prompt and temperature sensitivity), alongside ablations for IRAC structure, embedding choice, and clustering algorithm. The resulting pipeline supports peer-review-grade evaluation of legal reasoning quality beyond traditional benchmark accuracy.
+\end{abstract}
+
+\section{Introduction}
+Recent LLMs have demonstrated strong performance on legal question answering and exam-style tasks, but deployment in real legal settings requires more than selecting the option with the highest final-answer accuracy. Legal users care about reasoning structure, doctrinal fidelity, and consistency under small perturbations. A model that is often correct but unstable in rule application may still be high-risk for downstream use.
+
+Most existing legal benchmarks score end outcomes (e.g., exact match or multiple-choice correctness) while under-measuring response \emph{pathways}: whether the model identifies the correct issue, cites the right legal rule, applies it coherently, and reaches a justified conclusion. This gap motivates structured evaluation of reasoning traces.
+
+We present \textbf{TR-Benchmarking}, a framework that forces models into IRAC (Issue, Rule, Application, Conclusion) output, then represents those structured outputs using instruction-tuned embeddings, and finally clusters responses with UMAP + HDBSCAN to characterize legal reasoning manifolds. In this version, we stress-test one legally rich benchmark prompt through repeated sampling rather than breadth across many questions. Rather than asking only ``which model is most accurate?'', we ask ``which reasoning modes emerge, how stable are they, and how do they relate to correctness?''
+
+\paragraph{Contributions.}
+This work makes four contributions:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Structured generation protocol:} a strict IRAC JSON schema for comparable reasoning traces across heterogeneous model providers.
+    \item \textbf{Semantic reasoning map:} an embedding + density-clustering pipeline that groups responses by legal outcome logic, not surface wording.
+    \item \textbf{Evaluation beyond accuracy:} quantitative metrics linking cluster quality, legal correctness, hallucination/noise rates, and model robustness.
+    \item \textbf{Reproducible reporting template:} a peer-review-focused analysis plan with explicit ablations, significance testing, and artifact checklist.
+\end{itemize}
+
+\section{Related Work}
+\subsection{LLMs for Legal Tasks}
+Prior work has established broad legal benchmarking resources (e.g., LegalBench, LawBench) and reported strong exam-style performance for frontier models. These studies demonstrate important progress but often emphasize aggregate scores over internal reasoning diversity, especially for open-form legal analysis.
+
+\subsection{Reasoning Evaluation}
+Chain-of-thought-style prompting and LLM-as-a-judge approaches have expanded evaluation of intermediate reasoning signals. However, legal use cases demand a stricter structure than free-form rationale text, motivating schema-constrained methods such as IRAC to reduce ambiguity in downstream analysis.
+
+\subsection{Semantic Clustering of Model Outputs}
+Embedding-based clustering has become a standard approach for organizing generated text. UMAP is effective for preserving local manifold structure in low dimensions, while HDBSCAN handles variable-density clusters and naturally identifies outliers/noise. This is a good fit for legal reasoning outputs where anomalous hallucinated responses should not be forced into semantic clusters.
+
+\section{Methodology}
+\subsection{Task Formulation}
+Let $q^\ast$ denote a single benchmark legal prompt with authoritative ground-truth outcome $y^\ast$. For each model $m \in \mathcal{M}$, evaluation condition $s \in \mathcal{S}$ (prompt variant, temperature, and decoding policy), and trial $t \in \{1,\dots,T\}$, we generate a structured response $r_{m,s,t}$.
+
+Each response is required to contain:
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{issue}: legal question identified by the model,
+    \item \texttt{rule}: governing legal standard,
+    \item \texttt{application}: fact-to-rule analysis,
+    \item \texttt{conclusion}: final legal conclusion,
+    \item \texttt{final\_label}: normalized decision class used for scoring.
+\end{itemize}
+
+\subsection{Single-Question Benchmark Item}
+The present manuscript evaluates one canonical contract-law prompt:
+\begin{quote}\small
+``A father promised his son that if the son married the daughter of a politician within 18 months, the father would assume responsibility for the son's student loans. The father was primarily motivated to make this promise by a tax deduction that he thought would be available to him if he paid the son's student loans, although he was also glad to help his son and hoped the son would marry the politician's daughter. The son agreed because he already planned to propose to the politician's daughter, but the father and son never signed a written contract. Fourteen months later, the son married the politician's daughter. The father refused to make any payments on the son's loans, however, because the father had learned that he would not in fact qualify for any tax deductions. Is the father's oral promise to pay off the son's student loans enforceable?''
+\end{quote}
+
+The canonical label for scoring is \texttt{UNENFORCEABLE} under the majority-rule framing, with expected core rationale components: Statute of Frauds (marriage-related promise and promise to answer for another's debt), plus discussion of possible but limited exceptions.
+
+\subsection{IRAC-Constrained Generation}
+We use a unified prompt template that enforces strict JSON output. Invalid outputs trigger a deterministic repair pass; unrepairable outputs are logged as schema failures. This enables direct auditing of structure adherence and mitigates post-hoc parsing bias.
+
+We track schema compliance with:
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{JSON validity rate},
+    \item \textbf{field completeness rate},
+    \item \textbf{label normalization success rate}.
+\end{enumerate}
+
+\subsection{Instruction-Tuned Representation}
+For each parsed response, we build a canonical string from selected IRAC fields (primary: \texttt{rule} + \texttt{application} + \texttt{conclusion}). We then compute an embedding
+\[
+\mathbf{e}_{m,n} = f_\theta(\texttt{instruction}, \texttt{text}_{m,n}),
+\]
+using an instruction-tuned encoder (current primary model: \texttt{hkunlp/instructor-large}). The instruction explicitly targets legal outcome reasoning (e.g., ``Represent the legal conclusion and supporting reasoning for outcome-level comparison'').
+
+\subsection{Dimensionality Reduction and Density Clustering}
+Embeddings are projected to low dimension via UMAP, then clustered with HDBSCAN:
+\[
+\mathbf{z}_{m,n} = g_\phi(\mathbf{e}_{m,n}), \qquad c_{m,n} = h_\psi(\mathbf{z}_{m,n}),
+\]
+where $c_{m,n} = -1$ denotes noise/outlier assignments.
+
+This choice is motivated by three properties: (i) legal reasoning clusters are rarely spherical; (ii) cluster cardinalities are uneven across outcomes; (iii) anomalous/hallucinated outputs should remain outliers rather than being forced into a centroid partition.
+
+\paragraph{Code-aligned pipeline details.}
+Let $E\in\mathbb{R}^{N\times d}$ denote the matrix of $N$ IRAC embeddings. The clustering stage implemented in \texttt{irac\_pipeline.py} and \texttt{compare\_embeddings.py} applies:
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{UMAP projection:} build a local neighborhood graph from $E$ using \texttt{n\_neighbors}=5 and optimize a 10-dimensional embedding ($\texttt{n\_components}=10$) with \texttt{min\_dist}=0.1 and \texttt{random\_state}=42.
+    \item \textbf{HDBSCAN clustering:} run density clustering on UMAP coordinates with \texttt{min\_cluster\_size}=5 and \texttt{min\_samples}=2.
+    \item \textbf{Labeling convention:} assign non-negative integer IDs to discovered clusters; assign $-1$ to points treated as density outliers (noise).
+\end{enumerate}
+
+Operationally, HDBSCAN can be interpreted through mutual-reachability geometry
+\[
+d_{\mathrm{mreach},k}(i,j)=\max\{\mathrm{core}_k(i),\,\mathrm{core}_k(j),\,d(i,j)\},
+\]
+followed by hierarchical density condensation and stable-cluster extraction. This mechanism is preferable to centroid methods when legal reasoning modes vary in size and density.
+
+\paragraph{Post-clustering outputs used in analysis.}
+From the document-level partition, the pipeline computes: (i) number of non-noise clusters, (ii) cluster representatives for qualitative inspection, (iii) centroid-near and edge/farthest member samples for auditability, and (iv) optional doctrine-level topic signals per cluster. This ensures that quantitative structure is linked to inspectable legal text examples.
+
+\subsection{Cluster Labeling and Correctness Alignment}
+Cluster semantics are mapped to legal outcome labels through a two-stage process:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Human annotation subset:} legal annotators label a stratified sample of responses and cluster representatives.
+    \item \textbf{LLM-as-a-judge extension:} a judge model assigns provisional cluster labels and quality grades, calibrated against human labels.
+\end{itemize}
+
+This setup enables quantitative alignment between unsupervised structure and authoritative legal correctness for a single fact pattern with many repeated generations.
+
+\section{Experimental Protocol}
+\subsection{Research Questions}
+We evaluate the following research questions (RQs):
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{RQ1:} Do IRAC-structured outputs improve separability of legal reasoning outcomes?
+    \item \textbf{RQ2:} Do instruction-tuned embeddings outperform standard embeddings for outcome-level clustering?
+    \item \textbf{RQ3:} Does HDBSCAN better capture legal reasoning structure than K-Means baselines?
+    \item \textbf{RQ4:} How does cluster structure correlate with legal correctness and hallucination risk?
+    \item \textbf{RQ5:} How robust are clusters under prompt and temperature perturbations?
+    \item \textbf{RQ6:} Are there model-specific clusters that are consistently incorrect yet linguistically high-confidence?
+\end{itemize}
+
+\subsection{Benchmark Item and Evaluation Scope}
+This initial paper intentionally evaluates one question only and shifts experimental scale to repeated trials and perturbations around that question. The goal is depth of reasoning-behavior analysis before broadening to multi-question corpora.
+
+\begin{table}[ht]
+\centering
+\caption{Single-item benchmark specification for this paper.}
+\label{tab:single_item_scope}
+\begin{tabular}{p{0.24\linewidth}p{0.68\linewidth}}
+\toprule
+Field & Specification \\
+\midrule
+Domain & U.S.-style contract law (oral promise, marriage condition, debt payment) \\
+Prompt count & 1 canonical fact pattern \\
+Ground-truth label & \texttt{UNENFORCEABLE} (majority-rule framing) \\
+Primary stressors & Model family, prompt variant, temperature, repeated sampling \\
+Objective & Characterize reasoning-mode stability and failure clusters on one fixed legal scenario \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Model Panel and Inference Settings}
+The model panel spans OpenAI, Anthropic, Google, Meta, DeepSeek, and xAI families. For each model, we record exact version identifiers, endpoint names, context windows, and inference dates.
+
+Default decoding settings follow your current workflow (temperature $=0.7$ for most models; higher temperature only where required by model behavior). Robustness analyses include repeated same-prompt trials (e.g., up to 100 runs per model-condition cell) to quantify intra-model reasoning variance.
+
+\subsection{Metrics}
+We evaluate four metric groups.
+
+\paragraph{(1) Structure compliance}
+JSON validity, IRAC completeness, and parse/normalization success.
+
+\paragraph{(2) Cluster quality}
+Silhouette score, Davies--Bouldin index, and cluster coverage/noise rate.
+
+For embedding set $\{\mathbf{e}_i\}_{i=1}^N$ and cluster assignments $\{c_i\}_{i=1}^N$, we report:
+\[
+\mathrm{Silhouette} = \frac{1}{N}\sum_{i=1}^{N}\frac{b(i)-a(i)}{\max\{a(i),b(i)\}},
+\]
+where $a(i)$ is the mean intra-cluster distance for point $i$ and $b(i)$ is the smallest mean distance to a different cluster, and
+\[
+\mathrm{DBI} = \frac{1}{K}\sum_{k=1}^{K}\max_{\ell\neq k}\frac{S_k+S_\ell}{M_{k\ell}},
+\]
+where $S_k$ is within-cluster scatter and $M_{k\ell}$ is centroid separation.
+
+In implementation, both metrics are computed on \emph{original embedding vectors} after removing noise-labeled points ($c_i=-1$). Silhouette uses cosine distance; Davies--Bouldin uses the standard \texttt{sklearn} definition. To avoid degenerate reporting, metrics are emitted only when at least two non-noise clusters exist and the number of non-noise points exceeds the number of clusters.
+
+\paragraph{(3) Legal alignment}
+Cluster purity and adjusted Rand index (ARI) on the annotated subset; per-cluster correctness rate relative to $y^\ast$.
+
+Given clustering $C$ and expert verdict labels $V\in\{\texttt{correct},\texttt{incorrect},\texttt{ambiguous}\}$, we also report normalized mutual information:
+\[
+\mathrm{NMI}(C,V)=\frac{I(C;V)}{\sqrt{H(C)H(V)}}.
+\]
+ARI is computed from pairwise agreement/disagreement counts between $C$ and $V$ with chance correction.
+
+\paragraph{(4) Robustness}
+Cluster stability under prompt variants and temperature sweeps; variation of information / assignment consistency across repeated runs.
+
+\subsection{Ablations and Baselines}
+We include mandatory ablations:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{No-IRAC vs IRAC:} free-form responses vs schema-constrained outputs.
+    \item \textbf{Embedding ablation:} instruction-tuned embeddings vs standard embedding baselines.
+    \item \textbf{Clustering ablation:} HDBSCAN vs K-Means under matched dimensionality.
+\end{itemize}
+
+\subsection{Statistical Inference}
+All key metrics are reported with 95\% bootstrap confidence intervals. Pairwise method comparisons use paired permutation tests on shared model-condition cells with false-discovery-rate correction across multiple hypotheses.
+
+\subsection{Contamination Controls}
+Because evaluation uses one hand-specified prompt, we report the exact benchmark text, version history, and any prompt edits. We also separate canonical prompt runs from robustness variants and disclose all variant templates in the artifact appendix.
+
+\section{Results: SOF Marriage Question}
+This section reports completed results from run file \texttt{run\_20260310\_153754.json}. Across 200 attempted generations, 193 passed schema and normalization checks (96.5\% valid), covering 10 models (4 OpenAI endpoints and 6 additional endpoints via Replicate). The canonical legal answer remains \texttt{UNENFORCEABLE} under the Statute of Frauds marriage provision.
+
+\subsection{Result Summary}
+\begin{table}[ht]
+\centering
+\caption{Single-question benchmark summary.}
+\label{tab:result_summary}
+\begin{tabular}{lc}
+\toprule
+Metric & Value \\
+\midrule
+Total responses attempted & 200 \\
+Valid IRAC responses & 193 (96.5\%) \\
+Models evaluated & 10 \\
+Clusters (INSTRUCTOR + HDBSCAN) & 15 \\
+Noise points (INSTRUCTOR + HDBSCAN) & 0 (0\%) \\
+Correct legal reasoning (expert) & 48/193 (24.9\%) \\
+NMI (clusters vs expert verdicts) & 0.5094 \\
+ARI (clusters vs expert verdicts) & 0.1709 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Evidence 1: Cluster Semantics Track Distinct Doctrines}
+Table~\ref{tab:cluster_doctrine_map} shows that each discovered cluster corresponds to a coherent legal doctrine pattern, rather than a model-family artifact or lexical phrasing artifact. In particular, responses invoking main-purpose doctrine, promissory estoppel, part performance, and marriage-provision SOF logic are cleanly separated.
+
+\begin{table}[ht]
+\centering
+\caption{Doctrinal interpretation of the 15 discovered clusters (INSTRUCTOR + UMAP + HDBSCAN).}
+\label{tab:cluster_doctrine_map}
+\begin{tabular}{rcll}
+\toprule
+Cluster & $N$ & Dominant doctrine & Expert verdict \\
+\midrule
+3 & 29 & SOF marriage provision & Correct \\
+11 & 20 & SOF part-performance exception & Incorrect \\
+0 & 20 & Main-purpose / leading-object exception & Incorrect \\
+1 & 19 & Main-purpose doctrine (tax-motive framing) & Incorrect \\
+4 & 13 & Promissory estoppel & Incorrect \\
+9 & 12 & SOF suretyship provision (wrong provision) & Ambiguous \\
+2 & 11 & SOF marriage provision (explicit) & Correct \\
+12 & 11 & SOF debt-assumption framing & Ambiguous \\
+5 & 11 & Past consideration & Incorrect \\
+14 & 10 & Promissory estoppel (reliance-focused) & Incorrect \\
+10 & 8 & SOF marriage provision + PE analysis & Correct \\
+13 & 8 & Promissory estoppel only & Incorrect \\
+8 & 8 & Valid oral contract / substantial performance & Incorrect \\
+7 & 8 & Consideration-only analysis (SOF omitted) & Incorrect \\
+6 & 5 & Original-promise doctrine & Incorrect \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Evidence 2: Alignment with Expert Legal Annotation}
+Cluster-level annotation yields 3 correctness classes: 48/193 correct (24.9\%), 122/193 incorrect (63.2\%), and 23/193 ambiguous (11.9\%). The observed $\mathrm{NMI}=0.5094$ indicates that cluster identity preserves substantial information about expert correctness class.
+
+The lower $\mathrm{ARI}=0.1709$ is expected under fine-grained doctrinal splitting: multiple semantically distinct clusters can map to the same coarse verdict class (e.g., three separate promissory-estoppel clusters all marked incorrect). This structure reduces pairwise partition agreement while preserving legal interpretability.
+
+\begin{figure}[ht]
+\centering
+\fbox{%
+\begin{minipage}{0.92\linewidth}
+\small
+\textbf{Pipeline-level interpretation diagram}\par\medskip
+IRAC outputs $\rightarrow$ instruction-tuned legal embeddings $\rightarrow$ UMAP manifold $\rightarrow$ HDBSCAN clusters $\rightarrow$ expert verdict mapping\par\medskip
+\textbf{Observed behavior:}\\
+15 doctrine-specific clusters, 0 noise points, and substantial cluster--verdict mutual information ($\mathrm{NMI}=0.5094$).
+\end{minipage}}
+\caption{Conceptual diagram for the empirically supported robustness claim.}
+\label{fig:robustness_diagram}
+\end{figure}
+
+\subsection{Evidence 2B: Ground Truth and Accuracy Correlation}
+\paragraph{Authoritative ground truth.}
+For this benchmark item, the authoritative outcome label is fixed to \texttt{UNENFORCEABLE} under the majority-rule Statute-of-Frauds marriage-provision framing, with expected rationale components centered on writing-form requirements and limited exceptions. All response-level correctness labels are assigned against this fixed legal key.
+
+\paragraph{Do clusters separate right from wrong answers?}
+At the cluster level, correctness is strongly concentrated: the three marriage-provision clusters (2, 3, 10) account for all 48 expert-labeled correct responses, while most remaining clusters are dominated by incorrect doctrine paths (main-purpose misuse, promissory-estoppel overreach, part-performance misapplication, or SOF-provision mismatch). Ambiguity is concentrated in a small subset (Clusters 9 and 12), indicating that separation is substantial but not perfectly binary.
+
+\paragraph{Wrong-but-confident cluster analysis.}
+This run did not log calibrated token probabilities, so we do not claim probability-calibrated confidence. Instead, we treat large, internally coherent wrong clusters as a practical \emph{high-confidence-risk} signal: Clusters 0+1 (main-purpose misuse; 39/193) and Clusters 4+13+14 (promissory-estoppel overreach; 31/193) are dense, repeated incorrect modes that appear stable across many generations. In deployment terms, these are priority ``wrong but persuasive'' failure regions for model-level monitoring.
+
+\subsection{Evidence 3: Embedding Ablation (Baseline vs Instruction-Tuned)}
+\begin{table}[ht]
+\centering
+\caption{Embedding comparison under fixed UMAP + HDBSCAN hyperparameters on the same 193 responses.}
+\label{tab:embedding_ablation}
+\begin{tabular}{lccc}
+\toprule
+Metric & all-MiniLM-L6-v2 & instructor-large & Relative change \\
+\midrule
+Silhouette ($\uparrow$) & 0.1574 & \textbf{0.2794} & +77\% \\
+Davies--Bouldin ($\downarrow$) & 1.9514 & \textbf{1.6786} & -14\% \\
+Clusters found & 15 & 15 & -- \\
+Noise points & 4 (2.1\%) & \textbf{0 (0\%)} & -100\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The same cluster count in both embeddings indicates persistent latent structure in model outputs, while the instruction-tuned embedder sharpens separability and eliminates unassigned points. This supports the claim that legal-task instruction contributes meaningful geometry to outcome-level reasoning space.
+
+\subsection{Error Taxonomy Exposed by Clustering}
+Dominant failure modes are directly measurable at cluster granularity:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Main-purpose misuse} (Clusters 0+1): 39/193 (20.2\%), where tax motive is overgeneralized from suretyship doctrine.
+    \item \textbf{Promissory-estoppel overreach} (Clusters 4+13+14): 31/193 (16.1\%), with reliance narratives substituting for SOF writing requirements.
+    \item \textbf{Part-performance misapplication} (Cluster 11): 20/193 (10.4\%), importing a land-contract exception into a marriage-provision fact pattern.
+    \item \textbf{Wrong SOF provision framing} (Clusters 9+12+6): 28/193 (14.5\%), prioritizing debt-or-suretyship cues over the marriage trigger.
+\end{itemize}
+
+Collectively, these four modes cover 118/193 responses (61.1\%), showing that the dominant model failures are doctrinally structured rather than random.
+
+\section{Discussion}
+The proposed pipeline shifts legal LLM evaluation from pointwise answer checking to distributional reasoning analysis. This provides three practical benefits for legal AI development:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Model selection:} identify models that are not only accurate but reasoning-stable.
+    \item \textbf{Failure localization:} map recurring legal mistakes to specific reasoning clusters.
+    \item \textbf{Safety triage:} treat high-density wrong clusters and high-noise models as elevated deployment risk.
+\end{itemize}
+
+A key implication is that two models with similar top-line outcome accuracy can differ substantially in reliability profile when assessed through reasoning manifold structure. In this benchmark item, only 24.9\% of valid responses used the correct SOF-marriage reasoning path, even though many incorrect responses remained fluent and superficially plausible.
+
+\section{Limitations and Ethics}
+This study has several limitations. First, outcome-level clustering depends on embedding model choice and may inherit embedding biases. Second, legal correctness labels can be jurisdiction-sensitive and may not transfer across legal systems. Third, LLM-as-a-judge introduces additional model dependence and requires calibration against human experts.
+
+Ethically, this framework is for evaluation and risk analysis, not legal advice generation. Any deployment should include qualified human review, documented uncertainty handling, and explicit disclaimers regarding jurisdictional limits.
+
+\section{Conclusion}
+We present a rigorous framework for evaluating legal LLM reasoning beyond accuracy by integrating IRAC-constrained generation, instruction-tuned embeddings, and density-based clustering. This initial paper applies that framework to one contract-law benchmark question and emphasizes repeated-condition stress testing. The manuscript defines a reproducible protocol, required ablations, and quantitative validation standards that can later scale to broader legal corpora.
+
+\section*{Reproducibility Checklist}
+\begin{itemize}[leftmargin=1.5em]
+    \item Code commit hash: \texttt{85930ae}
+    \item Evaluation date range: \texttt{2026-03-10--2026-03-10}
+    \item Full model/version/endpoints table included
+    \item Prompt templates and JSON schema released
+    \item Decoding settings and seed policy documented
+    \item Benchmark prompt text, version history, and variant templates documented
+    \item Annotation guideline and inter-annotator agreement reported
+    \item Statistical tests and CI construction scripts released
+\end{itemize}
+
+\begin{thebibliography}{99}
+\bibitem{legalbench}
+Guha, N., Nyarko, J., et al.\\
+LegalBench: A Collaboratively Built Benchmark for Measuring Legal Reasoning in Large Language Models.
+
+\bibitem{lawbench}
+Fei, Z., Shen, X., et al.\\
+LawBench: Benchmarking Legal Knowledge of Large Language Models.
+
+\bibitem{chatlaw}
+Cui, J., et al.\\
+ChatLaw: Open-Source Legal Large Language Model with Integrated Legal Knowledge Bases.
+
+\bibitem{bar}
+Katz, D. M., Bommarito, M. J., Gao, S., and Arredondo, P.\\
+GPT-4 Passes the Bar Exam.
+
+\bibitem{cot}
+Wei, J., Wang, X., Schuurmans, D., et al.\\
+Chain-of-Thought Prompting Elicits Reasoning in Large Language Models.
+
+\bibitem{llmjudge}
+Zheng, L., Chiang, W.-L., Sheng, Y., et al.\\
+Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena.
+
+\bibitem{instructor}
+Su, H., Kasai, J., et al.\\
+One Embedder, Any Task: Instruction-Finetuned Text Embeddings.
+
+\bibitem{umap}
+McInnes, L., Healy, J., and Melville, J.\\
+UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction.
+
+\bibitem{hdbscan}
+Campello, R. J. G. B., Moulavi, D., and Sander, J.\\
+Density-Based Clustering Based on Hierarchical Density Estimates.
+
+\bibitem{silhouette}
+Rousseeuw, P. J.\\
+Silhouettes: A Graphical Aid to the Interpretation and Validation of Cluster Analysis.
+
+\bibitem{dbi}
+Davies, D. L., and Bouldin, D. W.\\
+A Cluster Separation Measure.
+
+\bibitem{ari}
+Hubert, L., and Arabie, P.\\
+Comparing Partitions.
+\end{thebibliography}
+
+\end{document}

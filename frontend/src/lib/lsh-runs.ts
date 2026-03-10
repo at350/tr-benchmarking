@@ -215,7 +215,7 @@ function normalizeTopicSignals(value: unknown): Array<{ topic: string; score: nu
 
     const signals = Object.entries(value as Record<string, unknown>)
         .filter(([topic, score]) => typeof topic === 'string' && topic.trim().length > 0 && typeof score === 'number' && Number.isFinite(score))
-        .map(([topic, score]) => ({ topic: topic.trim(), score }));
+        .map(([topic, score]) => ({ topic: topic.trim(), score: score as number }));
 
     return signals.sort((a, b) => b.score - a.score || a.topic.localeCompare(b.topic));
 }

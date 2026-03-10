@@ -1,0 +1,32 @@
+{
+  "timestamp": "20260310_155856",
+  "data_file": "responses_20260310_153754.json",
+  "n_responses": 193,
+  "umap_params": {
+    "n_neighbors": 5,
+    "min_dist": 0.1,
+    "n_components": 10
+  },
+  "hdbscan_params": {
+    "min_cluster_size": 5,
+    "min_samples": 2
+  },
+  "baseline": {
+    "model": "sentence-transformers/all-MiniLM-L6-v2",
+    "instruction": null,
+    "n_clusters": 15,
+    "n_noise": 4,
+    "noise_pct": 2.1,
+    "silhouette": 0.1574,
+    "davies_bouldin": 1.9514
+  },
+  "instructed": {
+    "model": "hkunlp/instructor-large",
+    "instruction": "Represent the legal reasoning components (Issue, Rule, Application, Conclusion) of this text:",
+    "n_clusters": 15,
+    "n_noise": 0,
+    "noise_pct": 0.0,
+    "silhouette": 0.2794,
+    "davies_bouldin": 1.6786
+  }
+}
