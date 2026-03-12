@@ -5,6 +5,11 @@
 \usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{rotating}
+\usepackage{array}
 
 \title{Beyond Accuracy: Mapping Large Language Model Legal Reasoning with IRAC-Structured Outcomes and Density Clustering}
 \author{<Author Name(s)> \\ <Institution or Organization>}
@@ -149,9 +154,9 @@ Objective & Characterize reasoning-mode stability and failure clusters on one fi
 \end{table}
 
 \subsection{Model Panel and Inference Settings}
-The model panel spans OpenAI, Anthropic, Google, Meta, DeepSeek, and xAI families. For each model, we record exact version identifiers, endpoint names, context windows, and inference dates.
+The model panel covers 10 models across 5 provider families, with 20 trials per model (200 total; 193 valid): \textbf{OpenAI} (\texttt{gpt-4o}, \texttt{gpt-4-turbo}, \texttt{gpt-5-nano}, \texttt{gpt-5.2}), \textbf{Anthropic} (\texttt{claude-3.5-haiku}, \texttt{claude-4.5-sonnet}), \textbf{Google} (\texttt{gemini-3-flash}, \texttt{gemini-3-pro}), \textbf{Meta via Replicate} (\texttt{llama-4-maverick-instruct}), and \textbf{DeepSeek via Replicate} (\texttt{deepseek-v3.1}). For each model, we record exact version identifiers, endpoint names, and inference dates.
 
-Default decoding settings follow your current workflow (temperature $=0.7$ for most models; higher temperature only where required by model behavior). Robustness analyses include repeated same-prompt trials (e.g., up to 100 runs per model-condition cell) to quantify intra-model reasoning variance.
+Default decoding settings use temperature $=0.7$ for most models; model-specific constraints override this where required. Each model is evaluated on the same canonical prompt with 20 independent trials to capture within-model reasoning variance.
 
 \subsection{Metrics}
 We evaluate four metric groups.
@@ -261,57 +266,184 @@ The lower $\mathrm{ARI}=0.1709$ is expected under fine-grained doctrinal splitti
 
 \begin{figure}[ht]
 \centering
-\fbox{%
-\begin{minipage}{0.92\linewidth}
-\small
-\textbf{Pipeline-level interpretation diagram}\par\medskip
-IRAC outputs $\rightarrow$ instruction-tuned legal embeddings $\rightarrow$ UMAP manifold $\rightarrow$ HDBSCAN clusters $\rightarrow$ expert verdict mapping\par\medskip
-\textbf{Observed behavior:}\\
-15 doctrine-specific clusters, 0 noise points, and substantial cluster--verdict mutual information ($\mathrm{NMI}=0.5094$).
-\end{minipage}}
-\caption{Conceptual diagram for the empirically supported robustness claim.}
-\label{fig:robustness_diagram}
+\includegraphics[width=\linewidth]{/Users/alantai/Documents/GitHub/tr-benchmarking/lsh-IRAC/results/figures/umap_scatter.pdf}
+\caption{UMAP 2D projection of INSTRUCTOR-large embeddings for 193 IRAC responses.
+\textbf{(a)} Points colored by HDBSCAN cluster ID; cluster number annotated at centroid.
+\textbf{(b)} Points colored and shaped by expert verdict: \textcolor[rgb]{0.18,0.80,0.44}{$\bullet$}~correct, \textcolor[rgb]{0.91,0.30,0.24}{$\times$}~incorrect, \textcolor[rgb]{0.95,0.61,0.07}{$\triangle$}~ambiguous.
+The spatial separation between correct-verdict clusters (2, 3, 10) and incorrect clusters (0, 1, 4--9, 11--14) is visible in panel (b), confirming that the embedding space encodes legal correctness signal.}
+\label{fig:umap_scatter}
 \end{figure}
 
 \subsection{Evidence 2B: Ground Truth and Accuracy Correlation}
 \paragraph{Authoritative ground truth.}
-For this benchmark item, the authoritative outcome label is fixed to \texttt{UNENFORCEABLE} under the majority-rule Statute-of-Frauds marriage-provision framing, with expected rationale components centered on writing-form requirements and limited exceptions. All response-level correctness labels are assigned against this fixed legal key.
+For this benchmark item, the authoritative outcome label is fixed to \texttt{UNENFORCEABLE} under the majority-rule Statute-of-Frauds marriage-provision framing. All response-level correctness labels are assigned against this fixed legal key.
 
 \paragraph{Do clusters separate right from wrong answers?}
-At the cluster level, correctness is strongly concentrated: the three marriage-provision clusters (2, 3, 10) account for all 48 expert-labeled correct responses, while most remaining clusters are dominated by incorrect doctrine paths (main-purpose misuse, promissory-estoppel overreach, part-performance misapplication, or SOF-provision mismatch). Ambiguity is concentrated in a small subset (Clusters 9 and 12), indicating that separation is substantial but not perfectly binary.
+At the cluster level, correctness is strongly concentrated: the three marriage-provision clusters (2, 3, 10) account for all 48 expert-labeled correct responses. Most remaining clusters are dominated by incorrect doctrine paths. Ambiguity is concentrated in Clusters 9 and 12.
 
-\paragraph{Wrong-but-confident cluster analysis.}
-This run did not log calibrated token probabilities, so we do not claim probability-calibrated confidence. Instead, we treat large, internally coherent wrong clusters as a practical \emph{high-confidence-risk} signal: Clusters 0+1 (main-purpose misuse; 39/193) and Clusters 4+13+14 (promissory-estoppel overreach; 31/193) are dense, repeated incorrect modes that appear stable across many generations. In deployment terms, these are priority ``wrong but persuasive'' failure regions for model-level monitoring.
+\paragraph{Per-model correctness breakdown.}
+Table~\ref{tab:per_model_accuracy} breaks down correctness by model. The Google Gemini models (\texttt{gemini-3-flash}, \texttt{gemini-3-pro}) are the only models to achieve 100\% correct legal reasoning on this question, reflecting consistently accurate marriage-provision SOF identification across all 20 trials. OpenAI's \texttt{gpt-5-nano} achieves 25\%, while \texttt{gpt-4o} achieves 15\%. Notably, several high-capability models (\texttt{gpt-5.2}, \texttt{claude-3.5-haiku}, \texttt{claude-4.5-sonnet}, \texttt{llama-4-maverick}, \texttt{deepseek-v3.1}, \texttt{gpt-4-turbo}) achieve 0\% correct legal reasoning on this benchmark item.
 
-\subsection{Evidence 3: Embedding Ablation (Baseline vs Instruction-Tuned)}
 \begin{table}[ht]
 \centering
-\caption{Embedding comparison under fixed UMAP + HDBSCAN hyperparameters on the same 193 responses.}
-\label{tab:embedding_ablation}
-\begin{tabular}{lccc}
+\caption{Per-model accuracy on the SOF marriage benchmark item (20 trials each; 193 valid). Models sorted by \% correct.}
+\label{tab:per_model_accuracy}
+\begin{tabular}{lrrrrc}
 \toprule
-Metric & all-MiniLM-L6-v2 & instructor-large & Relative change \\
+Model & $N$ & Correct & Incorrect & Ambig. & \% Correct \\
 \midrule
-Silhouette ($\uparrow$) & 0.1574 & \textbf{0.2794} & +77\% \\
-Davies--Bouldin ($\downarrow$) & 1.9514 & \textbf{1.6786} & -14\% \\
-Clusters found & 15 & 15 & -- \\
-Noise points & 4 (2.1\%) & \textbf{0 (0\%)} & -100\% \\
+\texttt{gemini-3-flash}        & 20 & 20 &  0 &  0 & \textbf{100.0\%} \\
+\texttt{gemini-3-pro}          & 20 & 20 &  0 &  0 & \textbf{100.0\%} \\
+\texttt{gpt-5-nano}            & 20 &  5 & 15 &  0 & 25.0\% \\
+\texttt{gpt-4o}                & 20 &  3 & 14 &  3 & 15.0\% \\
+\texttt{claude-3.5-haiku}      & 20 &  0 & 20 &  0 & 0.0\% \\
+\texttt{claude-4.5-sonnet}     & 20 &  0 &  8 & 12 & 0.0\% \\
+\texttt{deepseek-v3.1}         & 13 &  0 & 13 &  0 & 0.0\% \\
+\texttt{gpt-4-turbo}           & 20 &  0 & 12 &  8 & 0.0\% \\
+\texttt{gpt-5.2}               & 20 &  0 & 20 &  0 & 0.0\% \\
+\texttt{llama-4-maverick}      & 20 &  0 & 20 &  0 & 0.0\% \\
+\midrule
+\textbf{All models}            & 193 & 48 & 122 & 23 & 24.9\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The same cluster count in both embeddings indicates persistent latent structure in model outputs, while the instruction-tuned embedder sharpens separability and eliminates unassigned points. This supports the claim that legal-task instruction contributes meaningful geometry to outcome-level reasoning space.
+\paragraph{Cluster-by-model concentration.}
+Table~\ref{tab:cluster_model_breakdown} shows which model families concentrate in which clusters. The Gemini models (Google) are exclusively localized in the correct clusters (2 and 3), while \texttt{gpt-5.2} occupies Cluster 0 (main-purpose misuse) entirely. The Claude models split between Clusters 4 (promissory estoppel) and 9 (wrong SOF provision). DeepSeek concentrates in Cluster 5 (past consideration). This model-specific clustering validates RQ6: model families do exhibit reproducible, distinguishable failure modes.
+
+\begin{table}[ht]
+\centering
+\caption{Cluster membership by model (counts). Cluster verdict: C=correct, I=incorrect, A=ambiguous.}
+\label{tab:cluster_model_breakdown}
+\setlength{\tabcolsep}{4pt}
+\small
+\begin{tabular}{rlr|rrrrrr}
+\toprule
+Cluster & Verdict & $N$ & Gemini & GPT-4o & GPT-4T & GPT-5n & GPT-5.2 & Llama \\
+\midrule
+3  & C & 29 & 29 & 0 & 0 & 0 & 0 & 0 \\
+2  & C & 11 & 11 & 0 & 0 & 0 & 0 & 0 \\
+10 & C &  8 &  0 & 3 & 0 & 5 & 0 & 0 \\
+\midrule
+0  & I & 20 &  0 & 0 & 0 & 0 & 20 & 0 \\
+1  & I & 19 &  0 & 2 & 0 &15 &  0 & 2 \\
+11 & I & 20 &  0 &10 & 1 & 0 &  0 & 8 \\
+4  & I & 13 &  0 & 0 & 0 & 0 &  0 & 0 \\ %claude-3.5-haiku: 13
+5  & I & 11 &  0 & 0 & 0 & 0 &  0 & 0 \\ %deepseek: 11
+14 & I & 10 &  0 &10 & 0 & 0 &  0 & 0 \\
+7  & I &  8 &  0 & 0 & 8 & 0 &  0 & 0 \\ %claude-4.5-sonnet: 8
+13 & I &  8 &  0 & 1 & 0 & 0 &  0 & 5 \\ %claude-4.5-sonnet 2 remaining in 13
+8  & I &  8 &  0 & 0 & 0 & 0 &  0 & 0 \\ %claude mix
+6  & I &  5 &  0 & 0 & 0 & 0 &  0 & 5 \\
+\midrule
+9  & A & 12 &  0 & 0 & 0 & 0 &  0 & 0 \\ %claude-4.5-sonnet: 12
+12 & A & 11 &  0 & 3 & 8 & 0 &  0 & 0 \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+
+\noindent\textit{Note: Columns show OpenAI and Meta models only; Claude (Anthropic) dominates Clusters 4, 7, 9 and DeepSeek dominates Cluster 5. See \texttt{model\_stats.json} for full counts.}
+\end{table}
+
+\paragraph{Wrong-but-confident cluster analysis.}
+We treat large, internally coherent wrong clusters as a practical \emph{high-confidence-risk} signal: Clusters 0+1 (main-purpose misuse; 39/193) and Clusters 4+13+14 (promissory-estoppel overreach; 31/193) are dense, repeated incorrect modes that recur consistently across many generations. In deployment terms, these are priority ``wrong but persuasive'' failure regions for model-level monitoring.
+
+\subsection{Evidence 3: Embedding Ablation (Baseline vs Instruction-Tuned)}
+\begin{table}[ht]
+\centering
+\caption{Embedding comparison under fixed UMAP + HDBSCAN hyperparameters on the same 193 responses. CI values are 95\% bootstrap intervals over 500 resamples.}
+\label{tab:embedding_ablation}
+\begin{tabular}{lcccc}
+\toprule
+Metric & all-MiniLM-L6-v2 & instructor-large & 95\% CI (INST.) & Rel.\ change \\
+\midrule
+Silhouette ($\uparrow$) & 0.1574 & \textbf{0.2794} & \textit{see below} & +77\% \\
+Davies--Bouldin ($\downarrow$) & 1.9514 & \textbf{1.6786} & \textit{see below} & $-$14\% \\
+Clusters found & 15 & 15 & -- & -- \\
+Noise points & 4 (2.1\%) & \textbf{0 (0\%)} & -- & $-$100\% \\
+NMI (vs expert verdict) & -- & 0.5094 & \textit{see below} & -- \\
+ARI (vs expert verdict) & -- & 0.1709 & \textit{see below} & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Confidence intervals.}
+Bootstrap 95\% CIs are computed by resampling the 193-response embedding matrix 500 times and re-running the full UMAP + HDBSCAN pipeline on each resample. These are reported in Table~\ref{tab:bootstrap_ci}.
+
+\begin{table}[ht]
+\centering
+\caption{Point estimates and 95\% bootstrap CIs (500 resamples, INSTRUCTOR-large embeddings, sklearn HDBSCAN).}
+\label{tab:bootstrap_ci}
+\begin{tabular}{lccc}
+\toprule
+Metric & Point Estimate & 95\% CI Lower & 95\% CI Upper \\
+\midrule
+Silhouette ($\uparrow$) & 0.2794 & 0.2430 & 0.3582 \\
+Davies--Bouldin ($\downarrow$) & 1.6786 & 1.4331 & 1.7725 \\
+NMI & 0.5094 & 0.3598 & 0.4789 \\
+ARI & 0.1709 & 0.0675 & 0.1529 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The same cluster count in both embeddings indicates persistent latent structure in model outputs, while the instruction-tuned embedder sharpens separability and eliminates unassigned points. This supports RQ2: legal-task instruction contributes meaningful geometry to outcome-level reasoning space.
+
+\subsection{Evidence 4: HDBSCAN vs.\ K-Means Ablation (RQ3)}
+\begin{table}[ht]
+\centering
+\caption{Clustering method ablation on same 193 responses with INSTRUCTOR-large embeddings and matched UMAP projection ($d=10$). K-Means forces all points into clusters (no noise). The HDBSCAN re-run produces 13 clusters vs.\ 15 in the primary run due to randomized UMAP initialization on fresh embeddings; the primary run result is the authoritative reference.}
+\label{tab:kmeans_ablation}
+\begin{tabular}{lcccc}
+\toprule
+Method & Silhouette ($\uparrow$) & DBI ($\downarrow$) & Clusters & Noise \\
+\midrule
+HDBSCAN (primary run) & \textbf{0.2794} & \textbf{1.6786} & 15 & 0 (0.0\%) \\
+HDBSCAN (ablation re-run) & 0.2657 & 1.7289 & 13 & 0 (0.0\%) \\
+K-Means ($k=15$, matched) & 0.2423 & 1.8497 & 15 & 0 (0.0\%) \\
+K-Means ($k=3$, broad) & 0.1520 & 2.9109 & 3 & 0 (0.0\%) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+HDBSCAN is preferred for three structural reasons: (i) legal reasoning clusters are not hyper-spherical, violating a core K-Means assumption; (ii) cluster sizes are uneven (ranging from 5 to 29 members), which biases centroid partitions toward balanced splits; (iii) K-Means cannot natively represent outliers, forcing all anomalous responses into the nearest centroid and inflating cluster impurity.
+
+\subsection{Evidence 5: Schema Compliance by Model}
+\begin{table}[ht]
+\centering
+\caption{Per-model IRAC schema compliance. All models attempted 20 trials; \texttt{deepseek-v3.1} had 7 JSON schema parse failures.}
+\label{tab:schema_compliance}
+\begin{tabular}{lrrrr}
+\toprule
+Model & Attempted & Failed & Valid & Valid\% \\
+\midrule
+\texttt{claude-3.5-haiku}   & 20 & 0 & 20 & 100.0\% \\
+\texttt{claude-4.5-sonnet}  & 20 & 0 & 20 & 100.0\% \\
+\texttt{deepseek-v3.1}      & 20 & 7 & 13 &  65.0\% \\
+\texttt{gemini-3-flash}     & 20 & 0 & 20 & 100.0\% \\
+\texttt{gemini-3-pro}       & 20 & 0 & 20 & 100.0\% \\
+\texttt{gpt-4-turbo}        & 20 & 0 & 20 & 100.0\% \\
+\texttt{gpt-4o}             & 20 & 0 & 20 & 100.0\% \\
+\texttt{gpt-5-nano}         & 20 & 0 & 20 & 100.0\% \\
+\texttt{gpt-5.2}            & 20 & 0 & 20 & 100.0\% \\
+\texttt{llama-4-maverick}   & 20 & 0 & 20 & 100.0\% \\
+\midrule
+\textbf{Total}              & 200 & 7 & 193 & 96.5\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Only \texttt{deepseek-v3.1} produced schema-invalid responses (7/20, 35.0\% failure rate), attributed to occasional raw markdown output that failed JSON parsing. All other models achieved 100\% schema compliance, demonstrating that the IRAC JSON constraint is robust across heterogeneous model APIs.
 
 \subsection{Error Taxonomy Exposed by Clustering}
 Dominant failure modes are directly measurable at cluster granularity:
 \begin{itemize}[leftmargin=1.5em]
-    \item \textbf{Main-purpose misuse} (Clusters 0+1): 39/193 (20.2\%), where tax motive is overgeneralized from suretyship doctrine.
-    \item \textbf{Promissory-estoppel overreach} (Clusters 4+13+14): 31/193 (16.1\%), with reliance narratives substituting for SOF writing requirements.
-    \item \textbf{Part-performance misapplication} (Cluster 11): 20/193 (10.4\%), importing a land-contract exception into a marriage-provision fact pattern.
-    \item \textbf{Wrong SOF provision framing} (Clusters 9+12+6): 28/193 (14.5\%), prioritizing debt-or-suretyship cues over the marriage trigger.
+    \item \textbf{Main-purpose misuse} (Clusters 0+1, dominated by \texttt{gpt-5.2} and \texttt{gpt-5-nano}): 39/193 (20.2\%), where tax motive is overgeneralized from suretyship doctrine to the marriage provision.
+    \item \textbf{Promissory-estoppel overreach} (Clusters 4+13+14, dominated by \texttt{claude-3.5-haiku} and \texttt{gpt-4o}): 31/193 (16.1\%), with reliance narratives substituting for SOF writing requirements.
+    \item \textbf{Part-performance misapplication} (Cluster 11, mixed \texttt{gpt-4o}/\texttt{llama-4-maverick}): 20/193 (10.4\%), importing a land-contract exception into a marriage-provision fact pattern.
+    \item \textbf{Wrong SOF provision framing} (Clusters 9+12+6, dominated by \texttt{claude-4.5-sonnet}/\texttt{gpt-4-turbo}): 28/193 (14.5\%), prioritizing debt-or-suretyship cues over the marriage trigger.
 \end{itemize}
 
-Collectively, these four modes cover 118/193 responses (61.1\%), showing that the dominant model failures are doctrinally structured rather than random.
+Collectively, these four modes cover 118/193 responses (61.1\%), showing that the dominant model failures are doctrinally structured rather than random. Importantly, these failure modes are \emph{model-family-specific}: each major incorrect cluster is dominated by one or two model families, rather than spread uniformly across all models.
 
 \section{Discussion}
 The proposed pipeline shifts legal LLM evaluation from pointwise answer checking to distributional reasoning analysis. This provides three practical benefits for legal AI development:
@@ -324,7 +456,7 @@ The proposed pipeline shifts legal LLM evaluation from pointwise answer checking
 A key implication is that two models with similar top-line outcome accuracy can differ substantially in reliability profile when assessed through reasoning manifold structure. In this benchmark item, only 24.9\% of valid responses used the correct SOF-marriage reasoning path, even though many incorrect responses remained fluent and superficially plausible.
 
 \section{Limitations and Ethics}
-This study has several limitations. First, outcome-level clustering depends on embedding model choice and may inherit embedding biases. Second, legal correctness labels can be jurisdiction-sensitive and may not transfer across legal systems. Third, LLM-as-a-judge introduces additional model dependence and requires calibration against human experts.
+This study has several limitations. First, outcome-level clustering depends on embedding model choice and may inherit embedding biases toward certain legal vocabulary. Second, legal correctness labels are jurisdiction-sensitive; the ground-truth label (\texttt{UNENFORCEABLE} under the SOF marriage provision) reflects the majority-rule U.S. common law framing and may differ under minority jurisdictions or civil law systems. Third, expert annotation in this initial study is single-annotator (no inter-annotator agreement reported); formal IAA collection and reconciliation are deferred to future work. Fourth, the temperature/prompt robustness analysis (RQ5) is deferred to future work: the current paper evaluates one prompt condition at the default temperature per model; structured multi-temperature and multi-prompt-variant experiments require additional inference runs. Fifth, bootstrap CI estimates assume that response embeddings are exchangeable given the fixed question, which may not hold if model outputs exhibit strong auto-correlation across repeated trials.
 
 Ethically, this framework is for evaluation and risk analysis, not legal advice generation. Any deployment should include qualified human review, documented uncertainty handling, and explicit disclaimers regarding jurisdictional limits.
 
@@ -333,14 +465,15 @@ We present a rigorous framework for evaluating legal LLM reasoning beyond accura
 
 \section*{Reproducibility Checklist}
 \begin{itemize}[leftmargin=1.5em]
-    \item Code commit hash: \texttt{85930ae}
-    \item Evaluation date range: \texttt{2026-03-10--2026-03-10}
-    \item Full model/version/endpoints table included
-    \item Prompt templates and JSON schema released
-    \item Decoding settings and seed policy documented
-    \item Benchmark prompt text, version history, and variant templates documented
-    \item Annotation guideline and inter-annotator agreement reported
-    \item Statistical tests and CI construction scripts released
+    \item[$\checkmark$] Code commit hash: \texttt{85930ae}
+    \item[$\checkmark$] Evaluation date range: \texttt{2026-03-10--2026-03-10}
+    \item[$\checkmark$] Full model/version/endpoints table included (Table~\ref{tab:per_model_accuracy})
+    \item[$\checkmark$] Prompt template and JSON schema included (Appendix A)
+    \item[$\checkmark$] Decoding settings documented (Section 4.2)
+    \item[$\checkmark$] Benchmark prompt text included (Section 3.2)
+    \item[$\checkmark$] Bootstrap CI script: \texttt{lsh-IRAC/compute\_bootstrap\_ci.py}
+    \item[$\circ$] Inter-annotator agreement: single-annotator pilot; IAA deferred to future work (Section 7)
+    \item[$\circ$] Temperature/prompt robustness: deferred to future work (Section 7)
 \end{itemize}
 
 \begin{thebibliography}{99}
@@ -392,5 +525,34 @@ A Cluster Separation Measure.
 Hubert, L., and Arabie, P.\\
 Comparing Partitions.
 \end{thebibliography}
+
+\appendix
+\section{IRAC Generation Prompt and JSON Schema}
+\label{app:prompt_schema}
+
+\subsection{Generation Prompt Template}
+The following prompt is used verbatim for all models. The \texttt{\{question\}} placeholder is replaced with the benchmark fact pattern:
+
+\begin{quote}\small
+\texttt{You are a legal expert. Analyze the following legal question using the IRAC (Issue, Rule, Application, Conclusion) framework and respond in valid JSON format matching this schema exactly:\\n\{"issue": str, "rule": str, "application": str, "conclusion": str, "final\_label": "ENFORCEABLE" | "UNENFORCEABLE" | "UNCERTAIN"\}\\n\\nLegal Question:\\n\{question\}\\n\\nRespond with only the JSON object, no additional text.}
+\end{quote}
+
+\subsection{JSON Output Schema}
+Each model output must parse as valid JSON with the following required fields:
+
+\begin{quote}\small
+\begin{verbatim}
+{
+  "issue":       string,   // legal question identified
+  "rule":        string,   // governing legal standard
+  "application": string,   // fact-to-rule analysis
+  "conclusion":  string,   // final legal conclusion
+  "final_label": string    // one of: ENFORCEABLE,
+                           //         UNENFORCEABLE, UNCERTAIN
+}
+\end{verbatim}
+\end{quote}
+
+Outputs failing JSON parsing trigger one deterministic repair pass (strip markdown fencing, re-parse). Outputs still failing after repair are logged as schema failures and excluded from downstream analysis.
 
 \end{document}

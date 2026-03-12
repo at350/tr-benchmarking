@@ -94,11 +94,11 @@ def reduce_umap(embeddings: np.ndarray) -> np.ndarray:
 
 def run_hdbscan(umap_embs: np.ndarray, embeddings_orig: np.ndarray):
     """Run HDBSCAN and compute metrics on original embedding space."""
-    import hdbscan as hdbscan_lib
+    from sklearn.cluster import HDBSCAN as SklearnHDBSCAN
     from sklearn.metrics import silhouette_score, davies_bouldin_score
 
-    print("  Running HDBSCAN...")
-    clusterer = hdbscan_lib.HDBSCAN(
+    print("  Running HDBSCAN (sklearn)...")
+    clusterer = SklearnHDBSCAN(
         min_cluster_size=HDBSCAN_MIN_CLUSTER_SIZE,
         min_samples=HDBSCAN_MIN_SAMPLES,
     )

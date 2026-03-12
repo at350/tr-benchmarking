@@ -1,0 +1,264 @@
+{
+  "per_model_accuracy": [
+    {
+      "model": "gemini-3-flash",
+      "n_valid": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "ambiguous": 0,
+      "pct_correct": 100.0,
+      "dominant_cluster": "3",
+      "dominant_cluster_n": 19
+    },
+    {
+      "model": "gemini-3-pro",
+      "n_valid": 20,
+      "correct": 20,
+      "incorrect": 0,
+      "ambiguous": 0,
+      "pct_correct": 100.0,
+      "dominant_cluster": "3",
+      "dominant_cluster_n": 10
+    },
+    {
+      "model": "gpt-5-nano",
+      "n_valid": 20,
+      "correct": 5,
+      "incorrect": 15,
+      "ambiguous": 0,
+      "pct_correct": 25.0,
+      "dominant_cluster": "1",
+      "dominant_cluster_n": 15
+    },
+    {
+      "model": "gpt-4o",
+      "n_valid": 20,
+      "correct": 3,
+      "incorrect": 14,
+      "ambiguous": 3,
+      "pct_correct": 15.0,
+      "dominant_cluster": "11",
+      "dominant_cluster_n": 10
+    },
+    {
+      "model": "claude-3.5-haiku",
+      "n_valid": 20,
+      "correct": 0,
+      "incorrect": 20,
+      "ambiguous": 0,
+      "pct_correct": 0.0,
+      "dominant_cluster": "4",
+      "dominant_cluster_n": 13
+    },
+    {
+      "model": "claude-4.5-sonnet",
+      "n_valid": 20,
+      "correct": 0,
+      "incorrect": 8,
+      "ambiguous": 12,
+      "pct_correct": 0.0,
+      "dominant_cluster": "9",
+      "dominant_cluster_n": 12
+    },
+    {
+      "model": "deepseek-v3.1",
+      "n_valid": 13,
+      "correct": 0,
+      "incorrect": 13,
+      "ambiguous": 0,
+      "pct_correct": 0.0,
+      "dominant_cluster": "5",
+      "dominant_cluster_n": 11
+    },
+    {
+      "model": "gpt-4-turbo",
+      "n_valid": 20,
+      "correct": 0,
+      "incorrect": 12,
+      "ambiguous": 8,
+      "pct_correct": 0.0,
+      "dominant_cluster": "14",
+      "dominant_cluster_n": 10
+    },
+    {
+      "model": "gpt-5.2",
+      "n_valid": 20,
+      "correct": 0,
+      "incorrect": 20,
+      "ambiguous": 0,
+      "pct_correct": 0.0,
+      "dominant_cluster": "0",
+      "dominant_cluster_n": 20
+    },
+    {
+      "model": "llama-4-maverick",
+      "n_valid": 20,
+      "correct": 0,
+      "incorrect": 20,
+      "ambiguous": 0,
+      "pct_correct": 0.0,
+      "dominant_cluster": "11",
+      "dominant_cluster_n": 8
+    }
+  ],
+  "cluster_model_breakdown": {
+    "10": {
+      "gpt-4o": 3,
+      "gpt-5-nano": 5
+    },
+    "11": {
+      "gpt-4o": 10,
+      "gpt-4-turbo": 1,
+      "llama-4-maverick": 8,
+      "deepseek-v3.1": 1
+    },
+    "1": {
+      "gpt-4o": 2,
+      "gpt-5-nano": 15,
+      "llama-4-maverick": 2
+    },
+    "12": {
+      "gpt-4o": 3,
+      "gpt-4-turbo": 8
+    },
+    "13": {
+      "gpt-4o": 2,
+      "gpt-4-turbo": 1,
+      "llama-4-maverick": 5
+    },
+    "14": {
+      "gpt-4-turbo": 10
+    },
+    "0": {
+      "gpt-5.2": 20
+    },
+    "3": {
+      "gemini-3-flash": 19,
+      "gemini-3-pro": 10
+    },
+    "2": {
+      "gemini-3-flash": 1,
+      "gemini-3-pro": 10
+    },
+    "6": {
+      "llama-4-maverick": 5
+    },
+    "5": {
+      "deepseek-v3.1": 11
+    },
+    "8": {
+      "deepseek-v3.1": 1,
+      "claude-3.5-haiku": 7
+    },
+    "7": {
+      "claude-4.5-sonnet": 8
+    },
+    "9": {
+      "claude-4.5-sonnet": 12
+    },
+    "4": {
+      "claude-3.5-haiku": 13
+    }
+  },
+  "all_models": [
+    "claude-3.5-haiku",
+    "claude-4.5-sonnet",
+    "deepseek-v3.1",
+    "gemini-3-flash",
+    "gemini-3-pro",
+    "gpt-4-turbo",
+    "gpt-4o",
+    "gpt-5-nano",
+    "gpt-5.2",
+    "llama-4-maverick"
+  ],
+  "schema_compliance": [
+    {
+      "model": "claude-3.5-haiku",
+      "attempted": 20,
+      "failed": 0,
+      "valid": 20,
+      "pct_valid": 100.0
+    },
+    {
+      "model": "claude-4.5-sonnet",
+      "attempted": 20,
+      "failed": 0,
+      "valid": 20,
+      "pct_valid": 100.0
+    },
+    {
+      "model": "deepseek-v3.1",
+      "attempted": 20,
+      "failed": 7,
+      "valid": 13,
+      "pct_valid": 65.0
+    },
+    {
+      "model": "gemini-3-flash",
+      "attempted": 20,
+      "failed": 0,
+      "valid": 20,
+      "pct_valid": 100.0
+    },
+    {
+      "model": "gemini-3-pro",
+      "attempted": 20,
+      "failed": 0,
+      "valid": 20,
+      "pct_valid": 100.0
+    },
+    {
+      "model": "gpt-4-turbo",
+      "attempted": 20,
+      "failed": 0,
+      "valid": 20,
+      "pct_valid": 100.0
+    },
+    {
+      "model": "gpt-4o",
+      "attempted": 20,
+      "failed": 0,
+      "valid": 20,
+      "pct_valid": 100.0
+    },
+    {
+      "model": "gpt-5-nano",
+      "attempted": 20,
+      "failed": 0,
+      "valid": 20,
+      "pct_valid": 100.0
+    },
+    {
+      "model": "gpt-5.2",
+      "attempted": 20,
+      "failed": 0,
+      "valid": 20,
+      "pct_valid": 100.0
+    },
+    {
+      "model": "llama-4-maverick",
+      "attempted": 20,
+      "failed": 0,
+      "valid": 20,
+      "pct_valid": 100.0
+    }
+  ],
+  "cluster_verdicts": {
+    "10": "correct",
+    "11": "incorrect",
+    "1": "incorrect",
+    "12": "ambiguous",
+    "13": "incorrect",
+    "14": "incorrect",
+    "0": "incorrect",
+    "3": "correct",
+    "2": "correct",
+    "6": "incorrect",
+    "5": "incorrect",
+    "8": "incorrect",
+    "7": "incorrect",
+    "9": "ambiguous",
+    "4": "incorrect"
+  }
+}

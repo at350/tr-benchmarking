@@ -1,0 +1,40 @@
+{
+  "timestamp": "20260310_173727",
+  "n_responses": 193,
+  "umap_params": {
+    "n_neighbors": 5,
+    "min_dist": 0.1,
+    "n_components": 10
+  },
+  "embedding_model": "hkunlp/instructor-large",
+  "results": [
+    {
+      "method": "HDBSCAN",
+      "n_clusters": 13,
+      "n_noise": 0,
+      "noise_pct": 0.0,
+      "silhouette": 0.2657,
+      "davies_bouldin": 1.7289
+    },
+    {
+      "method": "K-Means (k=15; matched k)",
+      "k": 15,
+      "n_clusters": 15,
+      "n_noise": 0,
+      "noise_pct": 0.0,
+      "silhouette": 0.2423,
+      "davies_bouldin": 1.8497,
+      "inertia": 36.04
+    },
+    {
+      "method": "K-Means (k=3; broad verdicts)",
+      "k": 3,
+      "n_clusters": 3,
+      "n_noise": 0,
+      "noise_pct": 0.0,
+      "silhouette": 0.152,
+      "davies_bouldin": 2.9109,
+      "inertia": 4188.63
+    }
+  ]
+}
