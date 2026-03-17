@@ -368,33 +368,29 @@ async def main(args):
         id_to_model = {d['id']: d['model'] for d in valid_data}
 
         def get_centroid_members(cluster_id, member_ids):
-            """Return centroid (representative) plus 2 closest members."""
+            """Return representative plus 2 other members closest to cluster geometric center."""
             if cluster_id == "noise" or len(member_ids) == 0:
                 return []
-            rep_id = reps.get(cluster_id) if isinstance(cluster_id, int) else None
-            if not rep_id or rep_id not in embeddings:
+            members_with_emb = [m for m in member_ids if m in embeddings]
+            if not members_with_emb:
                 return []
-            centroid = embeddings[rep_id]
-            members_excl_rep = [m for m in member_ids if m in embeddings and m != rep_id]
-            result = [rep_id]
-            if members_excl_rep:
-                distances = [(m, float(np.linalg.norm(embeddings[m] - centroid))) for m in members_excl_rep]
-                distances.sort(key=lambda x: x[1])
-                result.extend([m for m, _ in distances[:2]])
-            return result
+            # Geometric centroid = mean of all member embeddings
+            embs = np.array([embeddings[m] for m in members_with_emb])
+            center = np.mean(embs, axis=0)
+            distances = [(m, float(np.linalg.norm(embeddings[m] - center))) for m in members_with_emb]
+            distances.sort(key=lambda x: x[1])
+            return [m for m, _ in distances[:3]]
 
         def get_edge_members(cluster_id, member_ids):
-            """Sample 3 random members from the outer third (farthest from centroid)."""
+            """Sample 3 random members from the outer third (farthest from center)."""
             if cluster_id == "noise" or len(member_ids) < 2:
                 return []
-            rep_id = reps.get(cluster_id) if isinstance(cluster_id, int) else None
-            if not rep_id or rep_id not in embeddings:
-                return []
-            centroid = embeddings[rep_id]
             members_with_emb = [m for m in member_ids if m in embeddings]
             if len(members_with_emb) < 2:
                 return []
-            distances = [(m, float(np.linalg.norm(embeddings[m] - centroid))) for m in members_with_emb]
+            embs = np.array([embeddings[m] for m in members_with_emb])
+            center = np.mean(embs, axis=0)
+            distances = [(m, float(np.linalg.norm(embeddings[m] - center))) for m in members_with_emb]
             distances.sort(key=lambda x: x[1], reverse=True)
             outer_third_count = max(1, len(distances) // 3)
             outer_member_ids = [m for m, _ in distances[:outer_third_count]]
