@@ -1,7 +1,7 @@
 'use client';
 
 import { Save } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { BenchmarkSidebar, BenchmarkMode } from '@/components/benchmarking/BenchmarkSidebar';
 import { SavedRunComparisonPanel } from '@/components/benchmarking/SavedRunComparisonPanel';
@@ -23,26 +23,9 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { InfoTip } from '@/components/ui/InfoTip';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { getDefaultModelForProvider, MODEL_OPTIONS_BY_PROVIDER, PROVIDER_LABELS } from '@/lib/model-options';
-import {
-    createPromptTemplate,
-    isBuiltinPromptTemplateId,
-    mergePromptLibraries,
-    parsePromptLibraryImport,
-    PromptTemplate,
-    promptLibraryToJson,
-    readPromptLibraryFromStorage,
-    writePromptLibraryToStorage,
-} from '@/lib/prompt-library';
-import {
-    createJudgeRubricTemplate,
-    isBuiltinJudgeRubricTemplateId,
-    judgeRubricLibraryToJson,
-    JudgeRubricTemplate,
-    mergeJudgeRubricLibraries,
-    parseJudgeRubricLibraryImport,
-    readJudgeRubricLibraryFromStorage,
-    writeJudgeRubricLibraryToStorage,
-} from '@/lib/judge-rubric-library';
+import type { PromptTemplate } from '@/lib/prompt-library';
+import type { JudgeRubricTemplate } from '@/lib/judge-rubric-library';
+import { deletePromptFile, fetchPromptFiles, savePromptFile, uploadPromptFile } from '@/lib/prompt-files-client';
 import { computeRubricPairwiseComparisons, estimateRequiredSampleSizePaired, RubricScoreObservation } from '@/lib/statistics-rubric';
 import { SavedBenchmarkRun } from '@/lib/run-comparison';
 
@@ -89,6 +72,9 @@ const DEFAULT_MULTI_MODEL_KEYS = [
     'anthropic::claude-sonnet-4-5',
     'gemini::gemini-2.5-pro',
 ];
+const DEFAULT_GENERATION_PROMPT_ID = 'Alan IRAC Strict JSON.txt';
+const DEFAULT_JUDGE_RUBRIC_ID = 'Judge Rubric Balanced IRAC.txt';
+const PROMPT_LIBRARY_REFRESH_INTERVAL_MS = 5000;
 
 type GeneralBenchmarkUiState = {
     benchmarkMode: BenchmarkMode;
@@ -173,15 +159,15 @@ export default function GeneralBenchmarkingPage() {
         difficultyFilter: 'All',
         selectedDatasetQuestionId: '',
         useCustomPrompt: false,
-        selectedPromptId: '',
+        selectedPromptId: DEFAULT_GENERATION_PROMPT_ID,
     });
     const [rubricJudgeConfig, setRubricJudgeConfig] = useState<RubricJudgeProbeConfig>({
         runScope: 'single',
         runsPerQuestion: 1,
         strictnessMode: 'strict',
-        selectedGenerationPromptId: 'builtin_alan_irac_json_v1',
-        selectedGenerationPromptIds: ['builtin_alan_irac_json_v1'],
-        selectedJudgeRubricIds: ['builtin_rubric_balanced_v1'],
+        selectedGenerationPromptId: DEFAULT_GENERATION_PROMPT_ID,
+        selectedGenerationPromptIds: [DEFAULT_GENERATION_PROMPT_ID],
+        selectedJudgeRubricIds: [DEFAULT_JUDGE_RUBRIC_ID],
         judgeProvider: 'openai',
         judgeModel: getDefaultModelForProvider('openai'),
         judgeReasoningEffort: 'medium',
@@ -221,16 +207,24 @@ export default function GeneralBenchmarkingPage() {
     const [savedRunStatus, setSavedRunStatus] = useState<string | null>(null);
 
     const [promptLibrary, setPromptLibrary] = useState<PromptTemplate[]>([]);
+    const [promptLibraryDirectory, setPromptLibraryDirectory] = useState('');
+    const [hasLoadedPromptLibrary, setHasLoadedPromptLibrary] = useState(false);
+    const [isCreatingNewPromptDraft, setIsCreatingNewPromptDraft] = useState(false);
     const [promptNameDraft, setPromptNameDraft] = useState('');
     const [promptContentDraft, setPromptContentDraft] = useState('');
     const [promptStatus, setPromptStatus] = useState<string | null>(null);
 
     const [judgeRubricLibrary, setJudgeRubricLibrary] = useState<JudgeRubricTemplate[]>([]);
-    const [selectedJudgeRubricTemplateId, setSelectedJudgeRubricTemplateId] = useState('');
+    const [judgeRubricLibraryDirectory, setJudgeRubricLibraryDirectory] = useState('');
+    const [hasLoadedJudgeRubricLibrary, setHasLoadedJudgeRubricLibrary] = useState(false);
+    const [isCreatingNewJudgeRubricDraft, setIsCreatingNewJudgeRubricDraft] = useState(false);
+    const [selectedJudgeRubricTemplateId, setSelectedJudgeRubricTemplateId] = useState(DEFAULT_JUDGE_RUBRIC_ID);
     const [judgeRubricNameDraft, setJudgeRubricNameDraft] = useState('');
     const [judgeRubricContentDraft, setJudgeRubricContentDraft] = useState('');
     const [judgeRubricStatus, setJudgeRubricStatus] = useState<string | null>(null);
     const [hasHydratedUiState, setHasHydratedUiState] = useState(false);
+    const previousSelectedPromptIdRef = useRef('');
+    const previousSelectedJudgeRubricIdRef = useRef('');
 
     const activeGenerationPromptId = benchmarkMode === 'single_probe_multi_model_rubric_judge'
         ? rubricJudgeConfig.selectedGenerationPromptId
@@ -262,11 +256,55 @@ export default function GeneralBenchmarkingPage() {
             })));
     }, []);
 
+    const loadGenerationPromptLibrary = useCallback(async () => {
+        const { items, directory } = await fetchPromptFiles('generation');
+        setPromptLibrary(items);
+        setPromptLibraryDirectory(directory);
+        setHasLoadedPromptLibrary(true);
+    }, []);
+
+    const loadJudgeRubricLibrary = useCallback(async () => {
+        const { items, directory } = await fetchPromptFiles('judge');
+        setJudgeRubricLibrary(items);
+        setJudgeRubricLibraryDirectory(directory);
+        setHasLoadedJudgeRubricLibrary(true);
+    }, []);
+
+    const refreshLocalPromptLibraries = useCallback(async () => {
+        try {
+            await Promise.all([
+                loadGenerationPromptLibrary(),
+                loadJudgeRubricLibrary(),
+            ]);
+        } catch (error) {
+            console.error('Failed to refresh local prompt libraries.', error);
+        }
+    }, [loadGenerationPromptLibrary, loadJudgeRubricLibrary]);
+
+    const refreshGenerationPromptLibraryManually = useCallback(async () => {
+        try {
+            previousSelectedPromptIdRef.current = '';
+            await loadGenerationPromptLibrary();
+            setPromptStatus('Generation prompt folder refreshed.');
+        } catch (error) {
+            setPromptStatus(error instanceof Error ? error.message : 'Failed to refresh generation prompt folder.');
+        }
+    }, [loadGenerationPromptLibrary]);
+
+    const refreshJudgeRubricLibraryManually = useCallback(async () => {
+        try {
+            previousSelectedJudgeRubricIdRef.current = '';
+            await loadJudgeRubricLibrary();
+            setJudgeRubricStatus('Judge rubric folder refreshed.');
+        } catch (error) {
+            setJudgeRubricStatus(error instanceof Error ? error.message : 'Failed to refresh judge rubric folder.');
+        }
+    }, [loadJudgeRubricLibrary]);
+
     useEffect(() => {
         setRunHistory(readRunHistoryFromStorage());
         setSavedRuns(readSavedRunsFromStorage());
-        setPromptLibrary(readPromptLibraryFromStorage());
-        setJudgeRubricLibrary(readJudgeRubricLibraryFromStorage());
+        void refreshLocalPromptLibraries();
 
         const persistedUiState = readGeneralBenchmarkUiStateFromStorage();
         if (persistedUiState) {
@@ -294,15 +332,15 @@ export default function GeneralBenchmarkingPage() {
         }
 
         setHasHydratedUiState(true);
-    }, []);
+    }, [refreshLocalPromptLibraries]);
 
     useEffect(() => {
-        writePromptLibraryToStorage(promptLibrary);
-    }, [promptLibrary]);
+        const timer = window.setInterval(() => {
+            void refreshLocalPromptLibraries();
+        }, PROMPT_LIBRARY_REFRESH_INTERVAL_MS);
 
-    useEffect(() => {
-        writeJudgeRubricLibraryToStorage(judgeRubricLibrary);
-    }, [judgeRubricLibrary]);
+        return () => window.clearInterval(timer);
+    }, [refreshLocalPromptLibraries]);
 
     useEffect(() => {
         writeSavedRunsToStorage(savedRuns);
@@ -310,18 +348,38 @@ export default function GeneralBenchmarkingPage() {
 
     useEffect(() => {
         if (!selectedPrompt) {
+            if (previousSelectedPromptIdRef.current) {
+                setPromptNameDraft('');
+                setPromptContentDraft('');
+            }
+            previousSelectedPromptIdRef.current = '';
             return;
         }
-        setPromptNameDraft(selectedPrompt.name);
-        setPromptContentDraft(selectedPrompt.content);
+        setIsCreatingNewPromptDraft(false);
+        const nextId = selectedPrompt.id;
+        if (previousSelectedPromptIdRef.current !== nextId) {
+            setPromptNameDraft(selectedPrompt.name);
+            setPromptContentDraft(selectedPrompt.content);
+            previousSelectedPromptIdRef.current = nextId;
+        }
     }, [selectedPrompt]);
 
     useEffect(() => {
         if (!selectedJudgeRubricTemplate) {
+            if (previousSelectedJudgeRubricIdRef.current) {
+                setJudgeRubricNameDraft('');
+                setJudgeRubricContentDraft('');
+            }
+            previousSelectedJudgeRubricIdRef.current = '';
             return;
         }
-        setJudgeRubricNameDraft(selectedJudgeRubricTemplate.name);
-        setJudgeRubricContentDraft(selectedJudgeRubricTemplate.content);
+        setIsCreatingNewJudgeRubricDraft(false);
+        const nextId = selectedJudgeRubricTemplate.id;
+        if (previousSelectedJudgeRubricIdRef.current !== nextId) {
+            setJudgeRubricNameDraft(selectedJudgeRubricTemplate.name);
+            setJudgeRubricContentDraft(selectedJudgeRubricTemplate.content);
+            previousSelectedJudgeRubricIdRef.current = nextId;
+        }
     }, [selectedJudgeRubricTemplate]);
 
     useEffect(() => {
@@ -330,32 +388,57 @@ export default function GeneralBenchmarkingPage() {
     }, [multiModelOptions]);
 
     useEffect(() => {
+        if (!hasLoadedJudgeRubricLibrary) {
+            return;
+        }
+
         const validIds = new Set(judgeRubricLibrary.map((rubric) => rubric.id));
         setRubricJudgeConfig((previous) => ({
             ...previous,
-            selectedJudgeRubricIds: previous.selectedJudgeRubricIds.filter((id) => validIds.has(id)),
+            selectedJudgeRubricIds: previous.selectedJudgeRubricIds.filter((id) => validIds.has(id)).length > 0
+                ? previous.selectedJudgeRubricIds.filter((id) => validIds.has(id))
+                : (validIds.has(DEFAULT_JUDGE_RUBRIC_ID)
+                    ? [DEFAULT_JUDGE_RUBRIC_ID]
+                    : (judgeRubricLibrary[0] ? [judgeRubricLibrary[0].id] : [])),
         }));
         if (selectedJudgeRubricTemplateId && !validIds.has(selectedJudgeRubricTemplateId)) {
-            setSelectedJudgeRubricTemplateId('');
+            setSelectedJudgeRubricTemplateId(validIds.has(DEFAULT_JUDGE_RUBRIC_ID) ? DEFAULT_JUDGE_RUBRIC_ID : (judgeRubricLibrary[0]?.id || ''));
             setJudgeRubricNameDraft('');
             setJudgeRubricContentDraft('');
+        } else if (!selectedJudgeRubricTemplateId && judgeRubricLibrary[0] && !isCreatingNewJudgeRubricDraft) {
+            setSelectedJudgeRubricTemplateId(validIds.has(DEFAULT_JUDGE_RUBRIC_ID) ? DEFAULT_JUDGE_RUBRIC_ID : judgeRubricLibrary[0].id);
         }
-    }, [judgeRubricLibrary, selectedJudgeRubricTemplateId]);
+    }, [hasLoadedJudgeRubricLibrary, isCreatingNewJudgeRubricDraft, judgeRubricLibrary, selectedJudgeRubricTemplateId]);
 
     useEffect(() => {
+        if (!hasLoadedPromptLibrary) {
+            return;
+        }
+
         const validPromptIds = new Set(promptLibrary.map((prompt) => prompt.id));
         setRubricJudgeConfig((previous) => ({
             ...previous,
             selectedGenerationPromptId: validPromptIds.has(previous.selectedGenerationPromptId)
                 ? previous.selectedGenerationPromptId
-                : (previous.selectedGenerationPromptIds.find((id) => validPromptIds.has(id)) || ''),
-            selectedGenerationPromptIds: previous.selectedGenerationPromptIds.filter((id) => validPromptIds.has(id)),
+                : (isCreatingNewPromptDraft
+                    ? ''
+                    : (previous.selectedGenerationPromptIds.find((id) => validPromptIds.has(id))
+                        || (validPromptIds.has(DEFAULT_GENERATION_PROMPT_ID) ? DEFAULT_GENERATION_PROMPT_ID : (promptLibrary[0]?.id || '')))),
+            selectedGenerationPromptIds: previous.selectedGenerationPromptIds.filter((id) => validPromptIds.has(id)).length > 0
+                ? previous.selectedGenerationPromptIds.filter((id) => validPromptIds.has(id))
+                : (validPromptIds.has(DEFAULT_GENERATION_PROMPT_ID)
+                    ? [DEFAULT_GENERATION_PROMPT_ID]
+                    : (promptLibrary[0] ? [promptLibrary[0].id] : [])),
         }));
         setSingleProbeConfig((previous) => ({
             ...previous,
-            selectedPromptId: validPromptIds.has(previous.selectedPromptId) ? previous.selectedPromptId : '',
+            selectedPromptId: validPromptIds.has(previous.selectedPromptId)
+                ? previous.selectedPromptId
+                : (isCreatingNewPromptDraft
+                    ? ''
+                    : (validPromptIds.has(DEFAULT_GENERATION_PROMPT_ID) ? DEFAULT_GENERATION_PROMPT_ID : (promptLibrary[0]?.id || ''))),
         }));
-    }, [promptLibrary]);
+    }, [hasLoadedPromptLibrary, isCreatingNewPromptDraft, promptLibrary]);
 
     useEffect(() => {
         async function loadSingleDataset() {
@@ -1550,42 +1633,63 @@ export default function GeneralBenchmarkingPage() {
         setPromptStatus(`Loaded dataset question ${selected.id.slice(0, 12)}... into editor.`);
     };
 
-    const savePromptTemplate = () => {
+    const savePromptTemplate = async () => {
         const content = promptContentDraft.trim();
         if (!content) {
             setPromptStatus('Prompt content is required.');
             return;
         }
 
-        const name = promptNameDraft.trim() || 'Untitled prompt';
+        try {
+            const { item, directory } = await savePromptFile<'generation'>({
+                kind: 'generation',
+                existingId: selectedPrompt?.id,
+                name: promptNameDraft.trim() || undefined,
+                content,
+            });
 
-        if (selectedPrompt) {
-            setPromptLibrary((previous) => previous.map((prompt) => (
-                prompt.id === selectedPrompt.id
-                    ? { ...prompt, name, content, updatedAt: new Date().toISOString() }
-                    : prompt
-            )));
-            setPromptStatus('Prompt updated.');
-            return;
-        }
-
-        const created = createPromptTemplate(name, content);
-        setPromptLibrary((previous) => [created, ...previous]);
-        if (benchmarkMode === 'single_probe_multi_model_rubric_judge') {
-            setRubricJudgeConfig((previous) => ({
+            setPromptLibraryDirectory(directory);
+            await loadGenerationPromptLibrary();
+            setIsCreatingNewPromptDraft(false);
+            setSingleProbeConfig((previous) => ({
                 ...previous,
-                selectedGenerationPromptId: created.id,
-                selectedGenerationPromptIds: previous.selectedGenerationPromptIds.includes(created.id)
-                    ? previous.selectedGenerationPromptIds
-                    : [...previous.selectedGenerationPromptIds, created.id],
+                selectedPromptId: benchmarkMode === 'single_probe_multi_model_rubric_judge'
+                    ? (selectedPrompt && previous.selectedPromptId === selectedPrompt.id ? item.id : previous.selectedPromptId)
+                    : item.id,
             }));
-        } else {
-            setSingleProbeConfig((previous) => ({ ...previous, selectedPromptId: created.id }));
+
+            if (benchmarkMode === 'single_probe_multi_model_rubric_judge') {
+                setRubricJudgeConfig((previous) => ({
+                    ...previous,
+                    selectedGenerationPromptId: item.id,
+                    selectedGenerationPromptIds: previous.selectedGenerationPromptIds.includes(item.id)
+                        ? previous.selectedGenerationPromptIds.map((id) => (id === selectedPrompt?.id ? item.id : id))
+                        : [
+                            ...previous.selectedGenerationPromptIds.filter((id) => id !== selectedPrompt?.id),
+                            item.id,
+                        ],
+                }));
+            } else if (selectedPrompt) {
+                setRubricJudgeConfig((previous) => ({
+                    ...previous,
+                    selectedGenerationPromptId: previous.selectedGenerationPromptId === selectedPrompt.id ? item.id : previous.selectedGenerationPromptId,
+                    selectedGenerationPromptIds: previous.selectedGenerationPromptIds.map((id) => (
+                        id === selectedPrompt.id ? item.id : id
+                    )),
+                }));
+            }
+
+            setPromptNameDraft(item.name);
+            setPromptContentDraft(item.content);
+            previousSelectedPromptIdRef.current = item.id;
+            setPromptStatus(selectedPrompt ? 'Prompt updated on disk.' : 'Prompt saved to disk.');
+        } catch (error) {
+            setPromptStatus(error instanceof Error ? error.message : 'Failed to save prompt.');
         }
-        setPromptStatus('Prompt saved.');
     };
 
     const createNewPromptDraft = () => {
+        setIsCreatingNewPromptDraft(true);
         if (benchmarkMode === 'single_probe_multi_model_rubric_judge') {
             setRubricJudgeConfig((previous) => ({ ...previous, selectedGenerationPromptId: '' }));
         } else {
@@ -1596,140 +1700,139 @@ export default function GeneralBenchmarkingPage() {
         setPromptStatus('Started a new prompt draft.');
     };
 
-    const deleteSelectedPrompt = () => {
+    const deleteSelectedPrompt = async () => {
         if (!selectedPrompt) {
             setPromptStatus('Select a prompt to delete.');
             return;
         }
-        if (isBuiltinPromptTemplateId(selectedPrompt.id)) {
-            setPromptStatus('Built-in prompt templates cannot be deleted.');
-            return;
-        }
 
-        setPromptLibrary((previous) => previous.filter((prompt) => prompt.id !== selectedPrompt.id));
-        setSingleProbeConfig((previous) => ({ ...previous, selectedPromptId: '' }));
-        setRubricJudgeConfig((previous) => ({
-            ...previous,
-            selectedGenerationPromptId: previous.selectedGenerationPromptId === selectedPrompt.id ? '' : previous.selectedGenerationPromptId,
-            selectedGenerationPromptIds: previous.selectedGenerationPromptIds.filter((id) => id !== selectedPrompt.id),
-        }));
-        setPromptNameDraft('');
-        setPromptContentDraft('');
-        setPromptStatus('Prompt deleted.');
+        try {
+            await deletePromptFile('generation', selectedPrompt.id);
+            await loadGenerationPromptLibrary();
+            setIsCreatingNewPromptDraft(true);
+            setSingleProbeConfig((previous) => ({ ...previous, selectedPromptId: '' }));
+            setRubricJudgeConfig((previous) => ({
+                ...previous,
+                selectedGenerationPromptId: previous.selectedGenerationPromptId === selectedPrompt.id ? '' : previous.selectedGenerationPromptId,
+                selectedGenerationPromptIds: previous.selectedGenerationPromptIds.filter((id) => id !== selectedPrompt.id),
+            }));
+            setPromptNameDraft('');
+            setPromptContentDraft('');
+            previousSelectedPromptIdRef.current = '';
+            setPromptStatus('Prompt deleted from disk.');
+        } catch (error) {
+            setPromptStatus(error instanceof Error ? error.message : 'Failed to delete prompt.');
+        }
     };
 
-    const importPromptLibrary = (raw: string) => {
-        const parsed = parsePromptLibraryImport(raw);
-        if (parsed.error) {
-            setPromptStatus(parsed.error);
-            return;
+    const uploadGenerationPromptFile = async (file: File) => {
+        try {
+            const { item, directory } = await uploadPromptFile<'generation'>('generation', file);
+            setPromptLibraryDirectory(directory);
+            await loadGenerationPromptLibrary();
+            setIsCreatingNewPromptDraft(false);
+            if (benchmarkMode === 'single_probe_multi_model_rubric_judge') {
+                setRubricJudgeConfig((previous) => ({
+                    ...previous,
+                    selectedGenerationPromptId: item.id,
+                    selectedGenerationPromptIds: previous.selectedGenerationPromptIds.includes(item.id)
+                        ? previous.selectedGenerationPromptIds
+                        : [...previous.selectedGenerationPromptIds, item.id],
+                }));
+            } else {
+                setSingleProbeConfig((previous) => ({ ...previous, selectedPromptId: item.id }));
+            }
+            setPromptNameDraft(item.name);
+            setPromptContentDraft(item.content);
+            previousSelectedPromptIdRef.current = item.id;
+            setPromptStatus(`Uploaded ${file.name} into the generation prompt folder.`);
+        } catch (error) {
+            setPromptStatus(error instanceof Error ? error.message : 'Failed to upload prompt file.');
         }
-
-        setPromptLibrary((previous) => mergePromptLibraries(previous, parsed.prompts));
-        setPromptStatus(`Imported ${parsed.prompts.length} prompt${parsed.prompts.length === 1 ? '' : 's'}.`);
     };
 
-    const exportPromptLibrary = () => {
-        if (promptLibrary.length === 0) {
-            setPromptStatus('No prompts to export.');
-            return;
-        }
-
-        const blob = new Blob([promptLibraryToJson(promptLibrary)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `prompt-library-${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
-        setPromptStatus('Prompt library exported.');
-    };
-
-    const saveJudgeRubricTemplate = () => {
+    const saveJudgeRubricTemplate = async () => {
         const content = judgeRubricContentDraft.trim();
         if (!content) {
             setJudgeRubricStatus('Judge rubric content is required.');
             return;
         }
 
-        const name = judgeRubricNameDraft.trim() || 'Untitled judge rubric';
-        if (selectedJudgeRubricTemplate) {
-            if (isBuiltinJudgeRubricTemplateId(selectedJudgeRubricTemplate.id)) {
-                setJudgeRubricStatus('Built-in judge rubric templates cannot be overwritten.');
-                return;
+        try {
+            const { item, directory } = await savePromptFile<'judge'>({
+                kind: 'judge',
+                existingId: selectedJudgeRubricTemplate?.id,
+                name: judgeRubricNameDraft.trim() || undefined,
+                content,
+            });
+
+            setJudgeRubricLibraryDirectory(directory);
+            await loadJudgeRubricLibrary();
+            setIsCreatingNewJudgeRubricDraft(false);
+            setSelectedJudgeRubricTemplateId(item.id);
+            if (selectedJudgeRubricTemplate) {
+                setRubricJudgeConfig((previous) => ({
+                    ...previous,
+                    selectedJudgeRubricIds: previous.selectedJudgeRubricIds.map((id) => (
+                        id === selectedJudgeRubricTemplate.id ? item.id : id
+                    )),
+                }));
             }
-
-            setJudgeRubricLibrary((previous) => previous.map((rubric) => (
-                rubric.id === selectedJudgeRubricTemplate.id
-                    ? { ...rubric, name, content, updatedAt: new Date().toISOString() }
-                    : rubric
-            )));
-            setJudgeRubricStatus('Judge rubric updated.');
-            return;
+            setJudgeRubricNameDraft(item.name);
+            setJudgeRubricContentDraft(item.content);
+            previousSelectedJudgeRubricIdRef.current = item.id;
+            setJudgeRubricStatus(selectedJudgeRubricTemplate ? 'Judge rubric updated on disk.' : 'Judge rubric saved to disk.');
+        } catch (error) {
+            setJudgeRubricStatus(error instanceof Error ? error.message : 'Failed to save judge rubric.');
         }
-
-        const created = createJudgeRubricTemplate(name, content);
-        setJudgeRubricLibrary((previous) => [created, ...previous]);
-        setSelectedJudgeRubricTemplateId(created.id);
-        setJudgeRubricStatus('Judge rubric saved.');
     };
 
     const createNewJudgeRubricDraft = () => {
+        setIsCreatingNewJudgeRubricDraft(true);
         setSelectedJudgeRubricTemplateId('');
         setJudgeRubricNameDraft('');
         setJudgeRubricContentDraft('');
         setJudgeRubricStatus('Started a new judge rubric draft.');
     };
 
-    const deleteSelectedJudgeRubric = () => {
+    const deleteSelectedJudgeRubric = async () => {
         if (!selectedJudgeRubricTemplate) {
             setJudgeRubricStatus('Select a judge rubric to delete.');
             return;
         }
-        if (isBuiltinJudgeRubricTemplateId(selectedJudgeRubricTemplate.id)) {
-            setJudgeRubricStatus('Built-in judge rubric templates cannot be deleted.');
-            return;
-        }
 
-        setJudgeRubricLibrary((previous) => previous.filter((rubric) => rubric.id !== selectedJudgeRubricTemplate.id));
-        setRubricJudgeConfig((previous) => ({
-            ...previous,
-            selectedJudgeRubricIds: previous.selectedJudgeRubricIds.filter((id) => id !== selectedJudgeRubricTemplate.id),
-        }));
-        setSelectedJudgeRubricTemplateId('');
-        setJudgeRubricNameDraft('');
-        setJudgeRubricContentDraft('');
-        setJudgeRubricStatus('Judge rubric deleted.');
+        try {
+            await deletePromptFile('judge', selectedJudgeRubricTemplate.id);
+            await loadJudgeRubricLibrary();
+            setIsCreatingNewJudgeRubricDraft(true);
+            setRubricJudgeConfig((previous) => ({
+                ...previous,
+                selectedJudgeRubricIds: previous.selectedJudgeRubricIds.filter((id) => id !== selectedJudgeRubricTemplate.id),
+            }));
+            setSelectedJudgeRubricTemplateId('');
+            setJudgeRubricNameDraft('');
+            setJudgeRubricContentDraft('');
+            previousSelectedJudgeRubricIdRef.current = '';
+            setJudgeRubricStatus('Judge rubric deleted from disk.');
+        } catch (error) {
+            setJudgeRubricStatus(error instanceof Error ? error.message : 'Failed to delete judge rubric.');
+        }
     };
 
-    const importJudgeRubricLibrary = (raw: string) => {
-        const parsed = parseJudgeRubricLibraryImport(raw);
-        if (parsed.error) {
-            setJudgeRubricStatus(parsed.error);
-            return;
+    const uploadJudgeRubricFile = async (file: File) => {
+        try {
+            const { item, directory } = await uploadPromptFile<'judge'>('judge', file);
+            setJudgeRubricLibraryDirectory(directory);
+            await loadJudgeRubricLibrary();
+            setIsCreatingNewJudgeRubricDraft(false);
+            setSelectedJudgeRubricTemplateId(item.id);
+            setJudgeRubricNameDraft(item.name);
+            setJudgeRubricContentDraft(item.content);
+            previousSelectedJudgeRubricIdRef.current = item.id;
+            setJudgeRubricStatus(`Uploaded ${file.name} into the judge rubric folder.`);
+        } catch (error) {
+            setJudgeRubricStatus(error instanceof Error ? error.message : 'Failed to upload judge rubric file.');
         }
-        setJudgeRubricLibrary((previous) => mergeJudgeRubricLibraries(previous, parsed.rubrics));
-        setJudgeRubricStatus(`Imported ${parsed.rubrics.length} judge rubric${parsed.rubrics.length === 1 ? '' : 's'}.`);
-    };
-
-    const exportJudgeRubricLibrary = () => {
-        if (judgeRubricLibrary.length === 0) {
-            setJudgeRubricStatus('No judge rubrics to export.');
-            return;
-        }
-
-        const blob = new Blob([judgeRubricLibraryToJson(judgeRubricLibrary)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `judge-rubric-library-${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
-        setJudgeRubricStatus('Judge rubric library exported.');
     };
 
     const saveCurrentRun = () => {
@@ -1888,12 +1991,13 @@ export default function GeneralBenchmarkingPage() {
                                 promptContentDraft={promptContentDraft}
                                 setPromptContentDraft={setPromptContentDraft}
                                 promptStatus={promptStatus}
+                                promptDirectoryPath={promptLibraryDirectory}
                                 onLoadDatasetQuestion={loadDatasetQuestionIntoEditor}
                                 onSavePrompt={savePromptTemplate}
                                 onCreateNewPrompt={createNewPromptDraft}
                                 onDeletePrompt={deleteSelectedPrompt}
-                                onExportPrompts={exportPromptLibrary}
-                                onImportPrompts={importPromptLibrary}
+                                onRefreshPrompts={() => void refreshGenerationPromptLibraryManually()}
+                                onUploadPromptFile={(file) => void uploadGenerationPromptFile(file)}
                                 onRun={runExperiment}
                                 isRunning={isRunning}
                                 canRun={multiModelRunValidation.canRun}
@@ -1922,12 +2026,13 @@ export default function GeneralBenchmarkingPage() {
                                 promptContentDraft={promptContentDraft}
                                 setPromptContentDraft={setPromptContentDraft}
                                 promptStatus={promptStatus}
+                                promptDirectoryPath={promptLibraryDirectory}
                                 onLoadDatasetQuestion={loadDatasetQuestionIntoEditor}
                                 onSavePrompt={savePromptTemplate}
                                 onCreateNewPrompt={createNewPromptDraft}
                                 onDeletePrompt={deleteSelectedPrompt}
-                                onExportPrompts={exportPromptLibrary}
-                                onImportPrompts={importPromptLibrary}
+                                onRefreshPrompts={() => void refreshGenerationPromptLibraryManually()}
+                                onUploadPromptFile={(file) => void uploadGenerationPromptFile(file)}
                                 judgeRubrics={judgeRubricLibrary}
                                 selectedJudgeRubricTemplateId={selectedJudgeRubricTemplateId}
                                 onSelectJudgeRubricTemplateId={setSelectedJudgeRubricTemplateId}
@@ -1937,11 +2042,12 @@ export default function GeneralBenchmarkingPage() {
                                 judgeRubricContentDraft={judgeRubricContentDraft}
                                 setJudgeRubricContentDraft={setJudgeRubricContentDraft}
                                 judgeRubricStatus={judgeRubricStatus}
+                                judgeRubricDirectoryPath={judgeRubricLibraryDirectory}
                                 onSaveJudgeRubric={saveJudgeRubricTemplate}
                                 onCreateNewJudgeRubric={createNewJudgeRubricDraft}
                                 onDeleteJudgeRubric={deleteSelectedJudgeRubric}
-                                onExportJudgeRubrics={exportJudgeRubricLibrary}
-                                onImportJudgeRubrics={importJudgeRubricLibrary}
+                                onRefreshJudgeRubrics={() => void refreshJudgeRubricLibraryManually()}
+                                onUploadJudgeRubricFile={(file) => void uploadJudgeRubricFile(file)}
                                 multiModelOptions={multiModelOptions}
                                 selectedMultiModelKeys={selectedMultiModelKeys}
                                 onToggleMultiModel={toggleMultiModelSelection}
@@ -1966,12 +2072,13 @@ export default function GeneralBenchmarkingPage() {
                                 promptContentDraft={promptContentDraft}
                                 setPromptContentDraft={setPromptContentDraft}
                                 promptStatus={promptStatus}
+                                promptDirectoryPath={promptLibraryDirectory}
                                 onLoadDatasetQuestion={loadDatasetQuestionIntoEditor}
                                 onSavePrompt={savePromptTemplate}
                                 onCreateNewPrompt={createNewPromptDraft}
                                 onDeletePrompt={deleteSelectedPrompt}
-                                onExportPrompts={exportPromptLibrary}
-                                onImportPrompts={importPromptLibrary}
+                                onRefreshPrompts={() => void refreshGenerationPromptLibraryManually()}
+                                onUploadPromptFile={(file) => void uploadGenerationPromptFile(file)}
                                 onRun={runExperiment}
                                 isRunning={isRunning}
                                 canRun={singleRunValidation.canRun}

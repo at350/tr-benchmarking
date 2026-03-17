@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 
 import type { JudgeRubricTemplate } from '@/lib/judge-rubric-library';
 import { getModelOptions, type ModelProvider, type ReasoningEffort, REASONING_OPTIONS } from '@/lib/model-options';
-import { isBuiltinPromptTemplateId, type PromptTemplate } from '@/lib/prompt-library';
+import type { PromptTemplate } from '@/lib/prompt-library';
 import { InfoTip } from '@/components/ui/InfoTip';
 import type { DatasetQuestion, EditableSingleQuestion, MultiModelSelectionOption } from './SingleQuestionProbePanel';
 
@@ -46,12 +46,13 @@ type RubricJudgeProbePanelProps = {
     promptContentDraft: string;
     setPromptContentDraft: (value: string) => void;
     promptStatus: string | null;
+    promptDirectoryPath: string;
     onLoadDatasetQuestion: () => void;
     onSavePrompt: () => void;
     onCreateNewPrompt: () => void;
     onDeletePrompt: () => void;
-    onExportPrompts: () => void;
-    onImportPrompts: (raw: string) => void;
+    onRefreshPrompts: () => void;
+    onUploadPromptFile: (file: File) => void;
     judgeRubrics: JudgeRubricTemplate[];
     selectedJudgeRubricTemplateId: string;
     onSelectJudgeRubricTemplateId: (id: string) => void;
@@ -61,11 +62,12 @@ type RubricJudgeProbePanelProps = {
     judgeRubricContentDraft: string;
     setJudgeRubricContentDraft: (value: string) => void;
     judgeRubricStatus: string | null;
+    judgeRubricDirectoryPath: string;
     onSaveJudgeRubric: () => void;
     onCreateNewJudgeRubric: () => void;
     onDeleteJudgeRubric: () => void;
-    onExportJudgeRubrics: () => void;
-    onImportJudgeRubrics: (raw: string) => void;
+    onRefreshJudgeRubrics: () => void;
+    onUploadJudgeRubricFile: (file: File) => void;
     multiModelOptions: MultiModelSelectionOption[];
     selectedMultiModelKeys: string[];
     onToggleMultiModel: (key: string) => void;
@@ -92,12 +94,13 @@ export function RubricJudgeProbePanel({
     promptContentDraft,
     setPromptContentDraft,
     promptStatus,
+    promptDirectoryPath,
     onLoadDatasetQuestion,
     onSavePrompt,
     onCreateNewPrompt,
     onDeletePrompt,
-    onExportPrompts,
-    onImportPrompts,
+    onRefreshPrompts,
+    onUploadPromptFile,
     judgeRubrics,
     selectedJudgeRubricTemplateId,
     onSelectJudgeRubricTemplateId,
@@ -107,11 +110,12 @@ export function RubricJudgeProbePanel({
     judgeRubricContentDraft,
     setJudgeRubricContentDraft,
     judgeRubricStatus,
+    judgeRubricDirectoryPath,
     onSaveJudgeRubric,
     onCreateNewJudgeRubric,
     onDeleteJudgeRubric,
-    onExportJudgeRubrics,
-    onImportJudgeRubrics,
+    onRefreshJudgeRubrics,
+    onUploadJudgeRubricFile,
     multiModelOptions,
     selectedMultiModelKeys,
     onToggleMultiModel,
@@ -125,8 +129,6 @@ export function RubricJudgeProbePanel({
     const promptImportRef = useRef<HTMLInputElement | null>(null);
     const rubricImportRef = useRef<HTMLInputElement | null>(null);
     const [datasetQuestionQuery, setDatasetQuestionQuery] = useState('');
-    const selectedPromptIsBuiltin = selectedPrompt ? isBuiltinPromptTemplateId(selectedPrompt.id) : false;
-
     const filteredQuestions = useMemo(() => {
         const query = datasetQuestionQuery.trim().toLowerCase();
         if (!query) {
@@ -471,31 +473,32 @@ export function RubricJudgeProbePanel({
                 <div className="flex flex-wrap gap-2">
                     <button type="button" onClick={onCreateNewPrompt} className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100">New Prompt</button>
                     <button type="button" onClick={onSavePrompt} className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800 hover:bg-teal-100">Save Prompt</button>
-                    <button type="button" onClick={onDeletePrompt} disabled={!selectedPrompt || selectedPromptIsBuiltin} className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60">Delete Selected</button>
-                    <button type="button" onClick={() => promptImportRef.current?.click()} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Import JSON</button>
-                    <button type="button" onClick={onExportPrompts} disabled={prompts.length === 0} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60">Export JSON</button>
+                    <button type="button" onClick={onDeletePrompt} disabled={!selectedPrompt} className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60">Delete Selected</button>
+                    <button type="button" onClick={() => promptImportRef.current?.click()} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Upload Text File</button>
+                    <button type="button" onClick={onRefreshPrompts} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Refresh Folder</button>
                     <input
                         ref={promptImportRef}
                         type="file"
-                        accept="application/json"
+                        accept=".txt,.md,.text,text/plain"
                         className="hidden"
                         onChange={(event) => {
                             const file = event.target.files?.[0];
                             if (!file) {
                                 return;
                             }
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                                onImportPrompts(typeof reader.result === 'string' ? reader.result : '');
-                                if (promptImportRef.current) {
-                                    promptImportRef.current.value = '';
-                                }
-                            };
-                            reader.readAsText(file);
+                            onUploadPromptFile(file);
+                            if (promptImportRef.current) {
+                                promptImportRef.current.value = '';
+                            }
                         }}
                     />
                 </div>
                 {promptStatus && <p className="text-xs text-teal-700">{promptStatus}</p>}
+                {promptDirectoryPath && (
+                    <p className="text-xs text-slate-600">
+                        Generation prompt files live in <span className="font-mono">{promptDirectoryPath}</span>. Dropped `.txt`, `.md`, or `.text` files are discovered automatically.
+                    </p>
+                )}
             </section>
 
             <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
@@ -619,30 +622,31 @@ export function RubricJudgeProbePanel({
                     <button type="button" onClick={onCreateNewJudgeRubric} className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100">New Rubric</button>
                     <button type="button" onClick={onSaveJudgeRubric} className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800 hover:bg-teal-100">Save Rubric</button>
                     <button type="button" onClick={onDeleteJudgeRubric} disabled={!selectedJudgeRubricTemplate} className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60">Delete Selected</button>
-                    <button type="button" onClick={() => rubricImportRef.current?.click()} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Import JSON</button>
-                    <button type="button" onClick={onExportJudgeRubrics} disabled={judgeRubrics.length === 0} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60">Export JSON</button>
+                    <button type="button" onClick={() => rubricImportRef.current?.click()} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Upload Text File</button>
+                    <button type="button" onClick={onRefreshJudgeRubrics} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Refresh Folder</button>
                     <input
                         ref={rubricImportRef}
                         type="file"
-                        accept="application/json"
+                        accept=".txt,.md,.text,text/plain"
                         className="hidden"
                         onChange={(event) => {
                             const file = event.target.files?.[0];
                             if (!file) {
                                 return;
                             }
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                                onImportJudgeRubrics(typeof reader.result === 'string' ? reader.result : '');
-                                if (rubricImportRef.current) {
-                                    rubricImportRef.current.value = '';
-                                }
-                            };
-                            reader.readAsText(file);
+                            onUploadJudgeRubricFile(file);
+                            if (rubricImportRef.current) {
+                                rubricImportRef.current.value = '';
+                            }
                         }}
                     />
                 </div>
                 {judgeRubricStatus && <p className="text-xs text-teal-700">{judgeRubricStatus}</p>}
+                {judgeRubricDirectoryPath && (
+                    <p className="text-xs text-slate-600">
+                        Judge rubric files live in <span className="font-mono">{judgeRubricDirectoryPath}</span>. Dropped `.txt`, `.md`, or `.text` files are discovered automatically.
+                    </p>
+                )}
             </section>
 
             <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">

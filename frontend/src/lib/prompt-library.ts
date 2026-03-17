@@ -4,6 +4,7 @@ export type PromptTemplate = {
     content: string;
     createdAt: string;
     updatedAt: string;
+    fileName?: string;
 };
 
 export const PROMPT_LIBRARY_STORAGE_KEY = 'general-benchmarking.prompt-library.v1';

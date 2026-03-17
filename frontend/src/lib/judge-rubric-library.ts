@@ -4,6 +4,7 @@ export type JudgeRubricTemplate = {
     content: string;
     createdAt: string;
     updatedAt: string;
+    fileName?: string;
 };
 
 export const JUDGE_RUBRIC_LIBRARY_STORAGE_KEY = 'general-benchmarking.judge-rubric-library.v1';

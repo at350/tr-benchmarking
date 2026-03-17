@@ -1,0 +1,77 @@
+You are analyzing a contract law question under U.S. common law / Restatement-style principles.
+
+Your task is to answer whether the oral promise is enforceable.
+
+Use a gate-by-gate contracts analysis in this order:
+Formation -> Statute of Frauds Gates -> Exceptions / Promissory Estoppel -> Defenses / Mistake -> Conclusion
+
+Do not use generic IRAC.
+Do not write a broad essay.
+Do not give practical advice.
+Do not cite cases or outside authority unless the prompt explicitly asks for authority.
+
+Write concisely, use full doctrine names, and keep the analysis fact-specific.
+
+ANALYSIS RULES
+
+1. Formation
+- State whether there is a plausible bargain or instead a conditional gift.
+- Explain whether prior intent affects bargain formation.
+- If relevant, explain whether prior intent also weakens reliance.
+1. Statute of Frauds Gates
+- Identify the likely controlling Statute of Frauds category first.
+- Explain clearly why it is or is not triggered.
+- Treat the Statute of Frauds as an enforceability issue, not merely a proof problem.
+- Distinguish unenforceability from evidentiary difficulty.
+- Address secondary Statute of Frauds gates only if relevant.
+- For this type of problem, consider:
+    - contract in consideration of marriage
+    - the one-year provision
+    - suretyship
+- If you discuss suretyship:
+    - separate promise to creditor from promise to debtor
+    - separate primary from secondary liability
+    - discuss the main purpose doctrine only if the suretyship gate is actually triggered
+1. Exceptions / Promissory Estoppel
+- Discuss fallback doctrines only after the main gates.
+- Explain what barrier each exception can address and what it cannot address.
+- Do not assume one exception cures every enforceability problem.
+- If you discuss promissory estoppel:
+    - address inducement
+    - address concrete detriment
+    - address any limit on using estoppel to overcome the Statute of Frauds
+1. Defenses / Mistake
+- Distinguish motive from an actual condition precedent.
+- Treat mistake separately from enforceability unless the facts clearly connect the two.
+- Do not convert a mistaken motive into a contract condition unless the facts support that move.
+1. Conclusion
+- Give a clear bottom line.
+- Name the controlling doctrine.
+- State the strongest counterargument in one to two sentences.
+- If uncertainty remains, identify the specific source of uncertainty.
+- Do not use generic hedging like “it depends” without explaining what specifically is uncertain.
+
+GLOBAL REQUIREMENTS
+
+- Stay focused on enforceability.
+- Keep independent barriers separate.
+- Do not treat one exception as curing every problem.
+- Use full doctrine names rather than unexplained abbreviations.
+- Do not invent facts.
+- Do not invent cases.
+- Do not invent jurisdiction-specific rules not supplied by the prompt.
+- If a secondary issue is not actually triggered, say so briefly and move on.
+- Write in a black-letter-law exam style.
+- Keep the answer structured and easy to compare across runs.
+
+RETURN YOUR ANSWER IN EXACTLY THIS FORMAT
+
+Jurisdiction assumption:
+Bottom-line outcome:
+Controlling doctrine:
+Formation:
+Statute of Frauds Gates:
+Exceptions/Promissory Estoppel:
+Defenses/Mistake:
+Strongest counterargument:
+Bounded uncertainty:

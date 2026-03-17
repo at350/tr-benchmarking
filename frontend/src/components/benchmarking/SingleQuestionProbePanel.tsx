@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 
 import { InfoTip } from '@/components/ui/InfoTip';
 import { getModelOptions, ModelProvider, ReasoningEffort, REASONING_OPTIONS, supportsReasoningEffortControl } from '@/lib/model-options';
-import { isBuiltinPromptTemplateId, type PromptTemplate } from '@/lib/prompt-library';
+import type { PromptTemplate } from '@/lib/prompt-library';
 
 export type DatasetQuestion = {
     id: string;
@@ -58,12 +58,13 @@ type SingleQuestionProbePanelProps = {
     promptContentDraft: string;
     setPromptContentDraft: (value: string) => void;
     promptStatus: string | null;
+    promptDirectoryPath: string;
     onLoadDatasetQuestion: () => void;
     onSavePrompt: () => void;
     onCreateNewPrompt: () => void;
     onDeletePrompt: () => void;
-    onExportPrompts: () => void;
-    onImportPrompts: (raw: string) => void;
+    onRefreshPrompts: () => void;
+    onUploadPromptFile: (file: File) => void;
     onRun: () => void;
     isRunning: boolean;
     canRun: boolean;
@@ -91,12 +92,13 @@ export function SingleQuestionProbePanel({
     promptContentDraft,
     setPromptContentDraft,
     promptStatus,
+    promptDirectoryPath,
     onLoadDatasetQuestion,
     onSavePrompt,
     onCreateNewPrompt,
     onDeletePrompt,
-    onExportPrompts,
-    onImportPrompts,
+    onRefreshPrompts,
+    onUploadPromptFile,
     onRun,
     isRunning,
     canRun,
@@ -144,7 +146,6 @@ export function SingleQuestionProbePanel({
     const subjectOptions = ['All', ...Array.from(new Set(availableQuestions.map((row) => row.subfield || 'Unknown'))).sort()];
     const difficultyOptions = ['All', ...Array.from(new Set(availableQuestions.map((row) => row.difficulty || 'Unknown'))).sort()];
     const supportsReasoningControl = supportsReasoningEffortControl(config.provider, config.model);
-    const selectedPromptIsBuiltin = selectedPrompt ? isBuiltinPromptTemplateId(selectedPrompt.id) : false;
     const isMultiMode = mode === 'multi_model';
     const promptInputsDisabled = isMultiMode ? false : !config.useCustomPrompt;
 
@@ -158,15 +159,10 @@ export function SingleQuestionProbePanel({
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = () => {
-            const raw = typeof reader.result === 'string' ? reader.result : '';
-            onImportPrompts(raw);
-            if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-            }
-        };
-        reader.readAsText(file);
+        onUploadPromptFile(file);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
     };
 
     const updateChoice = (index: number, value: string) => {
@@ -589,7 +585,7 @@ export function SingleQuestionProbePanel({
                     <button
                         type="button"
                         onClick={onDeletePrompt}
-                        disabled={promptInputsDisabled || !selectedPrompt || selectedPromptIsBuiltin}
+                        disabled={promptInputsDisabled || !selectedPrompt}
                         className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Delete Selected
@@ -600,28 +596,30 @@ export function SingleQuestionProbePanel({
                         disabled={promptInputsDisabled}
                         className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        Import JSON
+                        Upload Text File
                     </button>
                     <button
                         type="button"
-                        onClick={onExportPrompts}
-                        disabled={promptInputsDisabled || prompts.length === 0}
+                        onClick={onRefreshPrompts}
+                        disabled={promptInputsDisabled}
                         className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        Export JSON
+                        Refresh Folder
                     </button>
                     <input
                         ref={fileInputRef}
                         type="file"
-                        accept="application/json"
+                        accept=".txt,.md,.text,text/plain"
                         className="hidden"
                         onChange={handleImportFile}
                     />
                 </div>
 
                 {promptStatus && <p className="text-xs text-teal-700">{promptStatus}</p>}
-                {selectedPromptIsBuiltin && (
-                    <p className="text-xs text-slate-600">This is a built-in prompt template and cannot be deleted.</p>
+                {promptDirectoryPath && (
+                    <p className="text-xs text-slate-600">
+                        Prompt files live in <span className="font-mono">{promptDirectoryPath}</span>. Drop a `.txt`, `.md`, or `.text` file there and it will auto-appear.
+                    </p>
                 )}
             </section>
 
