@@ -1,0 +1,114 @@
+[
+  {
+    "text": "Identifies that the father's promise is conditioned on the son's marriage to a specific person within 18 months, forming an offer capable of acceptance by performance (unilateral contract).",
+    "category": "contract formation",
+    "layer": "core",
+    "legal_basis": "Contract formation requires offer and acceptance; father's conditional promise and son's marriage within 18 months constitute offer and acceptance.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "Recognizes the issue of whether the son's marriage constitutes bargained-for consideration or is merely a condition on a gratuitous promise.",
+    "category": "consideration",
+    "layer": "core",
+    "legal_basis": "Consideration requires a bargained-for exchange; son's prior intent to marry weakens inducement but does not automatically negate consideration.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "States that the Statute of Frauds applies to contracts made upon consideration of marriage other than mutual promises to marry, requiring a signed writing for enforceability.",
+    "category": "statute of frauds",
+    "layer": "core",
+    "legal_basis": "Statute of Frauds bars enforcement of marriage-consideration contracts without signed writing.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "Explains that the father's oral promise falls within the marriage-consideration Statute of Frauds category and is unenforceable due to lack of a signed writing.",
+    "category": "statute of frauds",
+    "layer": "core",
+    "legal_basis": "Promise conditioned on marriage to specific person within 18 months with no writing is unenforceable under Statute of Frauds.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "Correctly applies the one-year Statute of Frauds provision and concludes it does not bar enforcement because performance was possible within one year.",
+    "category": "statute of frauds",
+    "layer": "secondary",
+    "legal_basis": "One-year provision applies only if contract cannot be performed within one year; here, marriage could have occurred within one year.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "Identifies the suretyship Statute of Frauds issue and explains why it likely does not apply because the promise was made to the son (debtor), not the creditor.",
+    "category": "statute of frauds",
+    "layer": "secondary",
+    "legal_basis": "Suretyship writing requirement applies to promises made to creditor; promise to debtor weakens application.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "Discusses the main purpose (leading object) exception to the suretyship writing requirement and explains why it does not overcome the marriage-consideration writing requirement here.",
+    "category": "exceptions",
+    "layer": "secondary",
+    "legal_basis": "Main purpose exception may remove suretyship writing requirement but does not affect separate marriage-consideration Statute of Frauds.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "Evaluates the possibility of promissory estoppel enforcing the oral promise and correctly notes its weakness due to the son's prior intent and courts' caution in overriding Statute of Frauds.",
+    "category": "exceptions",
+    "layer": "secondary",
+    "legal_basis": "Promissory estoppel requires inducement and reliance; weak inducement and SoF caution limit its applicability.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "Explains that the father's unilateral mistake about the availability of a tax deduction does not excuse performance absent an express condition.",
+    "category": "mistake",
+    "layer": "secondary",
+    "legal_basis": "Unilateral mistake about expected benefit generally does not excuse contractual performance.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "Concludes that the father's oral promise is unenforceable due to the Statute of Frauds marriage-consideration writing requirement and absence of a signed writing.",
+    "category": "conclusion",
+    "layer": "core",
+    "legal_basis": "Marriage-consideration contracts require signed writing; none exists here, so promise is unenforceable.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "Avoids the material doctrinal error of treating the son's prior intent to marry as automatically negating consideration.",
+    "category": "consideration",
+    "layer": "core",
+    "legal_basis": "Prior intent does not automatically defeat consideration if the act is demanded as exchange.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "Avoids the error of ignoring the Statute of Frauds writing requirement for contracts in consideration of marriage.",
+    "category": "statute of frauds",
+    "layer": "core",
+    "legal_basis": "Writing requirement is dispositive for marriage-consideration contracts.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "Correctly distinguishes between the suretyship and marriage-consideration Statute of Frauds provisions and does not conflate their requirements.",
+    "category": "statute of frauds",
+    "layer": "secondary",
+    "legal_basis": "Suretyship and marriage-consideration are separate SoF categories with independent writing requirements.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "Includes analysis of the father's motivation (tax deduction) and its limited legal effect on enforceability.",
+    "category": "mistake",
+    "layer": "secondary",
+    "legal_basis": "Motivation for promise is relevant to main purpose exception but does not excuse performance due to mistake.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "Identifies the issue of enforceability of the father's oral promise as the central legal question.",
+    "category": "issue spotting",
+    "layer": "core",
+    "legal_basis": "Enforceability depends on contract formation, Statute of Frauds, and exceptions.",
+    "binary_evaluable": true
+  },
+  {
+    "text": "Demonstrates understanding that full performance (marriage) does not remove the Statute of Frauds writing requirement for marriage-consideration contracts.",
+    "category": "statute of frauds",
+    "layer": "secondary",
+    "legal_basis": "Performance does not satisfy writing requirement absent recognized substitute doctrine.",
+    "binary_evaluable": true
+  }
+]

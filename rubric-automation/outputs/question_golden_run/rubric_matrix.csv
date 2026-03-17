@@ -1,0 +1,9 @@
+rubric_id,category,text,response_0,response_1,response_2,response_3,response_4,response_5
+R002,issue,The response identifies the primary legal issue of But classic suretyship Statute of Frauds analysis typically turns on whether the promise is made to the creditor to answer for another’s debt..,1,0,1,0,0,0
+R003,rule,"The response states the governing rule for Even where estoppel is allowed, remedies may be limited to what justice requires rather than full expectation. accurately.",1,0,1,0,0,0
+R006,element,The response addresses the rather than full expectation element.,1,0,1,1,0,0
+R010,exception,The response addresses the The son’s full performance (the marriage) does not automatically remove this category from the Statute of Frauds; the writing requirement still applies unless the jurisdiction recognizes a specific substitute doctrine (discussed below). exception or defense when supported by the facts.,1,0,1,0,0,0
+R011,application,The response applies the governing legal standard to the facts rather than merely reciting doctrine.,1,0,1,0,0,0
+R013,counterargument,The response addresses the principal counterargument or defense raised by the facts.,1,0,1,1,0,0
+R014,conclusion,The response reaches a legally supported conclusion consistent with the governing analysis.,1,1,1,1,1,0
+R016,issue,The response identifies the controlling legal issue raised by the facts.,1,0,1,1,0,0

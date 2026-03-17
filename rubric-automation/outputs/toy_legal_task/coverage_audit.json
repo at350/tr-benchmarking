@@ -1,0 +1,46 @@
+{
+  "covered_categories": [
+    "application",
+    "conclusion",
+    "element",
+    "exception",
+    "issue",
+    "rule"
+  ],
+  "missing_points": [],
+  "rubric_mapping": {
+    "R001": [
+      "The issue is whether Dan committed battery against Eli.",
+      "Battery requires an intentional act that causes harmful or offensive contact, and intent can be satisfied by purpose or substantial certainty that contact will occur.",
+      "Dan says he only meant to scare Eli and argues Eli had consented to rough horseplay earlier in the day.",
+      "Dan may argue consent based on earlier horseplay, but generalized prior horseplay does not necessarily amount to consent to an angry drink throw.",
+      "Here, Dan intentionally threw the cup toward Eli, and the cup actually hit Eli's shoulder, which is at least offensive contact.",
+      "Therefore, Eli likely prevails on the battery claim."
+    ],
+    "R002": [
+      "The issue is whether Dan committed battery against Eli.",
+      "Battery requires an intentional act that causes harmful or offensive contact, and intent can be satisfied by purpose or substantial certainty that contact will occur.",
+      "intentional act that causes harmful or offensive contact",
+      "Here, Dan intentionally threw the cup toward Eli, and the cup actually hit Eli's shoulder, which is at least offensive contact.",
+      "Therefore, Eli likely prevails on the battery claim.",
+      "Therefore, Eli likely prevails on the battery claim."
+    ],
+    "R004": [
+      "Battery requires an intentional act that causes harmful or offensive contact, and intent can be satisfied by purpose or substantial certainty that contact will occur.",
+      "intentional act that causes harmful or offensive contact",
+      "Here, Dan intentionally threw the cup toward Eli, and the cup actually hit Eli's shoulder, which is at least offensive contact."
+    ],
+    "R006": [
+      "The issue is whether Dan committed battery against Eli.",
+      "Dan says he only meant to scare Eli and argues Eli had consented to rough horseplay earlier in the day.",
+      "Dan may argue consent based on earlier horseplay, but generalized prior horseplay does not necessarily amount to consent to an angry drink throw.",
+      "Here, Dan intentionally threw the cup toward Eli, and the cup actually hit Eli's shoulder, which is at least offensive contact."
+    ],
+    "R007": [],
+    "R009": [],
+    "R011": [
+      "The issue is whether Dan committed battery against Eli."
+    ]
+  },
+  "underrepresented_categories": []
+}

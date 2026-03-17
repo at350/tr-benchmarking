@@ -1,0 +1,8 @@
+rubric_id,category,text,response_0,response_1,response_2,response_3,response_4,response_5
+R001,issue,The response identifies the primary legal issue of The issue is whether Dan committed battery against Eli..,1,1,1,1,1,1
+R002,rule,"The response states the governing rule for Battery requires an intentional act that causes harmful or offensive contact, and intent can be satisfied by purpose or substantial certainty that contact will occur. accurately.",1,1,0,1,1,0
+R004,element,The response addresses the intentional act that causes harmful or offensive contact element.,1,1,0,1,1,0
+R006,exception,"The response addresses the Dan may argue consent based on earlier horseplay, but generalized prior horseplay does not necessarily amount to consent to an angry drink throw. exception or defense when supported by the facts.",1,1,0,1,1,1
+R007,application,The response applies the governing legal standard to the facts rather than merely reciting doctrine.,1,1,0,1,1,0
+R009,conclusion,The response reaches a legally supported conclusion consistent with the governing analysis.,1,1,1,1,1,1
+R011,issue,The response identifies the controlling legal issue raised by the facts.,1,1,0,1,1,0

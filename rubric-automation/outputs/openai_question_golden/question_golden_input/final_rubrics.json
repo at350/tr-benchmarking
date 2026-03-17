@@ -1,0 +1,191 @@
+[
+  {
+    "category": "contract formation",
+    "depth": 0,
+    "id": "R001",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Contract formation requires offer, acceptance, and consideration; acceptance by performance applies to unilateral contracts."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Identifies the father's conditional promise and the son's marriage within 18 months as offer and acceptance forming a unilateral contract.",
+    "weight": 0.07669441237872293
+  },
+  {
+    "category": "consideration",
+    "depth": 0,
+    "id": "R002",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Consideration requires a bargained-for exchange; marriage as requested performance may or may not be consideration depending on inducement."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Recognizes the issue whether the son's marriage constitutes bargained-for consideration or is merely a condition on a gratuitous promise.",
+    "weight": 0.07279730874493326
+  },
+  {
+    "category": "statute of frauds",
+    "depth": 0,
+    "id": "R004",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Absence of signed writing bars enforcement of contracts in consideration of marriage under the Statute of Frauds."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Explains that no signed writing exists between father and son, making the oral promise unenforceable under the marriage-consideration Statute of Frauds.",
+    "weight": 0.07752695040783406
+  },
+  {
+    "category": "statute of frauds",
+    "depth": 0,
+    "id": "R006",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "secondary",
+      "legal_basis": "Suretyship writing requirement applies to promises made to creditor to answer for another's debt; promise to debtor generally not covered."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Analyzes the suretyship Statute of Frauds provision and concludes it likely does not apply because the promise was made to the son (debtor), not the creditor.",
+    "weight": 0.07855122446789199
+  },
+  {
+    "category": "exceptions",
+    "depth": 0,
+    "id": "R008",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "secondary",
+      "legal_basis": "Promissory estoppel requires inducement and reliance; courts are cautious applying it to Statute of Frauds categories."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Evaluates promissory estoppel as a possible but weak exception to the Statute of Frauds due to weak inducement and reliance by the son.",
+    "weight": 0.07781222567655047
+  },
+  {
+    "category": "factual application",
+    "depth": 0,
+    "id": "R009",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Prior intent to perform requested act undermines inducement element of consideration and estoppel."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Notes that the son's prior intent to marry the politician's daughter weakens inducement and reliance for consideration and promissory estoppel.",
+    "weight": 0.07781222567655047
+  },
+  {
+    "category": "mistake",
+    "depth": 0,
+    "id": "R010",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "secondary",
+      "legal_basis": "Unilateral mistake about expected benefit generally does not excuse performance unless promise conditioned on that benefit."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "States that the father's unilateral mistake about the availability of a tax deduction does not excuse performance or affect enforceability absent express condition.",
+    "weight": 0.07762044398329573
+  },
+  {
+    "category": "conclusion",
+    "depth": 0,
+    "id": "R011",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Statute of Frauds bars enforcement of oral contracts made in consideration of marriage without signed writing."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Concludes that the father's oral promise is unenforceable due to the marriage-consideration Statute of Frauds writing requirement and absence of writing.",
+    "weight": 0.0862889765184093
+  },
+  {
+    "category": "doctrinal accuracy",
+    "depth": 0,
+    "id": "R012",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "One-year provision is distinct and does not apply if performance possible within one year; marriage-consideration writing requirement is separate."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Avoids material doctrinal error by not conflating the one-year provision with the marriage-consideration Statute of Frauds requirement.",
+    "weight": 0.07669441237872293
+  },
+  {
+    "category": "counterarguments",
+    "depth": 0,
+    "id": "R014",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "secondary",
+      "legal_basis": "Acknowledging counterarguments demonstrates comprehensive legal reasoning and issue spotting."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Includes counterarguments such as the son's prior intent negating inducement and the possibility of promissory estoppel.",
+    "weight": 0.07356792245782953
+  },
+  {
+    "category": "issue",
+    "depth": 0,
+    "id": "R016",
+    "metadata": {
+      "reason": "require_issue_spotting_rubrics"
+    },
+    "parent_id": null,
+    "source": "coverage-required",
+    "status": "active",
+    "text": "The response identifies the controlling legal issue raised by the facts.",
+    "weight": 0.07572564085393904
+  },
+  {
+    "category": "counterargument",
+    "depth": 0,
+    "id": "R018",
+    "metadata": {
+      "reason": "require_counterargument_rubrics"
+    },
+    "parent_id": null,
+    "source": "coverage-required",
+    "status": "active",
+    "text": "The response addresses the principal counterargument or defense when relevant.",
+    "weight": 0.06442330639812727
+  },
+  {
+    "category": "element",
+    "depth": 0,
+    "id": "R025",
+    "metadata": {
+      "repair_reason": "No final rubric directly covers the extracted element."
+    },
+    "parent_id": null,
+    "source": "coverage-audit",
+    "status": "active",
+    "text": "The response addresses the element of Main purpose of promisor.",
+    "weight": 0.0844849500571932
+  }
+]

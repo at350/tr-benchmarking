@@ -1,0 +1,11 @@
+rubric_id,category,text,response_0,response_1
+R001,issue spotting,"Identifies that the father's promise is conditioned on the son's marriage to a specific person within 18 months, constituting an offer accepted by performance.",1,1
+R003,rule statement,States the Statute of Frauds requires contracts made upon consideration of marriage (other than mutual promises to marry) to be in signed writing to be enforceable.,1,0
+R004,application,Correctly applies that the father's promise falls within the marriage-consideration Statute of Frauds category because it is a third-party promise conditioned on marriage.,1,0
+R009,exception/defense,"Discusses promissory estoppel as a possible but weak exception to the Statute of Frauds, noting weak inducement and courts' caution in overriding writing requirements.",1,0
+R010,exception/defense,Acknowledges the father's unilateral mistake about the availability of a tax deduction does not excuse performance absent express condition.,0,1
+R011,conclusion,Concludes that the father's oral promise is not enforceable due to the Statute of Frauds marriage-consideration writing requirement and absence of writing.,1,0
+R015,counterargument handling,"Considers and addresses counterarguments such as promissory estoppel and main purpose exception, explaining their limited applicability.",1,0
+R016,factual application,"Includes factual application that the son married within 14 months, satisfying the condition for acceptance by performance.",0,1
+R018,doctrinal accuracy,Avoids the error of treating the father's mistaken belief about tax deduction as a valid excuse for nonperformance.,0,1
+R021,counterargument,The response addresses the principal counterargument or defense when relevant.,1,0

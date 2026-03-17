@@ -1,0 +1,105 @@
+[
+  {
+    "category": "issue",
+    "depth": 0,
+    "id": "R001",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "The issue is whether Dan committed battery against Eli."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "The response identifies the primary legal issue of The issue is whether Dan committed battery against Eli..",
+    "weight": 0.14175903654987976
+  },
+  {
+    "category": "rule",
+    "depth": 0,
+    "id": "R002",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Battery requires an intentional act that causes harmful or offensive contact, and intent can be satisfied by purpose or substantial certainty that contact will occur."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "The response states the governing rule for Battery requires an intentional act that causes harmful or offensive contact, and intent can be satisfied by purpose or substantial certainty that contact will occur. accurately.",
+    "weight": 0.1621448875582393
+  },
+  {
+    "category": "element",
+    "depth": 0,
+    "id": "R004",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "intentional act that causes harmful or offensive contact"
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "The response addresses the intentional act that causes harmful or offensive contact element.",
+    "weight": 0.14882344036465783
+  },
+  {
+    "category": "exception",
+    "depth": 0,
+    "id": "R006",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Dan may argue consent based on earlier horseplay, but generalized prior horseplay does not necessarily amount to consent to an angry drink throw."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "The response addresses the Dan may argue consent based on earlier horseplay, but generalized prior horseplay does not necessarily amount to consent to an angry drink throw. exception or defense when supported by the facts.",
+    "weight": 0.1477637797924411
+  },
+  {
+    "category": "application",
+    "depth": 0,
+    "id": "R007",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Factual application is a core legal evaluation dimension."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "The response applies the governing legal standard to the facts rather than merely reciting doctrine.",
+    "weight": 0.14788151985602074
+  },
+  {
+    "category": "conclusion",
+    "depth": 0,
+    "id": "R009",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "The conclusion should follow from the rule-and-facts analysis."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "The response reaches a legally supported conclusion consistent with the governing analysis.",
+    "weight": 0.12339158663145679
+  },
+  {
+    "category": "issue",
+    "depth": 0,
+    "id": "R011",
+    "metadata": {
+      "reason": "require_issue_spotting_rubrics"
+    },
+    "parent_id": null,
+    "source": "coverage-required",
+    "status": "active",
+    "text": "The response identifies the controlling legal issue raised by the facts.",
+    "weight": 0.1282357492473046
+  }
+]

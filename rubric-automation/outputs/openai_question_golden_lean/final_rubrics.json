@@ -1,0 +1,150 @@
+[
+  {
+    "category": "issue spotting",
+    "depth": 0,
+    "id": "R001",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Contract formation requires offer and acceptance; here, offer is conditional promise and acceptance is marriage performance."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Identifies that the father's promise is conditioned on the son's marriage to a specific person within 18 months, constituting an offer accepted by performance.",
+    "weight": 0.10875351086184037
+  },
+  {
+    "category": "rule statement",
+    "depth": 0,
+    "id": "R003",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Statute of Frauds writing requirement for contracts in consideration of marriage."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "States the Statute of Frauds requires contracts made upon consideration of marriage (other than mutual promises to marry) to be in signed writing to be enforceable.",
+    "weight": 0.11892352243564748
+  },
+  {
+    "category": "application",
+    "depth": 0,
+    "id": "R004",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Promise conditioned on son's marriage to specific person is a contract in consideration of marriage requiring writing."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Correctly applies that the father's promise falls within the marriage-consideration Statute of Frauds category because it is a third-party promise conditioned on marriage.",
+    "weight": 0.12125219732077899
+  },
+  {
+    "category": "exception/defense",
+    "depth": 0,
+    "id": "R009",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "secondary",
+      "legal_basis": "Promissory estoppel requires inducement and reliance; courts reluctant to apply it to Statute of Frauds barred promises."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Discusses promissory estoppel as a possible but weak exception to the Statute of Frauds, noting weak inducement and courts' caution in overriding writing requirements.",
+    "weight": 0.09433147075956906
+  },
+  {
+    "category": "exception/defense",
+    "depth": 0,
+    "id": "R010",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "secondary",
+      "legal_basis": "Unilateral mistake about expected benefit does not excuse contractual performance."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Acknowledges the father's unilateral mistake about the availability of a tax deduction does not excuse performance absent express condition.",
+    "weight": 0.09481075305904031
+  },
+  {
+    "category": "conclusion",
+    "depth": 0,
+    "id": "R011",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Statute of Frauds bars enforcement of oral contracts in consideration of marriage without writing."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Concludes that the father's oral promise is not enforceable due to the Statute of Frauds marriage-consideration writing requirement and absence of writing.",
+    "weight": 0.1065625060642575
+  },
+  {
+    "category": "counterargument handling",
+    "depth": 0,
+    "id": "R015",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "secondary",
+      "legal_basis": "Effective legal analysis weighs and explains counterarguments and exceptions."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Considers and addresses counterarguments such as promissory estoppel and main purpose exception, explaining their limited applicability.",
+    "weight": 0.09080221019073531
+  },
+  {
+    "category": "factual application",
+    "depth": 0,
+    "id": "R016",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Acceptance by performance requires timely completion of requested act."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Includes factual application that the son married within 14 months, satisfying the condition for acceptance by performance.",
+    "weight": 0.0925450549160853
+  },
+  {
+    "category": "doctrinal accuracy",
+    "depth": 0,
+    "id": "R018",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Unilateral mistake about expected benefit does not excuse performance absent express condition."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "Avoids the error of treating the father's mistaken belief about tax deduction as a valid excuse for nonperformance.",
+    "weight": 0.0925450549160853
+  },
+  {
+    "category": "counterargument",
+    "depth": 0,
+    "id": "R021",
+    "metadata": {
+      "reason": "require_counterargument_rubrics"
+    },
+    "parent_id": null,
+    "source": "coverage-required",
+    "status": "active",
+    "text": "The response addresses the principal counterargument or defense when relevant.",
+    "weight": 0.07947371947596028
+  }
+]

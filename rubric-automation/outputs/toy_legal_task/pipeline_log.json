@@ -1,0 +1,78 @@
+[
+  {
+    "behavior_similarity": 1.0,
+    "event": "redundancy_rejection",
+    "kept_rubric_id": "R006",
+    "llm_reason": "",
+    "rejected_rubric_id": "R005",
+    "text_similarity": 0.324
+  },
+  {
+    "active_after_iteration": 8,
+    "average_specificity": 1.175,
+    "categories_present": [
+      "application",
+      "conclusion",
+      "element",
+      "exception",
+      "issue",
+      "rule"
+    ],
+    "decomposition_targets": [
+      "R012",
+      "R003",
+      "R008"
+    ],
+    "event": "iteration_summary",
+    "immediate_rejections": {},
+    "iteration": 1,
+    "new_rubrics": 4,
+    "redundancy_rejections": 1,
+    "starting_active_rubrics": 10
+  },
+  {
+    "active_after_iteration": 7,
+    "average_specificity": 1.257,
+    "categories_present": [
+      "application",
+      "conclusion",
+      "element",
+      "exception",
+      "issue",
+      "rule"
+    ],
+    "decomposition_targets": [
+      "R012"
+    ],
+    "event": "iteration_summary",
+    "immediate_rejections": {},
+    "iteration": 2,
+    "new_rubrics": 3,
+    "redundancy_rejections": 0,
+    "starting_active_rubrics": 10
+  },
+  {
+    "active_after_iteration": 7,
+    "average_specificity": 1.257,
+    "categories_present": [
+      "application",
+      "conclusion",
+      "element",
+      "exception",
+      "issue",
+      "rule"
+    ],
+    "decomposition_targets": [],
+    "event": "iteration_summary",
+    "immediate_rejections": {},
+    "iteration": 3,
+    "new_rubrics": 0,
+    "redundancy_rejections": 0,
+    "starting_active_rubrics": 10
+  },
+  {
+    "event": "pipeline_stop",
+    "iteration": 3,
+    "reason": "converged"
+  }
+]

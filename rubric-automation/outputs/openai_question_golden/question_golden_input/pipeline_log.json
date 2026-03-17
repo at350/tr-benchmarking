@@ -1,0 +1,97 @@
+[
+  {
+    "behavior_similarity": 1.0,
+    "event": "redundancy_rejection",
+    "kept_rubric_id": "R004",
+    "llm_reason": "",
+    "rejected_rubric_id": "R003",
+    "text_similarity": 0.304
+  },
+  {
+    "behavior_similarity": 1.0,
+    "event": "redundancy_rejection",
+    "kept_rubric_id": "R003",
+    "llm_reason": "",
+    "rejected_rubric_id": "R005",
+    "text_similarity": 0.12
+  },
+  {
+    "behavior_similarity": 1.0,
+    "event": "redundancy_rejection",
+    "kept_rubric_id": "R008",
+    "llm_reason": "",
+    "rejected_rubric_id": "R007",
+    "text_similarity": 0.04
+  },
+  {
+    "behavior_similarity": 1.0,
+    "event": "redundancy_rejection",
+    "kept_rubric_id": "R012",
+    "llm_reason": "",
+    "rejected_rubric_id": "R013",
+    "text_similarity": 0.389
+  },
+  {
+    "behavior_similarity": 1.0,
+    "event": "redundancy_rejection",
+    "kept_rubric_id": "R003",
+    "llm_reason": "",
+    "rejected_rubric_id": "R015",
+    "text_similarity": 0.227
+  },
+  {
+    "active_after_iteration": 12,
+    "average_specificity": 1.142,
+    "categories_present": [
+      "conclusion",
+      "consideration",
+      "contract formation",
+      "counterargument",
+      "counterarguments",
+      "doctrinal accuracy",
+      "exceptions",
+      "factual application",
+      "issue",
+      "mistake",
+      "statute of frauds"
+    ],
+    "decomposition_targets": [
+      "R017"
+    ],
+    "event": "iteration_summary",
+    "immediate_rejections": {},
+    "iteration": 1,
+    "new_rubrics": 6,
+    "redundancy_rejections": 5,
+    "starting_active_rubrics": 13
+  },
+  {
+    "active_after_iteration": 12,
+    "average_specificity": 1.142,
+    "categories_present": [
+      "conclusion",
+      "consideration",
+      "contract formation",
+      "counterargument",
+      "counterarguments",
+      "doctrinal accuracy",
+      "exceptions",
+      "factual application",
+      "issue",
+      "mistake",
+      "statute of frauds"
+    ],
+    "decomposition_targets": [],
+    "event": "iteration_summary",
+    "immediate_rejections": {},
+    "iteration": 2,
+    "new_rubrics": 0,
+    "redundancy_rejections": 0,
+    "starting_active_rubrics": 13
+  },
+  {
+    "event": "pipeline_stop",
+    "iteration": 2,
+    "reason": "converged"
+  }
+]

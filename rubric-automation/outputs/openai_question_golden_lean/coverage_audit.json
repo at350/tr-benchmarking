@@ -1,0 +1,96 @@
+{
+  "covered_categories": [
+    "application",
+    "conclusion",
+    "counterargument",
+    "counterargument handling",
+    "doctrinal accuracy",
+    "exception/defense",
+    "factual application",
+    "issue spotting",
+    "rule statement"
+  ],
+  "missing_points": [],
+  "rubric_mapping": {
+    "R001": [
+      "Enforceability of the father's oral promise to pay son's student loans",
+      "Effect of the father's unilateral mistake about tax deduction",
+      "Contract formation requires offer, acceptance, and consideration",
+      "One-year provision of Statute of Frauds applies only if performance impossible within one year",
+      "Suretyship provision of Statute of Frauds applies to promises to answer for another's debt",
+      "Promissory estoppel may enforce an oral promise to avoid injustice"
+    ],
+    "R003": [
+      "Enforceability of the father's oral promise to pay son's student loans",
+      "Whether a valid contract was formed",
+      "Whether the Statute of Frauds applies to bar enforcement",
+      "Whether any exceptions to the Statute of Frauds apply",
+      "Contract formation requires offer, acceptance, and consideration",
+      "Statute of Frauds requires certain contracts to be in signed writing"
+    ],
+    "R004": [
+      "Enforceability of the father's oral promise to pay son's student loans",
+      "Whether the Statute of Frauds applies to bar enforcement",
+      "Whether any exceptions to the Statute of Frauds apply",
+      "Effect of the father's unilateral mistake about tax deduction",
+      "Contract formation requires offer, acceptance, and consideration",
+      "Statute of Frauds requires certain contracts to be in signed writing"
+    ],
+    "R009": [
+      "Whether the Statute of Frauds applies to bar enforcement",
+      "Whether any exceptions to the Statute of Frauds apply",
+      "Statute of Frauds requires certain contracts to be in signed writing",
+      "One-year provision of Statute of Frauds applies only if performance impossible within one year",
+      "Suretyship provision of Statute of Frauds applies to promises to answer for another's debt",
+      "Main purpose (leading object) exception to suretyship writing requirement"
+    ],
+    "R010": [
+      "Enforceability of the father's oral promise to pay son's student loans",
+      "Effect of the father's unilateral mistake about tax deduction",
+      "One-year provision of Statute of Frauds applies only if performance impossible within one year",
+      "Unilateral mistake about expected benefit does not excuse performance",
+      "Acceptance by performance",
+      "Performance within one year"
+    ],
+    "R011": [
+      "Enforceability of the father's oral promise to pay son's student loans",
+      "Whether the Statute of Frauds applies to bar enforcement",
+      "Whether any exceptions to the Statute of Frauds apply",
+      "Effect of the father's unilateral mistake about tax deduction",
+      "Contract formation requires offer, acceptance, and consideration",
+      "Statute of Frauds requires certain contracts to be in signed writing"
+    ],
+    "R015": [
+      "Whether any exceptions to the Statute of Frauds apply",
+      "Main purpose (leading object) exception to suretyship writing requirement",
+      "Promissory estoppel may enforce an oral promise to avoid injustice",
+      "Main purpose of promisor",
+      "Main purpose (leading object) exception to suretyship writing requirement",
+      "Promissory estoppel"
+    ],
+    "R016": [
+      "Contract formation requires offer, acceptance, and consideration",
+      "One-year provision of Statute of Frauds applies only if performance impossible within one year",
+      "Unilateral mistake about expected benefit does not excuse performance",
+      "Acceptance by performance",
+      "Performance within one year",
+      "Mistake about condition of promise"
+    ],
+    "R018": [
+      "Enforceability of the father's oral promise to pay son's student loans",
+      "Whether a valid contract was formed",
+      "Effect of the father's unilateral mistake about tax deduction",
+      "Promissory estoppel may enforce an oral promise to avoid injustice",
+      "Unilateral mistake about expected benefit does not excuse performance",
+      "Mistake about condition of promise"
+    ],
+    "R021": []
+  },
+  "underrepresented_categories": [
+    "element",
+    "exception",
+    "factor",
+    "issue",
+    "rule"
+  ]
+}

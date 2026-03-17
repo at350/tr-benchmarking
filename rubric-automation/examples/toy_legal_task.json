@@ -1,0 +1,18 @@
+{
+  "legal_question": "At a crowded baseball game, Dan became angry at Eli and threw a plastic cup filled with ice at him. The cup hit Eli's shoulder. Dan says he only meant to scare Eli and argues Eli had consented to rough horseplay earlier in the day. Can Eli likely prevail on a battery claim?",
+  "golden_answer": "The issue is whether Dan committed battery against Eli. Battery requires an intentional act that causes harmful or offensive contact, and intent can be satisfied by purpose or substantial certainty that contact will occur. Here, Dan intentionally threw the cup toward Eli, and the cup actually hit Eli's shoulder, which is at least offensive contact. Dan's statement that he only meant to scare Eli does not defeat intent if he was substantially certain the throw would cause contact. Dan may argue consent based on earlier horseplay, but generalized prior horseplay does not necessarily amount to consent to an angry drink throw. Therefore, Eli likely prevails on the battery claim.",
+  "sample_responses": [
+    "Eli likely wins. The issue is battery. Battery requires intent, harmful or offensive contact, and causation. Dan intentionally threw the cup, the cup struck Eli, and that is offensive contact. Even if Dan says he only meant to scare Eli, intent exists if he was substantially certain contact would occur. Dan can raise consent because of earlier horseplay, but that defense is weak because prior horseplay does not necessarily authorize an angry throw. Eli therefore likely prevails.",
+    "Dan is probably liable for battery because he intentionally threw an object that hit Eli. A battery claim needs intent and harmful or offensive contact. The contact happened here when the cup hit Eli's shoulder, so Eli should recover.",
+    "This looks more like negligence because Dan acted carelessly in a crowded place. Eli would need to show duty, breach, causation, and damages. Dan breached a duty of care, so Eli probably wins.",
+    "The issue is whether this is battery. Battery requires intent plus harmful or offensive contact. Dan threw the cup and it hit Eli, so those elements are present. Eli probably wins.",
+    "Dan may argue Eli consented because they had been roughhousing earlier. If Eli consented to this sort of contact, Dan would have a defense. But the facts suggest anger, so the defense may not work.",
+    "Eli should win because Dan was wrong and the judge will not like his behavior."
+  ],
+  "jurisdiction": "United States",
+  "legal_domain": "Torts",
+  "metadata": {
+    "demo": true,
+    "scenario": "toy battery example"
+  }
+}

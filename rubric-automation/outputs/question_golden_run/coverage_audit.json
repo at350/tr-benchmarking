@@ -1,0 +1,83 @@
+{
+  "covered_categories": [
+    "application",
+    "conclusion",
+    "counterargument",
+    "element",
+    "exception",
+    "issue",
+    "rule"
+  ],
+  "missing_points": [
+    {
+      "category": "element",
+      "point": "none exists",
+      "reason": "No final rubric directly covers the extracted element."
+    },
+    {
+      "category": "application",
+      "point": "Contract formation: was there a bargain?",
+      "reason": "No final rubric directly covers the extracted application."
+    }
+  ],
+  "rubric_mapping": {
+    "R002": [
+      "conditional gift: The harder formation question is whether the marriage is bargained-for consideration (the \u201cprice\u201d of the father\u2019s promise) or merely a condition on a gratuitous promise (a conditional gift).",
+      "But classic suretyship Statute of Frauds analysis typically turns on whether the promise is made to the creditor to answer for another\u2019s debt.",
+      "The father\u2019s hoped-for tax deduction is a pecuniary motive, but courts vary on whether that is \u201cdirect\u201d enough.",
+      "If the father had separately promised the lender to pay or guarantee the loans, that would be within suretyship and ordinarily require a writing (subject to exceptions like \u201cmain purpose\u201d).",
+      "Conclusion The father\u2019s oral promise is likely unenforceable because it is a promise made in consideration of marriage, which falls within the Statute of Frauds and requires a signed writing, and none exists.",
+      "Statute of Frauds \u201cgates\u201d (enforceability, not proof) Gate A: Contract in consideration of marriage (dispositive here*) Under the traditional Statute of Frauds, a promise is unenforceable unless in a signed writing when it is a contract made upon consideration of marriage, other than mutual promises to marry."
+    ],
+    "R003": [
+      "If the father had separately promised the lender to pay or guarantee the loans, that would be within suretyship and ordinarily require a writing (subject to exceptions like \u201cmain purpose\u201d).",
+      "Even where estoppel is allowed, remedies may be limited to what justice requires rather than full expectation.",
+      "Conclusion The father\u2019s oral promise is likely unenforceable because it is a promise made in consideration of marriage, which falls within the Statute of Frauds and requires a signed writing, and none exists.",
+      "rather than full expectation",
+      "Statute of Frauds \u201cgates\u201d (enforceability, not proof) Gate A: Contract in consideration of marriage (dispositive here*) Under the traditional Statute of Frauds, a promise is unenforceable unless in a signed writing when it is a contract made upon consideration of marriage, other than mutual promises to marry.",
+      "The son\u2019s full performance (the marriage) does not automatically remove this category from the Statute of Frauds; the writing requirement still applies unless the jurisdiction recognizes a specific substitute doctrine (discussed below)."
+    ],
+    "R006": [
+      "Even where estoppel is allowed, remedies may be limited to what justice requires rather than full expectation.",
+      "rather than full expectation",
+      "Statute of Frauds \u201cgates\u201d (enforceability, not proof) Gate A: Contract in consideration of marriage (dispositive here*) Under the traditional Statute of Frauds, a promise is unenforceable unless in a signed writing when it is a contract made upon consideration of marriage, other than mutual promises to marry.",
+      "The son\u2019s full performance (the marriage) does not automatically remove this category from the Statute of Frauds; the writing requirement still applies unless the jurisdiction recognizes a specific substitute doctrine (discussed below).",
+      "Statute of Frauds \u201cgates\u201d (enforceability, not proof) Gate A: Contract in consideration of marriage (dispositive here*) Under the traditional Statute of Frauds, a promise is unenforceable unless in a signed writing when it is a contract made upon consideration of marriage, other than mutual promises to marry.",
+      "Even where estoppel is allowed, remedies may be limited to what justice requires rather than full expectation."
+    ],
+    "R010": [
+      "conditional gift: The harder formation question is whether the marriage is bargained-for consideration (the \u201cprice\u201d of the father\u2019s promise) or merely a condition on a gratuitous promise (a conditional gift).",
+      "But classic suretyship Statute of Frauds analysis typically turns on whether the promise is made to the creditor to answer for another\u2019s debt.",
+      "The father\u2019s hoped-for tax deduction is a pecuniary motive, but courts vary on whether that is \u201cdirect\u201d enough.",
+      "If the father had separately promised the lender to pay or guarantee the loans, that would be within suretyship and ordinarily require a writing (subject to exceptions like \u201cmain purpose\u201d).",
+      "Even where estoppel is allowed, remedies may be limited to what justice requires rather than full expectation.",
+      "Conclusion The father\u2019s oral promise is likely unenforceable because it is a promise made in consideration of marriage, which falls within the Statute of Frauds and requires a signed writing, and none exists."
+    ],
+    "R011": [
+      "conditional gift: The harder formation question is whether the marriage is bargained-for consideration (the \u201cprice\u201d of the father\u2019s promise) or merely a condition on a gratuitous promise (a conditional gift).",
+      "Even where estoppel is allowed, remedies may be limited to what justice requires rather than full expectation.",
+      "rather than full expectation",
+      "Statute of Frauds \u201cgates\u201d (enforceability, not proof) Gate A: Contract in consideration of marriage (dispositive here*) Under the traditional Statute of Frauds, a promise is unenforceable unless in a signed writing when it is a contract made upon consideration of marriage, other than mutual promises to marry.",
+      "The son\u2019s full performance (the marriage) does not automatically remove this category from the Statute of Frauds; the writing requirement still applies unless the jurisdiction recognizes a specific substitute doctrine (discussed below).",
+      "Exceptions/substitutes \u201cMain purpose\u201d/\u201cleading object\u201d doctrine (only relevant if suretyship applies) If a suretyship writing requirement were triggered (e.g., promise to creditor), the \u201cmain purpose\u201d exception may remove the promise from that suretyship category if the father\u2019s dominant purpose was to secure a personal economic benefit."
+    ],
+    "R013": [
+      "Fact cutting against bargain (and against reliance later): the son \u201cagreed because he already planned to propose,\u201d which suggests the promise may not have induced the marriage.",
+      "On these facts, the promise is made to the son (the debtor), not to the lender.",
+      "Promissory estoppel (possible but weak on these facts; often limited against SoF) The son might argue promissory estoppel to enforce an oral promise to avoid injustice."
+    ],
+    "R014": [
+      "But classic suretyship Statute of Frauds analysis typically turns on whether the promise is made to the creditor to answer for another\u2019s debt.",
+      "Conclusion The father\u2019s oral promise is likely unenforceable because it is a promise made in consideration of marriage, which falls within the Statute of Frauds and requires a signed writing, and none exists.",
+      "Conclusion The father\u2019s oral promise is likely unenforceable because it is a promise made in consideration of marriage, which falls within the Statute of Frauds and requires a signed writing, and none exists.",
+      "Conclusion The father\u2019s oral promise is likely unenforceable because it is a promise made in consideration of marriage, which falls within the Statute of Frauds and requires a signed writing, and none exists."
+    ],
+    "R016": [
+      "Fact cutting against bargain (and against reliance later): the son \u201cagreed because he already planned to propose,\u201d which suggests the promise may not have induced the marriage.",
+      "Gate C: Suretyship (promise to pay another\u2019s debt; secondary and nuanced) There is also a potential suretyship issue because the father promised to pay an existing debt (student loans).",
+      "On these facts, the promise is made to the son (the debtor), not to the lender.",
+      "Promissory estoppel (possible but weak on these facts; often limited against SoF) The son might argue promissory estoppel to enforce an oral promise to avoid injustice."
+    ]
+  },
+  "underrepresented_categories": []
+}

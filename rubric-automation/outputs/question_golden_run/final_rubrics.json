@@ -1,0 +1,120 @@
+[
+  {
+    "category": "issue",
+    "depth": 0,
+    "id": "R002",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "But classic suretyship Statute of Frauds analysis typically turns on whether the promise is made to the creditor to answer for another\u2019s debt."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "The response identifies the primary legal issue of But classic suretyship Statute of Frauds analysis typically turns on whether the promise is made to the creditor to answer for another\u2019s debt..",
+    "weight": 0.13159560461368533
+  },
+  {
+    "category": "rule",
+    "depth": 0,
+    "id": "R003",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Even where estoppel is allowed, remedies may be limited to what justice requires rather than full expectation."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "The response states the governing rule for Even where estoppel is allowed, remedies may be limited to what justice requires rather than full expectation. accurately.",
+    "weight": 0.1433743597031436
+  },
+  {
+    "category": "element",
+    "depth": 0,
+    "id": "R006",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "rather than full expectation"
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "The response addresses the rather than full expectation element.",
+    "weight": 0.12788362668554681
+  },
+  {
+    "category": "exception",
+    "depth": 0,
+    "id": "R010",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "The son\u2019s full performance (the marriage) does not automatically remove this category from the Statute of Frauds; the writing requirement still applies unless the jurisdiction recognizes a specific substitute doctrine (discussed below)."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "The response addresses the The son\u2019s full performance (the marriage) does not automatically remove this category from the Statute of Frauds; the writing requirement still applies unless the jurisdiction recognizes a specific substitute doctrine (discussed below). exception or defense when supported by the facts.",
+    "weight": 0.13248786985967909
+  },
+  {
+    "category": "application",
+    "depth": 0,
+    "id": "R011",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Factual application is a core legal evaluation dimension."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "The response applies the governing legal standard to the facts rather than merely reciting doctrine.",
+    "weight": 0.13845351104983572
+  },
+  {
+    "category": "counterargument",
+    "depth": 0,
+    "id": "R013",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "Counterargument handling appears in the golden answer or natural issue structure."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "The response addresses the principal counterargument or defense raised by the facts.",
+    "weight": 0.09734961469602019
+  },
+  {
+    "category": "conclusion",
+    "depth": 0,
+    "id": "R014",
+    "metadata": {
+      "binary_evaluable": true,
+      "layer": "core",
+      "legal_basis": "The conclusion should follow from the rule-and-facts analysis."
+    },
+    "parent_id": null,
+    "source": "golden-derived",
+    "status": "active",
+    "text": "The response reaches a legally supported conclusion consistent with the governing analysis.",
+    "weight": 0.11294590905537642
+  },
+  {
+    "category": "issue",
+    "depth": 0,
+    "id": "R016",
+    "metadata": {
+      "reason": "require_issue_spotting_rubrics"
+    },
+    "parent_id": null,
+    "source": "coverage-required",
+    "status": "active",
+    "text": "The response identifies the controlling legal issue raised by the facts.",
+    "weight": 0.11590950433671285
+  }
+]

@@ -1,0 +1,100 @@
+[
+  {
+    "behavior_similarity": 1.0,
+    "event": "redundancy_rejection",
+    "kept_rubric_id": "R002",
+    "llm_reason": "",
+    "rejected_rubric_id": "R001",
+    "text_similarity": 0.212
+  },
+  {
+    "behavior_similarity": 1.0,
+    "event": "redundancy_rejection",
+    "kept_rubric_id": "R006",
+    "llm_reason": "",
+    "rejected_rubric_id": "R007",
+    "text_similarity": 0.333
+  },
+  {
+    "behavior_similarity": 1.0,
+    "event": "redundancy_rejection",
+    "kept_rubric_id": "R006",
+    "llm_reason": "",
+    "rejected_rubric_id": "R008",
+    "text_similarity": 0.333
+  },
+  {
+    "behavior_similarity": 1.0,
+    "event": "redundancy_rejection",
+    "kept_rubric_id": "R010",
+    "llm_reason": "",
+    "rejected_rubric_id": "R009",
+    "text_similarity": 0.271
+  },
+  {
+    "behavior_similarity": 1.0,
+    "event": "redundancy_rejection",
+    "kept_rubric_id": "R011",
+    "llm_reason": "",
+    "rejected_rubric_id": "R017",
+    "text_similarity": 0.417
+  },
+  {
+    "active_after_iteration": 8,
+    "average_specificity": 1.375,
+    "categories_present": [
+      "application",
+      "conclusion",
+      "counterargument",
+      "element",
+      "exception",
+      "issue",
+      "rule"
+    ],
+    "decomposition_targets": [
+      "R017",
+      "R005",
+      "R012",
+      "R004"
+    ],
+    "event": "iteration_summary",
+    "immediate_rejections": {},
+    "iteration": 1,
+    "new_rubrics": 6,
+    "redundancy_rejections": 5,
+    "starting_active_rubrics": 11
+  },
+  {
+    "active_after_iteration": 8,
+    "average_specificity": 1.375,
+    "categories_present": [
+      "application",
+      "conclusion",
+      "counterargument",
+      "element",
+      "exception",
+      "issue",
+      "rule"
+    ],
+    "decomposition_targets": [],
+    "event": "iteration_summary",
+    "immediate_rejections": {},
+    "iteration": 2,
+    "new_rubrics": 0,
+    "redundancy_rejections": 0,
+    "starting_active_rubrics": 11
+  },
+  {
+    "event": "pipeline_stop",
+    "iteration": 2,
+    "reason": "converged"
+  },
+  {
+    "behavior_similarity": 1.0,
+    "event": "redundancy_rejection",
+    "kept_rubric_id": "R011",
+    "llm_reason": "",
+    "rejected_rubric_id": "R024",
+    "text_similarity": 0.176
+  }
+]

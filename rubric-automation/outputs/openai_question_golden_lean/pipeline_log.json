@@ -1,0 +1,48 @@
+[
+  {
+    "behavior_similarity": 1.0,
+    "event": "redundancy_rejection",
+    "kept_rubric_id": "R004",
+    "llm_reason": "",
+    "rejected_rubric_id": "R005",
+    "text_similarity": 0.125
+  },
+  {
+    "active_after_iteration": 10,
+    "average_specificity": 1.28,
+    "categories_present": [
+      "application",
+      "conclusion",
+      "counterargument",
+      "counterargument handling",
+      "doctrinal accuracy",
+      "exception/defense",
+      "factual application",
+      "issue spotting",
+      "rule statement"
+    ],
+    "decomposition_targets": [],
+    "event": "iteration_summary",
+    "immediate_rejections": {
+      "R002": "rejected_unsupported",
+      "R006": "rejected_unsupported",
+      "R007": "rejected_unsupported",
+      "R008": "rejected_unsupported",
+      "R012": "rejected_unsupported",
+      "R013": "rejected_unsupported",
+      "R014": "rejected_unsupported",
+      "R017": "rejected_unsupported",
+      "R019": "rejected_unsupported",
+      "R020": "rejected_unsupported"
+    },
+    "iteration": 1,
+    "new_rubrics": 0,
+    "redundancy_rejections": 1,
+    "starting_active_rubrics": 10
+  },
+  {
+    "event": "pipeline_stop",
+    "iteration": 1,
+    "reason": "converged"
+  }
+]
