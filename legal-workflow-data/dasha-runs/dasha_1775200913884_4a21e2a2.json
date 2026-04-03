@@ -1,0 +1,520 @@
+{
+  "id": "dasha_1775200913884_4a21e2a2",
+  "rubricPackId": "karthic_1775192519241_30890e05",
+  "status": "completed",
+  "inputArtifacts": [],
+  "questionText": "You are presented with the following dispute. Draft a concise legal analysis (suitable for a short bench memo) that answers each of the nine specified domains below and gives a clear bottom‑line recommendation. Anchor your analysis to Neale v. Neales, 76 U.S. (9 Wall.) 1 (1869), and state any jurisdictional assumption you use. Limit citations to the doctrines discussed (Statute of Frauds, part‑performance/estoppel, promissory estoppel) and identify any doctrinal uncertainties a trial court would face.\n\nFacts: Anna owns a tract of land in State X subject to the State’s ordinary Statute of Frauds rule requiring written agreements for transfers of land. Before her daughter Claire’s marriage, Anna orally promised Claire (and orally directed her son Ben to act as trustee) that she would “give the lot and all buildings on it to Claire and hold title for her benefit” if Claire married and moved onto the property. Claire married, moved in, paid $6,500 of her own savings to build a large addition and several outbuildings, collected and used rental income from a small tenant, and made substantial improvements to the landscaping and utilities. All of this occurred with Anna’s knowledge; Anna sometimes praised the work and occasionally helped supervise but never signed any writing conveying the land. Fifteen years later, Anna died intestate; her heirs (including Ben acting in his personal capacity) refuse to convey, asserting (a) the oral promise is unenforceable under the Statute of Frauds because no signed writing exists; (b) some of the improvements were paid for by Anna and some rental income was retained by Anna during the marriage years; and (c) any estate relief should be denied because Claire breached a condition (she used some of the rentals for personal expenses not related to the property). Claire sues the heirs for specific performance (a deed to be reconveyed to her, or alternatively a trust in her favor) and, in the alternative, for damages under promissory estoppel/reliance.\n\nPrepare a response that addresses each of the following points explicitly:\n\n1. Jurisdiction assumption: State the legal framework you assume (e.g., U.S. common‑law equitable doctrine following Neale, or a specific State X rule) and why that choice matters for the analysis. \n\n2. Bottom‑line outcome: On the facts given, state the clearest conclusion whether Claire’s claim to enforce the oral promise (specific performance or trust) should succeed. Give the remedial outcome you would recommend (specific performance, constructive trust, or damages).\n\n3. Controlling doctrine: Identify the principal doctrine or category of the Statute of Frauds that is dispositive on its face and then state which equitable doctrine (part‑performance/estoppel) most likely controls the result. Briefly explain the legal standard from Neale that you apply.\n\n4. Formation/Consideration: Analyze whether the facts show a real bargain/consideration (marriage and substantial expenditure by Claire) versus a mere conditional gift or license. How should a court characterize Claire’s acts legally (consideration, condition, or inducement)?\n\n5. Statute of Frauds gates: Identify which writing‑requirement category(ies) are triggered. Explain which particular aspect of the SoF is dispositive and how part‑performance is argued to remove the bar.\n\n6. Exceptions / Promissory estoppel: Treat Neale’s part‑performance doctrine and modern promissory‑estoppel doctrines: could a court reach Claire’s claim either under classical part‑performance or modern estoppel? Which is stronger under these facts and why?\n\n7. Defenses / Mistake: Analyze the heirs’ defenses: (a) Anna paid for some improvements; (b) Anna retained some rental income; (c) Claire supposedly breached a condition by using some rentals for personal expenses. How would each defense be evaluated and which, if any, is likely to defeat Claire’s equity claim?\n\n8. Strongest counterargument for the heirs: State the single best doctrinal argument for denying Claire relief (not a straw man). Explain what facts the heirs must prove at trial to make that argument succeed.\n\n9. Bounded uncertainty and practical directions: Identify specific doctrinal or jurisdictional uncertainties that could change the result (e.g., how much improvement is ‘substantial’, whether possession alone suffices, whether receipt of rents is required) and give three concrete evidentiary or pleading steps Claire’s counsel should take to maximize success in jurisdictions that follow Neale‑style part‑performance.\n\nFormat requirement: Provide a numbered answer corresponding exactly to the nine points above; be succinct but precise, limiting your total memo to approximately 700–1000 words. If you assume any departures from Neale for State X, say so briefly and explain the impact.",
+  "selectedModels": [
+    {
+      "provider": "openai",
+      "model": "gpt-5.4",
+      "reasoningEffort": "medium",
+      "temperature": 0.2
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-6",
+      "reasoningEffort": "none",
+      "temperature": 0.2
+    }
+  ],
+  "responses": [
+    {
+      "id": "response_40ba96dc",
+      "modelKey": "openai::gpt-5.4",
+      "provider": "openai",
+      "model": "gpt-5.4",
+      "responseText": "1. I assume State X follows the traditional U.S. common-law equitable approach reflected in Neale v. Neales: an oral promise concerning land is facially barred by the Statute of Frauds, but equity may enforce it where the promise is proved clearly and the promisee, in reliance and with the promisor’s knowledge, takes possession and makes substantial, permanent improvements so that nonenforcement would itself be a fraud. I also assume State X allows promissory estoppel at least as a fallback, but recognizes that some courts do not let estoppel wholly override the Statute of Frauds. That assumption matters because the case turns less on contract formalities than on whether Claire’s possession and improvements are enough, under Neale-style part performance, to justify equitable relief despite no signed writing.\n\n2. On these facts, Claire should prevail on her claim to enforce the oral promise. The better remedy is an equitable decree treating Anna’s heirs as holding legal title in trust for Claire and ordering conveyance to her, with any necessary accounting offsets for Anna-funded items or rents. Specific performance and a constructive trust point to the same practical outcome, but constructive trust is the cleaner label because no valid written express trust or deed exists and equity is preventing unjust retention of title. Damages under promissory estoppel should be pleaded only in the alternative if the court declines land-specific relief.\n\n3. The dispositive doctrine on the face of the pleadings is the Statute of Frauds rule requiring a signed writing for transfers of land, and likely for an express trust concerning land as well. The controlling equitable response is part performance, as in Neale. Neale’s core standard is that equity will not let the Statute be used as an instrument of fraud where a parol promise of land is clearly shown and the promisee, with the promisor’s assent, has entered into possession and made valuable, permanent improvements or otherwise so changed position that denial of the promise would be inequitable. Claire’s long possession, substantial construction, and assumption of incidents of ownership fit that pattern closely.\n\n4. The facts are stronger than a mere revocable license, though they are less clean than a fully bargained bilateral contract. Anna’s statement that she would “give the lot and all buildings on it to Claire and hold title for her benefit” sounds partly donative, but it was not a naked gift: it was expressly conditioned on marriage and moving onto the property, and Claire then expended her own money on major improvements. A court should characterize Claire’s marriage and move as part of the inducement and her expenditures and long occupation as the legally decisive reliance or part performance. Even if marriage alone is treated as insufficient because promises in consideration of marriage are themselves within the Statute of Frauds, the substantial expenditures make this more than a conditional gift.\n\n5. Two Statute of Frauds categories are triggered. First, this is an oral transfer of an interest in land. Second, because the promise was made before marriage and conditioned on marriage, it also resembles an agreement upon consideration of marriage. The land-transfer aspect is the clearest and most important here. Claire’s response is that her possession plus substantial improvements remove the land-transfer bar under part performance. The marriage category creates some uncertainty because some courts are less willing to use part performance to avoid that branch of the Statute. But under a Neale-style framework, the court can focus on the oral family settlement of land and the inequity of allowing heirs to keep the improved property after fifteen years of reliance.\n\n6. Claire has two possible equitable paths. The stronger one is classical part performance under Neale because the remedy sought is land-specific and the facts are exactly the kind equity traditionally treats as “unequivocally referable” to ownership: moving in, building a large addition and outbuildings, improving utilities and landscaping, and taking some rents. Modern promissory estoppel is a weaker but still plausible alternative. Claire can show a clear promise, foreseeable reliance, actual reliance, and likely injustice absent relief. The doctrinal uncertainty is remedial: many courts will use promissory estoppel to award reliance damages but hesitate to compel conveyance of land in the teeth of the Statute of Frauds. Thus, part performance is the better route to title; estoppel is the backup route to money recovery.\n\n7. The heirs’ defenses are not likely to defeat Claire’s equity claim. Anna’s payment for some improvements may matter on accounting, but it does not erase Claire’s own substantial expenditures if those remain material and permanent. Anna’s retention of some rental income likewise weakens, but does not defeat, the inference of complete beneficial ownership; shared rents are consistent with an imperfect family arrangement while still leaving Claire’s possession and improvements strongly referable to the promise. The alleged “breach” based on Claire’s personal use of some rental income is the weakest defense. The stated condition was marriage and moving onto the property, not a duty to dedicate all rents to upkeep. Unless the heirs prove an express limitation on rental use, this is at most an accounting point, not a forfeiture ground.\n\n8. The heirs’ best argument is that this was an oral antenuptial promise made upon consideration of marriage, a category some courts treat as independently within the Statute of Frauds and not displaced by ordinary part-performance doctrine. To make that argument succeed, they would need to prove that marriage was the essential consideration, that Claire’s later occupancy and improvements are explainable as family permission rather than ownership reliance, and that Anna’s continued payment of expenses and retention of rents show no transfer of beneficial ownership was ever intended. If the court accepts that framing, it may limit Claire to reliance damages or deny relief altogether.\n\n9. The main uncertainties are whether State X extends Neale-style part performance to oral family settlements tied to marriage, how “substantial” the improvements must be, whether possession must be exclusive, and whether receipt of rents is merely corroborative or practically necessary. To maximize success, Claire’s counsel should first plead with precision both specific performance and constructive trust, alleging the promise’s exact words, the timing relative to marriage, and that Anna intended Claire to have beneficial ownership. Counsel should second assemble detailed proof that Claire’s acts were substantial and irrecoverable, including receipts, permits, contractor testimony, photographs, and a valuation separating Claire-funded from Anna-funded work. Counsel should third develop corroboration that Anna assented to Claire’s ownership claim, through witnesses to Anna’s statements, evidence that Claire managed tenants and utilities, and an accounting showing that any rents Anna kept or Claire spent personally do not negate the overall ownership-like pattern of reliance.\n\nBottom line: assuming State X follows Neale’s equitable part-performance approach, Claire has the better claim to land-specific relief, and the court should impose a constructive trust or order conveyance, subject to any modest accounting adjustments.",
+      "clusterId": "cluster_1"
+    },
+    {
+      "id": "response_3d4dc9aa",
+      "modelKey": "anthropic::claude-sonnet-4-6",
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-6",
+      "responseText": "# Bench Memo: Claire v. Heirs of Anna — Oral Land Promise / Statute of Frauds\n\n---\n\n**1. Jurisdiction Assumption**\n\nI assume State X follows the U.S. common-law equitable doctrine as articulated in *Neale v. Neales*, 76 U.S. (9 Wall.) 1 (1869), which holds that equity will enforce an oral promise to convey land where the promisee has taken possession and made substantial improvements in reliance on the promise, rendering enforcement of the Statute of Frauds itself inequitable. This choice matters because some states require all three elements — possession, payment of purchase price, and improvements — while *Neale*-style jurisdictions treat substantial improvement plus possession as sufficient. If State X demands all three conjunctively, Claire's position weakens slightly but remains strong given her $6,500 expenditure.\n\n---\n\n**2. Bottom-Line Outcome**\n\nClaire's claim should succeed. The clearest remedy is a **constructive trust** in Claire's favor over the property, directing the heirs to convey title. Specific performance is also available but the constructive trust framing is preferable because it avoids the need to characterize the arrangement as a bilateral contract and instead focuses on unjust enrichment and unconscionable retention by the heirs. Damages under promissory estoppel are an adequate fallback but inadequate to fully remedy fifteen years of reliance, possession, and improvement.\n\n---\n\n**3. Controlling Doctrine**\n\nThe Statute of Frauds for land transfers is facially dispositive: no signed writing exists, so the oral promise is unenforceable at law. The equitable doctrine that controls the result is **part-performance/estoppel**, as recognized in *Neale*. Under *Neale*, equity intervenes when a party has so far performed in reliance on an oral land promise — particularly by taking possession and making improvements — that permitting the promisor (or her heirs) to invoke the Statute would itself work a fraud. The standard is whether Claire's acts are \"unequivocally referable\" to the oral agreement and whether denial of enforcement would cause unconscionable injury.\n\n---\n\n**4. Formation and Consideration**\n\nThe arrangement has the hallmarks of a **bargained-for exchange**, not a mere conditional gift. Anna's promise was made in exchange for Claire's marriage and her taking up residence and stewardship of the property — acts that are legally sufficient consideration because they constitute a detriment to Claire and a benefit to Anna (property maintenance, family continuity). Claire's $6,500 expenditure and fifteen years of improvements reinforce this. A court should characterize Claire's acts as **consideration and inducement combined**: marriage was the condition precedent, but the expenditures and improvements were the ongoing consideration that transformed the arrangement into an enforceable equitable obligation. The heirs' characterization as a mere conditional gift fails because Anna directed Ben to act as trustee, evidencing an intent to create a legal obligation, not a revocable gratuity.\n\n---\n\n**5. Statute of Frauds Gates**\n\nTwo SoF categories are triggered: (a) the requirement of a signed writing for any conveyance or transfer of an interest in land, and (b) potentially the requirement of a written trust instrument for an express trust in real property. The dispositive aspect is the absence of any signed writing from Anna. Part-performance removes this bar by establishing that Claire's possession, $6,500 in improvements, and fifteen years of stewardship are acts \"unequivocally referable\" to the oral promise — they cannot be explained by any other relationship between the parties, defeating the heirs' invocation of the Statute.\n\n---\n\n**6. Exceptions and Promissory Estoppel**\n\nBoth doctrines are available, but **classical part-performance under *Neale*** is stronger here. Claire has possession, substantial out-of-pocket expenditure, and long-term improvement — the paradigm case. Modern promissory estoppel (Restatement Second § 90) requires only a clear promise, foreseeable reliance, actual detrimental reliance, and injustice absent enforcement; Claire satisfies all elements. However, promissory estoppel in many jurisdictions yields only reliance damages, not specific performance or a trust. Part-performance, by contrast, opens the door to full equitable relief. Claire should plead both in the alternative, leading with part-performance.\n\n---\n\n**7. Defenses Evaluated**\n\n**(a) Anna paid for some improvements.** This weakens but does not defeat Claire's claim. The relevant question is whether Claire's own expenditures were substantial and referable to the promise. Her $6,500 and labor contributions independently satisfy the part-performance threshold; Anna's contributions are irrelevant to Claire's reliance.\n\n**(b) Anna retained some rental income.** This is similarly insufficient. Retention of some rents by Anna during her lifetime is consistent with a life-estate-like arrangement pending formal conveyance and does not negate Claire's equitable interest. It may reduce any accounting of profits but does not extinguish the trust.\n\n**(c) Claire used rentals for personal expenses.** This is the weakest defense. Absent a clearly defined condition requiring rental income to be applied exclusively to the property, personal use of some rents is not a material breach sufficient to forfeit a fifteen-year equitable interest. Courts of equity apply forfeiture reluctantly; the heirs would need to show a specific, material, and willful breach of an express condition, which the oral promise as described does not clearly contain.\n\nNone of these defenses is likely to defeat Claire's equity claim.\n\n---\n\n**8. Strongest Counterargument for the Heirs**\n\nThe heirs' best argument is that **Claire's acts are not \"unequivocally referable\" to the oral promise** because she had independent reasons to marry, reside on the property, and improve it — namely, her own marital household needs and the benefit of living rent-free. To succeed, the heirs must prove at trial that Claire would have married, moved in, and spent $6,500 on improvements regardless of Anna's promise — i.e., that the improvements are explicable by Claire's status as a family member in permissive occupancy rather than as a promisee performing under a land agreement. Evidence that Claire had no other housing need, that the improvements exceeded any reasonable occupant's expenditure, and that Anna's supervisory involvement was merely familial rather than contractual would all support this argument.\n\n---\n\n**9. Bounded Uncertainty and Practical Directions**\n\nKey doctrinal uncertainties include: whether State X requires all three *Neale* elements conjunctively; whether possession alone (without payment) suffices; how courts quantify \"substantial\" improvement; and whether the express-trust writing requirement independently bars the constructive-trust remedy. These could shift the outcome.\n\nClaire's counsel should take three concrete steps: **First**, introduce detailed evidence — receipts, contractor records, photographs — establishing that Claire's $6,500 and labor improvements were made specifically in reliance on Anna's promise and exceed what a mere licensee would undertake. **Second**, plead the constructive trust theory prominently alongside part-performance to avoid the express-trust writing requirement, framing the heirs' refusal to convey as unjust enrichment. **Third**, obtain testimony from witnesses (including Ben, if available) who heard Anna's oral promise and observed her supervisory role, to establish that Claire's acts were \"unequivocally referable\" to the agreement and to rebut the heirs' \"mere family occupancy\" narrative.",
+      "clusterId": "cluster_1"
+    }
+  ],
+  "clusters": [
+    {
+      "id": "cluster_1",
+      "representativeResponseId": "response_40ba96dc",
+      "representativeText": "1. I assume State X follows the traditional U.S. common-law equitable approach reflected in Neale v. Neales: an oral promise concerning land is facially barred by the Statute of Frauds, but equity may enforce it where the promise is proved clearly and the promisee, in reliance and with the promisor’s knowledge, takes possession and makes substantial, permanent improvements so that nonenforcement would itself be a fraud. I also assume State X allows promissory estoppel at least as a fallback, but recognizes that some courts do not let estoppel wholly override the Statute of Frauds. That assumption matters because the case turns less on contract formalities than on whether Claire’s possession and improvements are enough, under Neale-style part performance, to justify equitable relief despite no signed writing.\n\n2. On these facts, Claire should prevail on her claim to enforce the oral promise. The better remedy is an equitable decree treating Anna’s heirs as holding legal title in trust for Claire and ordering conveyance to her, with any necessary accounting offsets for Anna-funded items or rents. Specific performance and a constructive trust point to the same practical outcome, but constructive trust is the cleaner label because no valid written express trust or deed exists and equity is preventing unjust retention of title. Damages under promissory estoppel should be pleaded only in the alternative if the court declines land-specific relief.\n\n3. The dispositive doctrine on the face of the pleadings is the Statute of Frauds rule requiring a signed writing for transfers of land, and likely for an express trust concerning land as well. The controlling equitable response is part performance, as in Neale. Neale’s core standard is that equity will not let the Statute be used as an instrument of fraud where a parol promise of land is clearly shown and the promisee, with the promisor’s assent, has entered into possession and made valuable, permanent improvements or otherwise so changed position that denial of the promise would be inequitable. Claire’s long possession, substantial construction, and assumption of incidents of ownership fit that pattern closely.\n\n4. The facts are stronger than a mere revocable license, though they are less clean than a fully bargained bilateral contract. Anna’s statement that she would “give the lot and all buildings on it to Claire and hold title for her benefit” sounds partly donative, but it was not a naked gift: it was expressly conditioned on marriage and moving onto the property, and Claire then expended her own money on major improvements. A court should characterize Claire’s marriage and move as part of the inducement and her expenditures and long occupation as the legally decisive reliance or part performance. Even if marriage alone is treated as insufficient because promises in consideration of marriage are themselves within the Statute of Frauds, the substantial expenditures make this more than a conditional gift.\n\n5. Two Statute of Frauds categories are triggered. First, this is an oral transfer of an interest in land. Second, because the promise was made before marriage and conditioned on marriage, it also resembles an agreement upon consideration of marriage. The land-transfer aspect is the clearest and most important here. Claire’s response is that her possession plus substantial improvements remove the land-transfer bar under part performance. The marriage category creates some uncertainty because some courts are less willing to use part performance to avoid that branch of the Statute. But under a Neale-style framework, the court can focus on the oral family settlement of land and the inequity of allowing heirs to keep the improved property after fifteen years of reliance.\n\n6. Claire has two possible equitable paths. The stronger one is classical part performance under Neale because the remedy sought is land-specific and the facts are exactly the kind equity traditionally treats as “unequivocally referable” to ownership: moving in, building a large addition and outbuildings, improving utilities and landscaping, and taking some rents. Modern promissory estoppel is a weaker but still plausible alternative. Claire can show a clear promise, foreseeable reliance, actual reliance, and likely injustice absent relief. The doctrinal uncertainty is remedial: many courts will use promissory estoppel to award reliance damages but hesitate to compel conveyance of land in the teeth of the Statute of Frauds. Thus, part performance is the better route to title; estoppel is the backup route to money recovery.\n\n7. The heirs’ defenses are not likely to defeat Claire’s equity claim. Anna’s payment for some improvements may matter on accounting, but it does not erase Claire’s own substantial expenditures if those remain material and permanent. Anna’s retention of some rental income likewise weakens, but does not defeat, the inference of complete beneficial ownership; shared rents are consistent with an imperfect family arrangement while still leaving Claire’s possession and improvements strongly referable to the promise. The alleged “breach” based on Claire’s personal use of some rental income is the weakest defense. The stated condition was marriage and moving onto the property, not a duty to dedicate all rents to upkeep. Unless the heirs prove an express limitation on rental use, this is at most an accounting point, not a forfeiture ground.\n\n8. The heirs’ best argument is that this was an oral antenuptial promise made upon consideration of marriage, a category some courts treat as independently within the Statute of Frauds and not displaced by ordinary part-performance doctrine. To make that argument succeed, they would need to prove that marriage was the essential consideration, that Claire’s later occupancy and improvements are explainable as family permission rather than ownership reliance, and that Anna’s continued payment of expenses and retention of rents show no transfer of beneficial ownership was ever intended. If the court accepts that framing, it may limit Claire to reliance damages or deny relief altogether.\n\n9. The main uncertainties are whether State X extends Neale-style part performance to oral family settlements tied to marriage, how “substantial” the improvements must be, whether possession must be exclusive, and whether receipt of rents is merely corroborative or practically necessary. To maximize success, Claire’s counsel should first plead with precision both specific performance and constructive trust, alleging the promise’s exact words, the timing relative to marriage, and that Anna intended Claire to have beneficial ownership. Counsel should second assemble detailed proof that Claire’s acts were substantial and irrecoverable, including receipts, permits, contractor testimony, photographs, and a valuation separating Claire-funded from Anna-funded work. Counsel should third develop corroboration that Anna assented to Claire’s ownership claim, through witnesses to Anna’s statements, evidence that Claire managed tenants and utilities, and an accounting showing that any rents Anna kept or Claire spent personally do not negate the overall ownership-like pattern of reliance.\n\nBottom line: assuming State X follows Neale’s equitable part-performance approach, Claire has the better claim to land-specific relief, and the court should impose a constructive trust or order conveyance, subject to any modest accounting adjustments.",
+      "memberResponseIds": [
+        "response_40ba96dc",
+        "response_3d4dc9aa"
+      ],
+      "size": 2,
+      "modelBreakdown": [
+        {
+          "modelKey": "anthropic::claude-sonnet-4-6",
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-6",
+          "count": 1
+        },
+        {
+          "modelKey": "openai::gpt-5.4",
+          "provider": "openai",
+          "model": "gpt-5.4",
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "domainResults": [
+    {
+      "domainId": "analysis_domain_1",
+      "domainName": "Jurisdiction Assumption",
+      "weight": 3,
+      "applicabilityStatus": "applicable",
+      "applicabilityExplanation": "The representative answer explicitly assumes the U.S. common-law equitable doctrine as illustrated by Neale v. Neales and District of Columbia practice, which aligns with the domain requirement to state the jurisdictional framework governing the Statute of Frauds and part-performance analysis.",
+      "centroidEvaluations": [
+        {
+          "clusterId": "cluster_1",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer explicitly assumes the U.S. common-law equitable doctrine as illustrated by Neale v. Neales and District of Columbia practice, which aligns with the domain requirement to state the jurisdictional framework governing the Statute of Frauds and part-performance analysis.",
+          "score": 95,
+          "confidence": 0.9,
+          "rationale": "The representative answer meets the domain criteria by framing the analysis under U.S. common-law equitable doctrine with Neale as the controlling case, consistent with District of Columbia practice. It recognizes doctrinal variants and the role of promissory estoppel as a fallback, which aligns with the domain's allowance for noting major doctrinal variants. The absence of a standalone jurisdictional assumption statement is a minor omission given the clear contextual framing. There are no contradictions with the domain requirements.",
+          "difference": {
+            "matchedGoldenPoints": [
+              "Analysis framed under U.S. common-law equitable doctrine.",
+              "D.C. practice/Neale treated as controlling illustration of the classic part-performance rule.",
+              "Recognition that some states may vary in elements or modern estoppel labeling."
+            ],
+            "missingGoldenPoints": [
+              "Explicit statement that the analysis assumes U.S. common-law equitable doctrine applying the classic part-performance exception to the Statute of Frauds."
+            ],
+            "extraCentroidPoints": [
+              "Acknowledgement that some courts do not let promissory estoppel wholly override the Statute of Frauds.",
+              "Discussion of the relevance of marriage consideration and its interaction with the Statute of Frauds."
+            ],
+            "contradictionPoints": [],
+            "differenceSummary": "The representative answer closely follows the golden target by assuming U.S. common-law equitable doctrine and using Neale as the controlling illustration. It adds nuance about promissory estoppel limitations and the marriage consideration category, which are not explicitly required but enrich the jurisdictional assumption. It lacks a single explicit sentence stating the jurisdictional assumption as a standalone point but integrates it well within the analysis."
+          }
+        }
+      ],
+      "winningCentroidId": "cluster_1",
+      "winningScore": 95,
+      "rationale": "The representative answer meets the domain criteria by framing the analysis under U.S. common-law equitable doctrine with Neale as the controlling case, consistent with District of Columbia practice. It recognizes doctrinal variants and the role of promissory estoppel as a fallback, which aligns with the domain's allowance for noting major doctrinal variants. The absence of a standalone jurisdictional assumption statement is a minor omission given the clear contextual framing. There are no contradictions with the domain requirements.",
+      "winningModelMix": [
+        {
+          "modelKey": "anthropic::claude-sonnet-4-6",
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-6",
+          "count": 1
+        },
+        {
+          "modelKey": "openai::gpt-5.4",
+          "provider": "openai",
+          "model": "gpt-5.4",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "domainId": "analysis_domain_2",
+      "domainName": "Bottom-line Outcome",
+      "weight": 5,
+      "applicabilityStatus": "applicable",
+      "applicabilityExplanation": "The representative answer directly addresses the enforceability of the oral promise under the Statute of Frauds and equitable doctrines, focusing on part performance and promissory estoppel as per Neale v. Neales, matching the Bottom-line Outcome domain.",
+      "centroidEvaluations": [
+        {
+          "clusterId": "cluster_1",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer directly addresses the enforceability of the oral promise under the Statute of Frauds and equitable doctrines, focusing on part performance and promissory estoppel as per Neale v. Neales, matching the Bottom-line Outcome domain.",
+          "score": 95,
+          "confidence": 0.9,
+          "rationale": "The representative answer thoroughly applies Neale v. Neales and the Statute of Frauds doctrines to the facts, concluding that Claire's possession and substantial improvements with promisor knowledge and assent remove the Statute of Frauds bar and justify equitable enforcement of the oral promise. It matches the golden target's core points about enforceability in equity and the role of part performance, with minor variation in remedial labeling that does not contradict the golden outcome.",
+          "difference": {
+            "matchedGoldenPoints": [
+              "Oral promise enforced in equity (specific performance ordered).",
+              "Enforcement based on possession + substantial improvements and promisor's knowledge/assent.",
+              "Acts were induced by the promise and thus removed the case from the Statute of Frauds."
+            ],
+            "missingGoldenPoints": [
+              "Explicit statement that the court ordered specific performance (the answer prefers constructive trust as cleaner label)."
+            ],
+            "extraCentroidPoints": [
+              "Detailed jurisdictional assumption explaining why the U.S. common-law approach matters.",
+              "Discussion of the dual Statute of Frauds categories triggered (land transfer and consideration of marriage).",
+              "Analysis of formation/consideration distinguishing inducement from mere conditional gift."
+            ],
+            "contradictionPoints": [],
+            "differenceSummary": "The representative answer aligns closely with the golden target by concluding enforceability in equity via part performance and promissory estoppel doctrines, recommending equitable relief (constructive trust/specific performance). It slightly prefers constructive trust terminology over specific performance but acknowledges both lead to the same practical outcome."
+          }
+        }
+      ],
+      "winningCentroidId": "cluster_1",
+      "winningScore": 95,
+      "rationale": "The representative answer thoroughly applies Neale v. Neales and the Statute of Frauds doctrines to the facts, concluding that Claire's possession and substantial improvements with promisor knowledge and assent remove the Statute of Frauds bar and justify equitable enforcement of the oral promise. It matches the golden target's core points about enforceability in equity and the role of part performance, with minor variation in remedial labeling that does not contradict the golden outcome.",
+      "winningModelMix": [
+        {
+          "modelKey": "anthropic::claude-sonnet-4-6",
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-6",
+          "count": 1
+        },
+        {
+          "modelKey": "openai::gpt-5.4",
+          "provider": "openai",
+          "model": "gpt-5.4",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "domainId": "analysis_domain_3",
+      "domainName": "Controlling Doctrine",
+      "weight": 5,
+      "applicabilityStatus": "applicable",
+      "applicabilityExplanation": "The representative answer directly addresses the controlling doctrine domain by identifying the Statute of Frauds as the primary rule requiring a writing for land transfers and recognizing the equitable part-performance/estoppel exception as controlling under Neale v. Neales.",
+      "centroidEvaluations": [
+        {
+          "clusterId": "cluster_1",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer directly addresses the controlling doctrine domain by identifying the Statute of Frauds as the primary rule requiring a writing for land transfers and recognizing the equitable part-performance/estoppel exception as controlling under Neale v. Neales.",
+          "score": 95,
+          "confidence": 0.9,
+          "rationale": "The representative answer clearly identifies the Statute of Frauds as the primary controlling doctrine and the equitable part-performance/estoppel exception as the operative exception, consistent with the golden target. It also explains the Neale standard and the necessity of acts being unequivocally referable to the oral promise, fulfilling the key criteria. The additional detail on the marriage consideration category and the fraud-prevention rationale enriches the analysis without contradicting or omitting essential points.",
+          "difference": {
+            "matchedGoldenPoints": [
+              "Primary rule: Statute of Frauds requires a writing for land transfers.",
+              "Equitable part‑performance/estoppel is the controlling exception in this context.",
+              "Key threshold: acts must be 'unequivocally referable' to the oral promise."
+            ],
+            "missingGoldenPoints": [],
+            "extraCentroidPoints": [
+              "Explicit reference to the legal standard from Neale emphasizing prevention of fraud through enforcement of parol promises when possession and improvements are made.",
+              "Recognition of the dual Statute of Frauds categories triggered (land transfer and consideration of marriage)."
+            ],
+            "contradictionPoints": [],
+            "differenceSummary": "The representative answer elaborates on the Neale standard and the dual SoF categories triggered, providing a more detailed doctrinal explanation than the golden target summary, but does not omit any key controlling doctrine points."
+          }
+        }
+      ],
+      "winningCentroidId": "cluster_1",
+      "winningScore": 95,
+      "rationale": "The representative answer clearly identifies the Statute of Frauds as the primary controlling doctrine and the equitable part-performance/estoppel exception as the operative exception, consistent with the golden target. It also explains the Neale standard and the necessity of acts being unequivocally referable to the oral promise, fulfilling the key criteria. The additional detail on the marriage consideration category and the fraud-prevention rationale enriches the analysis without contradicting or omitting essential points.",
+      "winningModelMix": [
+        {
+          "modelKey": "anthropic::claude-sonnet-4-6",
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-6",
+          "count": 1
+        },
+        {
+          "modelKey": "openai::gpt-5.4",
+          "provider": "openai",
+          "model": "gpt-5.4",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "domainId": "analysis_domain_4",
+      "domainName": "Formation/Consideration",
+      "weight": 3,
+      "applicabilityStatus": "applicable",
+      "applicabilityExplanation": "The centroid answer explicitly analyzes formation/consideration issues in the context of the oral promise, marriage, and expenditures, consistent with the domain's focus on whether the facts show a genuine bargain or merely a conditional/gift promise, and whether reliance or a qualifying condition supports enforcement.",
+      "centroidEvaluations": [
+        {
+          "clusterId": "cluster_1",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The centroid answer explicitly analyzes formation/consideration issues in the context of the oral promise, marriage, and expenditures, consistent with the domain's focus on whether the facts show a genuine bargain or merely a conditional/gift promise, and whether reliance or a qualifying condition supports enforcement.",
+          "score": 90,
+          "confidence": 0.9,
+          "rationale": "The centroid answer aligns well with the domain by treating the promise as more than a mere conditional gift, highlighting marriage and expenditures as inducement and reliance sufficient for equity. It also recognizes the role of part performance and equitable estoppel doctrines. The omission of an explicit statement that SoF/part-performance outcomes do not depend solely on traditional consideration formalities is a minor gap but does not undermine the overall strong match to the domain criteria.",
+          "difference": {
+            "matchedGoldenPoints": [
+              "Transaction treated as more than a gratuitous promise—inducing marriage and construction.",
+              "Reliance/expenditure (and marriage) constituted sufficient consideration/reliance for equity."
+            ],
+            "missingGoldenPoints": [
+              "Note that SoF/part‑performance outcome does not hinge solely on traditional consideration formalities."
+            ],
+            "extraCentroidPoints": [
+              "Distinguishes between a revocable license and a fully bargained bilateral contract, emphasizing the inducement and reliance aspects."
+            ],
+            "contradictionPoints": [],
+            "differenceSummary": "The centroid answer strongly supports that the promise was more than a bare gift, emphasizing marriage and substantial expenditures as inducement and reliance, but it does not explicitly note that the Statute of Frauds/part-performance outcome does not hinge solely on traditional consideration formalities, which is a subtle but important point in the golden target."
+          }
+        }
+      ],
+      "winningCentroidId": "cluster_1",
+      "winningScore": 90,
+      "rationale": "The centroid answer aligns well with the domain by treating the promise as more than a mere conditional gift, highlighting marriage and expenditures as inducement and reliance sufficient for equity. It also recognizes the role of part performance and equitable estoppel doctrines. The omission of an explicit statement that SoF/part-performance outcomes do not depend solely on traditional consideration formalities is a minor gap but does not undermine the overall strong match to the domain criteria.",
+      "winningModelMix": [
+        {
+          "modelKey": "anthropic::claude-sonnet-4-6",
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-6",
+          "count": 1
+        },
+        {
+          "modelKey": "openai::gpt-5.4",
+          "provider": "openai",
+          "model": "gpt-5.4",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "domainId": "analysis_domain_5",
+      "domainName": "Statute of Frauds Gates",
+      "weight": 5,
+      "applicabilityStatus": "applicable",
+      "applicabilityExplanation": "The domain concerns the Statute of Frauds writing requirements triggered by transfers of land and the dispositive SoF gate absent exceptions, which is directly addressed in the representative answer.",
+      "centroidEvaluations": [
+        {
+          "clusterId": "cluster_1",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The domain concerns the Statute of Frauds writing requirements triggered by transfers of land and the dispositive SoF gate absent exceptions, which is directly addressed in the representative answer.",
+          "score": 95,
+          "confidence": 0.9,
+          "rationale": "The answer correctly identifies the transfer of land as the triggered SoF category and applies Neale’s part-performance doctrine to remove the writing requirement bar, matching the core golden points. It also appropriately assumes a U.S. common-law framework and recommends equitable remedies consistent with the domain. Minor omissions relate to explicit emphasis on the dispositive nature of the land-transfer SoF gate, but overall the answer is comprehensive and well anchored to the domain requirements.",
+          "difference": {
+            "matchedGoldenPoints": [
+              "Triggered SoF category: transfer/interest in land (writing required).",
+              "That statutory gate is dispositive unless an equitable exception applies.",
+              "Neale applies the part‑performance exception to overcome the SoF writing requirement."
+            ],
+            "missingGoldenPoints": [
+              "Explicit statement that the land-transfer SoF gate is dispositive absent exceptions.",
+              "Clear explanation that part-performance removes the SoF bar by showing possession and substantial improvements with promisor’s assent."
+            ],
+            "extraCentroidPoints": [
+              "Discussion of the marriage consideration and its relation to the SoF.",
+              "Recommendation of constructive trust as the preferred remedy over specific performance.",
+              "Mention of promissory estoppel as a fallback remedy."
+            ],
+            "contradictionPoints": [],
+            "differenceSummary": "The representative answer aligns closely with the golden target by identifying the land-transfer SoF as the triggered and dispositive category and recognizing the part-performance exception under Neale. It adds nuanced discussion on marriage consideration and remedies but omits an explicit statement that the land-transfer SoF gate is dispositive absent exceptions."
+          }
+        }
+      ],
+      "winningCentroidId": "cluster_1",
+      "winningScore": 95,
+      "rationale": "The answer correctly identifies the transfer of land as the triggered SoF category and applies Neale’s part-performance doctrine to remove the writing requirement bar, matching the core golden points. It also appropriately assumes a U.S. common-law framework and recommends equitable remedies consistent with the domain. Minor omissions relate to explicit emphasis on the dispositive nature of the land-transfer SoF gate, but overall the answer is comprehensive and well anchored to the domain requirements.",
+      "winningModelMix": [
+        {
+          "modelKey": "anthropic::claude-sonnet-4-6",
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-6",
+          "count": 1
+        },
+        {
+          "modelKey": "openai::gpt-5.4",
+          "provider": "openai",
+          "model": "gpt-5.4",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "domainId": "analysis_domain_6",
+      "domainName": "Exceptions / Promissory Estoppel",
+      "weight": 4,
+      "applicabilityStatus": "applicable",
+      "applicabilityExplanation": "The representative answer addresses the equitable exception of part-performance as articulated in Neale v. Neales, mapping possession, improvements, and promisor assent to the facts. It also notes the modern promissory estoppel doctrine as a fallback in some jurisdictions, consistent with the golden target summary.",
+      "centroidEvaluations": [
+        {
+          "clusterId": "cluster_1",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer addresses the equitable exception of part-performance as articulated in Neale v. Neales, mapping possession, improvements, and promisor assent to the facts. It also notes the modern promissory estoppel doctrine as a fallback in some jurisdictions, consistent with the golden target summary.",
+          "score": 95,
+          "confidence": 0.9,
+          "rationale": "The answer clearly identifies the part-performance doctrine from Neale as controlling, maps the classic elements (possession, improvements, promisor assent) to the facts, and acknowledges promissory estoppel as a modern analogue. It avoids contradictions and covers all required points, with some additional helpful detail on remedies and formation. Therefore, it aligns well with the golden target and merits a high score.",
+          "difference": {
+            "matchedGoldenPoints": [
+              "Part-performance (possession + improvements + promisor acquiescence) is the operative equitable exception.",
+              "Acts must be referable to the promise; promissory estoppel is a modern analogue in some courts.",
+              "Neale is cited as an example of the classic rule rather than a modern estoppel formulation."
+            ],
+            "missingGoldenPoints": [],
+            "extraCentroidPoints": [
+              "Detailed remedial recommendation favoring constructive trust as the cleaner label over specific performance.",
+              "Explicit discussion of the dual Statute of Frauds categories triggered (land transfer and consideration of marriage).",
+              "Analysis of formation/consideration focusing on inducement and reliance rather than a pure bargain."
+            ],
+            "contradictionPoints": [],
+            "differenceSummary": "The representative answer provides a more detailed remedial recommendation and a nuanced analysis of formation and Statute of Frauds categories than the golden target, but does not omit any core golden points or contradict them."
+          }
+        }
+      ],
+      "winningCentroidId": "cluster_1",
+      "winningScore": 95,
+      "rationale": "The answer clearly identifies the part-performance doctrine from Neale as controlling, maps the classic elements (possession, improvements, promisor assent) to the facts, and acknowledges promissory estoppel as a modern analogue. It avoids contradictions and covers all required points, with some additional helpful detail on remedies and formation. Therefore, it aligns well with the golden target and merits a high score.",
+      "winningModelMix": [
+        {
+          "modelKey": "anthropic::claude-sonnet-4-6",
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-6",
+          "count": 1
+        },
+        {
+          "modelKey": "openai::gpt-5.4",
+          "provider": "openai",
+          "model": "gpt-5.4",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "domainId": "analysis_domain_7",
+      "domainName": "Defenses / Mistake",
+      "weight": 3,
+      "applicabilityStatus": "applicable",
+      "applicabilityExplanation": "The representative answer directly addresses the Defenses / Mistake domain by discussing the heirs' defenses, including the Statute of Frauds, partial payment of improvements by Anna, and the alleged breach of condition precedent by Claire.",
+      "centroidEvaluations": [
+        {
+          "clusterId": "cluster_1",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer directly addresses the Defenses / Mistake domain by discussing the heirs' defenses, including the Statute of Frauds, partial payment of improvements by Anna, and the alleged breach of condition precedent by Claire.",
+          "score": 90,
+          "confidence": 0.9,
+          "rationale": "The answer identifies the heirs' defenses (Statute of Frauds, partial payment by Anna, breach of condition precedent) and explains why these defenses fail under Neale's part-performance doctrine. It acknowledges that such defenses can defeat enforcement if proven, consistent with the golden target. The answer also appropriately anchors the analysis in Neale and the assumed jurisdiction, fulfilling the domain's requirements.",
+          "difference": {
+            "matchedGoldenPoints": [
+              "Typical defenses: breach of a condition precedent, mistake about terms, or that acts were not induced by the promise.",
+              "Claim that improvements were paid by the promisor may undercut reliance; Neale found such defenses insufficient on its record.",
+              "A convincing showing that acts are referable to other causes can defeat part‑performance."
+            ],
+            "missingGoldenPoints": [],
+            "extraCentroidPoints": [
+              "The answer explicitly recommends a constructive trust as the cleaner equitable remedy.",
+              "It notes that damages under promissory estoppel should be pleaded only in the alternative."
+            ],
+            "contradictionPoints": [],
+            "differenceSummary": "The representative answer aligns well with the golden target by identifying the usual defenses and explaining their factual insufficiency on these facts. It adds remedial recommendations and discusses the interplay of defenses with equitable doctrines."
+          }
+        }
+      ],
+      "winningCentroidId": "cluster_1",
+      "winningScore": 90,
+      "rationale": "The answer identifies the heirs' defenses (Statute of Frauds, partial payment by Anna, breach of condition precedent) and explains why these defenses fail under Neale's part-performance doctrine. It acknowledges that such defenses can defeat enforcement if proven, consistent with the golden target. The answer also appropriately anchors the analysis in Neale and the assumed jurisdiction, fulfilling the domain's requirements.",
+      "winningModelMix": [
+        {
+          "modelKey": "anthropic::claude-sonnet-4-6",
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-6",
+          "count": 1
+        },
+        {
+          "modelKey": "openai::gpt-5.4",
+          "provider": "openai",
+          "model": "gpt-5.4",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "domainId": "analysis_domain_8",
+      "domainName": "Strongest Counterargument",
+      "weight": 3,
+      "applicabilityStatus": "applicable",
+      "applicabilityExplanation": "The centroid answer clearly addresses the strongest counterargument domain by presenting the principal opposing argument based on strict enforcement of the Statute of Frauds, emphasizing the lack of a signed writing and the risk that possession or improvements may be ambiguous or referable to a license or permissive occupancy. It explains why equity should not override the statutory policy absent unequivocal acts, matching the golden target's key points.",
+      "centroidEvaluations": [
+        {
+          "clusterId": "cluster_1",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The centroid answer clearly addresses the strongest counterargument domain by presenting the principal opposing argument based on strict enforcement of the Statute of Frauds, emphasizing the lack of a signed writing and the risk that possession or improvements may be ambiguous or referable to a license or permissive occupancy. It explains why equity should not override the statutory policy absent unequivocal acts, matching the golden target's key points.",
+          "score": 90,
+          "confidence": 0.9,
+          "rationale": "The centroid answer effectively captures the strongest counterargument domain by articulating the strict application of the Statute of Frauds as the principal opposing argument, highlighting the absence of a signed writing, and explaining the potential ambiguity of possession or improvements as acts referable to licenses or permissive occupancy. It aligns well with the golden target's doctrinal framework and reasoning, warranting a high score.",
+          "difference": {
+            "matchedGoldenPoints": [
+              "Principal counter: strict SoF application—no written memorandum, so no enforcement.",
+              "Argue acts may be ambiguous (license, permissive occupancy, or referable to other arrangements).",
+              "Equity should not override statutory policy absent unequivocal acts."
+            ],
+            "missingGoldenPoints": [],
+            "extraCentroidPoints": [
+              "Explicit mention of the risk that possession or improvements might be ambiguous or referable to other arrangements beyond license/permissive occupancy."
+            ],
+            "contradictionPoints": [],
+            "differenceSummary": "The centroid answer closely matches the golden target by presenting the strict Statute of Frauds enforcement argument and explaining the ambiguity of acts such as possession and improvements. It adds some emphasis on the ambiguity risk but does not omit any key doctrinal points from the golden target."
+          }
+        }
+      ],
+      "winningCentroidId": "cluster_1",
+      "winningScore": 90,
+      "rationale": "The centroid answer effectively captures the strongest counterargument domain by articulating the strict application of the Statute of Frauds as the principal opposing argument, highlighting the absence of a signed writing, and explaining the potential ambiguity of possession or improvements as acts referable to licenses or permissive occupancy. It aligns well with the golden target's doctrinal framework and reasoning, warranting a high score.",
+      "winningModelMix": [
+        {
+          "modelKey": "anthropic::claude-sonnet-4-6",
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-6",
+          "count": 1
+        },
+        {
+          "modelKey": "openai::gpt-5.4",
+          "provider": "openai",
+          "model": "gpt-5.4",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "domainId": "analysis_domain_9",
+      "domainName": "Bounded Uncertainty / Jurisdictional Limits",
+      "weight": 4,
+      "applicabilityStatus": "applicable",
+      "applicabilityExplanation": "The representative answer explicitly addresses the doctrinal and jurisdictional uncertainties inherent in the Neale framework and the Statute of Frauds context, consistent with the domain description.",
+      "centroidEvaluations": [
+        {
+          "clusterId": "cluster_1",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer explicitly addresses the doctrinal and jurisdictional uncertainties inherent in the Neale framework and the Statute of Frauds context, consistent with the domain description.",
+          "score": 90,
+          "confidence": 0.9,
+          "rationale": "The centroid answer aligns well with the domain's requirement to identify specific doctrinal uncertainties affecting the analysis, such as the threshold for substantial improvements, the role of rents, and the interplay of promissory estoppel with classical part-performance doctrines. It also states the jurisdictional assumption and what factual/legal proofs would resolve the uncertainties, fulfilling the domain criteria comprehensively. The answer avoids contradictions and does not assert uniformity where uncertainty exists, thus meriting a high score.",
+          "difference": {
+            "matchedGoldenPoints": [
+              "Uncertainty about the quantitative/qualitative threshold for 'substantial' improvements.",
+              "Open question whether receipt/use of rents is necessary or merely persuasive.",
+              "Modern interaction with promissory estoppel varies by jurisdiction."
+            ],
+            "missingGoldenPoints": [],
+            "extraCentroidPoints": [
+              "Detailed analysis of formation/consideration issues distinguishing inducement from mere conditional gift.",
+              "Explicit discussion of the dual Statute of Frauds categories triggered (land transfer and consideration of marriage).",
+              "Recommendation of constructive trust as the preferred remedy over specific performance or damages."
+            ],
+            "contradictionPoints": [
+              "No claim that the law is uniform on the precise element definitions; acknowledges jurisdictional variation and doctrinal uncertainty."
+            ],
+            "differenceSummary": "The centroid answer provides a thorough doctrinal analysis and explicitly identifies the jurisdictional assumption, the controlling doctrines, and the remedial recommendations, while the golden target focuses primarily on naming the uncertainties and what factual/legal developments would resolve them. The centroid goes beyond by applying these uncertainties to the facts and recommending a remedy."
+          }
+        }
+      ],
+      "winningCentroidId": "cluster_1",
+      "winningScore": 90,
+      "rationale": "The centroid answer aligns well with the domain's requirement to identify specific doctrinal uncertainties affecting the analysis, such as the threshold for substantial improvements, the role of rents, and the interplay of promissory estoppel with classical part-performance doctrines. It also states the jurisdictional assumption and what factual/legal proofs would resolve the uncertainties, fulfilling the domain criteria comprehensively. The answer avoids contradictions and does not assert uniformity where uncertainty exists, thus meriting a high score.",
+      "winningModelMix": [
+        {
+          "modelKey": "anthropic::claude-sonnet-4-6",
+          "provider": "anthropic",
+          "model": "claude-sonnet-4-6",
+          "count": 1
+        },
+        {
+          "modelKey": "openai::gpt-5.4",
+          "provider": "openai",
+          "model": "gpt-5.4",
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "weightedSummary": {
+    "applicableWeightTotal": 35,
+    "weightedScore": 93.14,
+    "notApplicableDomainIds": []
+  },
+  "clusteringMethod": "embedding_graph_small_sample",
+  "clusteringNotes": "Used embedding-similarity graph clustering because UMAP/HDBSCAN is unstable below 4 responses.",
+  "createdAt": "2026-04-03T07:21:53.884Z",
+  "completedAt": "2026-04-03T07:23:33.605Z"
+}

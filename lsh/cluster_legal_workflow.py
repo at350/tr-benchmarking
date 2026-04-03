@@ -5,15 +5,26 @@ import json
 import sys
 from collections import defaultdict
 from contextlib import redirect_stdout
+from itertools import combinations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from lsh.clustering import get_cluster_representatives
+from lsh.clustering import build_similarity_graph, cluster_graph, get_cluster_representatives
 from lsh.density_clustering import run_density_clustering
 from lsh.utils import clean_text, encode_responses
+
+
+def build_embedding_graph_partition(embeddings_by_id: dict[str, object], ids: list[str]) -> dict[str, int]:
+    candidate_pairs = set(combinations(ids, 2))
+    graph = build_similarity_graph(candidate_pairs, embeddings_by_id, threshold=0.72)
+
+    if graph.number_of_edges() == 0:
+        return {doc_id: index for index, doc_id in enumerate(ids)}
+
+    return cluster_graph(graph, resolution=1.0)
 
 
 def build_clusters(payload: dict) -> dict:
@@ -54,21 +65,34 @@ def build_clusters(payload: dict) -> dict:
     embeddings_by_id = {doc_id: embedding for doc_id, embedding in zip(ids, embeddings)}
 
     sample_count = len(items)
-    n_neighbors = max(2, min(5, sample_count - 1))
-    min_cluster_size = max(2, min(5, sample_count))
-    min_samples = 1 if sample_count < 5 else 2
-    n_components = max(2, min(10, sample_count - 1))
+    clustering_method = "density_umap_hdbscan"
+    clustering_notes = "Clustered with instructor embeddings, UMAP reduction, and HDBSCAN."
 
-    with redirect_stdout(sys.stderr):
-        partition = run_density_clustering(
-            embeddings_by_id,
-            n_neighbors=n_neighbors,
-            min_dist=0.1,
-            min_cluster_size=min_cluster_size,
-            min_samples=min_samples,
-            n_components=n_components,
-            random_state=42,
-        )
+    if sample_count < 4:
+        partition = build_embedding_graph_partition(embeddings_by_id, ids)
+        clustering_method = "embedding_graph_small_sample"
+        clustering_notes = "Used embedding-similarity graph clustering because UMAP/HDBSCAN is unstable below 4 responses."
+    else:
+        n_neighbors = max(2, min(5, sample_count - 1))
+        min_cluster_size = max(2, min(5, sample_count))
+        min_samples = 1 if sample_count < 5 else 2
+        n_components = max(2, min(10, sample_count - 2))
+
+        try:
+            with redirect_stdout(sys.stderr):
+                partition = run_density_clustering(
+                    embeddings_by_id,
+                    n_neighbors=n_neighbors,
+                    min_dist=0.1,
+                    min_cluster_size=min_cluster_size,
+                    min_samples=min_samples,
+                    n_components=n_components,
+                    random_state=42,
+                )
+        except Exception as exc:
+            partition = build_embedding_graph_partition(embeddings_by_id, ids)
+            clustering_method = "embedding_graph_fallback"
+            clustering_notes = f"Fell back to embedding-similarity graph clustering after density clustering failed: {exc}"
 
     valid_partition = {doc_id: cluster_id for doc_id, cluster_id in partition.items() if cluster_id != -1}
     representatives = get_cluster_representatives(valid_partition, embeddings_by_id)
@@ -90,7 +114,11 @@ def build_clusters(payload: dict) -> dict:
             "memberResponseIds": member_ids,
         })
 
-    return {"clusters": clusters}
+    return {
+        "clusters": clusters,
+        "method": clustering_method,
+        "notes": clustering_notes,
+    }
 
 
 def main() -> int:

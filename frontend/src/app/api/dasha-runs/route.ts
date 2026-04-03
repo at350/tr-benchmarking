@@ -1,3 +1,6 @@
+import path from 'path';
+import { spawn } from 'child_process';
+
 import { NextResponse } from 'next/server';
 
 import { listDashaRuns, runDashaEvaluation } from '@/lib/legal-workflow-server';
@@ -34,9 +37,6 @@ export async function POST(req: Request) {
         if (!selectedModelsRaw) {
             return NextResponse.json({ error: 'selectedModels is required.' }, { status: 400 });
         }
-        if (files.length === 0) {
-            return NextResponse.json({ error: 'At least one PDF is required.' }, { status: 400 });
-        }
 
         let selectedModels: DashaSelectedModel[];
         try {
@@ -63,6 +63,15 @@ export async function POST(req: Request) {
             files: normalizedFiles,
             selectedModels,
         });
+
+        const workerScript = path.join(process.cwd(), 'scripts', 'dasha-run-worker.mjs');
+        const child = spawn(process.execPath, [workerScript, new URL(req.url).origin, item.id], {
+            cwd: process.cwd(),
+            detached: true,
+            env: process.env,
+            stdio: 'ignore',
+        });
+        child.unref();
 
         return NextResponse.json({ item });
     } catch (error) {

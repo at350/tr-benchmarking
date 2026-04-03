@@ -24,6 +24,34 @@ import type {
 type WorkflowTab = 'frank' | 'karthic' | 'dasha';
 type FrankWizardStep = 'domain' | 'case' | 'domains' | 'golden' | 'question';
 type KarthicWizardStep = 'packet' | 'domains' | 'targets' | 'approve';
+type DashaWizardStep = 'rubric' | 'question' | 'models' | 'run';
+
+type DashaClusterMapPoint = {
+    x: number;
+    y: number;
+    model: string;
+    clusterId: string;
+    memberId?: string;
+    isCentroid?: boolean;
+};
+
+type DashaClusterMapRegion = {
+    clusterId: string;
+    centerX: number;
+    centerY: number;
+    radius: number;
+    visibleMembers: number;
+    totalMembers: number;
+    dominantModel: string;
+    note: string;
+};
+
+type DashaAxisDomain = {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+};
 
 type UploadRow = {
     role: ArtifactRole;
@@ -99,10 +127,15 @@ const DEFAULT_FRANK_STATE: FrankEditorState = {
 };
 
 const DEFAULT_MODEL_KEYS = [
-    'openai::gpt-4.1-mini',
-    'anthropic::claude-sonnet-4-5',
-    'gemini::gemini-2.5-pro',
+    'openai::gpt-5.4',
+    'anthropic::claude-opus-4-6',
+    'gemini::gemini-3.1-pro-preview',
 ];
+
+const DASHA_MAP_WIDTH = 980;
+const DASHA_MAP_HEIGHT = 640;
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+const MODEL_PALETTE = ['#22c55e', '#ef4444', '#94a3b8', '#3b82f6', '#f97316', '#14b8a6', '#eab308', '#a855f7', '#06b6d4', '#f43f5e'];
 
 const DASHA_ROLES: ArtifactRole[] = ['question_packet', 'issue_statement', 'evidence_packet', 'supplemental'];
 
@@ -138,11 +171,15 @@ export default function LegalWorkflowPage() {
     const [karthicDraftingDomains, setKarthicDraftingDomains] = useState(false);
     const [karthicGeneratingTargets, setKarthicGeneratingTargets] = useState(false);
     const [dashaUploads, setDashaUploads] = useState<UploadRow[]>([]);
+    const [dashaStep, setDashaStep] = useState<DashaWizardStep>('rubric');
     const [dashaForm, setDashaForm] = useState<DashaFormState>({
         rubricPackId: '',
         selectedModelKeys: DEFAULT_MODEL_KEYS,
     });
     const [dashaRunning, setDashaRunning] = useState(false);
+    const [selectedDashaRunId, setSelectedDashaRunId] = useState<string | null>(null);
+    const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
+    const [showClusterView, setShowClusterView] = useState(true);
 
     const approvedFrankPackets = useMemo(
         () => frankPackets.filter((item) => item.status === 'approved'),
@@ -152,11 +189,104 @@ export default function LegalWorkflowPage() {
         () => karthicPacks.filter((item) => item.status === 'approved'),
         [karthicPacks],
     );
-    const selectedDashaRun = dashaRuns[0] ?? null;
+    const selectedDashaPack = useMemo(
+        () => approvedKarthicPacks.find((item) => item.id === dashaForm.rubricPackId) ?? null,
+        [approvedKarthicPacks, dashaForm.rubricPackId],
+    );
+    const selectedDashaFrankPacket = useMemo(
+        () => frankPackets.find((item) => item.id === selectedDashaPack?.frankPacketId) ?? null,
+        [frankPackets, selectedDashaPack],
+    );
+    const selectedDashaRun = useMemo(
+        () => dashaRuns.find((item) => item.id === selectedDashaRunId) ?? dashaRuns[0] ?? null,
+        [dashaRuns, selectedDashaRunId],
+    );
 
     useEffect(() => {
         void loadAll();
     }, []);
+
+    useEffect(() => {
+        if (dashaRuns.length === 0) {
+            if (selectedDashaRunId !== null) {
+                setSelectedDashaRunId(null);
+            }
+            if (selectedClusterId !== null) {
+                setSelectedClusterId(null);
+            }
+            return;
+        }
+        if (selectedDashaRunId && dashaRuns.some((item) => item.id === selectedDashaRunId)) {
+            return;
+        }
+        const nextRun = dashaRuns[0];
+        setSelectedDashaRunId(nextRun.id);
+        setSelectedClusterId(pickDefaultClusterId(nextRun));
+    }, [dashaRuns, selectedClusterId, selectedDashaRunId]);
+
+    useEffect(() => {
+        if (!selectedDashaRun) {
+            if (selectedClusterId !== null) {
+                setSelectedClusterId(null);
+            }
+            return;
+        }
+        if (selectedDashaRun.clusters.length === 0) {
+            if (selectedClusterId !== null) {
+                setSelectedClusterId(null);
+            }
+            return;
+        }
+        if (selectedClusterId !== null && selectedDashaRun.clusters.some((cluster) => cluster.id === selectedClusterId)) {
+            return;
+        }
+        setSelectedClusterId(pickDefaultClusterId(selectedDashaRun));
+    }, [selectedClusterId, selectedDashaRun]);
+
+    useEffect(() => {
+        if (!selectedDashaRunId || selectedDashaRun?.status !== 'draft') {
+            return;
+        }
+
+        let cancelled = false;
+
+        const pollRun = async () => {
+            try {
+                const response = await fetch(`/api/dasha-runs/${selectedDashaRunId}`, { cache: 'no-store' });
+                const json = await response.json();
+                if (!response.ok) {
+                    throw new Error(json.error || 'Failed to load Dasha run.');
+                }
+                if (cancelled) {
+                    return;
+                }
+                const item = json.item as DashaRun;
+                setDashaRuns((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
+                if (item.status === 'completed') {
+                    setStatusMessage('Dasha evaluation completed.');
+                    setErrorMessage(null);
+                } else if (item.status === 'failed') {
+                    setStatusMessage(null);
+                    setErrorMessage(item.errorMessage || 'Dasha evaluation failed.');
+                }
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+                setErrorMessage(error instanceof Error ? error.message : 'Failed to refresh Dasha run.');
+            }
+        };
+
+        void pollRun();
+        const intervalId = window.setInterval(() => {
+            void pollRun();
+        }, 4000);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(intervalId);
+        };
+    }, [selectedDashaRun?.status, selectedDashaRunId]);
 
     async function loadAll() {
         setIsLoading(true);
@@ -172,9 +302,9 @@ export default function LegalWorkflowPage() {
                 karthicRes.json(),
                 dashaRes.json(),
             ]);
-            setFrankPackets(Array.isArray(frankJson.items) ? frankJson.items : []);
-            setKarthicPacks(Array.isArray(karthicJson.items) ? karthicJson.items : []);
-            setDashaRuns(Array.isArray(dashaJson.items) ? dashaJson.items : []);
+            setFrankPackets(sortByUpdated(Array.isArray(frankJson.items) ? frankJson.items : []));
+            setKarthicPacks(sortByUpdated(Array.isArray(karthicJson.items) ? karthicJson.items : []));
+            setDashaRuns(sortByUpdated(Array.isArray(dashaJson.items) ? dashaJson.items : []));
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to load workflow data.');
         } finally {
@@ -538,13 +668,13 @@ export default function LegalWorkflowPage() {
     }
 
     async function runDasha() {
-        if (dashaUploads.length === 0) {
-            setErrorMessage('Upload at least one Dasha-stage PDF.');
+        if (!selectedDashaFrankPacket?.benchmarkQuestion.trim()) {
+            setErrorMessage('The linked Frank packet does not have a saved question packet yet.');
             return;
         }
         setDashaRunning(true);
         setErrorMessage(null);
-        setStatusMessage('Running Dasha evaluation: model generation, clustering, and per-domain centroid scoring...');
+        setStatusMessage('Running Dasha evaluation using Frank’s canonical question packet: model generation, clustering, and per-domain centroid scoring...');
         try {
             const formData = new FormData();
             formData.set('rubricPackId', dashaForm.rubricPackId);
@@ -562,8 +692,17 @@ export default function LegalWorkflowPage() {
                 throw new Error(json.error || 'Failed to run Dasha.');
             }
             const item = json.item as DashaRun;
+            setSelectedDashaRunId(item.id);
+            setSelectedClusterId(null);
             setDashaRuns((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
-            setStatusMessage(item.status === 'completed' ? 'Dasha evaluation completed.' : 'Dasha evaluation finished with failures.');
+            setDashaStep('run');
+            if (item.status === 'draft') {
+                setStatusMessage('Dasha evaluation started. Polling for completion...');
+            } else if (item.status === 'completed') {
+                setStatusMessage('Dasha evaluation completed.');
+            } else {
+                setStatusMessage('Dasha evaluation finished with failures.');
+            }
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to run Dasha.');
             setStatusMessage(null);
@@ -586,6 +725,10 @@ export default function LegalWorkflowPage() {
         && karthicDomainCountValid
         && karthicTargetsReady,
     );
+    const dashaRubricReady = Boolean(dashaForm.rubricPackId);
+    const dashaQuestionReady = Boolean(selectedDashaFrankPacket?.benchmarkQuestion.trim());
+    const dashaModelsReady = dashaForm.selectedModelKeys.length > 0;
+    const dashaRunReady = dashaRubricReady && dashaQuestionReady && dashaModelsReady;
     const karthicReady = approvedFrankPackets.length > 0;
     const dashaReady = approvedKarthicPacks.length > 0;
 
@@ -1336,9 +1479,17 @@ export default function LegalWorkflowPage() {
                     <div className="space-y-6">
                         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                             <SectionHeader
-                                title="Dasha Evaluation"
-                                description="Run free-form model answers, cluster them, and score centroid representatives against Karthic’s structured golden targets."
-                                actions={<ApprovalBadge approved={selectedDashaRun?.status === 'completed'} label={selectedDashaRun ? selectedDashaRun.status : 'idle'} />}
+                                title="Dasha Wizard"
+                                description="One step at a time: pick the approved Karthic pack, load Frank’s canonical question packet automatically, choose the frontier models, then run clustering and centroid-vs-golden comparison."
+                                actions={selectedDashaRun ? <ApprovalBadge approved={selectedDashaRun?.status === 'completed'} label={selectedDashaRun ? selectedDashaRun.status : 'idle'} /> : null}
+                            />
+                            <DashaStepRail
+                                step={dashaStep}
+                                rubricReady={dashaRubricReady}
+                                questionReady={dashaQuestionReady}
+                                modelsReady={dashaModelsReady}
+                                runReady={dashaRunReady}
+                                onChange={setDashaStep}
                             />
                             {!dashaReady ? (
                                 <div className="mt-4">
@@ -1350,101 +1501,183 @@ export default function LegalWorkflowPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="mt-4 grid gap-4 md:grid-cols-2">
-                                        <LabeledSelect
-                                            label="Approved Rubric Pack"
-                                            value={dashaForm.rubricPackId}
-                                            onChange={(value) => setDashaForm((current) => ({ ...current, rubricPackId: value }))}
-                                            options={[
-                                                { value: '', label: 'Select an approved Karthic rubric pack' },
-                                                ...approvedKarthicPacks.map((pack) => ({
-                                                    value: pack.id,
-                                                    label: `${pack.id} · ${pack.domains.length} domains`,
-                                                })),
-                                            ]}
-                                        />
-                                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Question Packet Upload</p>
-                                            <input
-                                                type="file"
-                                                accept=".pdf"
-                                                multiple
-                                                onChange={(event) => {
-                                                    const files = Array.from(event.target.files ?? []);
-                                                    setDashaUploads(files.map((file, index) => ({
-                                                        file,
-                                                        role: DASHA_ROLES[Math.min(index, DASHA_ROLES.length - 1)],
-                                                    })));
-                                                }}
-                                                className="mt-3 text-sm text-slate-600"
+                                    {dashaStep === 'rubric' && (
+                                        <div className="mt-6 space-y-4">
+                                            <LabeledSelect
+                                                label="Approved Karthic Rubric Pack"
+                                                value={dashaForm.rubricPackId}
+                                                onChange={(value) => setDashaForm((current) => ({ ...current, rubricPackId: value }))}
+                                                options={[
+                                                    { value: '', label: 'Select an approved Karthic rubric pack' },
+                                                    ...approvedKarthicPacks.map((pack) => ({
+                                                        value: pack.id,
+                                                        label: `${pack.id} · ${pack.domains.length} domains`,
+                                                    })),
+                                                ]}
                                             />
-                                            {dashaUploads.length > 0 && (
-                                                <div className="mt-3 space-y-2">
-                                                    {dashaUploads.map((upload, index) => (
-                                                        <div key={`${upload.file.name}-${index}`} className="grid gap-2 md:grid-cols-[180px_1fr]">
-                                                            <select
-                                                                value={upload.role}
-                                                                onChange={(event) => {
-                                                                    const role = event.target.value as ArtifactRole;
-                                                                    setDashaUploads((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, role } : row));
-                                                                }}
-                                                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                                                            >
-                                                                {DASHA_ROLES.map((role) => (
-                                                                    <option key={role} value={role}>{role}</option>
-                                                                ))}
-                                                            </select>
-                                                            <div className="text-sm text-slate-700">{upload.file.name}</div>
+                                            {dashaForm.rubricPackId ? (
+                                                <FrankSummaryRow
+                                                    label="Selected Rubric Pack"
+                                                    value={(() => {
+                                                        const pack = approvedKarthicPacks.find((item) => item.id === dashaForm.rubricPackId);
+                                                        return pack
+                                                            ? `${pack.domains.length} domains · ${pack.goldenTargets.length} structured targets`
+                                                            : 'Pack not found';
+                                                    })()}
+                                                />
+                                            ) : null}
+                                            <div className="flex flex-wrap gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDashaStep('question')}
+                                                    disabled={!dashaRubricReady}
+                                                    className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                >
+                                                    Continue to Question Packet
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {dashaStep === 'question' && (
+                                        <div className="mt-6 space-y-4">
+                                            <FrankSummaryRow
+                                                label="Approved Rubric Pack"
+                                                value={dashaForm.rubricPackId || 'No rubric pack selected yet'}
+                                            />
+                                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 2 · Canonical Question Packet</p>
+                                                <p className="mt-1 text-sm text-slate-500">Dasha automatically uses the exact same question packet Frank generated and Karthic inherited. You do not upload a new question here.</p>
+                                            </div>
+                                            <LabeledTextarea
+                                                label="Question Packet From Frank"
+                                                value={selectedDashaFrankPacket?.benchmarkQuestion ?? ''}
+                                                onChange={() => undefined}
+                                                rows={14}
+                                                hint={selectedDashaFrankPacket
+                                                    ? `Loaded automatically from Frank packet ${selectedDashaFrankPacket.id}.`
+                                                    : 'Select an approved rubric pack to load the linked Frank question packet.'}
+                                                readOnly
+                                            />
+                                            <div className="flex flex-wrap gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDashaStep('rubric')}
+                                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                                >
+                                                    Back
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDashaStep('models')}
+                                                    disabled={!dashaQuestionReady}
+                                                    className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                >
+                                                    Continue to Models
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {dashaStep === 'models' && (
+                                        <div className="mt-6 space-y-4">
+                                            <FrankSummaryRow
+                                                label="Canonical Question Packet"
+                                                value={selectedDashaFrankPacket
+                                                    ? `Loaded from Frank packet ${selectedDashaFrankPacket.id}`
+                                                    : 'No linked Frank question packet loaded yet'}
+                                            />
+                                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 3 · Frontier Models</p>
+                                                <p className="mt-1 text-sm text-slate-500">Choose which current frontier models should each write one free-form legal answer. Dasha will cluster those answers before scoring centroids against Karthic’s structured golden targets.</p>
+                                            </div>
+                                            <div className="grid gap-4 lg:grid-cols-3">
+                                                {(Object.keys(MODEL_OPTIONS_BY_PROVIDER) as ModelProvider[]).map((provider) => (
+                                                    <div key={provider} className="rounded-xl border border-slate-200 bg-white p-4">
+                                                        <p className="text-sm font-semibold text-slate-800">{PROVIDER_LABELS[provider]}</p>
+                                                        <div className="mt-2 space-y-2">
+                                                            {MODEL_OPTIONS_BY_PROVIDER[provider].slice(0, 4).map((option) => {
+                                                                const key = `${provider}::${option.value}`;
+                                                                const checked = dashaForm.selectedModelKeys.includes(key);
+                                                                return (
+                                                                    <label key={key} className="flex items-start gap-2 text-sm text-slate-700">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={checked}
+                                                                            onChange={() => setDashaForm((current) => ({
+                                                                                ...current,
+                                                                                selectedModelKeys: checked
+                                                                                    ? current.selectedModelKeys.filter((item) => item !== key)
+                                                                                    : [...current.selectedModelKeys, key],
+                                                                            }))}
+                                                                            className="mt-1"
+                                                                        />
+                                                                        <span>{option.label}</span>
+                                                                    </label>
+                                                                );
+                                                            })}
                                                         </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Selected Models</p>
-                                        <div className="mt-3 grid gap-4 lg:grid-cols-3">
-                                            {(Object.keys(MODEL_OPTIONS_BY_PROVIDER) as ModelProvider[]).map((provider) => (
-                                                <div key={provider} className="rounded-xl border border-slate-200 bg-white p-4">
-                                                    <p className="text-sm font-semibold text-slate-800">{PROVIDER_LABELS[provider]}</p>
-                                                    <div className="mt-2 space-y-2">
-                                                        {MODEL_OPTIONS_BY_PROVIDER[provider].slice(0, 4).map((option) => {
-                                                            const key = `${provider}::${option.value}`;
-                                                            const checked = dashaForm.selectedModelKeys.includes(key);
-                                                            return (
-                                                                <label key={key} className="flex items-start gap-2 text-sm text-slate-700">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={checked}
-                                                                        onChange={() => setDashaForm((current) => ({
-                                                                            ...current,
-                                                                            selectedModelKeys: checked
-                                                                                ? current.selectedModelKeys.filter((item) => item !== key)
-                                                                                : [...current.selectedModelKeys, key],
-                                                                        }))}
-                                                                        className="mt-1"
-                                                                    />
-                                                                    <span>{option.label}</span>
-                                                                </label>
-                                                            );
-                                                        })}
                                                     </div>
-                                                </div>
-                                            ))}
+                                                ))}
+                                            </div>
+                                            <div className="flex flex-wrap gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDashaStep('question')}
+                                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                                >
+                                                    Back
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDashaStep('run')}
+                                                    disabled={!dashaModelsReady}
+                                                    className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                >
+                                                    Continue to Run
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
 
-                                    <div className="mt-5 flex flex-wrap gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => void runDasha()}
-                                            disabled={!dashaForm.rubricPackId || dashaRunning || dashaForm.selectedModelKeys.length === 0}
-                                            className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
-                                        >
-                                            {dashaRunning ? 'Running...' : 'Run Dasha Evaluation'}
-                                        </button>
-                                    </div>
+                                    {dashaStep === 'run' && (
+                                        <div className="mt-6 space-y-4">
+                                            <FrankSummaryRow label="Rubric Pack" value={dashaForm.rubricPackId || 'No rubric pack selected yet'} />
+                                            <FrankSummaryRow
+                                                label="Question Packet"
+                                                value={selectedDashaFrankPacket
+                                                    ? `Using Frank packet ${selectedDashaFrankPacket.id}`
+                                                    : 'No linked Frank question packet loaded yet'}
+                                            />
+                                            <FrankSummaryRow label="Selected Models" value={`${dashaForm.selectedModelKeys.length} model(s)`} />
+                                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 4 · Run Dasha</p>
+                                                <div className="mt-2 space-y-2 text-sm text-slate-600">
+                                                    <p>Dasha generates one answer per selected model.</p>
+                                                    <p>Every model gets the exact same canonical question packet that Frank generated.</p>
+                                                    <p>Dasha then runs the repo’s clustering path: instruction-tuned embeddings, UMAP reduction, HDBSCAN clustering, then one representative centroid per cluster.</p>
+                                                    <p>Each centroid is compared against Karthic’s structured golden targets and stored as matched points, missing points, extra points, and contradiction points.</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDashaStep('models')}
+                                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                                >
+                                                    Back
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void runDasha()}
+                                                    disabled={!dashaRunReady || dashaRunning}
+                                                    className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                >
+                                                    {dashaRunning ? 'Running...' : 'Run Dasha Evaluation'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </div>
@@ -1480,6 +1713,7 @@ export default function LegalWorkflowPage() {
                                                 meta: result.applicabilityStatus === 'applicable'
                                                     ? [
                                                         result.winningModelMix.map((entry) => `${entry.model} x${entry.count}`).join(', '),
+                                                        winningEvaluation?.difference?.differenceSummary ?? null,
                                                         winningEvaluation
                                                             ? `Matched ${winningEvaluation.difference?.matchedGoldenPoints.length ?? 0}, missing ${winningEvaluation.difference?.missingGoldenPoints.length ?? 0}, extra ${winningEvaluation.difference?.extraCentroidPoints.length ?? 0}, contradictions ${winningEvaluation.difference?.contradictionPoints.length ?? 0}`
                                                             : null,
@@ -1494,7 +1728,10 @@ export default function LegalWorkflowPage() {
                                         items={selectedDashaRun.clusters.map((cluster) => ({
                                             id: cluster.id,
                                             label: `${cluster.id} · ${cluster.size} responses`,
-                                            meta: cluster.modelBreakdown.map((entry) => `${entry.model} x${entry.count}`).join(', '),
+                                            meta: [
+                                                cluster.modelBreakdown.map((entry) => `${entry.model} x${entry.count}`).join(', '),
+                                                `${selectedDashaRun.domainResults.filter((result) => result.winningCentroidId === cluster.id).length} winning domain(s)`,
+                                            ].filter(Boolean).join(' · '),
                                         }))}
                                     />
                                 </div>
@@ -1503,7 +1740,38 @@ export default function LegalWorkflowPage() {
                     </div>
 
                     <div className="space-y-6">
-                        <ArtifactListCard title="Dasha Runs" items={dashaRuns} onSelect={() => undefined} />
+                        <ArtifactListCard
+                            title="Dasha Runs"
+                            items={dashaRuns}
+                            onSelect={(id) => {
+                                const run = dashaRuns.find((item) => item.id === id) ?? null;
+                                setSelectedDashaRunId(id);
+                                setSelectedClusterId(pickDefaultClusterId(run));
+                            }}
+                            selectedId={selectedDashaRun?.id ?? selectedDashaRunId ?? undefined}
+                        />
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-sm font-bold text-slate-900">Cluster View</p>
+                                    <p className="mt-1 text-xs text-slate-500">Toggle the global answer-cluster map on or off.</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowClusterView((current) => !current)}
+                                    className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${showClusterView ? 'border-teal-300 bg-teal-50 text-teal-800' : 'border-slate-300 bg-white text-slate-700'}`}
+                                >
+                                    {showClusterView ? 'Hide Cluster View' : 'Show Cluster View'}
+                                </button>
+                            </div>
+                        </div>
+                        {showClusterView ? (
+                            <ClusterViewCard
+                                run={selectedDashaRun}
+                                selectedClusterId={selectedClusterId}
+                                onSelectCluster={setSelectedClusterId}
+                            />
+                        ) : null}
                     </div>
                 </section>
             )}
@@ -1656,6 +1924,44 @@ function KarthicStepRail({
     );
 }
 
+function DashaStepRail({
+    step,
+    rubricReady,
+    questionReady,
+    modelsReady,
+    runReady,
+    onChange,
+}: {
+    step: DashaWizardStep;
+    rubricReady: boolean;
+    questionReady: boolean;
+    modelsReady: boolean;
+    runReady: boolean;
+    onChange: (step: DashaWizardStep) => void;
+}) {
+    const steps: Array<{ id: DashaWizardStep; label: string; ready: boolean }> = [
+        { id: 'rubric', label: '1. Rubric', ready: rubricReady },
+        { id: 'question', label: '2. Question', ready: questionReady },
+        { id: 'models', label: '3. Models', ready: modelsReady },
+        { id: 'run', label: '4. Run', ready: runReady },
+    ];
+
+    return (
+        <div className="mt-5 flex flex-wrap gap-2">
+            {steps.map((item) => (
+                <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onChange(item.id)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${step === item.id ? 'border-teal-300 bg-teal-50 text-teal-800' : item.ready ? 'border-slate-300 bg-white text-slate-700' : 'border-slate-200 bg-slate-50 text-slate-400'}`}
+                >
+                    {item.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
 function FrankSummaryRow({ label, value }: { label: string; value: string }) {
     return (
         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -1700,10 +2006,12 @@ function ArtifactListCard({
     title,
     items,
     onSelect,
+    selectedId,
 }: {
     title: string;
     items: Array<{ id: string; status?: string; updatedAt?: string; legalDomain?: string; domainScope?: string; createdAt?: string }>;
     onSelect: (id: string) => void;
+    selectedId?: string;
 }) {
     return (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1714,12 +2022,14 @@ function ArtifactListCard({
                 </div>
             ) : (
                 <div className="mt-4 space-y-3">
-                    {items.map((item) => (
+                    {items.map((item) => {
+                        const isSelected = item.id === selectedId;
+                        return (
                         <button
                             key={item.id}
                             type="button"
                             onClick={() => onSelect(item.id)}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left hover:border-teal-200 hover:bg-teal-50/40"
+                            className={`w-full rounded-xl border px-4 py-3 text-left transition ${isSelected ? 'border-teal-300 bg-teal-50/70 shadow-[0_10px_24px_rgba(13,148,136,0.08)]' : 'border-slate-200 bg-slate-50 hover:border-teal-200 hover:bg-teal-50/40'}`}
                         >
                             <div className="flex items-center justify-between gap-3">
                                 <p className="text-sm font-semibold text-slate-800">{item.legalDomain ? `${item.legalDomain} · ${item.domainScope ?? ''}` : item.id}</p>
@@ -1727,7 +2037,8 @@ function ArtifactListCard({
                             </div>
                             <p className="mt-2 text-xs text-slate-500">{item.updatedAt ?? item.createdAt ?? ''}</p>
                         </button>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>
@@ -1756,6 +2067,359 @@ function ReadOnlyListCard({
                             {item.meta ? <p className="mt-1 text-xs text-slate-500">{item.meta}</p> : null}
                         </div>
                     ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function ClusterViewCard({
+    run,
+    selectedClusterId,
+    onSelectCluster,
+}: {
+    run: DashaRun | null;
+    selectedClusterId: string | null;
+    onSelectCluster: (clusterId: string | null) => void;
+}) {
+    const [hoveredClusterId, setHoveredClusterId] = useState<string | null>(null);
+    const entries = useMemo(() => buildClusterViewEntries(run), [run]);
+    const visibleModels = useMemo(
+        () => Array.from(new Set(entries.flatMap((entry) => entry.cluster.modelBreakdown.map((item) => item.model)))),
+        [entries],
+    );
+    const modelColorMap = useMemo(() => buildModelColorMap(visibleModels), [visibleModels]);
+    const mapData = useMemo(() => buildDashaClusterMapData(entries), [entries]);
+    const axisDomain = useMemo(() => buildDashaAxisDomain(mapData.points, mapData.regions), [mapData.points, mapData.regions]);
+    const xTicks = useMemo(() => buildTicks(axisDomain.minX, axisDomain.maxX, 4), [axisDomain.maxX, axisDomain.minX]);
+    const yTicks = useMemo(() => buildTicks(axisDomain.minY, axisDomain.maxY, 4), [axisDomain.maxY, axisDomain.minY]);
+    const filteredLookup = useMemo(
+        () => new Map(entries.map((entry) => [entry.cluster.id, entry])),
+        [entries],
+    );
+    const selectedEntry = selectedClusterId ? filteredLookup.get(selectedClusterId) ?? null : null;
+    const hoveredEntry = hoveredClusterId ? filteredLookup.get(hoveredClusterId) ?? null : null;
+    const focusEntry = selectedEntry ?? hoveredEntry;
+    const activeClusterId = selectedClusterId ?? hoveredClusterId;
+
+    useEffect(() => {
+        if (hoveredClusterId && !entries.some((entry) => entry.cluster.id === hoveredClusterId)) {
+            setHoveredClusterId(null);
+        }
+    }, [entries, hoveredClusterId]);
+
+    return (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <SectionHeader
+                title="Cluster View"
+                description="This uses the same scatter-map style as LSH-clustering: click or hover a cluster to inspect it, and click the background to clear focus."
+            />
+
+            {!run || entries.length === 0 ? (
+                <div className="mt-4">
+                    <EmptyState
+                        title="No clusters to inspect yet"
+                        description="Run Dasha first. The cluster view will appear here once frontier-model answers have been grouped."
+                    />
+                </div>
+            ) : (
+                <div className="mt-4">
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-stretch xl:gap-4">
+                        <div className="min-w-0 xl:basis-[58%]">
+                            <div className="relative overflow-hidden rounded-xl border border-slate-700 bg-slate-950">
+                                <svg
+                                    viewBox={`0 0 ${DASHA_MAP_WIDTH} ${DASHA_MAP_HEIGHT}`}
+                                    className="h-auto w-full"
+                                    role="img"
+                                    aria-label="Dasha cluster scatter map"
+                                >
+                                    <rect
+                                        x={0}
+                                        y={0}
+                                        width={DASHA_MAP_WIDTH}
+                                        height={DASHA_MAP_HEIGHT}
+                                        fill="#061227"
+                                        onClick={() => onSelectCluster(null)}
+                                    />
+
+                                    {xTicks.map((tick) => {
+                                        const x = toDashaSvgX(tick, axisDomain);
+                                        return (
+                                            <g key={`x-${tick}`}>
+                                                <line x1={x} y1={0} x2={x} y2={DASHA_MAP_HEIGHT} stroke="#334155" strokeOpacity={0.42} strokeWidth={1} />
+                                                <text x={x} y={DASHA_MAP_HEIGHT - 9} textAnchor="middle" fontSize="11" fill="#94a3b8">
+                                                    {formatTick(tick)}
+                                                </text>
+                                            </g>
+                                        );
+                                    })}
+
+                                    {yTicks.map((tick) => {
+                                        const y = toDashaSvgY(tick, axisDomain);
+                                        return (
+                                            <g key={`y-${tick}`}>
+                                                <line x1={0} y1={y} x2={DASHA_MAP_WIDTH} y2={y} stroke="#334155" strokeOpacity={0.42} strokeWidth={1} />
+                                                <text x={10} y={y - 6} textAnchor="start" fontSize="11" fill="#94a3b8">
+                                                    {formatTick(tick)}
+                                                </text>
+                                            </g>
+                                        );
+                                    })}
+
+                                    {mapData.regions.map((region) => {
+                                        const active = activeClusterId === region.clusterId;
+                                        const muted = Boolean(activeClusterId) && !active;
+                                        const color = modelColorMap.get(region.dominantModel) || '#94a3b8';
+                                        const labelX = toDashaSvgX(region.centerX, axisDomain);
+                                        const labelY = toDashaSvgY(region.centerY, axisDomain);
+                                        return (
+                                            <g
+                                                key={`region-${region.clusterId}`}
+                                                onMouseEnter={() => setHoveredClusterId(region.clusterId)}
+                                                onMouseLeave={() => setHoveredClusterId((current) => (current === region.clusterId ? null : current))}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    onSelectCluster(region.clusterId);
+                                                }}
+                                                className="cursor-pointer"
+                                            >
+                                                <circle
+                                                    cx={labelX}
+                                                    cy={labelY}
+                                                    r={Math.max((region.radius / (axisDomain.maxX - axisDomain.minX || 1)) * DASHA_MAP_WIDTH, 8)}
+                                                    fill={color}
+                                                    fillOpacity={active ? 0.22 : muted ? 0.05 : 0.12}
+                                                    stroke={color}
+                                                    strokeOpacity={active ? 0.95 : muted ? 0.2 : 0.55}
+                                                    strokeWidth={active ? 2.2 : 1.2}
+                                                />
+                                                <text
+                                                    x={labelX}
+                                                    y={labelY + 4}
+                                                    textAnchor="middle"
+                                                    fontSize={active ? '11' : '10'}
+                                                    fontWeight={active ? '700' : '600'}
+                                                    fill={color}
+                                                    fillOpacity={active ? 0.9 : muted ? 0.35 : 0.65}
+                                                    pointerEvents="none"
+                                                >
+                                                    {formatClusterMapLabel(region.clusterId)}
+                                                </text>
+                                            </g>
+                                        );
+                                    })}
+
+                                    {mapData.points.map((point, index) => {
+                                        const active = activeClusterId === point.clusterId;
+                                        const muted = Boolean(activeClusterId) && !active;
+                                        const isCentroid = point.isCentroid ?? false;
+                                        return (
+                                            <g key={`${point.clusterId}-${index}`}>
+                                                <title>{isCentroid ? `${point.memberId} (cluster centroid)` : point.memberId ?? point.model}</title>
+                                                <circle
+                                                    cx={toDashaSvgX(point.x, axisDomain)}
+                                                    cy={toDashaSvgY(point.y, axisDomain)}
+                                                    r={isCentroid ? 4.8 : active ? 4.2 : 3.4}
+                                                    fill={modelColorMap.get(point.model) || '#94a3b8'}
+                                                    fillOpacity={muted ? 0.18 : 0.9}
+                                                    stroke={isCentroid ? '#0d9488' : 'none'}
+                                                    strokeWidth={isCentroid ? 2 : 0}
+                                                    onMouseEnter={() => setHoveredClusterId(point.clusterId)}
+                                                    onMouseLeave={() => setHoveredClusterId((current) => (current === point.clusterId ? null : current))}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        onSelectCluster(point.clusterId);
+                                                    }}
+                                                    className="cursor-pointer"
+                                                />
+                                            </g>
+                                        );
+                                    })}
+
+                                    <text x={DASHA_MAP_WIDTH / 2} y={22} textAnchor="middle" fontSize="15" fill="#dbeafe" fontWeight="700">
+                                        {run.id}
+                                    </text>
+                                    <text x={DASHA_MAP_WIDTH - 16} y={DASHA_MAP_HEIGHT - 28} textAnchor="end" fontSize="11" fill="#94a3b8">
+                                        Projection X
+                                    </text>
+                                    <text
+                                        transform={`translate(18 ${DASHA_MAP_HEIGHT / 2}) rotate(-90)`}
+                                        textAnchor="middle"
+                                        fontSize="11"
+                                        fill="#94a3b8"
+                                    >
+                                        Projection Y
+                                    </text>
+                                </svg>
+
+                                {mapData.points.length === 0 ? (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-slate-950/70 p-4 text-center">
+                                        <p className="max-w-md rounded-lg border border-slate-600 bg-slate-900/90 px-4 py-3 text-sm text-slate-200">
+                                            No cluster points are available for this Dasha run.
+                                        </p>
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            <p className="mt-2 text-xs text-slate-500">
+                                Visible clusters: {entries.length} · Visible points: {mapData.points.length} · Method: {run.clusteringMethod || 'unknown'}
+                            </p>
+
+                            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                <div className="flex items-center justify-between gap-2">
+                                    <h3 className="text-sm font-bold text-slate-900">Selected Cluster Outcomes</h3>
+                                    {selectedEntry ? (
+                                        <p className="text-[11px] font-semibold text-slate-500">
+                                            {formatClusterInspectorTitle(selectedEntry.cluster.id)}
+                                        </p>
+                                    ) : null}
+                                </div>
+
+                                {selectedEntry ? (
+                                    <div className="mt-3 space-y-3">
+                                        <p className="text-xs text-slate-600">
+                                            These metrics describe the currently selected Dasha cluster only, not the whole run.
+                                        </p>
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Winning domains</p>
+                                                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedEntry.winningDomains.length}</p>
+                                            </div>
+                                            <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Average winning score</p>
+                                                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedEntry.averageWinningScore === null ? 'N/A' : selectedEntry.averageWinningScore.toFixed(1)}</p>
+                                            </div>
+                                            <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Representative model</p>
+                                                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedEntry.representativeResponse?.model ?? 'Unknown'}</p>
+                                            </div>
+                                            <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Difference footprint</p>
+                                                <p className="mt-1 text-sm font-semibold text-slate-900">
+                                                    {formatDifferenceFootprint(selectedEntry.winningDomains, selectedEntry.cluster.id)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="mt-3 text-sm text-slate-600">
+                                        Click a cluster to pin it and see its outcomes here.
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <aside className="min-w-0 xl:basis-[42%]">
+                            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                <div className="flex items-center justify-between gap-2">
+                                    <h3 className="text-sm font-bold text-slate-900">Cluster Inspector</h3>
+                                    {selectedClusterId ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => onSelectCluster(null)}
+                                            className="rounded border border-slate-300 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-200"
+                                        >
+                                            Clear focus
+                                        </button>
+                                    ) : null}
+                                </div>
+
+                                {focusEntry ? (
+                                    <div className="mt-3 space-y-3">
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-900">{formatClusterInspectorTitle(focusEntry.cluster.id)}</p>
+                                            <p className="mt-0.5 text-xs text-slate-600">{focusEntry.cluster.size} members</p>
+                                        </div>
+
+                                        <p className="text-xs text-slate-700">
+                                            Representative: <span className="font-semibold">{focusEntry.representativeResponse?.id ?? focusEntry.cluster.representativeResponseId}</span>
+                                            {' '}({focusEntry.representativeResponse?.model ?? 'unknown'})
+                                        </p>
+                                        <p className="text-xs text-slate-600">
+                                            {truncateText(focusEntry.cluster.representativeText, 260) || 'No representative preview available.'}
+                                        </p>
+
+                                        <div>
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Model breakdown</p>
+                                            <div className="mt-1.5 space-y-1.5">
+                                                {focusEntry.cluster.modelBreakdown.map((entry) => (
+                                                    <div key={`${focusEntry.cluster.id}-${entry.modelKey}`} className="flex items-center justify-between gap-2 rounded border border-slate-200 bg-slate-50 px-2 py-1">
+                                                        <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
+                                                            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: modelColorMap.get(entry.model) || '#94a3b8' }} />
+                                                            {entry.model}
+                                                        </span>
+                                                        <span className="text-xs font-semibold text-slate-600">{entry.count}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Winning domains</p>
+                                            <div className="mt-2 space-y-2">
+                                                {focusEntry.winningDomains.length === 0 ? (
+                                                    <p className="text-xs text-slate-500">No domain selected this cluster as the winner.</p>
+                                                ) : (
+                                                    focusEntry.winningDomains.map((domain) => {
+                                                        const winningEvaluation = domain.centroidEvaluations.find((evaluation) => evaluation.clusterId === focusEntry.cluster.id);
+                                                        const difference = winningEvaluation?.difference;
+                                                        return (
+                                                            <div key={`${focusEntry.cluster.id}_${domain.domainId}`} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <p className="text-xs font-semibold text-slate-800">{domain.domainName}</p>
+                                                                    <span className="text-[11px] font-semibold text-slate-500">{domain.winningScore ?? 'N/A'}</span>
+                                                                </div>
+                                                                {difference?.differenceSummary ? (
+                                                                    <p className="mt-1 text-xs leading-5 text-slate-600">{difference.differenceSummary}</p>
+                                                                ) : null}
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Representative answer</p>
+                                            <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-xs leading-6 text-slate-700 whitespace-pre-wrap">
+                                                {focusEntry.cluster.representativeText}
+                                            </div>
+                                        </div>
+
+                                        <div className="border-t border-slate-200 pt-3">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Visible cluster list</p>
+                                            <div className="mt-2 max-h-64 space-y-1.5 overflow-y-auto pr-1">
+                                                {entries.map((entry) => {
+                                                    const dominantModel = entry.cluster.modelBreakdown[0]?.model || 'unknown';
+                                                    const dominantColor = modelColorMap.get(dominantModel) || '#94a3b8';
+                                                    const selected = selectedClusterId === entry.cluster.id;
+                                                    const hovered = hoveredClusterId === entry.cluster.id;
+                                                    return (
+                                                        <button
+                                                            key={entry.cluster.id}
+                                                            type="button"
+                                                            onClick={() => onSelectCluster(entry.cluster.id)}
+                                                            onMouseEnter={() => setHoveredClusterId(entry.cluster.id)}
+                                                            onMouseLeave={() => setHoveredClusterId((current) => (current === entry.cluster.id ? null : current))}
+                                                            className={`flex w-full items-center justify-between rounded-md border px-2 py-1.5 text-left text-xs transition ${selected ? 'border-blue-300 bg-blue-50' : hovered ? 'border-slate-300 bg-slate-100' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
+                                                        >
+                                                            <span className="inline-flex items-center gap-2 font-semibold text-slate-700">
+                                                                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: dominantColor }} />
+                                                                {formatClusterInspectorTitle(entry.cluster.id)}
+                                                            </span>
+                                                            <span className="font-semibold text-slate-600">{entry.cluster.size}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="mt-3 text-sm text-slate-600">Click or hover a cluster to inspect details.</p>
+                                )}
+                            </div>
+                        </aside>
+                    </div>
                 </div>
             )}
         </div>
@@ -1798,12 +2462,14 @@ function LabeledTextarea({
     onChange,
     rows,
     hint,
+    readOnly,
 }: {
     label: string;
     value: string;
     onChange: (value: string) => void;
     rows: number;
     hint?: string;
+    readOnly?: boolean;
 }) {
     return (
         <label className="space-y-1">
@@ -1812,7 +2478,8 @@ function LabeledTextarea({
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
                 rows={rows}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                readOnly={readOnly}
+                className={`w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 ${readOnly ? 'bg-slate-50' : 'bg-white'}`}
             />
             {hint ? <span className="block text-xs text-slate-500">{hint}</span> : null}
         </label>
@@ -1884,11 +2551,351 @@ function buildSelectedModels(keys: string[]): DashaSelectedModel[] {
 }
 
 function defaultReasoningEffort(provider: ModelProvider, model: string): ReasoningEffort {
-    if (provider === 'openai' && (model === 'gpt-5.2' || model === 'gpt-5.2-pro')) {
+    if (provider === 'openai' && model.startsWith('gpt-5')) {
         return 'medium';
     }
     if (provider === 'gemini') {
-        return 'medium';
+        return model.includes('pro') ? 'high' : 'medium';
     }
     return 'none';
+}
+
+function buildClusterViewEntries(run: DashaRun | null) {
+    if (!run) {
+        return [];
+    }
+
+    const responseById = new Map(run.responses.map((response) => [response.id, response]));
+
+    return run.clusters
+        .map((cluster) => {
+            const winningDomains = run.domainResults
+                .filter((result) => result.winningCentroidId === cluster.id)
+                .sort((left, right) => {
+                    const scoreDelta = (right.winningScore ?? -1) - (left.winningScore ?? -1);
+                    if (scoreDelta !== 0) {
+                        return scoreDelta;
+                    }
+                    const weightDelta = right.weight - left.weight;
+                    if (weightDelta !== 0) {
+                        return weightDelta;
+                    }
+                    return left.domainName.localeCompare(right.domainName);
+                });
+
+            const memberResponses = cluster.memberResponseIds
+                .map((id) => responseById.get(id))
+                .filter((response): response is DashaRun['responses'][number] => Boolean(response));
+
+            const representativeResponse = responseById.get(cluster.representativeResponseId) ?? memberResponses[0] ?? null;
+            const scores = winningDomains
+                .map((domain) => domain.winningScore)
+                .filter((score): score is number => score !== null);
+
+            return {
+                cluster,
+                representativeResponse,
+                memberResponses,
+                winningDomains,
+                averageWinningScore: scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null,
+            };
+        })
+        .sort((left, right) => {
+            const winningDelta = right.winningDomains.length - left.winningDomains.length;
+            if (winningDelta !== 0) {
+                return winningDelta;
+            }
+            const sizeDelta = right.cluster.size - left.cluster.size;
+            if (sizeDelta !== 0) {
+                return sizeDelta;
+            }
+            return left.cluster.id.localeCompare(right.cluster.id);
+        });
+}
+
+function pickDefaultClusterId(run: DashaRun | null) {
+    return buildClusterViewEntries(run)[0]?.cluster.id ?? null;
+}
+
+function shortClusterLabel(clusterId: string) {
+    const number = clusterId.replace(/^cluster_/, '');
+    return number === clusterId ? clusterId : `C${number}`;
+}
+
+function formatClusterMapLabel(clusterId: string) {
+    if (clusterId.toLowerCase() === 'noise') {
+        return 'Noise';
+    }
+    return shortClusterLabel(clusterId);
+}
+
+function formatClusterInspectorTitle(clusterId: string) {
+    if (clusterId.toLowerCase() === 'noise') {
+        return 'Noise Cluster';
+    }
+    const short = shortClusterLabel(clusterId);
+    return short === clusterId ? `Cluster ${clusterId}` : `Cluster ${short.slice(1)}`;
+}
+
+function buildDashaClusterMapData(entries: ReturnType<typeof buildClusterViewEntries>) {
+    if (entries.length === 0) {
+        return { points: [] as DashaClusterMapPoint[], regions: [] as DashaClusterMapRegion[] };
+    }
+
+    const seeds = entries
+        .map((entry) => {
+            const visibleMembers = entry.cluster.modelBreakdown.reduce((total, item) => total + item.count, 0);
+            if (visibleMembers === 0) {
+                return null;
+            }
+
+            const dominantModel = entry.cluster.modelBreakdown[0]?.model || 'unknown';
+            const radius = 2.8 + Math.sqrt(visibleMembers) * 1.9;
+
+            return {
+                clusterId: entry.cluster.id,
+                radius,
+                visibleMembers,
+                totalMembers: entry.cluster.size,
+                dominantModel,
+                note: truncateText(entry.cluster.representativeText, 180),
+                visibleBreakdown: entry.cluster.modelBreakdown,
+                members: entry.memberResponses.map((response) => ({ id: response.id, model: response.model })),
+                representativeId: entry.cluster.representativeResponseId,
+            };
+        })
+        .filter((seed): seed is NonNullable<typeof seed> => seed !== null);
+
+    if (seeds.length === 0) {
+        return { points: [] as DashaClusterMapPoint[], regions: [] as DashaClusterMapRegion[] };
+    }
+
+    const seededRegions: DashaClusterMapRegion[] = seeds.map((seed, index) => {
+        const spiralStep = 8 + Math.floor(index / 6) * 7;
+        const angle = index * GOLDEN_ANGLE * 0.92;
+        return {
+            clusterId: seed.clusterId,
+            centerX: Math.cos(angle) * spiralStep,
+            centerY: Math.sin(angle) * spiralStep * 0.72,
+            radius: seed.radius,
+            visibleMembers: seed.visibleMembers,
+            totalMembers: seed.totalMembers,
+            dominantModel: seed.dominantModel,
+            note: seed.note,
+        };
+    });
+
+    const regions = resolveDashaRegionOverlaps(seededRegions);
+    const regionByCluster = new Map(regions.map((region) => [region.clusterId, region]));
+
+    const points: DashaClusterMapPoint[] = [];
+    for (const seed of seeds) {
+        const region = regionByCluster.get(seed.clusterId);
+        if (!region) {
+            continue;
+        }
+
+        const sequence = expandModelsByCount(seed.visibleBreakdown, seed.visibleMembers);
+        const membersByModel = new Map<string, string[]>();
+        for (const member of seed.members) {
+            const list = membersByModel.get(member.model) ?? [];
+            list.push(member.id);
+            membersByModel.set(member.model, list);
+        }
+        const modelCounters = new Map<string, number>();
+        for (const entry of seed.visibleBreakdown) {
+            modelCounters.set(entry.model, 0);
+        }
+
+        sequence.forEach((model, pointIndex) => {
+            const randomSeed = hashString(`${seed.clusterId}:${model}:${pointIndex}`);
+            const radialPosition = region.radius * Math.sqrt((pointIndex + 1) / sequence.length);
+            const theta = pointIndex * GOLDEN_ANGLE + seededFloat(randomSeed, 1) * 0.85;
+            const jitterX = (seededFloat(randomSeed, 2) - 0.5) * 0.85;
+            const jitterY = (seededFloat(randomSeed, 3) - 0.5) * 0.85;
+
+            const modelList = membersByModel.get(model) ?? [];
+            const counter = modelCounters.get(model) ?? 0;
+            const memberId = modelList[counter] ?? undefined;
+            modelCounters.set(model, counter + 1);
+
+            points.push({
+                x: region.centerX + Math.cos(theta) * radialPosition + jitterX,
+                y: region.centerY + Math.sin(theta) * radialPosition + jitterY,
+                model,
+                clusterId: seed.clusterId,
+                memberId,
+                isCentroid: memberId === seed.representativeId,
+            });
+        });
+    }
+
+    return {
+        points,
+        regions: regions.sort((left, right) => right.visibleMembers - left.visibleMembers),
+    };
+}
+
+function resolveDashaRegionOverlaps(regions: DashaClusterMapRegion[]) {
+    const adjusted = regions.map((region) => ({ ...region }));
+
+    for (let iteration = 0; iteration < 120; iteration += 1) {
+        let moved = false;
+
+        for (let i = 0; i < adjusted.length; i += 1) {
+            for (let j = i + 1; j < adjusted.length; j += 1) {
+                const left = adjusted[i];
+                const right = adjusted[j];
+                const dx = right.centerX - left.centerX;
+                const dy = right.centerY - left.centerY;
+                const distance = Math.hypot(dx, dy) || 0.0001;
+                const minimumDistance = left.radius + right.radius + 2.3;
+
+                if (distance < minimumDistance) {
+                    const overlap = (minimumDistance - distance) * 0.5;
+                    const ux = dx / distance;
+                    const uy = dy / distance;
+                    left.centerX -= ux * overlap;
+                    left.centerY -= uy * overlap;
+                    right.centerX += ux * overlap;
+                    right.centerY += uy * overlap;
+                    moved = true;
+                }
+            }
+        }
+
+        for (const region of adjusted) {
+            region.centerX *= 0.995;
+            region.centerY *= 0.995;
+        }
+
+        if (!moved) {
+            break;
+        }
+    }
+
+    return adjusted;
+}
+
+function expandModelsByCount(entries: Array<{ model: string; count: number }>, fallbackCount: number) {
+    const expanded: string[] = [];
+    for (const entry of entries) {
+        const safeCount = Number.isFinite(entry.count) ? Math.max(0, Math.floor(entry.count)) : 0;
+        for (let index = 0; index < safeCount; index += 1) {
+            expanded.push(entry.model);
+        }
+    }
+    if (expanded.length === 0 && fallbackCount > 0) {
+        expanded.push('unknown');
+    }
+    return expanded;
+}
+
+function buildModelColorMap(models: string[]) {
+    const map = new Map<string, string>();
+    models.forEach((model, index) => {
+        map.set(model, MODEL_PALETTE[index % MODEL_PALETTE.length]);
+    });
+    return map;
+}
+
+function buildDashaAxisDomain(points: DashaClusterMapPoint[], regions: DashaClusterMapRegion[]): DashaAxisDomain {
+    if (points.length === 0 && regions.length === 0) {
+        return { minX: -20, maxX: 20, minY: -20, maxY: 20 };
+    }
+
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const point of points) {
+        minX = Math.min(minX, point.x);
+        maxX = Math.max(maxX, point.x);
+        minY = Math.min(minY, point.y);
+        maxY = Math.max(maxY, point.y);
+    }
+
+    for (const region of regions) {
+        minX = Math.min(minX, region.centerX - region.radius);
+        maxX = Math.max(maxX, region.centerX + region.radius);
+        minY = Math.min(minY, region.centerY - region.radius);
+        maxY = Math.max(maxY, region.centerY + region.radius);
+    }
+
+    const width = Math.max(1, maxX - minX);
+    const height = Math.max(1, maxY - minY);
+    const paddingX = Math.max(6, width * 0.16);
+    const paddingY = Math.max(6, height * 0.16);
+
+    return {
+        minX: minX - paddingX,
+        maxX: maxX + paddingX,
+        minY: minY - paddingY,
+        maxY: maxY + paddingY,
+    };
+}
+
+function buildTicks(min: number, max: number, steps: number) {
+    const range = max - min;
+    if (range <= 0 || steps <= 0) {
+        return [min];
+    }
+    return Array.from({ length: steps + 1 }, (_, index) => min + (range * index) / steps);
+}
+
+function toDashaSvgX(value: number, domain: DashaAxisDomain) {
+    const ratio = (value - domain.minX) / (domain.maxX - domain.minX || 1);
+    return ratio * DASHA_MAP_WIDTH;
+}
+
+function toDashaSvgY(value: number, domain: DashaAxisDomain) {
+    const ratio = (value - domain.minY) / (domain.maxY - domain.minY || 1);
+    return DASHA_MAP_HEIGHT - ratio * DASHA_MAP_HEIGHT;
+}
+
+function hashString(value: string) {
+    let hash = 2166136261;
+    for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+}
+
+function seededFloat(seed: number, stream: number) {
+    const mixed = Math.sin(seed * 0.013 + stream * 17.933) * 43758.5453;
+    return mixed - Math.floor(mixed);
+}
+
+function formatTick(value: number) {
+    return value.toFixed(0);
+}
+
+function formatDifferenceFootprint(domains: ReturnType<typeof buildClusterViewEntries>[number]['winningDomains'], clusterId: string) {
+    let matched = 0;
+    let missing = 0;
+    let extra = 0;
+    let contradictions = 0;
+
+    for (const domain of domains) {
+        const evaluation = domain.centroidEvaluations.find((item) => item.clusterId === clusterId);
+        if (!evaluation?.difference) {
+            continue;
+        }
+        matched += evaluation.difference.matchedGoldenPoints.length;
+        missing += evaluation.difference.missingGoldenPoints.length;
+        extra += evaluation.difference.extraCentroidPoints.length;
+        contradictions += evaluation.difference.contradictionPoints.length;
+    }
+
+    return `M ${matched} · Miss ${missing} · Extra ${extra} · Contr ${contradictions}`;
+}
+
+function truncateText(value: string, maxLength: number) {
+    const normalized = value.replace(/\s+/g, ' ').trim();
+    if (normalized.length <= maxLength) {
+        return normalized;
+    }
+    return `${normalized.slice(0, Math.max(0, maxLength - 1)).trim()}…`;
 }

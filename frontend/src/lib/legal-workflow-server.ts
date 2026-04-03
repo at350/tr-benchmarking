@@ -991,26 +991,148 @@ export async function runDashaEvaluation(input: DashaRunInput): Promise<DashaRun
     if (pack.status !== 'approved') {
         throw new Error('Karthic rubric pack must be approved before Dasha can start.');
     }
+    const frankPacket = await getFrankPacket(pack.frankPacketId);
+    if (!frankPacket) {
+        throw new Error('Linked Frank packet not found.');
+    }
 
     const id = `dasha_${Date.now()}_${randomUUID().slice(0, 8)}`;
     const now = new Date().toISOString();
-    const inputArtifacts = await saveUploadedArtifacts(id, input.files);
-    const questionText = inputArtifacts.map((artifact) => artifact.extractedText).join('\n\n').trim();
+    const inputArtifacts = input.files.length > 0
+        ? await saveUploadedArtifacts(id, input.files)
+        : [];
+    const questionText = frankPacket.benchmarkQuestion.trim();
     if (!questionText) {
-        throw new Error('Question text could not be extracted from the uploaded PDFs.');
+        throw new Error('Linked Frank packet does not contain a question packet yet.');
     }
 
-    const responses = await generateDashaResponses(questionText, input.selectedModels);
-    const validResponses = responses.filter((response) => !response.error && response.responseText.trim().length > 0);
-    if (validResponses.length === 0) {
-        const failedRun: DashaRun = {
-            id,
-            rubricPackId: pack.id,
-            status: 'failed',
-            inputArtifacts,
-            questionText,
+    const draftRun: DashaRun = {
+        id,
+        rubricPackId: pack.id,
+        status: 'draft',
+        inputArtifacts,
+        questionText,
+        selectedModels: input.selectedModels,
+        responses: [],
+        clusters: [],
+        domainResults: [],
+        weightedSummary: {
+            applicableWeightTotal: 0,
+            weightedScore: null,
+            notApplicableDomainIds: [],
+        },
+        clusteringMethod: 'pending',
+        clusteringNotes: 'Dasha evaluation started and is running in the background.',
+        createdAt: now,
+        completedAt: null,
+    };
+    await writeArtifact(DATA_DIRECTORIES.dasha, draftRun.id, draftRun);
+    return draftRun;
+}
+
+export async function executeDashaRun(id: string): Promise<DashaRun> {
+    const run = await getDashaRun(id);
+    if (!run) {
+        throw new Error('Dasha run not found.');
+    }
+    if (run.status !== 'draft') {
+        return run;
+    }
+
+    const pack = await getKarthicRubricPack(run.rubricPackId);
+    if (!pack) {
+        throw new Error('Karthic rubric pack not found.');
+    }
+    if (pack.status !== 'approved') {
+        throw new Error('Karthic rubric pack must be approved before Dasha can start.');
+    }
+
+    return await finalizeDashaRun({
+        runId: run.id,
+        createdAt: run.createdAt,
+        rubricPackId: run.rubricPackId,
+        questionText: run.questionText,
+        inputArtifacts: run.inputArtifacts,
+        selectedModels: run.selectedModels,
+        pack,
+    });
+}
+
+async function finalizeDashaRun(input: {
+    runId: string;
+    createdAt: string;
+    rubricPackId: string;
+    questionText: string;
+    inputArtifacts: ArtifactRecord[];
+    selectedModels: DashaSelectedModel[];
+    pack: KarthicRubricPack;
+}): Promise<DashaRun> {
+    try {
+        const responses = await generateDashaResponses(input.questionText, input.selectedModels);
+        const validResponses = responses.filter((response) => !response.error && response.responseText.trim().length > 0);
+        if (validResponses.length === 0) {
+            const failedRun: DashaRun = {
+                id: input.runId,
+                rubricPackId: input.rubricPackId,
+                status: 'failed',
+                inputArtifacts: input.inputArtifacts,
+                questionText: input.questionText,
+                selectedModels: input.selectedModels,
+                responses,
+                clusters: [],
+                domainResults: [],
+                weightedSummary: {
+                    applicableWeightTotal: 0,
+                    weightedScore: null,
+                    notApplicableDomainIds: [],
+                },
+                clusteringMethod: 'not_run',
+                clusteringNotes: 'No valid responses were available for clustering.',
+                errorMessage: 'No model responses were generated successfully.',
+                createdAt: input.createdAt,
+                completedAt: new Date().toISOString(),
+            };
+            await writeArtifact(DATA_DIRECTORIES.dasha, failedRun.id, failedRun);
+            return failedRun;
+        }
+
+        const clusteringResult = await clusterResponses(validResponses);
+        const clusters = clusteringResult.clusters;
+        const domainResults = await evaluateClustersAgainstDomains({
+            questionText: input.questionText,
+            pack: input.pack,
+            clusters,
+            responses: validResponses,
+        });
+        const weightedSummary = summarizeDomainResults(domainResults);
+
+        const completedRun: DashaRun = {
+            id: input.runId,
+            rubricPackId: input.rubricPackId,
+            status: 'completed',
+            inputArtifacts: input.inputArtifacts,
+            questionText: input.questionText,
             selectedModels: input.selectedModels,
             responses,
+            clusters,
+            domainResults,
+            weightedSummary,
+            clusteringMethod: clusteringResult.method,
+            clusteringNotes: clusteringResult.notes,
+            createdAt: input.createdAt,
+            completedAt: new Date().toISOString(),
+        };
+        await writeArtifact(DATA_DIRECTORIES.dasha, completedRun.id, completedRun);
+        return completedRun;
+    } catch (error) {
+        const failedRun: DashaRun = {
+            id: input.runId,
+            rubricPackId: input.rubricPackId,
+            status: 'failed',
+            inputArtifacts: input.inputArtifacts,
+            questionText: input.questionText,
+            selectedModels: input.selectedModels,
+            responses: [],
             clusters: [],
             domainResults: [],
             weightedSummary: {
@@ -1019,43 +1141,14 @@ export async function runDashaEvaluation(input: DashaRunInput): Promise<DashaRun
                 notApplicableDomainIds: [],
             },
             clusteringMethod: 'not_run',
-            clusteringNotes: 'No valid responses were available for clustering.',
-            errorMessage: 'No model responses were generated successfully.',
-            createdAt: now,
-            completedAt: now,
+            clusteringNotes: 'Dasha evaluation terminated before clustering completed.',
+            errorMessage: error instanceof Error ? error.message : 'Failed to run Dasha evaluation.',
+            createdAt: input.createdAt,
+            completedAt: new Date().toISOString(),
         };
         await writeArtifact(DATA_DIRECTORIES.dasha, failedRun.id, failedRun);
         return failedRun;
     }
-
-    const clusteringResult = await clusterResponses(validResponses);
-    const clusters = clusteringResult.clusters;
-    const domainResults = await evaluateClustersAgainstDomains({
-        questionText,
-        pack,
-        clusters,
-        responses: validResponses,
-    });
-    const weightedSummary = summarizeDomainResults(domainResults);
-
-    const completedRun: DashaRun = {
-        id,
-        rubricPackId: pack.id,
-        status: 'completed',
-        inputArtifacts,
-        questionText,
-        selectedModels: input.selectedModels,
-        responses,
-        clusters,
-        domainResults,
-        weightedSummary,
-        clusteringMethod: clusteringResult.method,
-        clusteringNotes: clusteringResult.notes,
-        createdAt: now,
-        completedAt: new Date().toISOString(),
-    };
-    await writeArtifact(DATA_DIRECTORIES.dasha, completedRun.id, completedRun);
-    return completedRun;
 }
 
 async function generateFrankDraft(input: {
@@ -1177,20 +1270,16 @@ async function evaluateClustersAgainstDomains(input: {
     responses: DashaResponseRecord[];
 }) {
     const responseById = new Map(input.responses.map((response) => [response.id, response]));
-    const results: DomainResult[] = [];
-
-    for (const domain of input.pack.domains) {
+    return await Promise.all(input.pack.domains.map(async (domain) => {
         const goldenTarget = input.pack.goldenTargets.find((target) => target.domainId === domain.id)
             ?? buildFallbackGoldenTargetForDomain(domain);
         const criteria = input.pack.criteria
             .filter((criterion) => criterion.domainId === domain.id && criterion.status === 'active')
             .map((criterion) => criterion.text);
-        const centroidEvaluations: DomainCentroidEvaluation[] = [];
-
-        for (const cluster of input.clusters) {
+        const centroidEvaluations = (await Promise.all(input.clusters.map(async (cluster) => {
             const representative = responseById.get(cluster.representativeResponseId);
             if (!representative) {
-                continue;
+                return null;
             }
 
             const evaluation = await evaluateDomainAgainstResponse({
@@ -1201,7 +1290,7 @@ async function evaluateClustersAgainstDomains(input: {
                 responseText: representative.responseText,
             });
 
-            centroidEvaluations.push({
+            return {
                 clusterId: cluster.id,
                 applicabilityStatus: evaluation.applicabilityStatus,
                 applicabilityExplanation: evaluation.applicabilityExplanation,
@@ -1209,11 +1298,11 @@ async function evaluateClustersAgainstDomains(input: {
                 confidence: evaluation.confidence,
                 rationale: evaluation.rationale,
                 difference: evaluation.difference,
-            });
-        }
+            };
+        }))).filter((evaluation): evaluation is DomainCentroidEvaluation => Boolean(evaluation));
 
         const winning = chooseWinningCentroid(centroidEvaluations, input.clusters);
-        results.push({
+        return {
             domainId: domain.id,
             domainName: domain.name,
             weight: domain.weight,
@@ -1226,10 +1315,8 @@ async function evaluateClustersAgainstDomains(input: {
             winningModelMix: winning
                 ? input.clusters.find((cluster) => cluster.id === winning.clusterId)?.modelBreakdown ?? []
                 : [],
-        });
-    }
-
-    return results;
+        };
+    }));
 }
 
 async function evaluateDomainAgainstResponse(input: {
@@ -1367,9 +1454,7 @@ function summarizeDomainResults(results: DomainResult[]): WeightedSummary {
 }
 
 async function generateDashaResponses(questionText: string, selectedModels: DashaSelectedModel[]) {
-    const responses: DashaResponseRecord[] = [];
-
-    for (const selectedModel of selectedModels) {
+    return await Promise.all(selectedModels.map(async (selectedModel) => {
         const id = `response_${randomUUID().slice(0, 8)}`;
         const modelKey = `${selectedModel.provider}::${selectedModel.model}`;
         try {
@@ -1389,16 +1474,16 @@ async function generateDashaResponses(questionText: string, selectedModels: Dash
                 temperature: selectedModel.temperature ?? 0.2,
                 reasoningEffort: selectedModel.reasoningEffort ?? 'medium',
             });
-            responses.push({
+            return {
                 id,
                 modelKey,
                 provider: selectedModel.provider,
                 model: selectedModel.model,
                 responseText: responseText.trim(),
                 clusterId: '',
-            });
+            };
         } catch (error) {
-            responses.push({
+            return {
                 id,
                 modelKey,
                 provider: selectedModel.provider,
@@ -1406,11 +1491,9 @@ async function generateDashaResponses(questionText: string, selectedModels: Dash
                 responseText: '',
                 clusterId: '',
                 error: error instanceof Error ? error.message : 'Model generation failed.',
-            });
+            };
         }
-    }
-
-    return responses;
+    }));
 }
 
 async function clusterResponses(responses: DashaResponseRecord[]) {
@@ -1457,6 +1540,8 @@ async function clusterResponsesWithDensityPipeline(responses: DashaResponseRecor
                 representativeResponseId?: unknown;
                 memberResponseIds?: unknown;
             }>;
+            method?: unknown;
+            notes?: unknown;
         }>(stdout);
         if (!parsed?.clusters || !Array.isArray(parsed.clusters) || parsed.clusters.length === 0) {
             return null;
@@ -1494,8 +1579,12 @@ async function clusterResponsesWithDensityPipeline(responses: DashaResponseRecor
         return clusters.length > 0
             ? {
                 clusters,
-                method: 'density_umap_hdbscan',
-                notes: 'Clustered with the repo’s instructor-embedding density pipeline and medoid-style representative selection.',
+                method: typeof parsed.method === 'string' && parsed.method.trim()
+                    ? parsed.method.trim()
+                    : 'density_umap_hdbscan',
+                notes: typeof parsed.notes === 'string' && parsed.notes.trim()
+                    ? parsed.notes.trim()
+                    : 'Clustered with the repo’s instructor-embedding density pipeline and medoid-style representative selection.',
             }
             : null;
     } catch {
@@ -2298,7 +2387,7 @@ async function generateModelResponse({ provider, model, systemPrompt, messages, 
         return await generateGeminiResponse({ model, systemPrompt, messages, temperature, reasoningEffort });
     }
 
-    const isResponsesApi = model === 'gpt-5-mini' || model === 'gpt-5-nano' || model === 'gpt-5.2' || model === 'gpt-5.2-pro' || model === 'gpt-5.2-chat-latest';
+    const isResponsesApi = model.startsWith('gpt-5');
     if (isResponsesApi) {
         const request: {
             model: string;
@@ -2408,8 +2497,8 @@ async function generateGeminiResponse(input: {
             contents,
             generationConfig: {
                 temperature: input.temperature,
-                ...(mapGeminiThinkingLevel(input.reasoningEffort)
-                    ? { thinkingConfig: { thinkingLevel: mapGeminiThinkingLevel(input.reasoningEffort) } }
+                ...(mapGeminiThinkingLevel(input.model, input.reasoningEffort)
+                    ? { thinkingConfig: { thinkingLevel: mapGeminiThinkingLevel(input.model, input.reasoningEffort) } }
                     : {}),
             },
         }),
@@ -2429,10 +2518,14 @@ function mapReasoningEffort(reasoningEffort?: ReasoningEffort) {
     return reasoningEffort === 'xhigh' ? 'high' : reasoningEffort;
 }
 
-function mapGeminiThinkingLevel(reasoningEffort?: ReasoningEffort) {
+function mapGeminiThinkingLevel(model: string, reasoningEffort?: ReasoningEffort) {
     const mapped = mapReasoningEffort(reasoningEffort);
     if (!mapped) {
         return null;
+    }
+    const supportsOnlyLowHigh = model.includes('pro');
+    if (supportsOnlyLowHigh) {
+        return mapped === 'low' ? 'low' : 'high';
     }
     return mapped === 'high' ? 'high' : mapped;
 }
@@ -2520,6 +2613,15 @@ async function resolvePythonExecutable() {
     for (const candidate of candidates) {
         try {
             await fs.access(candidate);
+            await execFileAsync(candidate, ['-c', [
+                'import numpy',
+                'import umap',
+                'from sklearn.cluster import HDBSCAN',
+                'import sentence_transformers',
+            ].join('; ')], {
+                cwd: root,
+                maxBuffer: 1024 * 1024,
+            });
             return candidate;
         } catch {
             continue;
@@ -2527,7 +2629,15 @@ async function resolvePythonExecutable() {
     }
 
     try {
-        await execFileAsync('python3', ['--version']);
+        await execFileAsync('python3', ['-c', [
+            'import numpy',
+            'import umap',
+            'from sklearn.cluster import HDBSCAN',
+            'import sentence_transformers',
+        ].join('; ')], {
+            cwd: root,
+            maxBuffer: 1024 * 1024,
+        });
         return 'python3';
     } catch {
         return null;
