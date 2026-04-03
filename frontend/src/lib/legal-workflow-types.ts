@@ -146,6 +146,7 @@ export type DashaResponseRecord = {
     modelKey: string;
     provider: ModelProvider;
     model: string;
+    sampleIndex?: number;
     responseText: string;
     clusterId: string;
     error?: string;
@@ -153,6 +154,7 @@ export type DashaResponseRecord = {
 
 export type DashaClusterRecord = {
     id: string;
+    sourceClusterId?: string;
     representativeResponseId: string;
     representativeText: string;
     memberResponseIds: string[];
@@ -214,6 +216,8 @@ export type DashaRun = {
     inputArtifacts: ArtifactRecord[];
     questionText: string;
     selectedModels: DashaSelectedModel[];
+    requestedResponseCount?: number;
+    validResponseCount?: number;
     responses: DashaResponseRecord[];
     clusters: DashaClusterRecord[];
     domainResults: DomainResult[];

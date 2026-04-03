@@ -118,6 +118,7 @@ type DashaRunInput = {
     rubricPackId: string;
     files: Array<{ role: ArtifactRole; fileName: string; bytes: Uint8Array }>;
     selectedModels: DashaSelectedModel[];
+    sampleCount: number;
 };
 
 type ChatMessage = {
@@ -1005,6 +1006,7 @@ export async function runDashaEvaluation(input: DashaRunInput): Promise<DashaRun
     if (!questionText) {
         throw new Error('Linked Frank packet does not contain a question packet yet.');
     }
+    const sampleCount = clampNumber(Math.floor(toNumber(input.sampleCount, 200)), 1, 400);
 
     const draftRun: DashaRun = {
         id,
@@ -1013,6 +1015,8 @@ export async function runDashaEvaluation(input: DashaRunInput): Promise<DashaRun
         inputArtifacts,
         questionText,
         selectedModels: input.selectedModels,
+        requestedResponseCount: sampleCount,
+        validResponseCount: 0,
         responses: [],
         clusters: [],
         domainResults: [],
@@ -1054,6 +1058,7 @@ export async function executeDashaRun(id: string): Promise<DashaRun> {
         questionText: run.questionText,
         inputArtifacts: run.inputArtifacts,
         selectedModels: run.selectedModels,
+        sampleCount: clampNumber(Math.floor(toNumber(run.requestedResponseCount, 200)), 1, 400),
         pack,
     });
 }
@@ -1065,10 +1070,11 @@ async function finalizeDashaRun(input: {
     questionText: string;
     inputArtifacts: ArtifactRecord[];
     selectedModels: DashaSelectedModel[];
+    sampleCount: number;
     pack: KarthicRubricPack;
 }): Promise<DashaRun> {
     try {
-        const responses = await generateDashaResponses(input.questionText, input.selectedModels);
+        const responses = await generateDashaResponses(input.questionText, input.selectedModels, input.sampleCount);
         const validResponses = responses.filter((response) => !response.error && response.responseText.trim().length > 0);
         if (validResponses.length === 0) {
             const failedRun: DashaRun = {
@@ -1078,6 +1084,8 @@ async function finalizeDashaRun(input: {
                 inputArtifacts: input.inputArtifacts,
                 questionText: input.questionText,
                 selectedModels: input.selectedModels,
+                requestedResponseCount: input.sampleCount,
+                validResponseCount: 0,
                 responses,
                 clusters: [],
                 domainResults: [],
@@ -1113,6 +1121,8 @@ async function finalizeDashaRun(input: {
             inputArtifacts: input.inputArtifacts,
             questionText: input.questionText,
             selectedModels: input.selectedModels,
+            requestedResponseCount: input.sampleCount,
+            validResponseCount: validResponses.length,
             responses,
             clusters,
             domainResults,
@@ -1132,6 +1142,8 @@ async function finalizeDashaRun(input: {
             inputArtifacts: input.inputArtifacts,
             questionText: input.questionText,
             selectedModels: input.selectedModels,
+            requestedResponseCount: input.sampleCount,
+            validResponseCount: 0,
             responses: [],
             clusters: [],
             domainResults: [],
@@ -1453,14 +1465,15 @@ function summarizeDomainResults(results: DomainResult[]): WeightedSummary {
     };
 }
 
-async function generateDashaResponses(questionText: string, selectedModels: DashaSelectedModel[]) {
-    return await Promise.all(selectedModels.map(async (selectedModel) => {
+async function generateDashaResponses(questionText: string, selectedModels: DashaSelectedModel[], sampleCount: number) {
+    const samplingPlan = buildDashaSamplingPlan(selectedModels, sampleCount);
+    const generationTasks = samplingPlan.map((task) => async (): Promise<DashaResponseRecord> => {
         const id = `response_${randomUUID().slice(0, 8)}`;
-        const modelKey = `${selectedModel.provider}::${selectedModel.model}`;
+        const modelKey = `${task.selectedModel.provider}::${task.selectedModel.model}`;
         try {
             const responseText = await generateModelResponse({
-                provider: selectedModel.provider,
-                model: selectedModel.model,
+                provider: task.selectedModel.provider,
+                model: task.selectedModel.model,
                 systemPrompt: 'You are generating a free-form legal answer for benchmark evaluation. Write a concise legal analysis with a clear conclusion.',
                 messages: [{
                     role: 'user',
@@ -1471,14 +1484,15 @@ async function generateDashaResponses(questionText: string, selectedModels: Dash
                         questionText,
                     ].join('\n'),
                 }],
-                temperature: selectedModel.temperature ?? 0.2,
-                reasoningEffort: selectedModel.reasoningEffort ?? 'medium',
+                temperature: task.temperature,
+                reasoningEffort: task.selectedModel.reasoningEffort ?? 'medium',
             });
             return {
                 id,
                 modelKey,
-                provider: selectedModel.provider,
-                model: selectedModel.model,
+                provider: task.selectedModel.provider,
+                model: task.selectedModel.model,
+                sampleIndex: task.sampleIndex,
                 responseText: responseText.trim(),
                 clusterId: '',
             };
@@ -1486,17 +1500,82 @@ async function generateDashaResponses(questionText: string, selectedModels: Dash
             return {
                 id,
                 modelKey,
-                provider: selectedModel.provider,
-                model: selectedModel.model,
+                provider: task.selectedModel.provider,
+                model: task.selectedModel.model,
+                sampleIndex: task.sampleIndex,
                 responseText: '',
                 clusterId: '',
                 error: error instanceof Error ? error.message : 'Model generation failed.',
             };
         }
-    }));
+    });
+
+    return await runWithConcurrency(generationTasks, 8);
 }
 
-async function clusterResponses(responses: DashaResponseRecord[]) {
+function buildDashaSamplingPlan(selectedModels: DashaSelectedModel[], sampleCount: number) {
+    if (selectedModels.length === 0 || sampleCount <= 0) {
+        return [] as Array<{
+            selectedModel: DashaSelectedModel;
+            sampleIndex: number;
+            temperature: number;
+        }>;
+    }
+
+    const basePerModel = Math.floor(sampleCount / selectedModels.length);
+    const remainder = sampleCount % selectedModels.length;
+    const plan: Array<{
+        selectedModel: DashaSelectedModel;
+        sampleIndex: number;
+        temperature: number;
+    }> = [];
+
+    selectedModels.forEach((selectedModel, modelIndex) => {
+        const count = basePerModel + (modelIndex < remainder ? 1 : 0);
+        for (let sampleIndex = 0; sampleIndex < count; sampleIndex += 1) {
+            plan.push({
+                selectedModel,
+                sampleIndex,
+                temperature: buildDashaSampleTemperature(selectedModel, sampleIndex),
+            });
+        }
+    });
+
+    return plan;
+}
+
+function buildDashaSampleTemperature(selectedModel: DashaSelectedModel, sampleIndex: number) {
+    const baseTemperature = selectedModel.temperature ?? 0.7;
+    const offsets = [0, 0.08, -0.08, 0.14, -0.14];
+    const adjusted = baseTemperature + offsets[sampleIndex % offsets.length];
+    return roundToTwo(clampNumber(adjusted, 0.2, 1));
+}
+
+async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, concurrency: number) {
+    if (tasks.length === 0) {
+        return [] as T[];
+    }
+
+    const limit = Math.max(1, Math.floor(concurrency));
+    const results = new Array<T>(tasks.length);
+    let nextIndex = 0;
+
+    await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, async () => {
+        while (nextIndex < tasks.length) {
+            const currentIndex = nextIndex;
+            nextIndex += 1;
+            results[currentIndex] = await tasks[currentIndex]();
+        }
+    }));
+
+    return results;
+}
+
+async function clusterResponses(responses: DashaResponseRecord[]): Promise<{
+    clusters: DashaClusterRecord[];
+    method: string;
+    notes: string;
+}> {
     const densityClustered = await clusterResponsesWithDensityPipeline(responses);
     if (densityClustered) {
         return densityClustered;
@@ -1509,7 +1588,11 @@ async function clusterResponses(responses: DashaResponseRecord[]) {
     };
 }
 
-async function clusterResponsesWithDensityPipeline(responses: DashaResponseRecord[]) {
+async function clusterResponsesWithDensityPipeline(responses: DashaResponseRecord[]): Promise<{
+    clusters: DashaClusterRecord[];
+    method: string;
+    notes: string;
+} | null> {
     const pythonExecutable = await resolvePythonExecutable();
     if (!pythonExecutable) {
         return null;
@@ -1537,6 +1620,7 @@ async function clusterResponsesWithDensityPipeline(responses: DashaResponseRecor
         const parsed = safeJsonParse<{
             clusters?: Array<{
                 id?: unknown;
+                sourceClusterId?: unknown;
                 representativeResponseId?: unknown;
                 memberResponseIds?: unknown;
             }>;
@@ -1548,7 +1632,7 @@ async function clusterResponsesWithDensityPipeline(responses: DashaResponseRecor
         }
 
         const responseById = new Map(responses.map((response) => [response.id, response]));
-        const clusters = parsed.clusters
+        const clusters: DashaClusterRecord[] = parsed.clusters
             .map((cluster, index) => {
                 const memberIds = Array.isArray(cluster.memberResponseIds)
                     ? cluster.memberResponseIds.map((item) => String(item).trim()).filter(Boolean)
@@ -1567,6 +1651,9 @@ async function clusterResponsesWithDensityPipeline(responses: DashaResponseRecor
                 }
                 return {
                     id: clusterId,
+                    sourceClusterId: typeof cluster.sourceClusterId === 'string' && cluster.sourceClusterId.trim()
+                        ? cluster.sourceClusterId.trim()
+                        : clusterId,
                     representativeResponseId: representative.id,
                     representativeText: representative.responseText,
                     memberResponseIds: members.map((member) => member.id),
@@ -1574,7 +1661,7 @@ async function clusterResponsesWithDensityPipeline(responses: DashaResponseRecor
                     modelBreakdown: summarizeModelBreakdown(members),
                 };
             })
-            .filter((cluster): cluster is DashaClusterRecord => Boolean(cluster));
+            .filter((cluster): cluster is NonNullable<typeof cluster> => Boolean(cluster));
 
         return clusters.length > 0
             ? {
@@ -1632,6 +1719,7 @@ function buildJaccardFallbackClusters(responses: DashaResponseRecord[]) {
 
         clusters.push({
             id: clusterId,
+            sourceClusterId: clusterId,
             representativeResponseId: representative.id,
             representativeText: representative.responseText,
             memberResponseIds: members.map((member) => member.id),

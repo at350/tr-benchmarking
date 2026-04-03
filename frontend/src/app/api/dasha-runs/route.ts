@@ -29,6 +29,7 @@ export async function POST(req: Request) {
         const formData = await req.formData();
         const rubricPackId = String(formData.get('rubricPackId') || '').trim();
         const selectedModelsRaw = String(formData.get('selectedModels') || '').trim();
+        const sampleCountRaw = String(formData.get('sampleCount') || '').trim();
         const files = formData.getAll('files');
 
         if (!rubricPackId) {
@@ -37,6 +38,11 @@ export async function POST(req: Request) {
         if (!selectedModelsRaw) {
             return NextResponse.json({ error: 'selectedModels is required.' }, { status: 400 });
         }
+
+        const parsedSampleCount = Number.parseInt(sampleCountRaw || '200', 10);
+        const sampleCount = Number.isFinite(parsedSampleCount)
+            ? Math.min(400, Math.max(1, parsedSampleCount))
+            : 200;
 
         let selectedModels: DashaSelectedModel[];
         try {
@@ -62,6 +68,7 @@ export async function POST(req: Request) {
             rubricPackId,
             files: normalizedFiles,
             selectedModels,
+            sampleCount,
         });
 
         const workerScript = path.join(process.cwd(), 'scripts', 'dasha-run-worker.mjs');

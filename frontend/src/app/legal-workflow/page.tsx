@@ -99,6 +99,7 @@ type KarthicEditorState = {
 type DashaFormState = {
     rubricPackId: string;
     selectedModelKeys: string[];
+    sampleCount: string;
 };
 
 const DEFAULT_FRANK_STATE: FrankEditorState = {
@@ -175,6 +176,7 @@ export default function LegalWorkflowPage() {
     const [dashaForm, setDashaForm] = useState<DashaFormState>({
         rubricPackId: '',
         selectedModelKeys: DEFAULT_MODEL_KEYS,
+        sampleCount: '200',
     });
     const [dashaRunning, setDashaRunning] = useState(false);
     const [selectedDashaRunId, setSelectedDashaRunId] = useState<string | null>(null);
@@ -674,11 +676,12 @@ export default function LegalWorkflowPage() {
         }
         setDashaRunning(true);
         setErrorMessage(null);
-        setStatusMessage('Running Dasha evaluation using Frank’s canonical question packet: model generation, clustering, and per-domain centroid scoring...');
+        setStatusMessage('Running Dasha evaluation using Frank’s canonical question packet: large-sample model generation, raw clustering, and per-domain centroid scoring...');
         try {
             const formData = new FormData();
             formData.set('rubricPackId', dashaForm.rubricPackId);
             formData.set('selectedModels', JSON.stringify(buildSelectedModels(dashaForm.selectedModelKeys)));
+            formData.set('sampleCount', dashaForm.sampleCount || '200');
             dashaUploads.forEach((upload, index) => {
                 formData.append('files', upload.file);
                 formData.set(`role_${index}`, upload.role);
@@ -727,7 +730,8 @@ export default function LegalWorkflowPage() {
     );
     const dashaRubricReady = Boolean(dashaForm.rubricPackId);
     const dashaQuestionReady = Boolean(selectedDashaFrankPacket?.benchmarkQuestion.trim());
-    const dashaModelsReady = dashaForm.selectedModelKeys.length > 0;
+    const dashaSampleCountReady = Math.max(1, parseInt(dashaForm.sampleCount || '0', 10) || 0) > 0;
+    const dashaModelsReady = dashaForm.selectedModelKeys.length > 0 && dashaSampleCountReady;
     const dashaRunReady = dashaRubricReady && dashaQuestionReady && dashaModelsReady;
     const karthicReady = approvedFrankPackets.length > 0;
     const dashaReady = approvedKarthicPacks.length > 0;
@@ -1589,7 +1593,20 @@ export default function LegalWorkflowPage() {
                                             />
                                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 3 · Frontier Models</p>
-                                                <p className="mt-1 text-sm text-slate-500">Choose which current frontier models should each write one free-form legal answer. Dasha will cluster those answers before scoring centroids against Karthic’s structured golden targets.</p>
+                                                <p className="mt-1 text-sm text-slate-500">Choose the frontier models and the size of the raw answer pool. Dasha will generate a large response set, cluster that full set, then score cluster centroids against Karthic’s structured golden targets.</p>
+                                            </div>
+                                            <div className="grid gap-4 md:grid-cols-2">
+                                                <LabeledInput
+                                                    label="Total Raw Responses"
+                                                    value={dashaForm.sampleCount}
+                                                    onChange={(value) => setDashaForm((current) => ({ ...current, sampleCount: value.replace(/[^\d]/g, '') }))}
+                                                />
+                                                <FrankSummaryRow
+                                                    label="Approximate Responses Per Model"
+                                                    value={dashaForm.selectedModelKeys.length > 0
+                                                        ? `${Math.floor(Math.max(1, parseInt(dashaForm.sampleCount || '200', 10) || 200) / dashaForm.selectedModelKeys.length)}-${Math.ceil(Math.max(1, parseInt(dashaForm.sampleCount || '200', 10) || 200) / dashaForm.selectedModelKeys.length)} each`
+                                                        : 'Select at least one model'}
+                                                />
                                             </div>
                                             <div className="grid gap-4 lg:grid-cols-3">
                                                 {(Object.keys(MODEL_OPTIONS_BY_PROVIDER) as ModelProvider[]).map((provider) => (
@@ -1650,13 +1667,14 @@ export default function LegalWorkflowPage() {
                                                     : 'No linked Frank question packet loaded yet'}
                                             />
                                             <FrankSummaryRow label="Selected Models" value={`${dashaForm.selectedModelKeys.length} model(s)`} />
+                                            <FrankSummaryRow label="Requested Raw Responses" value={`${Math.max(1, parseInt(dashaForm.sampleCount || '200', 10) || 200)}`} />
                                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 4 · Run Dasha</p>
                                                 <div className="mt-2 space-y-2 text-sm text-slate-600">
-                                                    <p>Dasha generates one answer per selected model.</p>
+                                                    <p>Dasha generates a large raw pool of answers across the selected models, targeting the response count shown above.</p>
                                                     <p>Every model gets the exact same canonical question packet that Frank generated.</p>
-                                                    <p>Dasha then runs the repo’s clustering path: instruction-tuned embeddings, UMAP reduction, HDBSCAN clustering, then one representative centroid per cluster.</p>
-                                                    <p>Each centroid is compared against Karthic’s structured golden targets and stored as matched points, missing points, extra points, and contradiction points.</p>
+                                                    <p>Dasha then clusters the full raw pool using the same density methodology used in the LSH-runs workflow: instructor embeddings, UMAP reduction, HDBSCAN clustering, then one medoid-style representative per cluster.</p>
+                                                    <p>Each cluster representative is compared against Karthic’s structured golden targets and stored as matched points, missing points, extra points, and contradiction points.</p>
                                                 </div>
                                             </div>
                                             <div className="flex flex-wrap gap-3">
@@ -1686,12 +1704,17 @@ export default function LegalWorkflowPage() {
                             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                                 <SectionHeader
                                     title="Latest Dasha Run"
-                                    description="Centroid-first results only. Each winning centroid is compared against the structured golden targets rather than against the raw golden prose alone."
+                                    description="Large-sample centroid-first results. Dasha clusters the raw answer pool first, then compares winning cluster representatives against the structured golden targets."
                                 />
                                 <div className="mt-4 grid gap-4 md:grid-cols-3">
                                     <MetricCard label="Status" value={selectedDashaRun.status} />
+                                    <MetricCard label="Requested Responses" value={String(selectedDashaRun.requestedResponseCount ?? selectedDashaRun.responses.length)} />
+                                    <MetricCard label="Valid Responses" value={String(selectedDashaRun.validResponseCount ?? selectedDashaRun.responses.filter((response) => !response.error && response.responseText.trim().length > 0).length)} />
+                                </div>
+                                <div className="mt-4 grid gap-4 md:grid-cols-3">
                                     <MetricCard label="Clusters" value={String(selectedDashaRun.clusters.length)} />
                                     <MetricCard label="Clustering" value={selectedDashaRun.clusteringMethod || 'unknown'} />
+                                    <MetricCard label="Selected Models" value={String(selectedDashaRun.selectedModels.length)} />
                                 </div>
                                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                                     <MetricCard label="Weighted Score" value={selectedDashaRun.weightedSummary.weightedScore === null ? 'N/A' : selectedDashaRun.weightedSummary.weightedScore.toFixed(1)} />
@@ -2112,7 +2135,7 @@ function ClusterViewCard({
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <SectionHeader
                 title="Cluster View"
-                description="This uses the same scatter-map style as LSH-clustering: click or hover a cluster to inspect it, and click the background to clear focus."
+                description="This shows the raw clusters returned by Dasha’s clustering step. The UI is not reclustering centroids; it is only laying out the existing clusters so you can inspect each representative answer."
             />
 
             {!run || entries.length === 0 ? (
@@ -2240,7 +2263,7 @@ function ClusterViewCard({
                                         {run.id}
                                     </text>
                                     <text x={DASHA_MAP_WIDTH - 16} y={DASHA_MAP_HEIGHT - 28} textAnchor="end" fontSize="11" fill="#94a3b8">
-                                        Projection X
+                                        Layout X
                                     </text>
                                     <text
                                         transform={`translate(18 ${DASHA_MAP_HEIGHT / 2}) rotate(-90)`}
@@ -2248,7 +2271,7 @@ function ClusterViewCard({
                                         fontSize="11"
                                         fill="#94a3b8"
                                     >
-                                        Projection Y
+                                        Layout Y
                                     </text>
                                 </svg>
 
@@ -2262,12 +2285,12 @@ function ClusterViewCard({
                             </div>
 
                             <p className="mt-2 text-xs text-slate-500">
-                                Visible clusters: {entries.length} · Visible points: {mapData.points.length} · Method: {run.clusteringMethod || 'unknown'}
+                                Raw clusters: {entries.length} · Displayed centroids: {mapData.points.length} · Method: {run.clusteringMethod || 'unknown'}
                             </p>
 
                             <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                                 <div className="flex items-center justify-between gap-2">
-                                    <h3 className="text-sm font-bold text-slate-900">Selected Cluster Outcomes</h3>
+                                    <h3 className="text-sm font-bold text-slate-900">Selected Cluster Status</h3>
                                     {selectedEntry ? (
                                         <p className="text-[11px] font-semibold text-slate-500">
                                             {formatClusterInspectorTitle(selectedEntry.cluster.id)}
@@ -2278,32 +2301,41 @@ function ClusterViewCard({
                                 {selectedEntry ? (
                                     <div className="mt-3 space-y-3">
                                         <p className="text-xs text-slate-600">
-                                            These metrics describe the currently selected Dasha cluster only, not the whole run.
+                                            These metrics describe the selected raw cluster only. Dasha scores the representative answer for this cluster against every rubric domain, then marks which domains this cluster actually won.
                                         </p>
                                         <div className="grid gap-2 sm:grid-cols-2">
                                             <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Winning domains</p>
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Won domains</p>
                                                 <p className="mt-1 text-sm font-semibold text-slate-900">{selectedEntry.winningDomains.length}</p>
                                             </div>
                                             <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Average winning score</p>
-                                                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedEntry.averageWinningScore === null ? 'N/A' : selectedEntry.averageWinningScore.toFixed(1)}</p>
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Average domain score</p>
+                                                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedEntry.averageDomainScore === null ? 'N/A' : selectedEntry.averageDomainScore.toFixed(1)}</p>
                                             </div>
                                             <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
                                                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Representative model</p>
                                                 <p className="mt-1 text-sm font-semibold text-slate-900">{selectedEntry.representativeResponse?.model ?? 'Unknown'}</p>
                                             </div>
                                             <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Difference footprint</p>
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Raw source cluster</p>
                                                 <p className="mt-1 text-sm font-semibold text-slate-900">
-                                                    {formatDifferenceFootprint(selectedEntry.winningDomains, selectedEntry.cluster.id)}
+                                                    {selectedEntry.cluster.sourceClusterId || selectedEntry.cluster.id}
                                                 </p>
                                             </div>
                                         </div>
+                                        {selectedEntry.winningDomains.length === 0 ? (
+                                            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                                This cluster exists in the raw clustering output, but no rubric domain selected its centroid as the best match.
+                                            </p>
+                                        ) : (
+                                            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                                                This cluster supplied the winning centroid for {selectedEntry.winningDomains.length} domain(s). Difference footprint: {formatDifferenceFootprint(selectedEntry.winningDomains, selectedEntry.cluster.id)}.
+                                            </p>
+                                        )}
                                     </div>
                                 ) : (
                                     <p className="mt-3 text-sm text-slate-600">
-                                        Click a cluster to pin it and see its outcomes here.
+                                        Click a raw cluster bubble to pin it and see whether its representative centroid won anything.
                                     </p>
                                 )}
                             </div>
@@ -2328,7 +2360,7 @@ function ClusterViewCard({
                                     <div className="mt-3 space-y-3">
                                         <div>
                                             <p className="text-sm font-bold text-slate-900">{formatClusterInspectorTitle(focusEntry.cluster.id)}</p>
-                                            <p className="mt-0.5 text-xs text-slate-600">{focusEntry.cluster.size} members</p>
+                                            <p className="mt-0.5 text-xs text-slate-600">{focusEntry.cluster.size} members · source cluster {focusEntry.cluster.sourceClusterId || focusEntry.cluster.id}</p>
                                         </div>
 
                                         <p className="text-xs text-slate-700">
@@ -2355,23 +2387,30 @@ function ClusterViewCard({
                                         </div>
 
                                         <div>
-                                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Winning domains</p>
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Domain comparisons</p>
                                             <div className="mt-2 space-y-2">
-                                                {focusEntry.winningDomains.length === 0 ? (
-                                                    <p className="text-xs text-slate-500">No domain selected this cluster as the winner.</p>
+                                                {focusEntry.domainComparisons.length === 0 ? (
+                                                    <p className="text-xs text-slate-500">This cluster has no saved domain evaluations.</p>
                                                 ) : (
-                                                    focusEntry.winningDomains.map((domain) => {
-                                                        const winningEvaluation = domain.centroidEvaluations.find((evaluation) => evaluation.clusterId === focusEntry.cluster.id);
-                                                        const difference = winningEvaluation?.difference;
+                                                    focusEntry.domainComparisons.map(({ domain, evaluation, isWinner }) => {
+                                                        const difference = evaluation.difference;
                                                         return (
                                                             <div key={`${focusEntry.cluster.id}_${domain.domainId}`} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                                                                 <div className="flex items-center justify-between gap-2">
-                                                                    <p className="text-xs font-semibold text-slate-800">{domain.domainName}</p>
-                                                                    <span className="text-[11px] font-semibold text-slate-500">{domain.winningScore ?? 'N/A'}</span>
+                                                                    <div>
+                                                                        <p className="text-xs font-semibold text-slate-800">{domain.domainName}</p>
+                                                                        <p className="mt-0.5 text-[11px] text-slate-500">
+                                                                            {isWinner ? 'Winning centroid for this domain' : 'Evaluated but not selected as the winner'}
+                                                                        </p>
+                                                                    </div>
+                                                                    <span className="text-[11px] font-semibold text-slate-500">{evaluation.score ?? 'N/A'}</span>
                                                                 </div>
                                                                 {difference?.differenceSummary ? (
                                                                     <p className="mt-1 text-xs leading-5 text-slate-600">{difference.differenceSummary}</p>
                                                                 ) : null}
+                                                                <p className="mt-1 text-[11px] text-slate-500">
+                                                                    Matched {difference?.matchedGoldenPoints.length ?? 0}, missing {difference?.missingGoldenPoints.length ?? 0}, extra {difference?.extraCentroidPoints.length ?? 0}, contradictions {difference?.contradictionPoints.length ?? 0}
+                                                                </p>
                                                             </div>
                                                         );
                                                     })
@@ -2387,7 +2426,7 @@ function ClusterViewCard({
                                         </div>
 
                                         <div className="border-t border-slate-200 pt-3">
-                                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Visible cluster list</p>
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Raw cluster list</p>
                                             <div className="mt-2 max-h-64 space-y-1.5 overflow-y-auto pr-1">
                                                 {entries.map((entry) => {
                                                     const dominantModel = entry.cluster.modelBreakdown[0]?.model || 'unknown';
@@ -2403,10 +2442,15 @@ function ClusterViewCard({
                                                             onMouseLeave={() => setHoveredClusterId((current) => (current === entry.cluster.id ? null : current))}
                                                             className={`flex w-full items-center justify-between rounded-md border px-2 py-1.5 text-left text-xs transition ${selected ? 'border-blue-300 bg-blue-50' : hovered ? 'border-slate-300 bg-slate-100' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
                                                         >
-                                                            <span className="inline-flex items-center gap-2 font-semibold text-slate-700">
-                                                                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: dominantColor }} />
-                                                                {formatClusterInspectorTitle(entry.cluster.id)}
-                                                            </span>
+                                                            <div>
+                                                                <span className="inline-flex items-center gap-2 font-semibold text-slate-700">
+                                                                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: dominantColor }} />
+                                                                    {formatClusterInspectorTitle(entry.cluster.id)}
+                                                                </span>
+                                                                <p className="mt-0.5 text-[11px] text-slate-500">
+                                                                    source {entry.cluster.sourceClusterId || entry.cluster.id} · centroid {entry.representativeResponse?.model ?? 'unknown'} · won {entry.winningDomains.length}
+                                                                </p>
+                                                            </div>
                                                             <span className="font-semibold text-slate-600">{entry.cluster.size}</span>
                                                         </button>
                                                     );
@@ -2545,7 +2589,7 @@ function buildSelectedModels(keys: string[]): DashaSelectedModel[] {
             provider: provider as ModelProvider,
             model,
             reasoningEffort: defaultReasoningEffort(provider as ModelProvider, model),
-            temperature: 0.2,
+            temperature: 0.7,
         };
     });
 }
@@ -2567,54 +2611,75 @@ function buildClusterViewEntries(run: DashaRun | null) {
 
     const responseById = new Map(run.responses.map((response) => [response.id, response]));
 
-    return run.clusters
-        .map((cluster) => {
-            const winningDomains = run.domainResults
-                .filter((result) => result.winningCentroidId === cluster.id)
-                .sort((left, right) => {
-                    const scoreDelta = (right.winningScore ?? -1) - (left.winningScore ?? -1);
-                    if (scoreDelta !== 0) {
-                        return scoreDelta;
-                    }
-                    const weightDelta = right.weight - left.weight;
-                    if (weightDelta !== 0) {
-                        return weightDelta;
-                    }
-                    return left.domainName.localeCompare(right.domainName);
-                });
+    return run.clusters.map((cluster) => {
+        const winningDomains = run.domainResults
+            .filter((result) => result.winningCentroidId === cluster.id)
+            .sort((left, right) => {
+                const scoreDelta = (right.winningScore ?? -1) - (left.winningScore ?? -1);
+                if (scoreDelta !== 0) {
+                    return scoreDelta;
+                }
+                const weightDelta = right.weight - left.weight;
+                if (weightDelta !== 0) {
+                    return weightDelta;
+                }
+                return left.domainName.localeCompare(right.domainName);
+            });
 
-            const memberResponses = cluster.memberResponseIds
-                .map((id) => responseById.get(id))
-                .filter((response): response is DashaRun['responses'][number] => Boolean(response));
+        const domainComparisons = run.domainResults
+            .map((result) => {
+                const evaluation = result.centroidEvaluations.find((item) => item.clusterId === cluster.id);
+                if (!evaluation) {
+                    return null;
+                }
+                return {
+                    domain: result,
+                    evaluation,
+                    isWinner: result.winningCentroidId === cluster.id,
+                };
+            })
+            .filter((item): item is NonNullable<typeof item> => Boolean(item))
+            .sort((left, right) => {
+                if (left.isWinner !== right.isWinner) {
+                    return left.isWinner ? -1 : 1;
+                }
+                const scoreDelta = (right.evaluation.score ?? -1) - (left.evaluation.score ?? -1);
+                if (scoreDelta !== 0) {
+                    return scoreDelta;
+                }
+                const weightDelta = right.domain.weight - left.domain.weight;
+                if (weightDelta !== 0) {
+                    return weightDelta;
+                }
+                return left.domain.domainName.localeCompare(right.domain.domainName);
+            });
 
-            const representativeResponse = responseById.get(cluster.representativeResponseId) ?? memberResponses[0] ?? null;
-            const scores = winningDomains
-                .map((domain) => domain.winningScore)
-                .filter((score): score is number => score !== null);
+        const memberResponses = cluster.memberResponseIds
+            .map((id) => responseById.get(id))
+            .filter((response): response is DashaRun['responses'][number] => Boolean(response));
 
-            return {
-                cluster,
-                representativeResponse,
-                memberResponses,
-                winningDomains,
-                averageWinningScore: scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null,
-            };
-        })
-        .sort((left, right) => {
-            const winningDelta = right.winningDomains.length - left.winningDomains.length;
-            if (winningDelta !== 0) {
-                return winningDelta;
-            }
-            const sizeDelta = right.cluster.size - left.cluster.size;
-            if (sizeDelta !== 0) {
-                return sizeDelta;
-            }
-            return left.cluster.id.localeCompare(right.cluster.id);
-        });
+        const representativeResponse = responseById.get(cluster.representativeResponseId) ?? memberResponses[0] ?? null;
+        const winningScores = winningDomains
+            .map((domain) => domain.winningScore)
+            .filter((score): score is number => score !== null);
+        const applicableScores = domainComparisons
+            .map((item) => item.evaluation.score)
+            .filter((score): score is number => score !== null);
+
+        return {
+            cluster,
+            representativeResponse,
+            memberResponses,
+            winningDomains,
+            domainComparisons,
+            averageWinningScore: winningScores.length > 0 ? winningScores.reduce((sum, score) => sum + score, 0) / winningScores.length : null,
+            averageDomainScore: applicableScores.length > 0 ? applicableScores.reduce((sum, score) => sum + score, 0) / applicableScores.length : null,
+        };
+    });
 }
 
 function pickDefaultClusterId(run: DashaRun | null) {
-    return buildClusterViewEntries(run)[0]?.cluster.id ?? null;
+    return run?.clusters[0]?.id ?? null;
 }
 
 function shortClusterLabel(clusterId: string) {
@@ -2659,8 +2724,7 @@ function buildDashaClusterMapData(entries: ReturnType<typeof buildClusterViewEnt
                 totalMembers: entry.cluster.size,
                 dominantModel,
                 note: truncateText(entry.cluster.representativeText, 180),
-                visibleBreakdown: entry.cluster.modelBreakdown,
-                members: entry.memberResponses.map((response) => ({ id: response.id, model: response.model })),
+                representativeModel: entry.representativeResponse?.model || dominantModel,
                 representativeId: entry.cluster.representativeResponseId,
             };
         })
@@ -2695,38 +2759,13 @@ function buildDashaClusterMapData(entries: ReturnType<typeof buildClusterViewEnt
             continue;
         }
 
-        const sequence = expandModelsByCount(seed.visibleBreakdown, seed.visibleMembers);
-        const membersByModel = new Map<string, string[]>();
-        for (const member of seed.members) {
-            const list = membersByModel.get(member.model) ?? [];
-            list.push(member.id);
-            membersByModel.set(member.model, list);
-        }
-        const modelCounters = new Map<string, number>();
-        for (const entry of seed.visibleBreakdown) {
-            modelCounters.set(entry.model, 0);
-        }
-
-        sequence.forEach((model, pointIndex) => {
-            const randomSeed = hashString(`${seed.clusterId}:${model}:${pointIndex}`);
-            const radialPosition = region.radius * Math.sqrt((pointIndex + 1) / sequence.length);
-            const theta = pointIndex * GOLDEN_ANGLE + seededFloat(randomSeed, 1) * 0.85;
-            const jitterX = (seededFloat(randomSeed, 2) - 0.5) * 0.85;
-            const jitterY = (seededFloat(randomSeed, 3) - 0.5) * 0.85;
-
-            const modelList = membersByModel.get(model) ?? [];
-            const counter = modelCounters.get(model) ?? 0;
-            const memberId = modelList[counter] ?? undefined;
-            modelCounters.set(model, counter + 1);
-
-            points.push({
-                x: region.centerX + Math.cos(theta) * radialPosition + jitterX,
-                y: region.centerY + Math.sin(theta) * radialPosition + jitterY,
-                model,
-                clusterId: seed.clusterId,
-                memberId,
-                isCentroid: memberId === seed.representativeId,
-            });
+        points.push({
+            x: region.centerX,
+            y: region.centerY,
+            model: seed.representativeModel,
+            clusterId: seed.clusterId,
+            memberId: seed.representativeId,
+            isCentroid: true,
         });
     }
 
@@ -2775,20 +2814,6 @@ function resolveDashaRegionOverlaps(regions: DashaClusterMapRegion[]) {
     }
 
     return adjusted;
-}
-
-function expandModelsByCount(entries: Array<{ model: string; count: number }>, fallbackCount: number) {
-    const expanded: string[] = [];
-    for (const entry of entries) {
-        const safeCount = Number.isFinite(entry.count) ? Math.max(0, Math.floor(entry.count)) : 0;
-        for (let index = 0; index < safeCount; index += 1) {
-            expanded.push(entry.model);
-        }
-    }
-    if (expanded.length === 0 && fallbackCount > 0) {
-        expanded.push('unknown');
-    }
-    return expanded;
 }
 
 function buildModelColorMap(models: string[]) {
@@ -2852,20 +2877,6 @@ function toDashaSvgX(value: number, domain: DashaAxisDomain) {
 function toDashaSvgY(value: number, domain: DashaAxisDomain) {
     const ratio = (value - domain.minY) / (domain.maxY - domain.minY || 1);
     return DASHA_MAP_HEIGHT - ratio * DASHA_MAP_HEIGHT;
-}
-
-function hashString(value: string) {
-    let hash = 2166136261;
-    for (let index = 0; index < value.length; index += 1) {
-        hash ^= value.charCodeAt(index);
-        hash = Math.imul(hash, 16777619);
-    }
-    return hash >>> 0;
-}
-
-function seededFloat(seed: number, stream: number) {
-    const mixed = Math.sin(seed * 0.013 + stream * 17.933) * 43758.5453;
-    return mixed - Math.floor(mixed);
 }
 
 function formatTick(value: number) {
