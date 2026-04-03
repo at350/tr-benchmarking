@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 
 import { listKarthicRubricPacks, saveKarthicRubricPack } from '@/lib/legal-workflow-server';
-import type { KarthicCriterion, KarthicDomain, KarthicRubricPack, RefinementLogEntry } from '@/lib/legal-workflow-types';
+import type {
+    KarthicCriterion,
+    KarthicDomain,
+    KarthicGoldenDomainTarget,
+    KarthicRubricPack,
+    RefinementLogEntry,
+} from '@/lib/legal-workflow-types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -10,9 +16,11 @@ type SaveKarthicRequest = {
     id?: string;
     frankPacketId?: string;
     domains?: KarthicDomain[];
+    goldenTargets?: KarthicGoldenDomainTarget[];
     criteria?: KarthicCriterion[];
     refinementLog?: RefinementLogEntry[];
     smeNotes?: string;
+    comparisonMethodNote?: string;
     status?: KarthicRubricPack['status'];
 };
 
@@ -40,9 +48,11 @@ export async function POST(req: Request) {
             id: body.id,
             frankPacketId: body.frankPacketId,
             domains: body.domains,
+            goldenTargets: body.goldenTargets,
             criteria: body.criteria,
             refinementLog: body.refinementLog,
             smeNotes: body.smeNotes,
+            comparisonMethodNote: body.comparisonMethodNote,
             status: body.status,
         });
 

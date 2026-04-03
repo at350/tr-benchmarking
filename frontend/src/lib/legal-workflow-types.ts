@@ -105,14 +105,27 @@ export type RefinementLogEntry = {
     note: string;
 };
 
+export type KarthicGoldenDomainTarget = {
+    id: string;
+    domainId: string;
+    domainName: string;
+    summary: string;
+    goldenContains: string[];
+    allowedOmissions: string[];
+    contradictionFlags: string[];
+    comparisonGuidance: string;
+};
+
 export type KarthicRubricPack = {
     id: string;
     frankPacketId: string;
     status: Extract<WorkflowStatus, 'draft' | 'approved'>;
     domains: KarthicDomain[];
+    goldenTargets: KarthicGoldenDomainTarget[];
     criteria: KarthicCriterion[];
     refinementLog: RefinementLogEntry[];
     smeNotes: string;
+    comparisonMethodNote: string;
     approvedAt: string | null;
     createdAt: string;
     updatedAt: string;
@@ -152,6 +165,14 @@ export type DashaClusterRecord = {
     }>;
 };
 
+export type DomainCentroidDifference = {
+    matchedGoldenPoints: string[];
+    missingGoldenPoints: string[];
+    extraCentroidPoints: string[];
+    contradictionPoints: string[];
+    differenceSummary: string;
+};
+
 export type DomainCentroidEvaluation = {
     clusterId: string;
     applicabilityStatus: 'applicable' | 'not_applicable';
@@ -159,6 +180,7 @@ export type DomainCentroidEvaluation = {
     score: number | null;
     confidence: number | null;
     rationale: string;
+    difference: DomainCentroidDifference;
 };
 
 export type DomainResult = {
@@ -196,6 +218,8 @@ export type DashaRun = {
     clusters: DashaClusterRecord[];
     domainResults: DomainResult[];
     weightedSummary: WeightedSummary;
+    clusteringMethod: string;
+    clusteringNotes: string | null;
     errorMessage?: string;
     createdAt: string;
     completedAt: string | null;
