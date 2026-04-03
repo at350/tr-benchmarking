@@ -1,0 +1,1320 @@
+'use server';
+
+import 'server-only';
+
+import fs from 'fs/promises';
+import path from 'path';
+import { randomUUID } from 'crypto';
+
+import OpenAI from 'openai';
+
+import type {
+    ArtifactRecord,
+    ArtifactRole,
+    DashaClusterRecord,
+    DashaResponseRecord,
+    DashaRun,
+    DashaSelectedModel,
+    DomainCentroidEvaluation,
+    DomainResult,
+    FrankPacket,
+    KarthicCriterion,
+    KarthicDomain,
+    KarthicRubricPack,
+    ModelProvider,
+    ReasoningEffort,
+    RefinementLogEntry,
+    SourceExtraction,
+    SourceIntake,
+    WeightedSummary,
+} from '@/lib/legal-workflow-types';
+
+type FrankDraftInput = {
+    legalDomain: string;
+    domainScope: string;
+    sourceFamily: string;
+    files: Array<{ role: ArtifactRole; fileName: string; bytes: Uint8Array }>;
+};
+
+type SaveFrankInput = {
+    id?: string;
+    legalDomain: string;
+    domainScope: string;
+    sourceFamily: string;
+    sourceIntake: SourceIntake;
+    sourceExtraction: SourceExtraction;
+    benchmarkAnswer: string;
+    benchmarkQuestion: string;
+    failureModeSeeds: string[];
+    masterIssueStatement: string;
+    sourceArtifacts: ArtifactRecord[];
+    status?: FrankPacket['status'];
+};
+
+type SaveKarthicInput = {
+    id?: string;
+    frankPacketId: string;
+    domains: KarthicDomain[];
+    criteria?: KarthicCriterion[];
+    refinementLog?: RefinementLogEntry[];
+    smeNotes?: string;
+    status?: KarthicRubricPack['status'];
+};
+
+type RefineKarthicInput = {
+    packId: string;
+    contrastiveStrongAnswer?: string;
+    contrastiveMediocreAnswer?: string;
+    domainIds?: string[];
+};
+
+type DashaRunInput = {
+    rubricPackId: string;
+    files: Array<{ role: ArtifactRole; fileName: string; bytes: Uint8Array }>;
+    selectedModels: DashaSelectedModel[];
+};
+
+type ChatMessage = {
+    role: 'user' | 'assistant';
+    content: string;
+};
+
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
+
+const DATA_DIRECTORIES = {
+    frank: 'frank-packets',
+    karthic: 'karthic-rubric-packs',
+    dasha: 'dasha-runs',
+    artifacts: 'artifacts',
+} as const;
+
+export async function listFrankPackets() {
+    return await listArtifacts<FrankPacket>(DATA_DIRECTORIES.frank);
+}
+
+export async function getFrankPacket(id: string) {
+    return await readArtifact<FrankPacket>(DATA_DIRECTORIES.frank, id);
+}
+
+export async function draftFrankPacket(input: FrankDraftInput): Promise<FrankPacket> {
+    const now = new Date().toISOString();
+    const id = `frank_${Date.now()}_${randomUUID().slice(0, 8)}`;
+    const sourceArtifacts = await saveUploadedArtifacts(id, input.files);
+    const combinedText = sourceArtifacts
+        .map((artifact) => `# ${artifact.role}\n${artifact.extractedText}`.trim())
+        .join('\n\n')
+        .trim();
+    const draft = await generateFrankDraft({
+        legalDomain: input.legalDomain,
+        domainScope: input.domainScope,
+        sourceFamily: input.sourceFamily,
+        combinedText,
+    });
+
+    const packet: FrankPacket = {
+        id,
+        status: 'draft',
+        legalDomain: input.legalDomain.trim(),
+        domainScope: input.domainScope.trim(),
+        sourceFamily: input.sourceFamily.trim(),
+        sourceArtifacts,
+        sourceIntake: draft.sourceIntake,
+        sourceExtraction: draft.sourceExtraction,
+        benchmarkAnswer: draft.benchmarkAnswer,
+        benchmarkQuestion: draft.benchmarkQuestion,
+        failureModeSeeds: draft.failureModeSeeds,
+        masterIssueStatement: draft.masterIssueStatement,
+        approvedAt: null,
+        createdAt: now,
+        updatedAt: now,
+    };
+
+    await writeArtifact(DATA_DIRECTORIES.frank, packet.id, packet);
+    return packet;
+}
+
+export async function saveFrankPacket(input: SaveFrankInput): Promise<FrankPacket> {
+    const existing = input.id ? await getFrankPacket(input.id) : null;
+    const now = new Date().toISOString();
+    const packet: FrankPacket = {
+        id: existing?.id ?? `frank_${Date.now()}_${randomUUID().slice(0, 8)}`,
+        status: input.status ?? existing?.status ?? 'draft',
+        legalDomain: input.legalDomain.trim(),
+        domainScope: input.domainScope.trim(),
+        sourceFamily: input.sourceFamily.trim(),
+        sourceArtifacts: input.sourceArtifacts,
+        sourceIntake: input.sourceIntake,
+        sourceExtraction: input.sourceExtraction,
+        benchmarkAnswer: input.benchmarkAnswer.trim(),
+        benchmarkQuestion: input.benchmarkQuestion.trim(),
+        failureModeSeeds: normalizeStringArray(input.failureModeSeeds),
+        masterIssueStatement: input.masterIssueStatement.trim(),
+        approvedAt: input.status === 'approved' ? (existing?.approvedAt ?? now) : existing?.approvedAt ?? null,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+    };
+    await writeArtifact(DATA_DIRECTORIES.frank, packet.id, packet);
+    return packet;
+}
+
+export async function listKarthicRubricPacks() {
+    return await listArtifacts<KarthicRubricPack>(DATA_DIRECTORIES.karthic);
+}
+
+export async function getKarthicRubricPack(id: string) {
+    return await readArtifact<KarthicRubricPack>(DATA_DIRECTORIES.karthic, id);
+}
+
+export async function saveKarthicRubricPack(input: SaveKarthicInput): Promise<KarthicRubricPack> {
+    const frankPacket = await getFrankPacket(input.frankPacketId);
+    if (!frankPacket) {
+        throw new Error('Frank packet not found.');
+    }
+    if (frankPacket.status !== 'approved') {
+        throw new Error('Frank packet must be approved before Karthic can start.');
+    }
+
+    const existing = input.id ? await getKarthicRubricPack(input.id) : null;
+    const now = new Date().toISOString();
+    const domains = normalizeDomains(input.domains);
+    const criteria = input.criteria && input.criteria.length > 0
+        ? normalizeCriteria(input.criteria)
+        : buildInitialCriteria(domains);
+    const refinementLog = input.refinementLog && input.refinementLog.length > 0
+        ? input.refinementLog
+        : buildSeedRefinementLog(criteria);
+
+    const pack: KarthicRubricPack = {
+        id: existing?.id ?? `karthic_${Date.now()}_${randomUUID().slice(0, 8)}`,
+        frankPacketId: input.frankPacketId,
+        status: input.status ?? existing?.status ?? 'draft',
+        domains,
+        criteria,
+        refinementLog,
+        smeNotes: input.smeNotes?.trim() ?? existing?.smeNotes ?? '',
+        approvedAt: input.status === 'approved' ? (existing?.approvedAt ?? now) : existing?.approvedAt ?? null,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+    };
+
+    await writeArtifact(DATA_DIRECTORIES.karthic, pack.id, pack);
+    return pack;
+}
+
+export async function refineKarthicRubricPack(input: RefineKarthicInput): Promise<KarthicRubricPack> {
+    const pack = await getKarthicRubricPack(input.packId);
+    if (!pack) {
+        throw new Error('Karthic rubric pack not found.');
+    }
+    const frankPacket = await getFrankPacket(pack.frankPacketId);
+    if (!frankPacket) {
+        throw new Error('Linked Frank packet not found.');
+    }
+
+    const now = new Date().toISOString();
+    const targetDomainIds = new Set((input.domainIds && input.domainIds.length > 0 ? input.domainIds : pack.domains.map((domain) => domain.id)));
+    const nextCriteria = [...pack.criteria];
+    const nextLog = [...pack.refinementLog];
+
+    for (const domain of pack.domains) {
+        if (!targetDomainIds.has(domain.id)) {
+            continue;
+        }
+        const domainCriteria = nextCriteria.filter((criterion) => criterion.domainId === domain.id && criterion.status === 'active');
+        const seedCriterion = domainCriteria.find((criterion) => criterion.depth === 0) ?? domainCriteria[0] ?? null;
+        const generated = await generateRefinedCriteria({
+            domain,
+            benchmarkAnswer: frankPacket.benchmarkAnswer,
+            strongAnswer: input.contrastiveStrongAnswer?.trim() || frankPacket.benchmarkAnswer,
+            mediocreAnswer: input.contrastiveMediocreAnswer?.trim() || frankPacket.failureModeSeeds.join('\n'),
+            seedCriterionText: seedCriterion?.text ?? '',
+        });
+
+        if (seedCriterion) {
+            const criterionIndex = nextCriteria.findIndex((criterion) => criterion.id === seedCriterion.id);
+            if (criterionIndex >= 0) {
+                nextCriteria[criterionIndex] = {
+                    ...nextCriteria[criterionIndex],
+                    status: 'redundant',
+                };
+                nextLog.push({
+                    id: `refine_${randomUUID().slice(0, 8)}`,
+                    timestamp: now,
+                    domainId: domain.id,
+                    criterionId: seedCriterion.id,
+                    action: 'marked_redundant',
+                    note: 'Seed criterion retired after decomposition.',
+                });
+            }
+        }
+
+        for (const text of generated) {
+            const criterion: KarthicCriterion = {
+                id: `criterion_${randomUUID().slice(0, 8)}`,
+                domainId: domain.id,
+                text,
+                parentId: seedCriterion?.id ?? null,
+                depth: seedCriterion ? seedCriterion.depth + 1 : 1,
+                status: 'active',
+                source: 'refined',
+            };
+            nextCriteria.push(criterion);
+            nextLog.push({
+                id: `refine_${randomUUID().slice(0, 8)}`,
+                timestamp: now,
+                domainId: domain.id,
+                criterionId: criterion.id,
+                action: 'decomposed',
+                note: 'Added contrastive refinement criterion.',
+            });
+        }
+    }
+
+    const refinedPack: KarthicRubricPack = {
+        ...pack,
+        criteria: nextCriteria,
+        refinementLog: nextLog,
+        updatedAt: now,
+    };
+    await writeArtifact(DATA_DIRECTORIES.karthic, refinedPack.id, refinedPack);
+    return refinedPack;
+}
+
+export async function listDashaRuns() {
+    return await listArtifacts<DashaRun>(DATA_DIRECTORIES.dasha);
+}
+
+export async function getDashaRun(id: string) {
+    return await readArtifact<DashaRun>(DATA_DIRECTORIES.dasha, id);
+}
+
+export async function runDashaEvaluation(input: DashaRunInput): Promise<DashaRun> {
+    const pack = await getKarthicRubricPack(input.rubricPackId);
+    if (!pack) {
+        throw new Error('Karthic rubric pack not found.');
+    }
+    if (pack.status !== 'approved') {
+        throw new Error('Karthic rubric pack must be approved before Dasha can start.');
+    }
+
+    const id = `dasha_${Date.now()}_${randomUUID().slice(0, 8)}`;
+    const now = new Date().toISOString();
+    const inputArtifacts = await saveUploadedArtifacts(id, input.files);
+    const questionText = inputArtifacts.map((artifact) => artifact.extractedText).join('\n\n').trim();
+    if (!questionText) {
+        throw new Error('Question text could not be extracted from the uploaded PDFs.');
+    }
+
+    const responses = await generateDashaResponses(questionText, input.selectedModels);
+    const validResponses = responses.filter((response) => !response.error && response.responseText.trim().length > 0);
+    if (validResponses.length === 0) {
+        const failedRun: DashaRun = {
+            id,
+            rubricPackId: pack.id,
+            status: 'failed',
+            inputArtifacts,
+            questionText,
+            selectedModels: input.selectedModels,
+            responses,
+            clusters: [],
+            domainResults: [],
+            weightedSummary: {
+                applicableWeightTotal: 0,
+                weightedScore: null,
+                notApplicableDomainIds: [],
+            },
+            errorMessage: 'No model responses were generated successfully.',
+            createdAt: now,
+            completedAt: now,
+        };
+        await writeArtifact(DATA_DIRECTORIES.dasha, failedRun.id, failedRun);
+        return failedRun;
+    }
+
+    const clusters = clusterResponses(validResponses);
+    const domainResults = await evaluateClustersAgainstDomains({
+        questionText,
+        pack,
+        clusters,
+        responses: validResponses,
+    });
+    const weightedSummary = summarizeDomainResults(domainResults);
+
+    const completedRun: DashaRun = {
+        id,
+        rubricPackId: pack.id,
+        status: 'completed',
+        inputArtifacts,
+        questionText,
+        selectedModels: input.selectedModels,
+        responses,
+        clusters,
+        domainResults,
+        weightedSummary,
+        createdAt: now,
+        completedAt: new Date().toISOString(),
+    };
+    await writeArtifact(DATA_DIRECTORIES.dasha, completedRun.id, completedRun);
+    return completedRun;
+}
+
+async function generateFrankDraft(input: {
+    legalDomain: string;
+    domainScope: string;
+    sourceFamily: string;
+    combinedText: string;
+}) {
+    const fallback = buildFallbackFrankDraft(input);
+    const content = input.combinedText.slice(0, 16000);
+    if (!process.env.OPENAI_API_KEY || !content) {
+        return fallback;
+    }
+
+    const systemPrompt = [
+        'You are a Frank-stage legal benchmark drafting assistant.',
+        'Only perform source intake, source extraction, benchmark answer drafting, reverse-engineered question drafting, and optional failure-mode seeding.',
+        'Do not create final evaluative rubrics, model rankings, or centroid-selection logic.',
+        'Return JSON only.',
+    ].join(' ');
+
+    const userPrompt = [
+        `Legal domain: ${input.legalDomain}`,
+        `Domain scope: ${input.domainScope}`,
+        `Source family: ${input.sourceFamily}`,
+        '',
+        'Use a source-grounded common-law drafting posture. Treat portability carefully.',
+        'Produce this JSON shape:',
+        JSON.stringify({
+            sourceIntake: {
+                sourceQualityRating: 'string',
+                benchmarkPosture: 'narrow_source_grounded_benchmark_only',
+                recommendation: 'string',
+                jdReviewBurden: ['string'],
+                reverseEngineeringSuitability: 'strong',
+            },
+            sourceExtraction: {
+                legalIssue: 'string',
+                blackLetterRule: 'string',
+                triggerFacts: ['string'],
+                holding: 'string',
+                limits: ['string'],
+                uncertainty: ['string'],
+            },
+            benchmarkAnswer: 'string',
+            benchmarkQuestion: 'string',
+            failureModeSeeds: ['string'],
+            masterIssueStatement: 'string',
+        }),
+        '',
+        'Preserve stage boundaries: benchmarkAnswer may be clean and evaluator-facing, but do not invent rubric rows.',
+        '',
+        'Source text:',
+        content,
+    ].join('\n');
+
+    const parsed = await tryOpenAiJson(systemPrompt, userPrompt);
+    if (!parsed) {
+        return fallback;
+    }
+
+    return {
+        sourceIntake: normalizeSourceIntake(parsed.sourceIntake, fallback.sourceIntake),
+        sourceExtraction: normalizeSourceExtraction(parsed.sourceExtraction, fallback.sourceExtraction),
+        benchmarkAnswer: normalizeNonEmptyString(parsed.benchmarkAnswer, fallback.benchmarkAnswer),
+        benchmarkQuestion: normalizeNonEmptyString(parsed.benchmarkQuestion, fallback.benchmarkQuestion),
+        failureModeSeeds: normalizeStringArray(parsed.failureModeSeeds).slice(0, 6),
+        masterIssueStatement: normalizeNonEmptyString(parsed.masterIssueStatement, fallback.masterIssueStatement),
+    };
+}
+
+async function generateRefinedCriteria(input: {
+    domain: KarthicDomain;
+    benchmarkAnswer: string;
+    strongAnswer: string;
+    mediocreAnswer: string;
+    seedCriterionText: string;
+}) {
+    const fallback = buildFallbackRefinedCriteria(input.domain);
+    if (!process.env.OPENAI_API_KEY) {
+        return fallback;
+    }
+
+    const systemPrompt = [
+        'You are a Karthic-stage rubric refinement assistant.',
+        'Your job is only to refine one domain into evaluative subcriteria.',
+        'Use lightweight decomposition: criteria should separate strong from mediocre answers.',
+        'Do not assign weights or invent downstream scoring policy.',
+        'Return JSON only.',
+    ].join(' ');
+    const userPrompt = [
+        `Domain name: ${input.domain.name}`,
+        `Domain description: ${input.domain.description}`,
+        `Existing seed criterion: ${input.seedCriterionText || 'none'}`,
+        '',
+        'Return JSON of the form {"criteria":["...", "..."]}.',
+        'Provide 2-4 concise active criteria that would help distinguish a strong answer from a mediocre one within this domain.',
+        'Do not restate the whole benchmark answer.',
+        '',
+        'Benchmark answer:',
+        input.benchmarkAnswer.slice(0, 4000),
+        '',
+        'Strong answer example:',
+        input.strongAnswer.slice(0, 3000),
+        '',
+        'Mediocre answer example:',
+        input.mediocreAnswer.slice(0, 3000),
+    ].join('\n');
+
+    const parsed = await tryOpenAiJson(systemPrompt, userPrompt);
+    const items = normalizeStringArray(parsed?.criteria).slice(0, 4);
+    return items.length > 0 ? items : fallback;
+}
+
+async function evaluateClustersAgainstDomains(input: {
+    questionText: string;
+    pack: KarthicRubricPack;
+    clusters: DashaClusterRecord[];
+    responses: DashaResponseRecord[];
+}) {
+    const responseById = new Map(input.responses.map((response) => [response.id, response]));
+    const results: DomainResult[] = [];
+
+    for (const domain of input.pack.domains) {
+        const criteria = input.pack.criteria
+            .filter((criterion) => criterion.domainId === domain.id && criterion.status === 'active')
+            .map((criterion) => criterion.text);
+        const centroidEvaluations: DomainCentroidEvaluation[] = [];
+
+        for (const cluster of input.clusters) {
+            const representative = responseById.get(cluster.representativeResponseId);
+            if (!representative) {
+                continue;
+            }
+
+            const evaluation = await evaluateDomainAgainstResponse({
+                questionText: input.questionText,
+                domain,
+                criteria,
+                responseText: representative.responseText,
+            });
+
+            centroidEvaluations.push({
+                clusterId: cluster.id,
+                applicabilityStatus: evaluation.applicabilityStatus,
+                applicabilityExplanation: evaluation.applicabilityExplanation,
+                score: evaluation.score,
+                confidence: evaluation.confidence,
+                rationale: evaluation.rationale,
+            });
+        }
+
+        const winning = chooseWinningCentroid(centroidEvaluations, input.clusters);
+        results.push({
+            domainId: domain.id,
+            domainName: domain.name,
+            weight: domain.weight,
+            applicabilityStatus: winning?.applicabilityStatus ?? 'not_applicable',
+            applicabilityExplanation: winning?.applicabilityExplanation ?? domain.naGuidance,
+            centroidEvaluations,
+            winningCentroidId: winning?.clusterId ?? null,
+            winningScore: winning?.score ?? null,
+            rationale: winning?.rationale ?? 'No applicable centroid satisfied this domain.',
+            winningModelMix: winning
+                ? input.clusters.find((cluster) => cluster.id === winning.clusterId)?.modelBreakdown ?? []
+                : [],
+        });
+    }
+
+    return results;
+}
+
+async function evaluateDomainAgainstResponse(input: {
+    questionText: string;
+    domain: KarthicDomain;
+    criteria: string[];
+    responseText: string;
+}): Promise<{
+    applicabilityStatus: 'applicable' | 'not_applicable';
+    applicabilityExplanation: string;
+    score: number | null;
+    confidence: number | null;
+    rationale: string;
+}> {
+    const fallback = heuristicDomainEvaluation(input);
+    if (!process.env.OPENAI_API_KEY) {
+        return fallback;
+    }
+
+    const systemPrompt = [
+        'You are a Dasha-stage domain judge.',
+        'Evaluate one clustered answer representative against one approved domain only.',
+        'Do not compare models globally.',
+        'Return JSON only.',
+    ].join(' ');
+    const userPrompt = [
+        `Domain: ${input.domain.name}`,
+        `Domain description: ${input.domain.description}`,
+        `NA guidance: ${input.domain.naGuidance}`,
+        `Criteria: ${input.criteria.join(' | ') || 'None provided'}`,
+        '',
+        'Return JSON:',
+        JSON.stringify({
+            applicabilityStatus: 'applicable',
+            applicabilityExplanation: 'string',
+            score: 0,
+            confidence: 0.5,
+            rationale: 'string',
+        }),
+        '',
+        'Use score 0-100 only if applicable. If not applicable, use score null.',
+        '',
+        'Question:',
+        input.questionText.slice(0, 3500),
+        '',
+        'Representative answer:',
+        input.responseText.slice(0, 3500),
+    ].join('\n');
+
+    const parsed = await tryOpenAiJson(systemPrompt, userPrompt);
+    if (!parsed) {
+        return fallback;
+    }
+
+    const applicabilityStatus = parsed.applicabilityStatus === 'applicable' ? 'applicable' : 'not_applicable';
+    const score = applicabilityStatus === 'applicable'
+        ? clampNumber(toNumber(parsed.score, fallback.score ?? 0), 0, 100)
+        : null;
+
+    return {
+        applicabilityStatus,
+        applicabilityExplanation: normalizeNonEmptyString(parsed.applicabilityExplanation, fallback.applicabilityExplanation),
+        score,
+        confidence: clampNumber(toNumber(parsed.confidence, fallback.confidence ?? 0.5), 0, 1),
+        rationale: normalizeNonEmptyString(parsed.rationale, fallback.rationale),
+    };
+}
+
+function chooseWinningCentroid(evaluations: DomainCentroidEvaluation[], clusters: DashaClusterRecord[]) {
+    const clusterById = new Map(clusters.map((cluster) => [cluster.id, cluster]));
+    const applicable = evaluations.filter((evaluation) => evaluation.applicabilityStatus === 'applicable' && typeof evaluation.score === 'number');
+    if (applicable.length === 0) {
+        return evaluations[0] ?? null;
+    }
+
+    return applicable.sort((left, right) => {
+        const scoreDelta = (right.score ?? -1) - (left.score ?? -1);
+        if (scoreDelta !== 0) {
+            return scoreDelta;
+        }
+        const confidenceDelta = (right.confidence ?? -1) - (left.confidence ?? -1);
+        if (confidenceDelta !== 0) {
+            return confidenceDelta;
+        }
+        const sizeDelta = (clusterById.get(right.clusterId)?.size ?? 0) - (clusterById.get(left.clusterId)?.size ?? 0);
+        if (sizeDelta !== 0) {
+            return sizeDelta;
+        }
+        return left.clusterId.localeCompare(right.clusterId);
+    })[0];
+}
+
+function summarizeDomainResults(results: DomainResult[]): WeightedSummary {
+    let weightedTotal = 0;
+    let applicableWeightTotal = 0;
+    const notApplicableDomainIds: string[] = [];
+
+    for (const result of results) {
+        if (result.applicabilityStatus !== 'applicable' || typeof result.winningScore !== 'number') {
+            notApplicableDomainIds.push(result.domainId);
+            continue;
+        }
+        applicableWeightTotal += result.weight;
+        weightedTotal += result.weight * result.winningScore;
+    }
+
+    return {
+        applicableWeightTotal,
+        weightedScore: applicableWeightTotal > 0 ? roundToTwo(weightedTotal / applicableWeightTotal) : null,
+        notApplicableDomainIds,
+    };
+}
+
+async function generateDashaResponses(questionText: string, selectedModels: DashaSelectedModel[]) {
+    const responses: DashaResponseRecord[] = [];
+
+    for (const selectedModel of selectedModels) {
+        const id = `response_${randomUUID().slice(0, 8)}`;
+        const modelKey = `${selectedModel.provider}::${selectedModel.model}`;
+        try {
+            const responseText = await generateModelResponse({
+                provider: selectedModel.provider,
+                model: selectedModel.model,
+                systemPrompt: 'You are generating a free-form legal answer for benchmark evaluation. Write a concise legal analysis with a clear conclusion.',
+                messages: [{
+                    role: 'user',
+                    content: [
+                        'Answer the following legal question in a structured but natural free-form analysis.',
+                        'Do not use bullet points.',
+                        '',
+                        questionText,
+                    ].join('\n'),
+                }],
+                temperature: selectedModel.temperature ?? 0.2,
+                reasoningEffort: selectedModel.reasoningEffort ?? 'medium',
+            });
+            responses.push({
+                id,
+                modelKey,
+                provider: selectedModel.provider,
+                model: selectedModel.model,
+                responseText: responseText.trim(),
+                clusterId: '',
+            });
+        } catch (error) {
+            responses.push({
+                id,
+                modelKey,
+                provider: selectedModel.provider,
+                model: selectedModel.model,
+                responseText: '',
+                clusterId: '',
+                error: error instanceof Error ? error.message : 'Model generation failed.',
+            });
+        }
+    }
+
+    return responses;
+}
+
+function clusterResponses(responses: DashaResponseRecord[]) {
+    const assigned = new Set<string>();
+    const clusters: DashaClusterRecord[] = [];
+    const texts = new Map(responses.map((response) => [response.id, normalizeForSimilarity(response.responseText)]));
+
+    for (const response of responses) {
+        if (assigned.has(response.id)) {
+            continue;
+        }
+        const members = [response];
+        assigned.add(response.id);
+        const baseText = texts.get(response.id) ?? '';
+
+        for (const candidate of responses) {
+            if (assigned.has(candidate.id) || candidate.id === response.id) {
+                continue;
+            }
+            const similarity = jaccardSimilarity(baseText, texts.get(candidate.id) ?? '');
+            if (similarity >= 0.33) {
+                members.push(candidate);
+                assigned.add(candidate.id);
+            }
+        }
+
+        const representative = members
+            .map((member) => ({
+                member,
+                score: averageSimilarity(member.id, members, texts),
+            }))
+            .sort((left, right) => right.score - left.score || right.member.responseText.length - left.member.responseText.length)[0]?.member ?? members[0];
+
+        const clusterId = `cluster_${clusters.length + 1}`;
+        for (const member of members) {
+            member.clusterId = clusterId;
+        }
+
+        clusters.push({
+            id: clusterId,
+            representativeResponseId: representative.id,
+            representativeText: representative.responseText,
+            memberResponseIds: members.map((member) => member.id),
+            size: members.length,
+            modelBreakdown: summarizeModelBreakdown(members),
+        });
+    }
+
+    return clusters;
+}
+
+function summarizeModelBreakdown(members: DashaResponseRecord[]) {
+    const byModel = new Map<string, { modelKey: string; provider: ModelProvider; model: string; count: number }>();
+    for (const member of members) {
+        const current = byModel.get(member.modelKey);
+        if (current) {
+            current.count += 1;
+            continue;
+        }
+        byModel.set(member.modelKey, {
+            modelKey: member.modelKey,
+            provider: member.provider,
+            model: member.model,
+            count: 1,
+        });
+    }
+    return Array.from(byModel.values()).sort((left, right) => right.count - left.count || left.modelKey.localeCompare(right.modelKey));
+}
+
+async function saveUploadedArtifacts(ownerId: string, files: Array<{ role: ArtifactRole; fileName: string; bytes: Uint8Array }>) {
+    const artifactDirectory = path.join(await ensureDirectory(DATA_DIRECTORIES.artifacts), ownerId);
+    await fs.mkdir(artifactDirectory, { recursive: true });
+
+    const artifacts: ArtifactRecord[] = [];
+    for (const file of files) {
+        const safeName = sanitizeFileName(file.fileName || `${file.role}.pdf`);
+        const artifactId = `artifact_${randomUUID().slice(0, 8)}`;
+        const storedPath = path.join(artifactDirectory, `${artifactId}_${safeName}`);
+        const extractedTextPath = path.join(artifactDirectory, `${artifactId}.txt`);
+        await fs.writeFile(storedPath, file.bytes);
+        const extractedText = await extractTextFromUploadedFile(file.bytes, safeName);
+        await fs.writeFile(extractedTextPath, extractedText, 'utf8');
+        artifacts.push({
+            id: artifactId,
+            role: file.role,
+            fileName: safeName,
+            storedPath,
+            extractedTextPath,
+            extractedText,
+            uploadedAt: new Date().toISOString(),
+        });
+    }
+
+    return artifacts;
+}
+
+async function extractTextFromUploadedFile(bytes: Uint8Array, fileName: string) {
+    const extension = path.extname(fileName).toLowerCase();
+    if (extension === '.pdf') {
+        try {
+            const { PDFParse } = await import('pdf-parse');
+            const parser = new PDFParse({ data: Buffer.from(bytes) });
+            const parsed = await parser.getText();
+            await parser.destroy().catch(() => undefined);
+            return normalizeExtractedText(parsed.text || '');
+        } catch {
+            return '';
+        }
+    }
+
+    return normalizeExtractedText(Buffer.from(bytes).toString('utf8'));
+}
+
+function buildFallbackFrankDraft(input: {
+    legalDomain: string;
+    domainScope: string;
+    sourceFamily: string;
+    combinedText: string;
+}) {
+    const excerpt = firstSentence(input.combinedText) || 'The uploaded source materials require closer legal review.';
+    const issue = excerpt.length > 180 ? `${excerpt.slice(0, 177)}...` : excerpt;
+    return {
+        sourceIntake: {
+            sourceQualityRating: 'Moderate; usable with supporting authority',
+            benchmarkPosture: 'generalizable_only_with_supporting_authority' as const,
+            recommendation: 'Use as a lead source only with JD review and supporting authority.',
+            jdReviewBurden: [
+                'Confirm the extracted black-letter rule against the uploaded authority.',
+                'Confirm whether the source is narrow, portable, or jurisdiction-sensitive.',
+            ],
+            reverseEngineeringSuitability: 'moderate' as const,
+        },
+        sourceExtraction: {
+            legalIssue: issue,
+            blackLetterRule: `The controlling rule should be stated narrowly within ${input.domainScope}.`,
+            triggerFacts: splitSentences(input.combinedText).slice(0, 3),
+            holding: 'A source-grounded holding should be confirmed by SME review.',
+            limits: ['Source portability and doctrinal boundaries require confirmation.'],
+            uncertainty: ['Jurisdiction sensitivity and source completeness need review.'],
+        },
+        benchmarkAnswer: [
+            'Jurisdiction assumption:',
+            'Treat the uploaded source as controlling until a JD narrows portability.',
+            '',
+            'Bottom-line outcome:',
+            'The benchmark answer should track the source-grounded rule once validated.',
+            '',
+            'Controlling doctrine:',
+            `Frame the answer around ${input.domainScope}.`,
+            '',
+            'Formation:',
+            'Address formation only if the uploaded materials make it genuinely relevant.',
+            '',
+            'Statute of Frauds Gates:',
+            'Analyze the controlling gate before any fallback theory.',
+            '',
+            'Exceptions/Promissory Estoppel:',
+            'Keep fallback doctrines secondary and bounded by the source.',
+            '',
+            'Defenses/Mistake:',
+            'Discuss only if the uploaded materials make them material.',
+            '',
+            'Strongest counterargument:',
+            'The strongest counterargument should remain source-grounded.',
+            '',
+            'Bounded uncertainty:',
+            'Flag any jurisdiction-specific or source-specific uncertainty explicitly.',
+        ].join('\n'),
+        benchmarkQuestion: 'Is the promise enforceable? Analyze.',
+        failureModeSeeds: [
+            'Fails to identify the controlling doctrine.',
+            'Collapses the main enforceability gate with a fallback theory.',
+            'Overstates portability beyond the uploaded source.',
+        ],
+        masterIssueStatement: issue,
+    };
+}
+
+function buildFallbackRefinedCriteria(domain: KarthicDomain) {
+    return [
+        `The answer identifies the governing rule or gate relevant to ${domain.name}.`,
+        `The answer applies ${domain.name} to the material facts rather than staying abstract.`,
+        `The answer keeps ${domain.name} separate from fallback doctrines unless the facts make that crossover necessary.`,
+    ];
+}
+
+function heuristicDomainEvaluation(input: {
+    questionText: string;
+    domain: KarthicDomain;
+    criteria: string[];
+    responseText: string;
+}): {
+    applicabilityStatus: 'applicable' | 'not_applicable';
+    applicabilityExplanation: string;
+    score: number | null;
+    confidence: number;
+    rationale: string;
+} {
+    const domainText = normalizeForSimilarity([
+        input.domain.name,
+        input.domain.description,
+        ...input.criteria,
+    ].join(' '));
+    const responseText = normalizeForSimilarity(input.responseText);
+    const overlap = jaccardSimilarity(domainText, responseText);
+    const questionOverlap = jaccardSimilarity(normalizeForSimilarity(input.questionText), domainText);
+    const applicable = questionOverlap > 0.06 || overlap > 0.05;
+    const score = applicable ? Math.round(clampNumber(overlap * 240, 15, 96)) : null;
+
+    return {
+        applicabilityStatus: applicable ? 'applicable' as const : 'not_applicable' as const,
+        applicabilityExplanation: applicable
+            ? `The representative answer engages with the ${input.domain.name} domain.`
+            : input.domain.naGuidance || `This domain is not clearly triggered by the question or answer.`,
+        score,
+        confidence: roundToTwo(applicable ? Math.max(overlap, 0.35) : 0.4),
+        rationale: applicable
+            ? `Score derived from overlap between the representative answer and the domain criteria for ${input.domain.name}.`
+            : `Marked not applicable under the stored NA guidance for ${input.domain.name}.`,
+    };
+}
+
+function buildInitialCriteria(domains: KarthicDomain[]): KarthicCriterion[] {
+    return domains.map((domain) => ({
+        id: `criterion_${randomUUID().slice(0, 8)}`,
+        domainId: domain.id,
+        text: `The answer correctly addresses ${domain.name} in a way that is consistent with the approved benchmark answer.`,
+        parentId: null,
+        depth: 0,
+        status: 'active' as const,
+        source: 'seed' as const,
+    }));
+}
+
+function buildSeedRefinementLog(criteria: KarthicCriterion[]) {
+    const timestamp = new Date().toISOString();
+    return criteria.map((criterion) => ({
+        id: `log_${randomUUID().slice(0, 8)}`,
+        timestamp,
+        domainId: criterion.domainId,
+        criterionId: criterion.id,
+        action: 'created_seed' as const,
+        note: 'Created initial coarse criterion from approved Frank benchmark answer.',
+    }));
+}
+
+function normalizeDomains(domains: KarthicDomain[]) {
+    return domains.map((domain, index) => ({
+        id: domain.id?.trim() || `domain_${index + 1}`,
+        name: normalizeNonEmptyString(domain.name, `Domain ${index + 1}`),
+        description: normalizeNonEmptyString(domain.description, 'No description provided.'),
+        weight: clampNumber(toNumber(domain.weight, 1), 0.01, 100),
+        naGuidance: normalizeNonEmptyString(domain.naGuidance, 'This domain is not applicable to the given question.'),
+    }));
+}
+
+function normalizeCriteria(criteria: KarthicCriterion[]): KarthicCriterion[] {
+    return criteria.map((criterion, index) => ({
+        id: criterion.id?.trim() || `criterion_${index + 1}`,
+        domainId: criterion.domainId,
+        text: normalizeNonEmptyString(criterion.text, `Criterion ${index + 1}`),
+        parentId: criterion.parentId ?? null,
+        depth: Math.max(0, Number.isFinite(criterion.depth) ? criterion.depth : 0),
+        status: criterion.status === 'redundant' || criterion.status === 'draft' ? criterion.status : 'active',
+        source: criterion.source === 'refined' || criterion.source === 'sme_promoted' ? criterion.source : 'seed',
+    }));
+}
+
+function normalizeSourceIntake(value: unknown, fallback: SourceIntake): SourceIntake {
+    const record = isRecord(value) ? value : {};
+    const reverseEngineeringSuitability = record.reverseEngineeringSuitability === 'strong'
+        || record.reverseEngineeringSuitability === 'weak'
+        ? record.reverseEngineeringSuitability
+        : fallback.reverseEngineeringSuitability;
+    const benchmarkPosture = record.benchmarkPosture === 'narrow_source_grounded_benchmark_only'
+        || record.benchmarkPosture === 'generalizable_only_with_supporting_authority'
+        || record.benchmarkPosture === 'portable_common_law_benchmark'
+        ? record.benchmarkPosture
+        : fallback.benchmarkPosture;
+
+    return {
+        sourceQualityRating: normalizeNonEmptyString(record.sourceQualityRating, fallback.sourceQualityRating),
+        benchmarkPosture,
+        recommendation: normalizeNonEmptyString(record.recommendation, fallback.recommendation),
+        jdReviewBurden: normalizeStringArray(record.jdReviewBurden),
+        reverseEngineeringSuitability,
+    };
+}
+
+function normalizeSourceExtraction(value: unknown, fallback: SourceExtraction): SourceExtraction {
+    const record = isRecord(value) ? value : {};
+    return {
+        legalIssue: normalizeNonEmptyString(record.legalIssue, fallback.legalIssue),
+        blackLetterRule: normalizeNonEmptyString(record.blackLetterRule, fallback.blackLetterRule),
+        triggerFacts: normalizeStringArray(record.triggerFacts),
+        holding: normalizeNonEmptyString(record.holding, fallback.holding),
+        limits: normalizeStringArray(record.limits),
+        uncertainty: normalizeStringArray(record.uncertainty),
+    };
+}
+
+async function tryOpenAiJson(systemPrompt: string, userPrompt: string) {
+    try {
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4.1-mini',
+            temperature: 0.1,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+            ],
+            response_format: { type: 'json_object' },
+        });
+        const content = response.choices[0]?.message?.content ?? '';
+        return safeJsonParse(content);
+    } catch {
+        return null;
+    }
+}
+
+type GenerateModelOptions = {
+    provider: ModelProvider;
+    model: string;
+    systemPrompt: string;
+    messages: ChatMessage[];
+    temperature: number;
+    reasoningEffort?: ReasoningEffort;
+};
+
+async function generateModelResponse({ provider, model, systemPrompt, messages, temperature, reasoningEffort }: GenerateModelOptions) {
+    if (provider === 'anthropic') {
+        return await generateAnthropicResponse({ model, systemPrompt, messages, temperature });
+    }
+    if (provider === 'gemini') {
+        return await generateGeminiResponse({ model, systemPrompt, messages, temperature, reasoningEffort });
+    }
+
+    const isResponsesApi = model === 'gpt-5-mini' || model === 'gpt-5-nano' || model === 'gpt-5.2' || model === 'gpt-5.2-pro' || model === 'gpt-5.2-chat-latest';
+    if (isResponsesApi) {
+        const request: {
+            model: string;
+            input: string;
+            instructions: string;
+            text: { format: { type: 'text' }; verbosity: 'medium' };
+            reasoning?: { effort: 'low' | 'medium' | 'high'; summary: 'auto' };
+        } = {
+            model,
+            input: messages.map((message) => `${message.role === 'assistant' ? 'Assistant' : 'User'}: ${message.content}`).join('\n'),
+            instructions: systemPrompt,
+            text: {
+                format: { type: 'text' },
+                verbosity: 'medium',
+            },
+        };
+
+        const mappedEffort = mapReasoningEffort(reasoningEffort);
+        if (mappedEffort) {
+            request.reasoning = {
+                effort: mappedEffort,
+                summary: 'auto',
+            };
+        }
+
+        const response = await openai.responses.create(request);
+        return extractResponsesText(response);
+    }
+
+    const response = await openai.chat.completions.create({
+        model,
+        messages: [
+            { role: 'system', content: systemPrompt },
+            ...messages,
+        ],
+        temperature,
+    });
+    return response.choices[0]?.message?.content || '';
+}
+
+async function generateAnthropicResponse(input: {
+    model: string;
+    systemPrompt: string;
+    messages: ChatMessage[];
+    temperature: number;
+}) {
+    if (!process.env.ANTHROPIC_API_KEY) {
+        throw new Error('ANTHROPIC_API_KEY is not set.');
+    }
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'content-type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+            model: input.model,
+            max_tokens: 2200,
+            temperature: input.temperature,
+            system: input.systemPrompt,
+            messages: input.messages.map((message) => ({
+                role: message.role,
+                content: message.content,
+            })),
+        }),
+    });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error((json as { error?: { message?: string } })?.error?.message || 'Anthropic request failed.');
+    }
+    const parts = Array.isArray((json as { content?: Array<{ text?: string }> }).content)
+        ? (json as { content: Array<{ text?: string }> }).content
+        : [];
+    return parts.map((part) => part.text).filter(Boolean).join('');
+}
+
+async function generateGeminiResponse(input: {
+    model: string;
+    systemPrompt: string;
+    messages: ChatMessage[];
+    temperature: number;
+    reasoningEffort?: ReasoningEffort;
+}) {
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error('GEMINI_API_KEY is not set.');
+    }
+
+    const contents = input.messages.map((message) => ({
+        role: message.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: message.content }],
+    }));
+    if (input.systemPrompt.trim()) {
+        contents.unshift({
+            role: 'user',
+            parts: [{ text: `System: ${input.systemPrompt}` }],
+        });
+    }
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${input.model}:generateContent`, {
+        method: 'POST',
+        headers: {
+            'content-type': 'application/json',
+            'x-goog-api-key': process.env.GEMINI_API_KEY,
+        },
+        body: JSON.stringify({
+            contents,
+            generationConfig: {
+                temperature: input.temperature,
+                ...(mapGeminiThinkingLevel(input.reasoningEffort)
+                    ? { thinkingConfig: { thinkingLevel: mapGeminiThinkingLevel(input.reasoningEffort) } }
+                    : {}),
+            },
+        }),
+    });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error((json as { error?: { message?: string } })?.error?.message || 'Gemini request failed.');
+    }
+    const candidate = (json as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }).candidates?.[0];
+    return (candidate?.content?.parts ?? []).map((part) => part.text).filter(Boolean).join('');
+}
+
+function mapReasoningEffort(reasoningEffort?: ReasoningEffort) {
+    if (!reasoningEffort || reasoningEffort === 'none') {
+        return null;
+    }
+    return reasoningEffort === 'xhigh' ? 'high' : reasoningEffort;
+}
+
+function mapGeminiThinkingLevel(reasoningEffort?: ReasoningEffort) {
+    const mapped = mapReasoningEffort(reasoningEffort);
+    if (!mapped) {
+        return null;
+    }
+    return mapped === 'high' ? 'high' : mapped;
+}
+
+function extractResponsesText(response: unknown) {
+    if (!response || typeof response !== 'object') {
+        return '';
+    }
+    const responseRecord = response as {
+        output_text?: string;
+        output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
+    };
+    if (typeof responseRecord.output_text === 'string') {
+        return responseRecord.output_text;
+    }
+    for (const block of responseRecord.output ?? []) {
+        for (const content of block.content ?? []) {
+            if (typeof content.text === 'string') {
+                return content.text;
+            }
+        }
+    }
+    return '';
+}
+
+async function listArtifacts<T>(directoryKey: keyof typeof DATA_DIRECTORIES | string) {
+    const directory = await ensureDirectory(directoryKey);
+    const entries = await fs.readdir(directory, { withFileTypes: true }).catch(() => []);
+    const items: T[] = [];
+
+    for (const entry of entries) {
+        if (!entry.isFile() || path.extname(entry.name) !== '.json') {
+            continue;
+        }
+        const record = await safeReadJson<T>(path.join(directory, entry.name));
+        if (record) {
+            items.push(record);
+        }
+    }
+
+    return items.sort((left, right) => {
+        const leftUpdatedAt = (left as Record<string, unknown>).updatedAt;
+        const rightUpdatedAt = (right as Record<string, unknown>).updatedAt;
+        return String(rightUpdatedAt ?? '').localeCompare(String(leftUpdatedAt ?? ''));
+    });
+}
+
+async function readArtifact<T>(directoryKey: keyof typeof DATA_DIRECTORIES | string, id: string) {
+    const directory = await ensureDirectory(directoryKey);
+    return await safeReadJson<T>(path.join(directory, `${sanitizeFileName(id)}.json`));
+}
+
+async function writeArtifact<T>(directoryKey: keyof typeof DATA_DIRECTORIES | string, id: string, value: T) {
+    const directory = await ensureDirectory(directoryKey);
+    await fs.writeFile(path.join(directory, `${sanitizeFileName(id)}.json`), JSON.stringify(value, null, 2), 'utf8');
+}
+
+async function safeReadJson<T>(filePath: string) {
+    try {
+        const raw = await fs.readFile(filePath, 'utf8');
+        return JSON.parse(raw) as T;
+    } catch {
+        return null;
+    }
+}
+
+async function ensureDirectory(directoryKey: keyof typeof DATA_DIRECTORIES | string) {
+    const root = path.basename(process.cwd()) === 'frontend'
+        ? path.resolve(process.cwd(), '../legal-workflow-data')
+        : path.resolve(process.cwd(), 'legal-workflow-data');
+    const directory = path.join(root, directoryKey in DATA_DIRECTORIES ? DATA_DIRECTORIES[directoryKey as keyof typeof DATA_DIRECTORIES] : directoryKey);
+    await fs.mkdir(directory, { recursive: true });
+    return directory;
+}
+
+function normalizeExtractedText(value: string) {
+    return value.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function normalizeForSimilarity(value: string) {
+    return value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function jaccardSimilarity(left: string, right: string) {
+    const leftSet = new Set(left.split(' ').filter(Boolean));
+    const rightSet = new Set(right.split(' ').filter(Boolean));
+    if (leftSet.size === 0 || rightSet.size === 0) {
+        return 0;
+    }
+    let intersection = 0;
+    for (const token of leftSet) {
+        if (rightSet.has(token)) {
+            intersection += 1;
+        }
+    }
+    const union = new Set([...leftSet, ...rightSet]).size;
+    return union > 0 ? intersection / union : 0;
+}
+
+function averageSimilarity(responseId: string, members: DashaResponseRecord[], textMap: Map<string, string>) {
+    const base = textMap.get(responseId) ?? '';
+    const values = members.map((member) => jaccardSimilarity(base, textMap.get(member.id) ?? ''));
+    const total = values.reduce((sum, value) => sum + value, 0);
+    return total / Math.max(values.length, 1);
+}
+
+function normalizeNonEmptyString(value: unknown, fallback: string) {
+    if (typeof value !== 'string') {
+        return fallback;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : fallback;
+}
+
+function normalizeStringArray(value: unknown) {
+    if (!Array.isArray(value)) {
+        return [] as string[];
+    }
+    return value
+        .map((item) => String(item).trim())
+        .filter((item) => item.length > 0);
+}
+
+function splitSentences(value: string) {
+    return value
+        .split(/(?<=[.!?])\s+/)
+        .map((sentence) => sentence.trim())
+        .filter(Boolean);
+}
+
+function firstSentence(value: string) {
+    return splitSentences(value)[0] ?? '';
+}
+
+function safeJsonParse(value: string) {
+    try {
+        return JSON.parse(value) as Record<string, unknown>;
+    } catch {
+        return null;
+    }
+}
+
+function sanitizeFileName(value: string) {
+    return value.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+function toNumber(value: unknown, fallback: number) {
+    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function clampNumber(value: number, min: number, max: number) {
+    return Math.min(Math.max(value, min), max);
+}
+
+function roundToTwo(value: number) {
+    return Math.round(value * 100) / 100;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+}

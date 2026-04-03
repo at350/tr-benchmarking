@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 const NAV_ITEMS = [
     { href: '/', label: 'Home' },
     { href: '/database-view', label: 'Dataset' },
+    { href: '/legal-workflow', label: 'Frank-Karthic-Dasha' },
     { href: '/lsh-runs', label: 'LSH-RUHS' },
     { href: '/general-benchmarking', label: 'General Benchmarking' },
 ];
