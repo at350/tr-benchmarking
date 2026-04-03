@@ -17,6 +17,23 @@ export type ArtifactRecord = {
     uploadedAt: string;
 };
 
+export type FrankCaseCandidate = {
+    id: string;
+    title: string;
+    citation: string;
+    court: string;
+    year: string;
+    url: string;
+    summary: string;
+    relevance: string;
+};
+
+export type FrankAnalysisDomain = {
+    id: string;
+    name: string;
+    description: string;
+};
+
 export type BenchmarkPosture =
     | 'narrow_source_grounded_benchmark_only'
     | 'generalizable_only_with_supporting_authority'
@@ -45,6 +62,8 @@ export type FrankPacket = {
     legalDomain: string;
     domainScope: string;
     sourceFamily: string;
+    selectedCase: FrankCaseCandidate | null;
+    analysisDomains: FrankAnalysisDomain[];
     sourceArtifacts: ArtifactRecord[];
     sourceIntake: SourceIntake;
     sourceExtraction: SourceExtraction;

@@ -11,6 +11,8 @@ import type {
     ArtifactRole,
     DashaRun,
     DashaSelectedModel,
+    FrankAnalysisDomain,
+    FrankCaseCandidate,
     FrankPacket,
     KarthicCriterion,
     KarthicDomain,
@@ -19,6 +21,7 @@ import type {
 } from '@/lib/legal-workflow-types';
 
 type WorkflowTab = 'frank' | 'karthic' | 'dasha';
+type FrankWizardStep = 'domain' | 'case' | 'domains' | 'golden' | 'question';
 
 type UploadRow = {
     role: ArtifactRole;
@@ -45,6 +48,9 @@ type FrankEditorState = {
     holding: string;
     limitsText: string;
     uncertaintyText: string;
+    selectedCase: FrankCaseCandidate | null;
+    caseCandidates: FrankCaseCandidate[];
+    analysisDomains: FrankAnalysisDomain[];
     sourceArtifacts: FrankPacket['sourceArtifacts'];
 };
 
@@ -82,6 +88,9 @@ const DEFAULT_FRANK_STATE: FrankEditorState = {
     holding: '',
     limitsText: '',
     uncertaintyText: '',
+    selectedCase: null,
+    caseCandidates: [],
+    analysisDomains: [],
     sourceArtifacts: [],
 };
 
@@ -91,7 +100,6 @@ const DEFAULT_MODEL_KEYS = [
     'gemini::gemini-2.5-pro',
 ];
 
-const FRANK_ROLES: ArtifactRole[] = ['anchor_case', 'issue_statement', 'evidence_packet', 'supplemental'];
 const DASHA_ROLES: ArtifactRole[] = ['question_packet', 'issue_statement', 'evidence_packet', 'supplemental'];
 
 export default function LegalWorkflowPage() {
@@ -103,9 +111,12 @@ export default function LegalWorkflowPage() {
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    const [frankUploads, setFrankUploads] = useState<UploadRow[]>([]);
-    const [frankDrafting, setFrankDrafting] = useState(false);
     const [frankEditor, setFrankEditor] = useState<FrankEditorState>(DEFAULT_FRANK_STATE);
+    const [frankStep, setFrankStep] = useState<FrankWizardStep>('domain');
+    const [frankSearchingCases, setFrankSearchingCases] = useState(false);
+    const [frankDraftingDomains, setFrankDraftingDomains] = useState(false);
+    const [frankGeneratingGolden, setFrankGeneratingGolden] = useState(false);
+    const [frankGeneratingQuestion, setFrankGeneratingQuestion] = useState(false);
 
     const [karthicEditor, setKarthicEditor] = useState<KarthicEditorState>({
         frankPacketId: '',
@@ -163,7 +174,7 @@ export default function LegalWorkflowPage() {
     }
 
     function applyFrankPacket(packet: FrankPacket) {
-        setFrankEditor({
+        const nextState: FrankEditorState = {
             id: packet.id,
             legalDomain: packet.legalDomain,
             domainScope: packet.domainScope,
@@ -183,8 +194,13 @@ export default function LegalWorkflowPage() {
             holding: packet.sourceExtraction.holding,
             limitsText: packet.sourceExtraction.limits.join('\n'),
             uncertaintyText: packet.sourceExtraction.uncertainty.join('\n'),
-            sourceArtifacts: packet.sourceArtifacts,
-        });
+            selectedCase: packet.selectedCase ?? null,
+            caseCandidates: packet.selectedCase ? [packet.selectedCase] : [],
+            analysisDomains: packet.analysisDomains ?? [],
+            sourceArtifacts: packet.sourceArtifacts ?? [],
+        };
+        setFrankEditor(nextState);
+        setFrankStep(inferFrankStep(nextState));
     }
 
     function applyKarthicPack(pack: KarthicRubricPack) {
@@ -199,40 +215,152 @@ export default function LegalWorkflowPage() {
         });
     }
 
-    async function handleFrankDraft() {
-        if (frankUploads.length === 0) {
-            setErrorMessage('Upload at least one Frank-stage PDF.');
+    async function searchFrankCases() {
+        if (!frankEditor.legalDomain.trim()) {
+            setErrorMessage('Enter a legal domain first.');
             return;
         }
-        setFrankDrafting(true);
+        setFrankSearchingCases(true);
         setErrorMessage(null);
-        setStatusMessage('Drafting Frank packet from uploaded source materials...');
+        setStatusMessage('Searching online for anchor cases...');
         try {
-            const formData = new FormData();
-            formData.set('legalDomain', frankEditor.legalDomain);
-            formData.set('domainScope', frankEditor.domainScope);
-            formData.set('sourceFamily', frankEditor.sourceFamily);
-            frankUploads.forEach((upload, index) => {
-                formData.append('files', upload.file);
-                formData.set(`role_${index}`, upload.role);
-            });
-            const response = await fetch('/api/frank-packets/draft', {
+            const response = await fetch('/api/frank-packets/case-search', {
                 method: 'POST',
-                body: formData,
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    legalDomain: frankEditor.legalDomain,
+                }),
             });
             const json = await response.json();
             if (!response.ok) {
-                throw new Error(json.error || 'Failed to draft Frank packet.');
+                throw new Error(json.error || 'Failed to search for cases.');
+            }
+            const candidates = Array.isArray(json.candidates) ? json.candidates as FrankCaseCandidate[] : [];
+            setFrankEditor((current) => ({
+                ...current,
+                caseCandidates: candidates,
+                selectedCase: candidates[0] ?? current.selectedCase,
+                domainScope: (candidates[0] ?? current.selectedCase)?.title ?? current.domainScope,
+                sourceFamily: 'web_searched_anchor_case',
+            }));
+            setStatusMessage('Case search complete. Pick the anchor case you want Frank to use.');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to search for cases.');
+            setStatusMessage(null);
+        } finally {
+            setFrankSearchingCases(false);
+        }
+    }
+
+    async function draftFrankDomains() {
+        if (!frankEditor.selectedCase) {
+            setErrorMessage('Pick an anchor case first.');
+            return;
+        }
+        setFrankDraftingDomains(true);
+        setErrorMessage(null);
+        setStatusMessage('Drafting editable analysis domains...');
+        try {
+            const response = await fetch('/api/frank-packets/analysis-domains', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    legalDomain: frankEditor.legalDomain,
+                    selectedCase: frankEditor.selectedCase,
+                    desiredCount: 6,
+                }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to draft analysis domains.');
+            }
+            const domains = Array.isArray(json.domains) ? json.domains as FrankAnalysisDomain[] : [];
+            setFrankEditor((current) => ({ ...current, analysisDomains: domains }));
+            setStatusMessage('Analysis domains drafted. Edit them before generating the golden response.');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to draft analysis domains.');
+            setStatusMessage(null);
+        } finally {
+            setFrankDraftingDomains(false);
+        }
+    }
+
+    async function generateFrankGoldenResponse() {
+        if (!frankEditor.selectedCase) {
+            setErrorMessage('Pick an anchor case first.');
+            return;
+        }
+        if (!isValidFrankDomainCount(frankEditor.analysisDomains)) {
+            setErrorMessage('Frank needs 5-10 analysis domains before generating the golden response.');
+            return;
+        }
+        setFrankGeneratingGolden(true);
+        setErrorMessage(null);
+        setStatusMessage('Generating and saving Frank’s golden response locally...');
+        try {
+            const response = await fetch('/api/frank-packets/golden-response', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    id: frankEditor.id,
+                    legalDomain: frankEditor.legalDomain,
+                    selectedCase: frankEditor.selectedCase,
+                    analysisDomains: frankEditor.analysisDomains,
+                }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to generate the golden response.');
             }
             const item = json.item as FrankPacket;
             applyFrankPacket(item);
             setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
-            setStatusMessage('Frank packet drafted. Review, edit, then approve for Karthic.');
+            setStatusMessage(`Golden response saved locally as ${item.id}.`);
         } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to draft Frank packet.');
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to generate the golden response.');
             setStatusMessage(null);
         } finally {
-            setFrankDrafting(false);
+            setFrankGeneratingGolden(false);
+        }
+    }
+
+    async function generateFrankQuestionPacket() {
+        if (!frankEditor.selectedCase) {
+            setErrorMessage('Pick an anchor case first.');
+            return;
+        }
+        if (!frankEditor.benchmarkAnswer.trim()) {
+            setErrorMessage('Generate the golden response first.');
+            return;
+        }
+        setFrankGeneratingQuestion(true);
+        setErrorMessage(null);
+        setStatusMessage('Generating and saving the legal-case-packet question...');
+        try {
+            const response = await fetch('/api/frank-packets/question-packet', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    id: frankEditor.id,
+                    legalDomain: frankEditor.legalDomain,
+                    selectedCase: frankEditor.selectedCase,
+                    analysisDomains: frankEditor.analysisDomains,
+                    benchmarkAnswer: frankEditor.benchmarkAnswer,
+                }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to generate the question packet.');
+            }
+            const item = json.item as FrankPacket;
+            applyFrankPacket(item);
+            setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
+            setStatusMessage('Question packet generated and saved locally.');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to generate the question packet.');
+            setStatusMessage(null);
+        } finally {
+            setFrankGeneratingQuestion(false);
         }
     }
 
@@ -246,8 +374,10 @@ export default function LegalWorkflowPage() {
                 body: JSON.stringify({
                     id: frankEditor.id,
                     legalDomain: frankEditor.legalDomain,
-                    domainScope: frankEditor.domainScope,
-                    sourceFamily: frankEditor.sourceFamily,
+                    domainScope: frankEditor.selectedCase?.title ?? frankEditor.domainScope,
+                    sourceFamily: frankEditor.sourceFamily || 'web_searched_anchor_case',
+                    selectedCase: frankEditor.selectedCase,
+                    analysisDomains: frankEditor.analysisDomains,
                     sourceArtifacts: frankEditor.sourceArtifacts,
                     sourceIntake: {
                         sourceQualityRating: frankEditor.sourceQualityRating,
@@ -382,7 +512,13 @@ export default function LegalWorkflowPage() {
         }
     }
 
-    const frankReady = frankEditor.sourceArtifacts.length > 0;
+    const frankReady = Boolean(
+        frankEditor.selectedCase
+        && isValidFrankDomainCount(frankEditor.analysisDomains)
+        && frankEditor.benchmarkAnswer.trim()
+        && frankEditor.benchmarkQuestion.trim(),
+    );
+    const frankDomainCountValid = isValidFrankDomainCount(frankEditor.analysisDomains);
     const karthicReady = approvedFrankPackets.length > 0;
     const dashaReady = approvedKarthicPacks.length > 0;
 
@@ -434,129 +570,324 @@ export default function LegalWorkflowPage() {
                     <div className="space-y-6">
                         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                             <SectionHeader
-                                title="Frank Builder"
-                                description="Use the SoF packet logic narrowly: source intake, extraction, benchmark answer drafting, and reverse-engineered question drafting."
+                                title="Frank Wizard"
+                                description="One step at a time: pick a legal domain, search for an anchor case, edit the analysis domains, generate the golden response, then generate the question packet."
                                 actions={frankReady ? <ApprovalBadge approved={frankPackets.find((item) => item.id === frankEditor.id)?.status === 'approved'} /> : null}
                             />
-                            <div className="mt-4 grid gap-4 md:grid-cols-3">
-                                <LabeledInput label="Legal Domain" value={frankEditor.legalDomain} onChange={(value) => setFrankEditor((current) => ({ ...current, legalDomain: value }))} />
-                                <LabeledInput label="Domain Scope" value={frankEditor.domainScope} onChange={(value) => setFrankEditor((current) => ({ ...current, domainScope: value }))} />
-                                <LabeledInput label="Source Family" value={frankEditor.sourceFamily} onChange={(value) => setFrankEditor((current) => ({ ...current, sourceFamily: value }))} />
-                            </div>
+                            <FrankStepRail
+                                step={frankStep}
+                                legalDomainSet={Boolean(frankEditor.legalDomain.trim())}
+                                caseSelected={Boolean(frankEditor.selectedCase)}
+                                domainsReady={frankDomainCountValid}
+                                goldenReady={Boolean(frankEditor.benchmarkAnswer.trim())}
+                                questionReady={Boolean(frankEditor.benchmarkQuestion.trim())}
+                                onChange={setFrankStep}
+                            />
 
-                            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Uploaded Source Packet</p>
-                                <p className="mt-1 text-sm text-slate-500">Frank accepts PDFs only. Each file stays stage-scoped and becomes a source artifact with explicit role metadata.</p>
-                                <div className="mt-3 flex flex-wrap gap-3">
-                                    <input
-                                        type="file"
-                                        accept=".pdf"
-                                        multiple
-                                        onChange={(event) => {
-                                            const files = Array.from(event.target.files ?? []);
-                                            setFrankUploads(files.map((file, index) => ({
-                                                file,
-                                                role: FRANK_ROLES[Math.min(index, FRANK_ROLES.length - 1)],
-                                            })));
-                                        }}
-                                        className="text-sm text-slate-600"
+                            {frankStep === 'domain' && (
+                                <div className="mt-6 space-y-4">
+                                    <LabeledInput
+                                        label="Legal Domain Of Analysis"
+                                        value={frankEditor.legalDomain}
+                                        onChange={(value) => setFrankEditor((current) => ({ ...current, legalDomain: value }))}
                                     />
-                                    <button
-                                        type="button"
-                                        onClick={handleFrankDraft}
-                                        disabled={frankDrafting}
-                                        className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
-                                    >
-                                        {frankDrafting ? 'Drafting...' : 'Draft Frank Packet'}
-                                    </button>
+                                    <div className="flex flex-wrap gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setFrankStep('case')}
+                                            disabled={!frankEditor.legalDomain.trim()}
+                                            className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                        >
+                                            Continue to Case Search
+                                        </button>
+                                    </div>
                                 </div>
-                                {frankUploads.length > 0 && (
-                                    <div className="mt-3 space-y-2">
-                                        {frankUploads.map((upload, index) => (
-                                            <div key={`${upload.file.name}-${index}`} className="grid gap-2 rounded-xl border border-slate-200 bg-white p-3 md:grid-cols-[180px_1fr]">
-                                                <select
-                                                    value={upload.role}
-                                                    onChange={(event) => {
-                                                        const role = event.target.value as ArtifactRole;
-                                                        setFrankUploads((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, role } : row));
+                            )}
+
+                            {frankStep === 'case' && (
+                                <div className="mt-6 space-y-4">
+                                    <FrankSummaryRow label="Legal Domain" value={frankEditor.legalDomain || 'Not set yet'} />
+                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 2 · Anchor Case Search</p>
+                                        <p className="mt-1 text-sm text-slate-500">Frank searches online for a teaching-friendly case instead of asking you to upload a packet first.</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => void searchFrankCases()}
+                                            disabled={frankSearchingCases || !frankEditor.legalDomain.trim()}
+                                            className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                        >
+                                            {frankSearchingCases ? 'Searching...' : 'Search Online For Anchor Cases'}
+                                        </button>
+                                    </div>
+
+                                    {frankEditor.caseCandidates.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {frankEditor.caseCandidates.map((candidate) => (
+                                                <button
+                                                    key={candidate.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setFrankEditor((current) => ({
+                                                            ...current,
+                                                            selectedCase: candidate,
+                                                            domainScope: candidate.title,
+                                                            sourceFamily: 'web_searched_anchor_case',
+                                                        }));
                                                     }}
-                                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                                    className={`w-full rounded-2xl border p-4 text-left ${frankEditor.selectedCase?.id === candidate.id ? 'border-teal-300 bg-teal-50/60' : 'border-slate-200 bg-white hover:border-teal-200'}`}
                                                 >
-                                                    {FRANK_ROLES.map((role) => (
-                                                        <option key={role} value={role}>{role}</option>
-                                                    ))}
-                                                </select>
-                                                <div className="text-sm text-slate-700">{upload.file.name}</div>
+                                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-slate-900">{candidate.title}</p>
+                                                            <p className="mt-1 text-xs text-slate-500">{candidate.citation} · {candidate.court} · {candidate.year}</p>
+                                                        </div>
+                                                        {candidate.url ? (
+                                                            <a
+                                                                href={candidate.url}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                onClick={(event) => event.stopPropagation()}
+                                                                className="text-xs font-semibold text-teal-700 underline-offset-4 hover:underline"
+                                                            >
+                                                                Open source
+                                                            </a>
+                                                        ) : null}
+                                                    </div>
+                                                    <p className="mt-3 text-sm text-slate-600">{candidate.summary}</p>
+                                                    <p className="mt-2 text-xs text-slate-500">{candidate.relevance}</p>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-slate-500">No case picked yet.</p>
+                                    )}
+
+                                    <div className="flex flex-wrap gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setFrankStep('domain')}
+                                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                        >
+                                            Back
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFrankStep('domains')}
+                                            disabled={!frankEditor.selectedCase}
+                                            className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                        >
+                                            Continue to Analysis Domains
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {frankStep === 'domains' && (
+                                <div className="mt-6 space-y-4">
+                                    <FrankSummaryRow label="Anchor Case" value={frankEditor.selectedCase ? `${frankEditor.selectedCase.title} · ${frankEditor.selectedCase.citation}` : 'No case selected yet'} />
+                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                        <div className="flex flex-wrap items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 3 · Analysis Domains</p>
+                                                <p className="mt-1 text-sm text-slate-500">Draft 5-10 human-editable analysis buckets. You can rename, rewrite, add, or delete them before Frank writes the golden response.</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => void draftFrankDomains()}
+                                                disabled={!frankEditor.selectedCase || frankDraftingDomains}
+                                                className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                            >
+                                                {frankDraftingDomains ? 'Drafting...' : 'Draft Analysis Domains'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between gap-3 text-sm text-slate-500">
+                                        <span>{frankEditor.analysisDomains.length} domains selected. Aim for 5-10.</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFrankEditor((current) => ({
+                                                ...current,
+                                                analysisDomains: [
+                                                    ...current.analysisDomains,
+                                                    { id: `analysis_domain_${current.analysisDomains.length + 1}`, name: '', description: '' },
+                                                ],
+                                            }))}
+                                            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
+                                        >
+                                            Add Domain
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        {frankEditor.analysisDomains.length === 0 ? (
+                                            <p className="text-sm text-slate-500">No domains yet. Draft them first, then edit as needed.</p>
+                                        ) : frankEditor.analysisDomains.map((domain, index) => (
+                                            <div key={domain.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Domain {index + 1}</p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setFrankEditor((current) => ({
+                                                            ...current,
+                                                            analysisDomains: current.analysisDomains.filter((_, domainIndex) => domainIndex !== index),
+                                                        }))}
+                                                        className="text-xs font-semibold text-rose-600"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                                    <LabeledInput
+                                                        label="Domain Name"
+                                                        value={domain.name}
+                                                        onChange={(value) => setFrankEditor((current) => ({
+                                                            ...current,
+                                                            analysisDomains: current.analysisDomains.map((item, domainIndex) => domainIndex === index ? { ...item, name: value } : item),
+                                                        }))}
+                                                    />
+                                                    <LabeledTextarea
+                                                        label="Brief Description"
+                                                        value={domain.description}
+                                                        onChange={(value) => setFrankEditor((current) => ({
+                                                            ...current,
+                                                            analysisDomains: current.analysisDomains.map((item, domainIndex) => domainIndex === index ? { ...item, description: value } : item),
+                                                        }))}
+                                                        rows={3}
+                                                    />
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
-                                )}
-                            </div>
 
-                            <div className="mt-5 grid gap-4 md:grid-cols-2">
-                                <LabeledTextarea label="Master Issue Statement" value={frankEditor.masterIssueStatement} onChange={(value) => setFrankEditor((current) => ({ ...current, masterIssueStatement: value }))} rows={4} />
-                                <LabeledTextarea label="Failure-Mode Seeds" value={frankEditor.failureModeSeedsText} onChange={(value) => setFrankEditor((current) => ({ ...current, failureModeSeedsText: value }))} rows={4} hint="Draft-only seeds. These do not become Karthic criteria unless an SME explicitly promotes them." />
-                            </div>
+                                    {!frankDomainCountValid ? (
+                                        <p className="text-sm text-amber-700">Frank needs between 5 and 10 filled-in domains before moving on.</p>
+                                    ) : null}
 
-                            <div className="mt-5 grid gap-4 md:grid-cols-2">
-                                <LabeledInput label="Source Quality Rating" value={frankEditor.sourceQualityRating} onChange={(value) => setFrankEditor((current) => ({ ...current, sourceQualityRating: value }))} />
-                                <LabeledInput label="Recommendation" value={frankEditor.recommendation} onChange={(value) => setFrankEditor((current) => ({ ...current, recommendation: value }))} />
-                                <LabeledSelect
-                                    label="Benchmark Posture"
-                                    value={frankEditor.benchmarkPosture}
-                                    onChange={(value) => setFrankEditor((current) => ({ ...current, benchmarkPosture: value as FrankPacket['sourceIntake']['benchmarkPosture'] }))}
-                                    options={[
-                                        { value: 'narrow_source_grounded_benchmark_only', label: 'Narrow source-grounded' },
-                                        { value: 'generalizable_only_with_supporting_authority', label: 'Generalizable with support' },
-                                        { value: 'portable_common_law_benchmark', label: 'Portable common-law' },
-                                    ]}
-                                />
-                                <LabeledSelect
-                                    label="Reverse-Engineering Suitability"
-                                    value={frankEditor.reverseEngineeringSuitability}
-                                    onChange={(value) => setFrankEditor((current) => ({ ...current, reverseEngineeringSuitability: value as FrankPacket['sourceIntake']['reverseEngineeringSuitability'] }))}
-                                    options={[
-                                        { value: 'strong', label: 'Strong' },
-                                        { value: 'moderate', label: 'Moderate' },
-                                        { value: 'weak', label: 'Weak' },
-                                    ]}
-                                />
-                            </div>
+                                    <div className="flex flex-wrap gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setFrankStep('case')}
+                                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                        >
+                                            Back
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFrankStep('golden')}
+                                            disabled={!frankDomainCountValid}
+                                            className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                        >
+                                            Continue to Golden Response
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
-                            <div className="mt-5 grid gap-4 md:grid-cols-2">
-                                <LabeledTextarea label="JD Review Burden" value={frankEditor.jdReviewBurdenText} onChange={(value) => setFrankEditor((current) => ({ ...current, jdReviewBurdenText: value }))} rows={4} />
-                                <LabeledTextarea label="Trigger Facts" value={frankEditor.triggerFactsText} onChange={(value) => setFrankEditor((current) => ({ ...current, triggerFactsText: value }))} rows={4} />
-                                <LabeledTextarea label="Legal Issue" value={frankEditor.legalIssue} onChange={(value) => setFrankEditor((current) => ({ ...current, legalIssue: value }))} rows={4} />
-                                <LabeledTextarea label="Black-Letter Rule" value={frankEditor.blackLetterRule} onChange={(value) => setFrankEditor((current) => ({ ...current, blackLetterRule: value }))} rows={4} />
-                                <LabeledTextarea label="Holding" value={frankEditor.holding} onChange={(value) => setFrankEditor((current) => ({ ...current, holding: value }))} rows={4} />
-                                <LabeledTextarea label="Limits / Uncertainty" value={[frankEditor.limitsText, frankEditor.uncertaintyText].filter(Boolean).join('\n---\n')} onChange={(value) => {
-                                    const [limitsText, uncertaintyText] = value.split('\n---\n');
-                                    setFrankEditor((current) => ({ ...current, limitsText: limitsText ?? '', uncertaintyText: uncertaintyText ?? '' }));
-                                }} rows={6} />
-                            </div>
+                            {frankStep === 'golden' && (
+                                <div className="mt-6 space-y-4">
+                                    <FrankSummaryRow label="Anchor Case" value={frankEditor.selectedCase ? `${frankEditor.selectedCase.title} · ${frankEditor.selectedCase.citation}` : 'No case selected yet'} />
+                                    <FrankSummaryRow label="Analysis Domains" value={`${frankEditor.analysisDomains.length} domain(s)`} />
+                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 4 · Golden Response</p>
+                                        <p className="mt-1 text-sm text-slate-500">Frank now writes the benchmark answer across your chosen domains. Some domains can be marked as not really addressed by the case.</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => void generateFrankGoldenResponse()}
+                                            disabled={frankGeneratingGolden || !frankDomainCountValid}
+                                            className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                        >
+                                            {frankGeneratingGolden ? 'Generating...' : 'Generate And Save Golden Response'}
+                                        </button>
+                                    </div>
+                                    <LabeledTextarea
+                                        label="Master Issue Statement"
+                                        value={frankEditor.masterIssueStatement}
+                                        onChange={(value) => setFrankEditor((current) => ({ ...current, masterIssueStatement: value }))}
+                                        rows={4}
+                                    />
+                                    <LabeledTextarea
+                                        label="Frank Golden Response"
+                                        value={frankEditor.benchmarkAnswer}
+                                        onChange={(value) => setFrankEditor((current) => ({ ...current, benchmarkAnswer: value }))}
+                                        rows={16}
+                                        hint={frankEditor.id ? `Saved locally as ${frankEditor.id}.` : 'Frank saves this locally as soon as it is generated.'}
+                                    />
+                                    <LabeledTextarea
+                                        label="Failure-Mode Seeds"
+                                        value={frankEditor.failureModeSeedsText}
+                                        onChange={(value) => setFrankEditor((current) => ({ ...current, failureModeSeedsText: value }))}
+                                        rows={4}
+                                        hint="Optional weak-answer notes that can help later refinement."
+                                    />
+                                    <div className="flex flex-wrap gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setFrankStep('domains')}
+                                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                        >
+                                            Back
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFrankStep('question')}
+                                            disabled={!frankEditor.benchmarkAnswer.trim()}
+                                            className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                        >
+                                            Continue to Question Packet
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
-                            <div className="mt-5 grid gap-4 md:grid-cols-2">
-                                <LabeledTextarea label="Benchmark Answer" value={frankEditor.benchmarkAnswer} onChange={(value) => setFrankEditor((current) => ({ ...current, benchmarkAnswer: value }))} rows={14} />
-                                <LabeledTextarea label="Benchmark Question" value={frankEditor.benchmarkQuestion} onChange={(value) => setFrankEditor((current) => ({ ...current, benchmarkQuestion: value }))} rows={14} />
-                            </div>
-
-                            <div className="mt-5 flex flex-wrap gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => void saveFrank('draft')}
-                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
-                                >
-                                    Save Draft
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => void saveFrank('approved')}
-                                    disabled={!frankReady}
-                                    className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 disabled:opacity-60"
-                                >
-                                    Approve for Karthic
-                                </button>
-                            </div>
+                            {frankStep === 'question' && (
+                                <div className="mt-6 space-y-4">
+                                    <FrankSummaryRow label="Anchor Case" value={frankEditor.selectedCase ? `${frankEditor.selectedCase.title} · ${frankEditor.selectedCase.citation}` : 'No case selected yet'} />
+                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 5 · Question Packet</p>
+                                        <p className="mt-1 text-sm text-slate-500">After the golden response is locked in, Frank drafts the legal-case-packet question that should elicit analysis across those same domains.</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => void generateFrankQuestionPacket()}
+                                            disabled={frankGeneratingQuestion || !frankEditor.benchmarkAnswer.trim() || !frankDomainCountValid}
+                                            className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                        >
+                                            {frankGeneratingQuestion ? 'Generating...' : 'Generate And Save Question Packet'}
+                                        </button>
+                                    </div>
+                                    <LabeledTextarea
+                                        label="Question Packet"
+                                        value={frankEditor.benchmarkQuestion}
+                                        onChange={(value) => setFrankEditor((current) => ({ ...current, benchmarkQuestion: value }))}
+                                        rows={14}
+                                        hint="This stays editable after generation."
+                                    />
+                                    <div className="flex flex-wrap gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setFrankStep('golden')}
+                                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                        >
+                                            Back
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => void saveFrank('draft')}
+                                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                        >
+                                            Save Draft
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => void saveFrank('approved')}
+                                            disabled={!frankReady}
+                                            className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 disabled:opacity-60"
+                                        >
+                                            Approve for Karthic
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -869,6 +1200,80 @@ export default function LegalWorkflowPage() {
             domains: current.domains.map((domain, domainIndex) => domainIndex === index ? { ...domain, ...patch } : domain),
         }));
     }
+}
+
+function inferFrankStep(state: FrankEditorState): FrankWizardStep {
+    if (!state.legalDomain.trim()) {
+        return 'domain';
+    }
+    if (!state.selectedCase) {
+        return 'case';
+    }
+    if (!isValidFrankDomainCount(state.analysisDomains)) {
+        return 'domains';
+    }
+    if (!state.benchmarkAnswer.trim()) {
+        return 'golden';
+    }
+    if (!state.benchmarkQuestion.trim()) {
+        return 'question';
+    }
+    return 'question';
+}
+
+function isValidFrankDomainCount(domains: FrankAnalysisDomain[]) {
+    const filled = domains.filter((domain) => domain.name.trim() && domain.description.trim());
+    return filled.length >= 5 && filled.length <= 10;
+}
+
+function FrankStepRail({
+    step,
+    legalDomainSet,
+    caseSelected,
+    domainsReady,
+    goldenReady,
+    questionReady,
+    onChange,
+}: {
+    step: FrankWizardStep;
+    legalDomainSet: boolean;
+    caseSelected: boolean;
+    domainsReady: boolean;
+    goldenReady: boolean;
+    questionReady: boolean;
+    onChange: (step: FrankWizardStep) => void;
+}) {
+    const steps: Array<{ id: FrankWizardStep; label: string; ready: boolean }> = [
+        { id: 'domain', label: '1. Domain', ready: legalDomainSet },
+        { id: 'case', label: '2. Case', ready: caseSelected },
+        { id: 'domains', label: '3. Domains', ready: domainsReady },
+        { id: 'golden', label: '4. Golden', ready: goldenReady },
+        { id: 'question', label: '5. Question', ready: questionReady },
+    ];
+
+    return (
+        <div className="mt-5 flex flex-wrap gap-2">
+            {steps.map((item) => (
+                <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onChange(item.id)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${step === item.id ? 'border-teal-300 bg-teal-50 text-teal-800' : item.ready ? 'border-slate-300 bg-white text-slate-700' : 'border-slate-200 bg-slate-50 text-slate-400'}`}
+                >
+                    {item.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+function FrankSummaryRow({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
+            <p className="mt-1 text-sm text-slate-700">{value}</p>
+        </div>
+    );
 }
 
 function StageCard(props: {

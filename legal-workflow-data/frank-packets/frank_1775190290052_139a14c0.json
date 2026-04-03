@@ -1,0 +1,113 @@
+{
+  "id": "frank_1775190290052_139a14c0",
+  "status": "draft",
+  "legalDomain": "Contract - statute of frauds",
+  "domainScope": "Neale v. Neales",
+  "sourceFamily": "web_searched_anchor_case",
+  "selectedCase": {
+    "id": "case_1",
+    "title": "Neale v. Neales",
+    "citation": "76 U.S. (9 Wall.) 1 (1869)",
+    "court": "U.S. Supreme Court",
+    "year": "1869",
+    "url": "https://supreme.justia.com/cases/federal/us/76/1/",
+    "summary": "Teaches the part‑performance equitable exception to the Statute of Frauds for land: where the plaintiff, with knowledge and assent of the promisor, performs acts (possession/improvements) clearly referable to the oral agreement, equity may enforce it despite the lack of a signed writing. ([supreme.justia.com](https://supreme.justia.com/cases/federal/us/76/1/?utm_source=openai))",
+    "relevance": "Foundational Supreme Court articulation of part‑performance; often the first U.S. case cited on equitable avoidance of the SOF."
+  },
+  "analysisDomains": [
+    {
+      "id": "analysis_domain_1",
+      "name": "Jurisdiction assumption",
+      "description": "State the legal framework the answer assumes, such as U.S. common law or a specific state rule if the source supports it."
+    },
+    {
+      "id": "analysis_domain_2",
+      "name": "Bottom-line outcome",
+      "description": "Give the clearest conclusion about whether the oral promise is enforceable."
+    },
+    {
+      "id": "analysis_domain_3",
+      "name": "Controlling doctrine",
+      "description": "Identify the main rule or Statute of Frauds category that most likely decides the case."
+    },
+    {
+      "id": "analysis_domain_4",
+      "name": "Formation",
+      "description": "Briefly assess whether the facts show a real bargain, consideration, or only a condition on a gift."
+    },
+    {
+      "id": "analysis_domain_5",
+      "name": "Statute of Frauds Gates",
+      "description": "Analyze which writing-requirement categories are triggered and which one is dispositive."
+    },
+    {
+      "id": "analysis_domain_6",
+      "name": "Exceptions/Promissory Estoppel",
+      "description": "Address any fallback theory that might avoid nonenforcement despite the lack of a writing."
+    },
+    {
+      "id": "analysis_domain_7",
+      "name": "Defenses/Mistake",
+      "description": "Consider any separate defense or excuse, such as mistake or failure of a claimed condition."
+    },
+    {
+      "id": "analysis_domain_8",
+      "name": "Strongest counterargument",
+      "description": "State the best doctrinal argument for the other side without turning it into a straw man."
+    },
+    {
+      "id": "analysis_domain_9",
+      "name": "Bounded uncertainty",
+      "description": "Identify the specific doctrinal or jurisdictional uncertainty without using vague hedging."
+    }
+  ],
+  "sourceArtifacts": [],
+  "sourceIntake": {
+    "sourceQualityRating": "high (U.S. Supreme Court opinion; primary authority for classical part‑performance principle)",
+    "benchmarkPosture": "narrow_source_grounded_benchmark_only",
+    "recommendation": "Use Neale v. Neales as a primary (foundational) authority for the equitable part‑performance exception to the Statute of Frauds when arguing enforceability of oral land promises based on possession + improvements + promisor assent, but supplement with controlling state law and any more recent federal/state precedents that define 'unequivocally referable' and modern estoppel doctrines.",
+    "jdReviewBurden": [
+      "Confirm controlling Statute of Frauds language and any statutory exceptions in the jurisdiction where relief is sought.",
+      "Update with modern state cases (post‑1869) that interpret or limit part‑performance and promissory‑estoppel substitutes.",
+      "Verify key factual proofs: source of improvement funds, timing of possession, promisor's knowledge/assent, and whether a condition was clearly breached.",
+      "Check equitable remedies available locally (specific performance vs. constructive trust or restitution)."
+    ],
+    "reverseEngineeringSuitability": "moderate"
+  },
+  "sourceExtraction": {
+    "legalIssue": "Can an oral promise to convey land (or a parol gift of land) be specifically enforced despite the Statute of Frauds when the promisee, with the promisor's knowledge and assent, has taken possession and expended money to improve the property (part‑performance)?",
+    "blackLetterRule": "Equity will enforce an oral agreement to convey land (or a parol gift of land) despite the Statute of Frauds where the promisee, induced by the promise, has taken possession and made valuable improvements (and the promisor has known and assented), because those acts constitute part‑performance or equitable estoppel that removes the case from the Statute of Frauds; reasonable certainty as to fact and terms is sufficient. (Neale v. Neales, 76 U.S. (9 Wall.) 1 (1869)).",
+    "triggerFacts": [
+      "Promisor (father) orally promised to give a lot to his son's intended wife as a bridal present to induce marriage and building.",
+      "Promisee (wife) and husband intermarried in reliance on the promise.",
+      "Complainants were put into possession of the lot with promisor's consent.",
+      "A dwelling house was erected on the lot with the wife's separate funds (substantial improvement, ~$5,000).",
+      "Promisor knew of and approved the erection, later received rents that were applied by the complainants, but subsequently took possession and refused to convey."
+    ],
+    "holding": "The Supreme Court affirmed the decree ordering a conveyance (to a trustee for the wife's benefit) and an accounting of rents: part performance (possession plus building with the promisor's knowledge/assent and induced by his promise) justified equitable enforcement of the oral promise despite the lack of a writing, and the case required only reasonable certainty as to the fact and terms.",
+    "limits": [
+      "Equity requires acts clearly and unequivocally referable to the alleged agreement — mere ephemeral acts or ambiguous possession may not suffice.",
+      "Reasonable certainty of the promise's fact and terms (not hypertechnical specificity) is required.",
+      "Neale addresses specific performance (conveyance/constructive trust), not merely damages; the Court held damages inadequate to vindicate the contractual purpose.",
+      "The decision is an equitable exception — it does not abolish the Statute of Frauds or permit oral conveyances as a general rule."
+    ],
+    "uncertainty": [
+      "Neale does not quantify how much improvement or what combination of acts (possession + improvements, receipt of rents, etc.) is minimally sufficient — jurisdictions differ on the threshold for 'substantial' or 'unequivocal' acts.",
+      "Interaction with modern promissory estoppel doctrines: Neale is equity/part‑performance; today some courts reach similar results under estoppel — whether estoppel replaces, supplements, or is narrower than part‑performance varies by state.",
+      "Neale involved an antenuptial promise and a gift‑like transaction; courts may treat commercial oral land contracts differently (some jurisdictions strictly require a signed memorandum)."
+    ]
+  },
+  "benchmarkAnswer": "1. Jurisdiction assumption: U.S. common‑law equitable doctrine (Supreme Court construing District of Columbia practice), treated as a controlling statement of the equitable part‑performance exception to the Statute of Frauds applicable in U.S. courts that follow the classic rule.  \n\n2. Bottom‑line outcome: The oral promise was enforceable in equity — the Court decreed specific performance (a conveyance to a trustee for the wife's benefit) because possession plus substantial improvements and receipt/use of rents, made with the promisor's knowledge and assent and induced by his promise, constituted part performance that removed the case from the Statute of Frauds.  \n\n3. Controlling doctrine: Statute of Frauds for transfers of land (writing requirement) is dispositive on the face, but equity's part‑performance/estoppel exception controls: where the promisee's possession and improvements are unequivocally referable to the oral promise, equity will enforce the promise.  \n\n4. Formation: The Court treated the transaction as more than a bare conditional gift — there was a promise (an antenuptial bridal‑present promise) given to induce marriage and building, followed by reliance (marriage and construction). Consideration is present in the form of the wife's marriage and the expenditure of her separate funds (and the son's assent/possession) — i.e., a real bargain/condition rather than a gratuitous act alone.  \n\n5. Statute of Frauds gates: The category triggered is 'contracts for the sale/transfer of an interest in land' (writing required). That statutory gate is dispositive absent an equitable exception; Neale holds part performance is the operative exception that defeats the writing requirement for equity when triggered.  \n\n6. Exceptions / Promissory estoppel: Neale is an equity‑based part‑performance/estoppel decision: possession + improvements + promisor's acquiescence will remove the case from the SoF and justify specific performance. (Promissory estoppel as a distinct modern doctrine is not labelled in Neale, but courts today may reach similar results under estoppel or reliance theories.)  \n\n7. Defenses / Mistake: The chief defenses the father asserted were (a) asserted conditions were violated (money misapplied by the son), and (b) that some of the improvements were paid by the father. The Court considered the conflicting proofs and found insufficient support for those defenses. In other fact patterns, a convincing showing that the condition was broken or that the acts were not induced by the promise can defeat part‑performance.  \n\n8. Strongest counterargument: Relying strictly on the Statute of Frauds, the defendant argues no written memorandum exists and equitable relief should not trump a clear statutory rule — possession or improvements alone can be ambiguous (license, permissive occupancy, or acts referable to other arrangements). If the acts are not 'unequivocally referable' to the oral promise, equity should not reform the statutory policy favoring written land transactions.  \n\n9. Bounded uncertainty (specific doctrinal/jurisdictional limits): Neale establishes that possession + building with the promisor's assent can suffice, but it leaves open precise thresholds: how much improvement or what degree of unequivocality is required; whether receipt of rents is necessary or merely persuasive; and how modern promissory‑estoppel doctrines interact with classical part‑performance in particular state systems. These points vary by jurisdiction (some courts require both possession and substantial improvements; others accept possession plus costly reliance or receipt/use of rents). Practitioners must therefore: (a) prove acts 'unequivocally referable' to the promise, (b) negate competing explanations (license, conditional gift later frustrated), and (c) check local doctrine on whether equity will award specific performance or only restitution/damages.",
+  "benchmarkQuestion": "",
+  "failureModeSeeds": [
+    "Overgeneralize Neale to permit any oral land promise without proving acts 'unequivocally referable' to the promise.",
+    "Treat Neale as automatically converting all ante‑nuptial oral gifts into deeds without proof of assent/possession/improvements.",
+    "Ignore jurisdictional variation and later limiting authorities that narrow part‑performance.",
+    "Confuse compensatory damages remedies with equitable relief (Neale orders specific performance).",
+    "Assume modern promissory estoppel uniformly replaces part‑performance without checking state law."
+  ],
+  "masterIssueStatement": "Whether equity will enforce an oral promise to convey land (or a parol gift of land) despite the Statute of Frauds where the promisee, with the promisor's knowledge and assent, has entered possession and made improvements clearly referable to the oral promise (part‑performance).",
+  "approvedAt": null,
+  "createdAt": "2026-04-03T04:24:50.050Z",
+  "updatedAt": "2026-04-03T04:24:50.050Z"
+}

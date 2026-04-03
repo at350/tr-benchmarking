@@ -17,6 +17,8 @@ import type {
     DashaSelectedModel,
     DomainCentroidEvaluation,
     DomainResult,
+    FrankAnalysisDomain,
+    FrankCaseCandidate,
     FrankPacket,
     KarthicCriterion,
     KarthicDomain,
@@ -41,14 +43,41 @@ type SaveFrankInput = {
     legalDomain: string;
     domainScope: string;
     sourceFamily: string;
-    sourceIntake: SourceIntake;
-    sourceExtraction: SourceExtraction;
-    benchmarkAnswer: string;
-    benchmarkQuestion: string;
-    failureModeSeeds: string[];
-    masterIssueStatement: string;
-    sourceArtifacts: ArtifactRecord[];
+    selectedCase?: FrankCaseCandidate | null;
+    analysisDomains?: FrankAnalysisDomain[];
+    sourceIntake?: SourceIntake;
+    sourceExtraction?: SourceExtraction;
+    benchmarkAnswer?: string;
+    benchmarkQuestion?: string;
+    failureModeSeeds?: string[];
+    masterIssueStatement?: string;
+    sourceArtifacts?: ArtifactRecord[];
     status?: FrankPacket['status'];
+};
+
+type SearchFrankCasesInput = {
+    legalDomain: string;
+};
+
+type DraftFrankAnalysisDomainsInput = {
+    legalDomain: string;
+    selectedCase: FrankCaseCandidate;
+    desiredCount?: number;
+};
+
+type GenerateFrankGoldenResponseInput = {
+    id?: string;
+    legalDomain: string;
+    selectedCase: FrankCaseCandidate;
+    analysisDomains: FrankAnalysisDomain[];
+};
+
+type GenerateFrankQuestionPacketInput = {
+    id?: string;
+    legalDomain: string;
+    selectedCase: FrankCaseCandidate;
+    analysisDomains: FrankAnalysisDomain[];
+    benchmarkAnswer: string;
 };
 
 type SaveKarthicInput = {
@@ -119,6 +148,8 @@ export async function draftFrankPacket(input: FrankDraftInput): Promise<FrankPac
         legalDomain: input.legalDomain.trim(),
         domainScope: input.domainScope.trim(),
         sourceFamily: input.sourceFamily.trim(),
+        selectedCase: null,
+        analysisDomains: [],
         sourceArtifacts,
         sourceIntake: draft.sourceIntake,
         sourceExtraction: draft.sourceExtraction,
@@ -138,25 +169,446 @@ export async function draftFrankPacket(input: FrankDraftInput): Promise<FrankPac
 export async function saveFrankPacket(input: SaveFrankInput): Promise<FrankPacket> {
     const existing = input.id ? await getFrankPacket(input.id) : null;
     const now = new Date().toISOString();
+    const selectedCase = normalizeFrankCaseCandidate(input.selectedCase ?? existing?.selectedCase ?? null);
+    const analysisDomains = normalizeFrankAnalysisDomains(input.analysisDomains ?? existing?.analysisDomains ?? []);
+    const fallbackSourceIntake = buildFrankSourceIntakeFallback(selectedCase);
+    const fallbackSourceExtraction = buildFrankSourceExtractionFallback({
+        legalDomain: input.legalDomain,
+        selectedCase,
+        analysisDomains,
+    });
+    const benchmarkAnswer = normalizeOptionalString(input.benchmarkAnswer, existing?.benchmarkAnswer ?? '');
+    const benchmarkQuestion = normalizeOptionalString(input.benchmarkQuestion, existing?.benchmarkQuestion ?? '');
+    const masterIssueStatement = normalizeOptionalString(
+        input.masterIssueStatement,
+        existing?.masterIssueStatement ?? selectedCase?.relevance ?? `Analyze ${input.legalDomain.trim()} using the selected anchor case.`,
+    );
+
     const packet: FrankPacket = {
         id: existing?.id ?? `frank_${Date.now()}_${randomUUID().slice(0, 8)}`,
         status: input.status ?? existing?.status ?? 'draft',
         legalDomain: input.legalDomain.trim(),
-        domainScope: input.domainScope.trim(),
-        sourceFamily: input.sourceFamily.trim(),
-        sourceArtifacts: input.sourceArtifacts,
-        sourceIntake: input.sourceIntake,
-        sourceExtraction: input.sourceExtraction,
-        benchmarkAnswer: input.benchmarkAnswer.trim(),
-        benchmarkQuestion: input.benchmarkQuestion.trim(),
-        failureModeSeeds: normalizeStringArray(input.failureModeSeeds),
-        masterIssueStatement: input.masterIssueStatement.trim(),
+        domainScope: normalizeOptionalString(input.domainScope, existing?.domainScope ?? selectedCase?.title ?? input.legalDomain.trim()),
+        sourceFamily: normalizeOptionalString(input.sourceFamily, existing?.sourceFamily ?? 'web_searched_anchor_case'),
+        selectedCase,
+        analysisDomains,
+        sourceArtifacts: input.sourceArtifacts ?? existing?.sourceArtifacts ?? [],
+        sourceIntake: input.sourceIntake
+            ? normalizeSourceIntake(input.sourceIntake, fallbackSourceIntake)
+            : existing?.sourceIntake ?? fallbackSourceIntake,
+        sourceExtraction: input.sourceExtraction
+            ? normalizeSourceExtraction(input.sourceExtraction, fallbackSourceExtraction)
+            : existing?.sourceExtraction ?? fallbackSourceExtraction,
+        benchmarkAnswer,
+        benchmarkQuestion,
+        failureModeSeeds: normalizeStringArray(input.failureModeSeeds ?? existing?.failureModeSeeds ?? []),
+        masterIssueStatement,
         approvedAt: input.status === 'approved' ? (existing?.approvedAt ?? now) : existing?.approvedAt ?? null,
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
     };
+
+    if (packet.status === 'approved') {
+        if (!packet.selectedCase) {
+            throw new Error('Select an anchor case before approving Frank.');
+        }
+        if (packet.analysisDomains.length === 0) {
+            throw new Error('Draft at least one analysis domain before approving Frank.');
+        }
+        if (!packet.benchmarkAnswer.trim()) {
+            throw new Error('Generate the golden response before approving Frank.');
+        }
+        if (!packet.benchmarkQuestion.trim()) {
+            throw new Error('Generate the question packet before approving Frank.');
+        }
+    }
+
     await writeArtifact(DATA_DIRECTORIES.frank, packet.id, packet);
     return packet;
+}
+
+export async function searchFrankCaseCandidates(input: SearchFrankCasesInput): Promise<FrankCaseCandidate[]> {
+    const legalDomain = input.legalDomain.trim();
+    if (!legalDomain) {
+        throw new Error('legalDomain is required.');
+    }
+
+    const fallback = buildFallbackFrankCaseCandidates(legalDomain);
+    if (!process.env.OPENAI_API_KEY) {
+        return fallback;
+    }
+
+    try {
+        const response = await openai.responses.create({
+            model: 'gpt-5-mini',
+            input: [
+                `Legal domain: ${legalDomain}`,
+                '',
+                'Search the open web for 3-5 strong U.S. anchor cases that could ground a benchmarking packet.',
+                'Prefer cases that are well-known, teachable, and have a clear holding.',
+                'Return concise results only.',
+            ].join('\n'),
+            tools: [{
+                type: 'web_search_preview',
+                search_context_size: 'medium',
+                user_location: {
+                    type: 'approximate',
+                    city: 'Chicago',
+                    region: 'Illinois',
+                    country: 'US',
+                },
+            }],
+            include: ['web_search_call.action.sources'],
+            text: {
+                verbosity: 'medium',
+                format: {
+                    type: 'json_schema',
+                    name: 'frank_case_search',
+                    strict: true,
+                    schema: {
+                        type: 'object',
+                        additionalProperties: false,
+                        properties: {
+                            candidates: {
+                                type: 'array',
+                                minItems: 1,
+                                maxItems: 5,
+                                items: {
+                                    type: 'object',
+                                    additionalProperties: false,
+                                    properties: {
+                                        title: { type: 'string' },
+                                        citation: { type: 'string' },
+                                        court: { type: 'string' },
+                                        year: { type: 'string' },
+                                        url: { type: 'string' },
+                                        summary: { type: 'string' },
+                                        relevance: { type: 'string' },
+                                    },
+                                    required: ['title', 'citation', 'court', 'year', 'url', 'summary', 'relevance'],
+                                },
+                            },
+                        },
+                        required: ['candidates'],
+                    },
+                },
+            },
+        });
+
+        const parsed = safeJsonParse<{ candidates?: unknown }>(extractResponsesText(response));
+        const candidates = normalizeFrankCaseCandidates(parsed?.candidates).slice(0, 5);
+        return candidates.length > 0 ? candidates : fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+export async function draftFrankAnalysisDomains(input: DraftFrankAnalysisDomainsInput): Promise<FrankAnalysisDomain[]> {
+    const legalDomain = input.legalDomain.trim();
+    const selectedCase = normalizeFrankCaseCandidate(input.selectedCase);
+    if (!legalDomain || !selectedCase) {
+        throw new Error('legalDomain and selectedCase are required.');
+    }
+
+    const fallback = buildFallbackFrankAnalysisDomains({
+        legalDomain,
+        selectedCase,
+        desiredCount: input.desiredCount,
+    });
+    if (!process.env.OPENAI_API_KEY) {
+        return fallback;
+    }
+
+    try {
+        const response = await openai.responses.create({
+            model: 'gpt-5-mini',
+            input: [
+                `Legal domain: ${legalDomain}`,
+                `Anchor case: ${selectedCase.title}`,
+                `Citation: ${selectedCase.citation}`,
+                `Court: ${selectedCase.court}`,
+                `Year: ${selectedCase.year}`,
+                `Summary: ${selectedCase.summary}`,
+                `Why this case matters: ${selectedCase.relevance}`,
+                '',
+                `Create ${Math.min(Math.max(input.desiredCount ?? 6, 5), 10)} editable analysis domains for a benchmark packet.`,
+                'Each domain should be short, human-readable, and distinct.',
+                'These are analysis buckets, not rubric rows.',
+            ].join('\n'),
+            text: {
+                verbosity: 'medium',
+                format: {
+                    type: 'json_schema',
+                    name: 'frank_analysis_domains',
+                    strict: true,
+                    schema: {
+                        type: 'object',
+                        additionalProperties: false,
+                        properties: {
+                            domains: {
+                                type: 'array',
+                                minItems: 5,
+                                maxItems: 10,
+                                items: {
+                                    type: 'object',
+                                    additionalProperties: false,
+                                    properties: {
+                                        name: { type: 'string' },
+                                        description: { type: 'string' },
+                                    },
+                                    required: ['name', 'description'],
+                                },
+                            },
+                        },
+                        required: ['domains'],
+                    },
+                },
+            },
+        });
+
+        const parsed = safeJsonParse<{ domains?: unknown }>(extractResponsesText(response));
+        const domains = normalizeFrankAnalysisDomains(parsed?.domains).slice(0, 10);
+        return domains.length > 0 ? domains : fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+export async function generateFrankGoldenResponse(input: GenerateFrankGoldenResponseInput): Promise<FrankPacket> {
+    const legalDomain = input.legalDomain.trim();
+    const selectedCase = normalizeFrankCaseCandidate(input.selectedCase);
+    const analysisDomains = normalizeFrankAnalysisDomains(input.analysisDomains);
+    if (!legalDomain || !selectedCase || analysisDomains.length === 0) {
+        throw new Error('legalDomain, selectedCase, and analysisDomains are required.');
+    }
+
+    const existing = input.id ? await getFrankPacket(input.id) : null;
+    const fallback = buildFallbackFrankGoldenDraft({
+        legalDomain,
+        selectedCase,
+        analysisDomains,
+    });
+
+    let draft = fallback;
+    if (process.env.OPENAI_API_KEY) {
+        try {
+            const response = await openai.responses.create({
+                model: 'gpt-5-mini',
+                input: [
+                    `Legal domain: ${legalDomain}`,
+                    `Anchor case title: ${selectedCase.title}`,
+                    `Citation: ${selectedCase.citation}`,
+                    `Court: ${selectedCase.court}`,
+                    `Year: ${selectedCase.year}`,
+                    `Source URL: ${selectedCase.url}`,
+                    `Case summary: ${selectedCase.summary}`,
+                    `Why selected: ${selectedCase.relevance}`,
+                    '',
+                    'Analysis domains:',
+                    ...analysisDomains.map((domain, index) => `${index + 1}. ${domain.name}: ${domain.description}`),
+                    '',
+                    'Create a Frank-stage packet only.',
+                    'Generate a golden response organized by the analysis domains.',
+                    'If a domain is not meaningfully addressed by the anchor case, say so briefly instead of forcing it.',
+                    'Also produce the minimal source-intake and source-extraction metadata needed to save the packet.',
+                ].join('\n'),
+                tools: [{
+                    type: 'web_search_preview',
+                    search_context_size: 'medium',
+                    user_location: {
+                        type: 'approximate',
+                        city: 'Chicago',
+                        region: 'Illinois',
+                        country: 'US',
+                    },
+                }],
+                include: ['web_search_call.action.sources'],
+                text: {
+                    verbosity: 'medium',
+                    format: {
+                        type: 'json_schema',
+                        name: 'frank_golden_response',
+                        strict: true,
+                        schema: {
+                            type: 'object',
+                            additionalProperties: false,
+                            properties: {
+                                masterIssueStatement: { type: 'string' },
+                                benchmarkAnswer: { type: 'string' },
+                                failureModeSeeds: {
+                                    type: 'array',
+                                    items: { type: 'string' },
+                                },
+                                sourceIntake: {
+                                    type: 'object',
+                                    additionalProperties: false,
+                                    properties: {
+                                        sourceQualityRating: { type: 'string' },
+                                        benchmarkPosture: {
+                                            type: 'string',
+                                            enum: [
+                                                'narrow_source_grounded_benchmark_only',
+                                                'generalizable_only_with_supporting_authority',
+                                                'portable_common_law_benchmark',
+                                            ],
+                                        },
+                                        recommendation: { type: 'string' },
+                                        jdReviewBurden: {
+                                            type: 'array',
+                                            items: { type: 'string' },
+                                        },
+                                        reverseEngineeringSuitability: {
+                                            type: 'string',
+                                            enum: ['strong', 'moderate', 'weak'],
+                                        },
+                                    },
+                                    required: ['sourceQualityRating', 'benchmarkPosture', 'recommendation', 'jdReviewBurden', 'reverseEngineeringSuitability'],
+                                },
+                                sourceExtraction: {
+                                    type: 'object',
+                                    additionalProperties: false,
+                                    properties: {
+                                        legalIssue: { type: 'string' },
+                                        blackLetterRule: { type: 'string' },
+                                        triggerFacts: {
+                                            type: 'array',
+                                            items: { type: 'string' },
+                                        },
+                                        holding: { type: 'string' },
+                                        limits: {
+                                            type: 'array',
+                                            items: { type: 'string' },
+                                        },
+                                        uncertainty: {
+                                            type: 'array',
+                                            items: { type: 'string' },
+                                        },
+                                    },
+                                    required: ['legalIssue', 'blackLetterRule', 'triggerFacts', 'holding', 'limits', 'uncertainty'],
+                                },
+                            },
+                            required: ['masterIssueStatement', 'benchmarkAnswer', 'failureModeSeeds', 'sourceIntake', 'sourceExtraction'],
+                        },
+                    },
+                },
+            });
+
+            const parsed = safeJsonParse<{
+                masterIssueStatement?: unknown;
+                benchmarkAnswer?: unknown;
+                failureModeSeeds?: unknown;
+                sourceIntake?: unknown;
+                sourceExtraction?: unknown;
+            }>(extractResponsesText(response));
+
+            draft = {
+                masterIssueStatement: normalizeNonEmptyString(parsed?.masterIssueStatement, fallback.masterIssueStatement),
+                benchmarkAnswer: normalizeNonEmptyString(parsed?.benchmarkAnswer, fallback.benchmarkAnswer),
+                failureModeSeeds: normalizeStringArray(parsed?.failureModeSeeds).slice(0, 8),
+                sourceIntake: normalizeSourceIntake(parsed?.sourceIntake, fallback.sourceIntake),
+                sourceExtraction: normalizeSourceExtraction(parsed?.sourceExtraction, fallback.sourceExtraction),
+            };
+        } catch {
+            draft = fallback;
+        }
+    }
+
+    return await saveFrankPacket({
+        id: existing?.id ?? input.id,
+        legalDomain,
+        domainScope: selectedCase.title,
+        sourceFamily: 'web_searched_anchor_case',
+        selectedCase,
+        analysisDomains,
+        sourceArtifacts: existing?.sourceArtifacts ?? [],
+        sourceIntake: draft.sourceIntake,
+        sourceExtraction: draft.sourceExtraction,
+        benchmarkAnswer: draft.benchmarkAnswer,
+        benchmarkQuestion: existing?.benchmarkQuestion ?? '',
+        failureModeSeeds: draft.failureModeSeeds,
+        masterIssueStatement: draft.masterIssueStatement,
+        status: existing?.status ?? 'draft',
+    });
+}
+
+export async function generateFrankQuestionPacket(input: GenerateFrankQuestionPacketInput): Promise<FrankPacket> {
+    const legalDomain = input.legalDomain.trim();
+    const selectedCase = normalizeFrankCaseCandidate(input.selectedCase);
+    const analysisDomains = normalizeFrankAnalysisDomains(input.analysisDomains);
+    const benchmarkAnswer = input.benchmarkAnswer.trim();
+    if (!legalDomain || !selectedCase || analysisDomains.length === 0 || !benchmarkAnswer) {
+        throw new Error('legalDomain, selectedCase, analysisDomains, and benchmarkAnswer are required.');
+    }
+
+    const existing = input.id ? await getFrankPacket(input.id) : null;
+    const fallback = buildFallbackFrankQuestionPacket({
+        legalDomain,
+        selectedCase,
+        analysisDomains,
+    });
+
+    let benchmarkQuestion = fallback;
+    if (process.env.OPENAI_API_KEY) {
+        try {
+            const response = await openai.responses.create({
+                model: 'gpt-5-mini',
+                input: [
+                    `Legal domain: ${legalDomain}`,
+                    `Anchor case: ${selectedCase.title}`,
+                    `Citation: ${selectedCase.citation}`,
+                    `Summary: ${selectedCase.summary}`,
+                    '',
+                    'Analysis domains:',
+                    ...analysisDomains.map((domain, index) => `${index + 1}. ${domain.name}: ${domain.description}`),
+                    '',
+                    'Golden response:',
+                    benchmarkAnswer.slice(0, 9000),
+                    '',
+                    'Draft a legal-case-packet benchmark question.',
+                    'The question should invite analysis across the listed domains.',
+                    'Return the finished question packet text only.',
+                ].join('\n'),
+                text: {
+                    verbosity: 'medium',
+                    format: {
+                        type: 'json_schema',
+                        name: 'frank_question_packet',
+                        strict: true,
+                        schema: {
+                            type: 'object',
+                            additionalProperties: false,
+                            properties: {
+                                benchmarkQuestion: { type: 'string' },
+                            },
+                            required: ['benchmarkQuestion'],
+                        },
+                    },
+                },
+            });
+
+            const parsed = safeJsonParse<{ benchmarkQuestion?: unknown }>(extractResponsesText(response));
+            benchmarkQuestion = normalizeNonEmptyString(parsed?.benchmarkQuestion, fallback);
+        } catch {
+            benchmarkQuestion = fallback;
+        }
+    }
+
+    return await saveFrankPacket({
+        id: existing?.id ?? input.id,
+        legalDomain,
+        domainScope: selectedCase.title,
+        sourceFamily: existing?.sourceFamily ?? 'web_searched_anchor_case',
+        selectedCase,
+        analysisDomains,
+        benchmarkAnswer,
+        benchmarkQuestion,
+        status: existing?.status ?? 'draft',
+        sourceArtifacts: existing?.sourceArtifacts ?? [],
+        sourceIntake: existing?.sourceIntake,
+        sourceExtraction: existing?.sourceExtraction,
+        failureModeSeeds: existing?.failureModeSeeds ?? [],
+        masterIssueStatement: existing?.masterIssueStatement ?? selectedCase.relevance,
+    });
 }
 
 export async function listKarthicRubricPacks() {
@@ -799,6 +1251,160 @@ async function extractTextFromUploadedFile(bytes: Uint8Array, fileName: string) 
     return normalizeExtractedText(Buffer.from(bytes).toString('utf8'));
 }
 
+function buildFallbackFrankCaseCandidates(legalDomain: string): FrankCaseCandidate[] {
+    const normalized = legalDomain.toLowerCase();
+    if (normalized.includes('contract')) {
+        return [
+            {
+                id: `case_${randomUUID().slice(0, 8)}`,
+                title: 'Hamer v. Sidway',
+                citation: '124 N.Y. 538 (1891)',
+                court: 'New York Court of Appeals',
+                year: '1891',
+                url: 'https://law.justia.com/cases/new-york/court-of-appeals/1891/124-n-y-538-0.html',
+                summary: 'Classic consideration case holding that forbearance of a legal right can count as consideration.',
+                relevance: 'Good teaching case when the benchmark needs a clear, foundational contracts rule with a crisp holding.',
+            },
+            {
+                id: `case_${randomUUID().slice(0, 8)}`,
+                title: 'Lucy v. Zehmer',
+                citation: '196 Va. 493 (1954)',
+                court: 'Supreme Court of Virginia',
+                year: '1954',
+                url: 'https://law.justia.com/cases/virginia/supreme-court/1954/4272-1.html',
+                summary: 'Objective theory of assent case about whether outward manifestations formed a real agreement.',
+                relevance: 'Useful if the benchmark should focus on contract formation and objective intent.',
+            },
+            {
+                id: `case_${randomUUID().slice(0, 8)}`,
+                title: 'Crabtree v. Elizabeth Arden Sales Corp.',
+                citation: '305 N.Y. 48 (1953)',
+                court: 'New York Court of Appeals',
+                year: '1953',
+                url: 'https://law.justia.com/cases/new-york/court-of-appeals/1953/305-n-y-48-0.html',
+                summary: 'Statute of Frauds case on piecing together multiple signed writings to satisfy the writing requirement.',
+                relevance: 'Useful if the benchmark is specifically about the Statute of Frauds and what writings can be combined.',
+            },
+        ];
+    }
+
+    return [
+        {
+            id: `case_${randomUUID().slice(0, 8)}`,
+            title: `${legalDomain} anchor case candidate`,
+            citation: 'Citation to be confirmed',
+            court: 'Court to be confirmed',
+            year: 'Year to be confirmed',
+            url: '',
+            summary: `A teaching-friendly anchor case for ${legalDomain}.`,
+            relevance: `Use this as a placeholder while refining the ${legalDomain} workflow.`,
+        },
+    ];
+}
+
+function buildFallbackFrankAnalysisDomains(input: {
+    legalDomain: string;
+    selectedCase: FrankCaseCandidate;
+    desiredCount?: number;
+}): FrankAnalysisDomain[] {
+    const targetCount = Math.min(Math.max(input.desiredCount ?? 6, 5), 10);
+    const base = [
+        ['Core issue', 'What legal question the case actually resolves.'],
+        ['Rule statement', 'The black-letter rule or test the answer should state clearly.'],
+        ['Trigger facts', 'The facts that make the rule matter here.'],
+        ['Application', 'How the rule should be applied to the facts rather than recited abstractly.'],
+        ['Holding and outcome', 'What result follows if the rule is applied correctly.'],
+        ['Limits and boundaries', 'Where the case stops and what it does not decide.'],
+        ['Counterarguments', 'The strongest pushback or alternative reading.'],
+        ['Portability', 'How safely the case can be generalized beyond its own facts or jurisdiction.'],
+        ['Remedies or consequences', 'What practical legal consequence follows from the analysis.'],
+        ['Open questions', 'What uncertainty remains even after the case is used as the anchor.'],
+    ];
+
+    return base.slice(0, targetCount).map(([name, description], index) => ({
+        id: `analysis_domain_${index + 1}`,
+        name,
+        description: description.replace('the case', input.selectedCase.title),
+    }));
+}
+
+function buildFrankSourceIntakeFallback(selectedCase: FrankCaseCandidate | null): SourceIntake {
+    return {
+        sourceQualityRating: selectedCase
+            ? `Web-found appellate case anchor: ${selectedCase.title}.`
+            : 'Web-found legal source anchor requiring validation.',
+        benchmarkPosture: 'generalizable_only_with_supporting_authority',
+        recommendation: selectedCase
+            ? `Use ${selectedCase.title} as the anchor case, but verify continued validity and jurisdictional fit.`
+            : 'Use the selected case as a starting point, then validate with JD review.',
+        jdReviewBurden: [
+            'Confirm precedential weight and current validity.',
+            'Confirm the rule is stated at the right level of generality for the benchmark.',
+        ],
+        reverseEngineeringSuitability: 'moderate',
+    };
+}
+
+function buildFrankSourceExtractionFallback(input: {
+    legalDomain: string;
+    selectedCase: FrankCaseCandidate | null;
+    analysisDomains: FrankAnalysisDomain[];
+}): SourceExtraction {
+    const title = input.selectedCase?.title || 'the selected case';
+    return {
+        legalIssue: input.selectedCase?.summary || `What legal issue in ${input.legalDomain} is best anchored by ${title}?`,
+        blackLetterRule: `State the controlling rule drawn from ${title} narrowly and accurately.`,
+        triggerFacts: input.analysisDomains.slice(0, 3).map((domain) => `Facts relevant to ${domain.name.toLowerCase()}.`),
+        holding: input.selectedCase?.relevance || `The holding from ${title} should control the benchmark analysis.`,
+        limits: [`Do not overgeneralize ${title} beyond its facts, court, and doctrinal setting.`],
+        uncertainty: ['Validate citation accuracy, current validity, and how portable the rule should be.'],
+    };
+}
+
+function buildFallbackFrankGoldenDraft(input: {
+    legalDomain: string;
+    selectedCase: FrankCaseCandidate;
+    analysisDomains: FrankAnalysisDomain[];
+}) {
+    const sourceIntake = buildFrankSourceIntakeFallback(input.selectedCase);
+    const sourceExtraction = buildFrankSourceExtractionFallback(input);
+    return {
+        masterIssueStatement: `${input.selectedCase.title} provides the anchor rule for this ${input.legalDomain} benchmark.`,
+        benchmarkAnswer: [
+            `Anchor case: ${input.selectedCase.title} (${input.selectedCase.citation})`,
+            '',
+            ...input.analysisDomains.flatMap((domain) => ([
+                `${domain.name}:`,
+                `${domain.description} The answer should explain how ${input.selectedCase.title} bears on this domain.`,
+                '',
+            ])),
+        ].join('\n').trim(),
+        failureModeSeeds: [
+            'Names the case but never states the rule clearly.',
+            'Recites the rule but does not connect it to the facts.',
+            'Overgeneralizes the case beyond its real limits.',
+            'Ignores a listed analysis domain without saying why.',
+        ],
+        sourceIntake,
+        sourceExtraction,
+    };
+}
+
+function buildFallbackFrankQuestionPacket(input: {
+    legalDomain: string;
+    selectedCase: FrankCaseCandidate;
+    analysisDomains: FrankAnalysisDomain[];
+}) {
+    return [
+        `Use ${input.selectedCase.title} (${input.selectedCase.citation}) as the anchor authority for a ${input.legalDomain} analysis.`,
+        '',
+        'Draft a legal analysis that addresses the following domains:',
+        ...input.analysisDomains.map((domain, index) => `${index + 1}. ${domain.name}: ${domain.description}`),
+        '',
+        'Explain which domains are clearly triggered, which are only weakly implicated, and which are not meaningfully addressed by the anchor case.',
+    ].join('\n');
+}
+
 function buildFallbackFrankDraft(input: {
     legalDomain: string;
     domainScope: string;
@@ -932,6 +1538,56 @@ function buildSeedRefinementLog(criteria: KarthicCriterion[]) {
     }));
 }
 
+function normalizeFrankCaseCandidates(value: unknown): FrankCaseCandidate[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .map((item, index) => normalizeFrankCaseCandidate(item, index))
+        .filter((item): item is FrankCaseCandidate => Boolean(item));
+}
+
+function normalizeFrankCaseCandidate(value: unknown, index = 0): FrankCaseCandidate | null {
+    if (!isRecord(value)) {
+        return null;
+    }
+    const title = normalizeOptionalString(value.title, '');
+    if (!title) {
+        return null;
+    }
+    return {
+        id: normalizeOptionalString(value.id, `case_${index + 1}`) || `case_${index + 1}`,
+        title,
+        citation: normalizeOptionalString(value.citation, 'Citation not provided'),
+        court: normalizeOptionalString(value.court, 'Court not provided'),
+        year: normalizeOptionalString(value.year, 'Year not provided'),
+        url: normalizeOptionalString(value.url, ''),
+        summary: normalizeOptionalString(value.summary, 'No summary provided.'),
+        relevance: normalizeOptionalString(value.relevance, 'No relevance note provided.'),
+    };
+}
+
+function normalizeFrankAnalysisDomains(value: unknown): FrankAnalysisDomain[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .map((item, index) => {
+            const record = isRecord(item) ? item : {};
+            const name = normalizeOptionalString(record.name, '').trim();
+            const description = normalizeOptionalString(record.description, '').trim();
+            if (!name || !description) {
+                return null;
+            }
+            return {
+                id: normalizeOptionalString(record.id, `analysis_domain_${index + 1}`) || `analysis_domain_${index + 1}`,
+                name,
+                description,
+            };
+        })
+        .filter((item): item is FrankAnalysisDomain => Boolean(item));
+}
+
 function normalizeDomains(domains: KarthicDomain[]) {
     return domains.map((domain, index) => ({
         id: domain.id?.trim() || `domain_${index + 1}`,
@@ -985,6 +1641,10 @@ function normalizeSourceExtraction(value: unknown, fallback: SourceExtraction): 
         limits: normalizeStringArray(record.limits),
         uncertainty: normalizeStringArray(record.uncertainty),
     };
+}
+
+function normalizeOptionalString(value: unknown, fallback: string) {
+    return typeof value === 'string' ? value.trim() : fallback;
 }
 
 async function tryOpenAiJson(systemPrompt: string, userPrompt: string) {
@@ -1291,9 +1951,9 @@ function firstSentence(value: string) {
     return splitSentences(value)[0] ?? '';
 }
 
-function safeJsonParse(value: string) {
+function safeJsonParse<T = Record<string, unknown>>(value: string) {
     try {
-        return JSON.parse(value) as Record<string, unknown>;
+        return JSON.parse(value) as T;
     } catch {
         return null;
     }
