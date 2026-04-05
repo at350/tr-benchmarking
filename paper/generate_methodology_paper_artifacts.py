@@ -89,12 +89,9 @@ NEGATIVE_PATTERNS = [
     r"\bcannot be considered enforceable\b",
     r"\bnot legally enforceable\b",
     r"\bis not enforceable\b",
-]
-POSITIVE_PATTERNS = [
-    r"\benforceable\b",
-    r"\bis enforceable\b",
-    r"\bwould be enforceable\b",
-    r"\blegally enforceable\b",
+    r"\bshould not be enforceable\b",
+    r"\blikely not enforceable\b",
+    r"\bwould not be enforceable\b",
 ]
 AMBIGUOUS_PATTERNS = [
     r"\bnot sure\b",
@@ -103,6 +100,12 @@ AMBIGUOUS_PATTERNS = [
     r"\bcould go either way\b",
     r"\bmay or may not\b",
     r"\barguable\b",
+]
+NEGATED_NEGATIVE_PATTERNS = [
+    r"\bdoes not render\b[^.]{0,80}\bunenforceable\b",
+    r"\bdoesn't render\b[^.]{0,80}\bunenforceable\b",
+    r"\bdoes not make\b[^.]{0,80}\bunenforceable\b",
+    r"\bnot render\b[^.]{0,80}\bunenforceable\b",
 ]
 
 
@@ -131,15 +134,25 @@ def extract_conclusion(text: str) -> str:
 
 
 def classify_bottom_line(text: str) -> str:
-    conclusion = extract_conclusion(text).lower()
+    conclusion = " ".join(extract_conclusion(text).lower().split())
+    for pattern in NEGATED_NEGATIVE_PATTERNS:
+        conclusion = re.sub(pattern, " DOES_NOT_NEGATE_ENFORCEABILITY ", conclusion)
     ambiguous = any(re.search(pattern, conclusion) for pattern in AMBIGUOUS_PATTERNS)
     negative = any(re.search(pattern, conclusion) for pattern in NEGATIVE_PATTERNS)
-    positive = (
-        any(re.search(pattern, conclusion) for pattern in POSITIVE_PATTERNS)
-        and not negative
-        and not re.search(r"\bunenforceable\b", conclusion)
-    )
-    if ambiguous or (negative and positive):
+
+    positive_search_space = conclusion
+    for pattern in NEGATIVE_PATTERNS:
+        positive_search_space = re.sub(pattern, " NEG_OUTCOME ", positive_search_space)
+    positive = bool(re.search(r"\benforceable\b", positive_search_space))
+
+    if negative and positive:
+        ambiguous = True
+    if re.search(r"\bmay be enforceable\b", conclusion) and negative:
+        ambiguous = True
+    if re.search(r"\bmay have a claim\b", conclusion) and negative:
+        ambiguous = True
+
+    if ambiguous:
         return "ambiguous/dual"
     if negative:
         return "unenforceable"
@@ -222,6 +235,7 @@ def build_cluster_metrics(
 def build_model_and_family_stats(
     records: List[Dict[str, Any]],
     cluster_metrics: Dict[str, Any],
+    raw_text_by_id: Dict[str, str],
 ) -> Tuple[Dict[str, Any], Dict[str, Any], List[Dict[str, Any]], List[Dict[str, Any]]]:
     family_counts: Dict[str, Counter[str]] = defaultdict(Counter)
     model_counts: Dict[str, Counter[str]] = defaultdict(Counter)
@@ -229,7 +243,7 @@ def build_model_and_family_stats(
     model_scores: Dict[str, List[float]] = defaultdict(list)
 
     for record in records:
-        outcome = classify_bottom_line(record["full_text"])
+        outcome = classify_bottom_line(raw_text_by_id.get(record["id"], record["full_text"]))
         family_counts[record["family"]][outcome] += 1
         model_counts[record["model"]][outcome] += 1
         weighted_score = cluster_metrics[record["clusterId"]]["weighted_score"]
@@ -270,7 +284,10 @@ def build_model_and_family_stats(
 
     family_rows.sort(key=lambda row: (-row["correct_rate"], -(row["mean_fkd_score"] or 0), row["family"]))
     model_rows.sort(key=lambda row: (-(row["mean_fkd_score"] or 0), -row["unenforceable"], row["display_model"]))
-    overall = Counter(classify_bottom_line(record["full_text"]) for record in records)
+    overall = Counter(
+        classify_bottom_line(raw_text_by_id.get(record["id"], record["full_text"]))
+        for record in records
+    )
     return dict(overall), family_counts, family_rows, model_rows
 
 
@@ -278,6 +295,7 @@ def build_cluster_profiles(
     dasha: Dict[str, Any],
     records: List[Dict[str, Any]],
     cluster_metrics: Dict[str, Any],
+    raw_text_by_id: Dict[str, str],
 ) -> List[Dict[str, Any]]:
     response_by_id = {response["id"]: response for response in dasha["responses"]}
     record_by_id = {record["id"]: record for record in records}
@@ -285,7 +303,10 @@ def build_cluster_profiles(
 
     for cluster in sorted(dasha["clusters"], key=lambda item: cluster_sort_key(item["id"])):
         member_records = [record_by_id[member_id] for member_id in cluster["memberResponseIds"] if member_id in record_by_id]
-        outcome_counts = Counter(classify_bottom_line(record["full_text"]) for record in member_records)
+        outcome_counts = Counter(
+            classify_bottom_line(raw_text_by_id.get(record["id"], record["full_text"]))
+            for record in member_records
+        )
         dominant_outcome = max(
             outcome_counts.items(),
             key=lambda item: (item[1], item[0]),
@@ -545,7 +566,7 @@ def render_appendices(
     lines.append("")
     lines.append("## Appendix B. Full Cluster Appendix")
     lines.append("")
-    lines.append("Each profile reports cluster composition, bottom-line outcome mix under the revised coding protocol, representative-response excerpt, and per-domain ensemble results.")
+    lines.append("Each profile reports cluster composition, bottom-line outcome mix under the revised coding protocol, the representative model, the full representative response text, and per-domain ensemble results.")
     lines.append("")
     for profile in cluster_profiles:
         lines.append(f"### {profile['cluster_id'].replace('cluster_', 'Cluster ')}")
@@ -566,9 +587,11 @@ def render_appendices(
         lines.append(f"| Cluster-mediated weighted score | {profile['weighted_score']} |")
         lines.append(f"| Mean agreement ratio across domains | {profile['agreement_mean']} |")
         lines.append("")
-        lines.append("Representative response excerpt:")
+        lines.append("Full representative response:")
         lines.append("")
-        lines.append(f"> {profile['representative_excerpt']}")
+        lines.append("```text")
+        lines.append(profile["representative_full_text"].rstrip())
+        lines.append("```")
         lines.append("")
         lines.append("| Domain | Ensemble median score | Agreement ratio |")
         lines.append("|---|---:|---:|")
@@ -660,10 +683,18 @@ def main() -> int:
     frank, karthic, records, dasha, bundle = load_records()
     ensemble = {key: value for key, value in bundle.items() if key != "validation"}
     validation = bundle["validation"]
+    raw_text_by_id = {
+        response["id"]: response.get("responseText", "") or response.get("raw_text", "")
+        for response in dasha["responses"]
+    }
 
     cluster_metrics, domain_winners = build_cluster_metrics(karthic, dasha, ensemble)
-    overall_outcomes, family_counts, family_rows, model_rows = build_model_and_family_stats(records, cluster_metrics)
-    cluster_profiles = build_cluster_profiles(dasha, records, cluster_metrics)
+    overall_outcomes, family_counts, family_rows, model_rows = build_model_and_family_stats(
+        records,
+        cluster_metrics,
+        raw_text_by_id,
+    )
+    cluster_profiles = build_cluster_profiles(dasha, records, cluster_metrics, raw_text_by_id)
 
     create_pipeline_figure(FIG1)
     create_cluster_projection_figure(records, dasha, FIG2)
