@@ -1,6 +1,6 @@
 # Evaluating Legal-Reasoning Diversity with the Frank-Karthic-Dasha Pipeline: Density Clustering, Instruction-Tuned Embeddings, and Permutation-Based Robustness Tests
 
-**Authors**: Alan Tai, Frank Hanlon, Karthic Subramanian, Dasha Veraksa  
+**Authors**: CS+Law Innovation Lab  
 **Date**: April 2026
 
 ## Abstract
