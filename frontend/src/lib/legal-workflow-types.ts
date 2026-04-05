@@ -34,6 +34,27 @@ export type FrankAnalysisDomain = {
     description: string;
 };
 
+export type FrankDomainFitLabel = 'Direct fit' | 'Weak fit' | 'Does not fit';
+
+export type FrankCaseDomainFitResult = {
+    domainId: string;
+    domainName: string;
+    label: FrankDomainFitLabel;
+    explanation: string;
+};
+
+export type FrankCaseDomainFitStatus = 'needs_review' | 'passed' | 'warning' | 'failed' | 'overridden';
+
+export type FrankCaseDomainFitCheck = {
+    status: FrankCaseDomainFitStatus;
+    overrideAccepted: boolean;
+    stale: boolean;
+    lastRunAt: string | null;
+    caseFingerprint: string;
+    domainFingerprint: string;
+    results: FrankCaseDomainFitResult[];
+};
+
 export type BenchmarkPosture =
     | 'narrow_source_grounded_benchmark_only'
     | 'generalizable_only_with_supporting_authority'
@@ -56,6 +77,11 @@ export type SourceExtraction = {
     uncertainty: string[];
 };
 
+export type FrankGenerationSettings = {
+    model: string;
+    reasoningEffort: ReasoningEffort;
+};
+
 export type FrankPacket = {
     id: string;
     status: Extract<WorkflowStatus, 'draft' | 'approved'>;
@@ -67,6 +93,7 @@ export type FrankPacket = {
     sourceArtifacts: ArtifactRecord[];
     sourceIntake: SourceIntake;
     sourceExtraction: SourceExtraction;
+    fitCheck: FrankCaseDomainFitCheck;
     benchmarkAnswer: string;
     benchmarkQuestion: string;
     failureModeSeeds: string[];

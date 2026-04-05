@@ -4,6 +4,7 @@ import { listFrankPackets, saveFrankPacket } from '@/lib/legal-workflow-server';
 import type {
     ArtifactRecord,
     FrankAnalysisDomain,
+    FrankCaseDomainFitCheck,
     FrankCaseCandidate,
     FrankPacket,
     SourceExtraction,
@@ -20,6 +21,7 @@ type SaveFrankRequest = {
     sourceFamily?: string;
     selectedCase?: FrankCaseCandidate | null;
     analysisDomains?: FrankAnalysisDomain[];
+    fitCheck?: FrankCaseDomainFitCheck;
     sourceIntake?: SourceIntake;
     sourceExtraction?: SourceExtraction;
     benchmarkAnswer?: string;
@@ -57,6 +59,7 @@ export async function POST(req: Request) {
             sourceFamily: body.sourceFamily ?? 'web_searched_anchor_case',
             selectedCase: body.selectedCase,
             analysisDomains: body.analysisDomains,
+            fitCheck: body.fitCheck,
             sourceIntake: body.sourceIntake,
             sourceExtraction: body.sourceExtraction,
             benchmarkAnswer: body.benchmarkAnswer,
