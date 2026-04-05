@@ -82,6 +82,15 @@ export type FrankGenerationSettings = {
     reasoningEffort: ReasoningEffort;
 };
 
+export type FrankSavedPrompt = {
+    id: string;
+    kind: 'golden_generation' | 'golden_refinement';
+    title: string;
+    prompt: string;
+    createdAt: string;
+    warnings: string[];
+};
+
 export type FrankPacket = {
     id: string;
     status: Extract<WorkflowStatus, 'draft' | 'approved'>;
@@ -96,6 +105,9 @@ export type FrankPacket = {
     fitCheck: FrankCaseDomainFitCheck;
     benchmarkAnswer: string;
     benchmarkQuestion: string;
+    goldenWarnings: string[];
+    questionWarnings: string[];
+    savedPrompts: FrankSavedPrompt[];
     failureModeSeeds: string[];
     masterIssueStatement: string;
     approvedAt: string | null;

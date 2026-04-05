@@ -15,6 +15,7 @@ import {
     buildFrankAnalysisDomainsPrompt,
     buildFrankCaseSearchPrompt,
     buildFrankFitCheckPrompt,
+    buildFrankGoldenRefinementPrompt,
     buildFrankGoldenResponsePrompt,
     buildFrankQuestionPacketPrompt,
     buildKarthicDomainDraftPrompt,
@@ -37,6 +38,7 @@ import type {
     FrankCaseCandidate,
     FrankDomainFitLabel,
     FrankPacket,
+    FrankSavedPrompt,
     KarthicCriterion,
     KarthicDomain,
     KarthicGoldenDomainTarget,
@@ -68,6 +70,9 @@ type SaveFrankInput = {
     sourceExtraction?: SourceExtraction;
     benchmarkAnswer?: string;
     benchmarkQuestion?: string;
+    goldenWarnings?: string[];
+    questionWarnings?: string[];
+    savedPrompts?: FrankSavedPrompt[];
     failureModeSeeds?: string[];
     masterIssueStatement?: string;
     sourceArtifacts?: ArtifactRecord[];
@@ -91,6 +96,28 @@ type GenerateFrankGoldenResponseInput = {
     analysisDomains: FrankAnalysisDomain[];
     model?: string;
     reasoningEffort?: ReasoningEffort;
+    refinementFeedback?: string[];
+    currentDraft?: {
+        masterIssueStatement?: string;
+        benchmarkAnswer?: string;
+        failureModeSeeds?: string[];
+        sourceIntake?: SourceIntake;
+        sourceExtraction?: SourceExtraction;
+    };
+};
+
+type RecheckFrankGoldenDraftInput = {
+    id?: string;
+    legalDomain: string;
+    selectedCase: FrankCaseCandidate;
+    analysisDomains: FrankAnalysisDomain[];
+    currentDraft: {
+        masterIssueStatement?: string;
+        benchmarkAnswer?: string;
+        failureModeSeeds?: string[];
+        sourceIntake?: SourceIntake;
+        sourceExtraction?: SourceExtraction;
+    };
 };
 
 type RunFrankFitCheckInput = {
@@ -216,6 +243,29 @@ export async function getFrankPacket(id: string) {
     return item ? normalizeFrankPacket(item) : null;
 }
 
+export async function deleteFrankPacket(id: string) {
+    const packet = await getFrankPacket(id);
+    if (!packet) {
+        throw new Error('Frank packet not found.');
+    }
+
+    const karthicRefs = (await listKarthicRubricPacks())
+        .filter((item) => item.frankPacketId === id);
+    if (karthicRefs.length > 0) {
+        const karthicIds = new Set(karthicRefs.map((item) => item.id));
+        const dashaRefs = (await listDashaRuns())
+            .filter((item) => karthicIds.has(item.rubricPackId));
+        const dependencyParts = [
+            `${karthicRefs.length} Karthic rubric pack${karthicRefs.length === 1 ? '' : 's'}`,
+            dashaRefs.length > 0 ? `${dashaRefs.length} Dasha run${dashaRefs.length === 1 ? '' : 's'}` : null,
+        ].filter(Boolean);
+        throw new Error(`Cannot delete Frank packet while it is linked to ${dependencyParts.join(' and ')}. Delete those dependent records first.`);
+    }
+
+    await deleteUploadedArtifacts(id);
+    await deleteArtifact(DATA_DIRECTORIES.frank, id);
+}
+
 export async function draftFrankPacket(input: FrankDraftInput): Promise<FrankPacket> {
     const now = new Date().toISOString();
     const id = `frank_${Date.now()}_${randomUUID().slice(0, 8)}`;
@@ -245,6 +295,9 @@ export async function draftFrankPacket(input: FrankDraftInput): Promise<FrankPac
         fitCheck: buildNeedsReviewFrankFitCheck(null, []),
         benchmarkAnswer: draft.benchmarkAnswer,
         benchmarkQuestion: draft.benchmarkQuestion,
+        goldenWarnings: [],
+        questionWarnings: [],
+        savedPrompts: [],
         failureModeSeeds: draft.failureModeSeeds,
         masterIssueStatement: draft.masterIssueStatement,
         approvedAt: null,
@@ -270,6 +323,9 @@ export async function saveFrankPacket(input: SaveFrankInput): Promise<FrankPacke
     });
     const benchmarkAnswer = normalizeOptionalString(input.benchmarkAnswer, existing?.benchmarkAnswer ?? '');
     const benchmarkQuestion = normalizeOptionalString(input.benchmarkQuestion, existing?.benchmarkQuestion ?? '');
+    const goldenWarnings = normalizeStringArray(input.goldenWarnings ?? existing?.goldenWarnings ?? []);
+    const questionWarnings = normalizeStringArray(input.questionWarnings ?? existing?.questionWarnings ?? []);
+    const savedPrompts = normalizeFrankSavedPrompts(input.savedPrompts ?? existing?.savedPrompts ?? []);
     const masterIssueStatement = normalizeOptionalString(
         input.masterIssueStatement,
         existing?.masterIssueStatement ?? buildFrankGeneralizedMasterIssueFallback({
@@ -296,6 +352,9 @@ export async function saveFrankPacket(input: SaveFrankInput): Promise<FrankPacke
         fitCheck,
         benchmarkAnswer,
         benchmarkQuestion,
+        goldenWarnings,
+        questionWarnings,
+        savedPrompts,
         failureModeSeeds: normalizeStringArray(input.failureModeSeeds ?? existing?.failureModeSeeds ?? []),
         masterIssueStatement,
         approvedAt: input.status === 'approved' ? (existing?.approvedAt ?? now) : existing?.approvedAt ?? null,
@@ -572,13 +631,41 @@ export async function generateFrankGoldenResponse(input: GenerateFrankGoldenResp
     }
     const model = normalizeFrankGenerationModel(input.model);
     const reasoningEffort = normalizeFrankGenerationReasoningEffort(input.reasoningEffort);
+    const refinementFeedback = normalizeStringArray(input.refinementFeedback);
     const fallback = buildFallbackFrankGoldenDraft({
         legalDomain,
         selectedCase,
         analysisDomains,
     });
+    const currentDraft = input.currentDraft ? {
+        masterIssueStatement: normalizeOptionalString(input.currentDraft.masterIssueStatement, existing?.masterIssueStatement ?? fallback.masterIssueStatement),
+        benchmarkAnswer: normalizeOptionalString(input.currentDraft.benchmarkAnswer, existing?.benchmarkAnswer ?? fallback.benchmarkAnswer),
+        failureModeSeeds: normalizeStringArray(input.currentDraft.failureModeSeeds ?? existing?.failureModeSeeds ?? fallback.failureModeSeeds),
+        sourceIntake: normalizeSourceIntake(input.currentDraft.sourceIntake, existing?.sourceIntake ?? fallback.sourceIntake),
+        sourceExtraction: normalizeSourceExtraction(input.currentDraft.sourceExtraction, existing?.sourceExtraction ?? fallback.sourceExtraction),
+    } : {
+        masterIssueStatement: existing?.masterIssueStatement ?? fallback.masterIssueStatement,
+        benchmarkAnswer: existing?.benchmarkAnswer ?? fallback.benchmarkAnswer,
+        failureModeSeeds: existing?.failureModeSeeds ?? fallback.failureModeSeeds,
+        sourceIntake: existing?.sourceIntake ?? fallback.sourceIntake,
+        sourceExtraction: existing?.sourceExtraction ?? fallback.sourceExtraction,
+    };
+    const promptText = refinementFeedback.length > 0
+        ? buildFrankGoldenRefinementPrompt({
+            legalDomain,
+            selectedCase,
+            analysisDomains,
+            currentDraft,
+            feedback: refinementFeedback,
+        })
+        : buildFrankGoldenResponsePrompt({
+            legalDomain,
+            selectedCase,
+            analysisDomains,
+        });
     requireOpenAiApiKey('Frank golden response generation');
     let draft: typeof fallback;
+    let goldenWarnings: string[] = [];
     try {
         const request: {
             model: string;
@@ -605,11 +692,7 @@ export async function generateFrankGoldenResponse(input: GenerateFrankGoldenResp
             reasoning?: { effort: 'low' | 'medium' | 'high'; summary: 'auto' };
         } = {
             model,
-            input: buildFrankGoldenResponsePrompt({
-                legalDomain,
-                selectedCase,
-                analysisDomains,
-            }),
+            input: promptText,
             tools: [{
                 type: 'web_search',
                 user_location: {
@@ -713,10 +796,23 @@ export async function generateFrankGoldenResponse(input: GenerateFrankGoldenResp
             sourceIntake: normalizeSourceIntake(parsed?.sourceIntake, fallback.sourceIntake),
             sourceExtraction: normalizeSourceExtraction(parsed?.sourceExtraction, fallback.sourceExtraction),
         };
-        assertGeneralizedFrankGoldenDraft(draft, selectedCase);
+        goldenWarnings = collectGeneralizedFrankGoldenDraftWarnings(draft, selectedCase);
     } catch (error) {
         throw new Error(`Frank golden response generation failed: ${describeError(error, 'OpenAI request failed.')}`);
     }
+    const savedPrompts: FrankSavedPrompt[] = [
+        ...(existing?.savedPrompts ?? []),
+        {
+            id: `prompt_${randomUUID().slice(0, 8)}`,
+            kind: refinementFeedback.length > 0 ? 'golden_refinement' : 'golden_generation',
+            title: refinementFeedback.length > 0
+                ? `Golden refinement prompt · ${new Date().toLocaleString()}`
+                : `Golden generation prompt · ${new Date().toLocaleString()}`,
+            prompt: promptText,
+            createdAt: new Date().toISOString(),
+            warnings: refinementFeedback,
+        },
+    ];
 
     return await saveFrankPacket({
         id: existing?.id ?? input.id,
@@ -731,8 +827,59 @@ export async function generateFrankGoldenResponse(input: GenerateFrankGoldenResp
         fitCheck,
         benchmarkAnswer: draft.benchmarkAnswer,
         benchmarkQuestion: existing?.benchmarkQuestion ?? '',
+        goldenWarnings,
+        savedPrompts,
         failureModeSeeds: draft.failureModeSeeds,
         masterIssueStatement: draft.masterIssueStatement,
+        status: existing?.status ?? 'draft',
+    });
+}
+
+export async function recheckFrankGoldenDraft(input: RecheckFrankGoldenDraftInput): Promise<FrankPacket> {
+    const legalDomain = input.legalDomain.trim();
+    const selectedCase = normalizeFrankCaseCandidate(input.selectedCase);
+    const analysisDomains = normalizeFrankAnalysisDomains(input.analysisDomains);
+    if (!legalDomain || !selectedCase || analysisDomains.length === 0) {
+        throw new Error('legalDomain, selectedCase, and analysisDomains are required.');
+    }
+
+    const existing = input.id ? await getFrankPacket(input.id) : null;
+    const fitCheck = normalizeFrankFitCheck(existing?.fitCheck, selectedCase, analysisDomains);
+    if (!canProceedFromFrankFitCheck(fitCheck)) {
+        throw new Error('Run the case-domain fit check first. Golden re-check stays blocked until the fit check passes or you save a manual override.');
+    }
+
+    const fallback = buildFallbackFrankGoldenDraft({
+        legalDomain,
+        selectedCase,
+        analysisDomains,
+    });
+    const currentDraft = {
+        masterIssueStatement: normalizeOptionalString(input.currentDraft.masterIssueStatement, existing?.masterIssueStatement ?? fallback.masterIssueStatement),
+        benchmarkAnswer: normalizeOptionalString(input.currentDraft.benchmarkAnswer, existing?.benchmarkAnswer ?? fallback.benchmarkAnswer),
+        failureModeSeeds: normalizeStringArray(input.currentDraft.failureModeSeeds ?? existing?.failureModeSeeds ?? fallback.failureModeSeeds),
+        sourceIntake: normalizeSourceIntake(input.currentDraft.sourceIntake, existing?.sourceIntake ?? fallback.sourceIntake),
+        sourceExtraction: normalizeSourceExtraction(input.currentDraft.sourceExtraction, existing?.sourceExtraction ?? fallback.sourceExtraction),
+    };
+    const goldenWarnings = collectGeneralizedFrankGoldenDraftWarnings(currentDraft, selectedCase);
+
+    return await saveFrankPacket({
+        id: existing?.id ?? input.id,
+        legalDomain,
+        domainScope: selectedCase.title,
+        sourceFamily: existing?.sourceFamily ?? 'web_searched_anchor_case',
+        selectedCase,
+        analysisDomains,
+        sourceArtifacts: existing?.sourceArtifacts ?? [],
+        sourceIntake: currentDraft.sourceIntake,
+        sourceExtraction: currentDraft.sourceExtraction,
+        fitCheck,
+        benchmarkAnswer: currentDraft.benchmarkAnswer,
+        benchmarkQuestion: existing?.benchmarkQuestion ?? '',
+        goldenWarnings,
+        savedPrompts: existing?.savedPrompts ?? [],
+        failureModeSeeds: currentDraft.failureModeSeeds,
+        masterIssueStatement: currentDraft.masterIssueStatement,
         status: existing?.status ?? 'draft',
     });
 }
@@ -749,13 +896,9 @@ export async function generateFrankQuestionPacket(input: GenerateFrankQuestionPa
     const existing = input.id ? await getFrankPacket(input.id) : null;
     const model = normalizeFrankGenerationModel(input.model);
     const reasoningEffort = normalizeFrankGenerationReasoningEffort(input.reasoningEffort);
-    const fallback = buildFallbackFrankQuestionPacket({
-        legalDomain,
-        selectedCase,
-        analysisDomains,
-    });
     requireOpenAiApiKey('Frank question packet generation');
     let benchmarkQuestion: string;
+    let questionWarnings: string[] = [];
     try {
         const request: {
             model: string;
@@ -805,8 +948,15 @@ export async function generateFrankQuestionPacket(input: GenerateFrankQuestionPa
         const response = await openai.responses.create(request);
 
         const parsed = safeJsonParse<{ benchmarkQuestion?: unknown }>(extractResponsesText(response));
-        benchmarkQuestion = normalizeNonEmptyString(parsed?.benchmarkQuestion, fallback);
-        assertFrankTextGeneralized('Frank question packet', benchmarkQuestion, selectedCase);
+        const rawBenchmarkQuestion = normalizeOptionalString(parsed?.benchmarkQuestion, '').trim();
+        if (!rawBenchmarkQuestion) {
+            throw new Error('Model returned an empty question packet.');
+        }
+        const normalizedQuestion = normalizeFrankQuestionPacket(rawBenchmarkQuestion, analysisDomains);
+        benchmarkQuestion = normalizedQuestion.text;
+        benchmarkQuestion = sanitizeFrankQuestionPacket(benchmarkQuestion, selectedCase);
+        benchmarkQuestion = normalizeFrankQuestionPacket(benchmarkQuestion, analysisDomains).text;
+        questionWarnings = collectFrankQuestionPacketWarnings(benchmarkQuestion, analysisDomains, selectedCase);
     } catch (error) {
         throw new Error(`Frank question packet generation failed: ${describeError(error, 'OpenAI request failed.')}`);
     }
@@ -820,6 +970,7 @@ export async function generateFrankQuestionPacket(input: GenerateFrankQuestionPa
         analysisDomains,
         benchmarkAnswer,
         benchmarkQuestion,
+        questionWarnings,
         status: existing?.status ?? 'draft',
         sourceArtifacts: existing?.sourceArtifacts ?? [],
         sourceIntake: existing?.sourceIntake,
@@ -1933,6 +2084,11 @@ async function saveUploadedArtifacts(ownerId: string, files: Array<{ role: Artif
     return artifacts;
 }
 
+async function deleteUploadedArtifacts(ownerId: string) {
+    const artifactsRoot = await ensureDirectory(DATA_DIRECTORIES.artifacts);
+    await fs.rm(path.join(artifactsRoot, ownerId), { recursive: true, force: true });
+}
+
 async function extractTextFromUploadedFile(bytes: Uint8Array, fileName: string) {
     const extension = path.extname(fileName).toLowerCase();
     if (extension === '.pdf') {
@@ -2057,6 +2213,19 @@ const FRANK_CASE_TITLE_STOP_WORDS = new Set([
     'and',
     'et',
     'al',
+    'united',
+    'states',
+    'state',
+    'people',
+    'commonwealth',
+    'county',
+    'city',
+    'board',
+    'department',
+    'commissioner',
+    'secretary',
+    'school',
+    'district',
 ]);
 
 function escapeRegExp(value: string) {
@@ -2100,20 +2269,168 @@ function buildFrankGroundingLeakPatterns(selectedCase: FrankCaseCandidate) {
     return patterns;
 }
 
-function assertFrankTextGeneralized(label: string, text: string, selectedCase: FrankCaseCandidate) {
+function sanitizeFrankQuestionPacket(text: string, selectedCase: FrankCaseCandidate) {
+    let sanitized = text;
+
+    const titleRegex = buildFlexiblePhraseRegex(selectedCase.title);
+    if (titleRegex) {
+        sanitized = sanitized.replace(titleRegex, 'a similar dispute');
+    }
+
+    const citationRegex = buildFlexiblePhraseRegex(selectedCase.citation);
+    if (citationRegex) {
+        sanitized = sanitized.replace(citationRegex, '');
+    }
+
+    const courtRegex = buildFlexiblePhraseRegex(selectedCase.court);
+    if (courtRegex) {
+        sanitized = sanitized.replace(courtRegex, '');
+    }
+
+    const titleTokens = Array.from(new Set(
+        selectedCase.title
+            .split(/[^A-Za-z0-9]+/)
+            .map((token) => token.trim())
+            .filter((token) => token.length >= 4 && !FRANK_CASE_TITLE_STOP_WORDS.has(token.toLowerCase())),
+    ));
+
+    titleTokens.forEach((token, index) => {
+        const placeholder = `Party ${String.fromCharCode(65 + (index % 26))}`;
+        sanitized = sanitized.replace(new RegExp(`\\b${escapeRegExp(token)}\\b`, 'gi'), placeholder);
+    });
+
+    return sanitized
+        .replace(/[ \t]+/g, ' ')
+        .replace(/ +([,.;:])/g, '$1')
+        .replace(/\(\s*\)/g, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+function collectFrankTextGeneralizationWarnings(label: string, text: string, selectedCase: FrankCaseCandidate) {
     const value = text.trim();
     if (!value) {
-        return;
+        return [];
     }
     const matches = buildFrankGroundingLeakPatterns(selectedCase)
         .filter((pattern) => pattern.regex.test(value))
         .map((pattern) => pattern.label);
     if (matches.length > 0) {
-        throw new Error(`${label} still reveals the grounding case via ${matches.slice(0, 2).join(' and ')}. Regenerate with more generalized wording.`);
+        return [`${label} still reveals the grounding case via ${matches.slice(0, 2).join(' and ')}. Review and generalize this wording before treating the packet as final.`];
     }
+    return [];
 }
 
-function assertGeneralizedFrankGoldenDraft(
+function normalizeFrankQuestionPacket(
+    text: string,
+    analysisDomains: FrankAnalysisDomain[],
+) {
+    const cleaned = text
+        .replace(/^```[a-zA-Z0-9_-]*\s*/i, '')
+        .replace(/\s*```$/, '')
+        .replace(/\r/g, '')
+        .trim();
+    const sectionOrder = ['Title', 'Facts', 'Tasks', 'Answer Format'] as const;
+    const sections = new Map<typeof sectionOrder[number], string[]>();
+    let currentSection: typeof sectionOrder[number] | null = null;
+
+    for (const rawLine of cleaned.split('\n')) {
+        const line = rawLine.trimEnd();
+        const match = line.match(/^\s*(?:[-*>]\s*)?(?:#{1,6}\s*)?(?:\*\*|__)?(Title|Facts|Tasks|Answer Format)(?:\*\*|__)?\s*:?\s*(.*)$/i);
+        if (match) {
+            currentSection = sectionOrder.find((item) => item.toLowerCase() === match[1].toLowerCase()) ?? null;
+            if (!currentSection) {
+                continue;
+            }
+            const remainder = match[2]?.trim() ?? '';
+            sections.set(currentSection, remainder ? [remainder] : []);
+            continue;
+        }
+        if (currentSection) {
+            const bucket = sections.get(currentSection) ?? [];
+            bucket.push(line);
+            sections.set(currentSection, bucket);
+        }
+    }
+
+    const missingSections = sectionOrder.filter((section) => !sections.has(section));
+    if (missingSections.length > 0) {
+        throw new Error(`Question packet is missing required section(s): ${missingSections.join(', ')}.`);
+    }
+
+    const title = (sections.get('Title') ?? []).join('\n').trim();
+    const facts = (sections.get('Facts') ?? []).join('\n').trim();
+    const tasks = (sections.get('Tasks') ?? []).join('\n').trim();
+    const answerFormat = (sections.get('Answer Format') ?? []).join('\n').trim();
+
+    if (!title || !facts || !tasks || !answerFormat) {
+        throw new Error('Question packet has the right headings but one or more sections is empty.');
+    }
+    if (!/^\s*\d+[.)]\s+/m.test(tasks)) {
+        throw new Error('Question packet tasks must be a numbered list.');
+    }
+
+    const normalizedTasks = tasks
+        .split('\n')
+        .map((line) => line.replace(/^(\s*)(\d+)\)\s+/, '$1$2. '))
+        .join('\n')
+        .trim();
+
+    return {
+        text: [
+        `Title: ${title.replace(/\s+/g, ' ').trim()}`,
+        '',
+        'Facts:',
+        facts,
+        '',
+        'Tasks:',
+        normalizedTasks,
+        '',
+        'Answer Format:',
+        answerFormat,
+    ].join('\n').trim(),
+        title,
+        facts,
+        tasks: normalizedTasks,
+        answerFormat,
+    };
+}
+
+function collectFrankQuestionPacketWarnings(
+    text: string,
+    analysisDomains: FrankAnalysisDomain[],
+    selectedCase: FrankCaseCandidate,
+) {
+    const warnings: string[] = [];
+    const normalizedTasksMatch = text.match(/\nTasks:\n([\s\S]*?)\n\nAnswer Format:\n/i);
+    const tasks = normalizedTasksMatch?.[1]?.trim() ?? '';
+    const missingDomains = analysisDomains.filter((domain) => !tasks.toLowerCase().includes(domain.name.toLowerCase()));
+    if (missingDomains.length > 0) {
+        warnings.push(`Question packet tasks may not name every analysis domain directly. Review: ${missingDomains.map((domain) => domain.name).join(', ')}.`);
+    }
+
+    const forbiddenPhrases = [
+        'anchor case',
+        'hidden source',
+        'benchmark answer',
+        'golden response',
+        'drafting notes',
+        'prepare a packet',
+        'teaching packet',
+        'bench memo',
+    ];
+    const lowered = text.toLowerCase();
+    forbiddenPhrases.forEach((phrase) => {
+        if (lowered.includes(phrase)) {
+            warnings.push(`Question packet still contains forbidden meta language: "${phrase}".`);
+        }
+    });
+
+    warnings.push(...collectFrankTextGeneralizationWarnings('Frank question packet', text, selectedCase));
+    return Array.from(new Set(warnings));
+}
+
+function collectGeneralizedFrankGoldenDraftWarnings(
     draft: {
         masterIssueStatement: string;
         benchmarkAnswer: string;
@@ -2123,6 +2440,7 @@ function assertGeneralizedFrankGoldenDraft(
     },
     selectedCase: FrankCaseCandidate,
 ) {
+    const warnings: string[] = [];
     const items: Array<[string, string]> = [
         ['Frank master issue statement', draft.masterIssueStatement],
         ['Frank benchmark answer', draft.benchmarkAnswer],
@@ -2148,8 +2466,9 @@ function assertGeneralizedFrankGoldenDraft(
         items.push([`Frank failure-mode seed ${index + 1}`, item]);
     });
     for (const [label, text] of items) {
-        assertFrankTextGeneralized(label, text, selectedCase);
+        warnings.push(...collectFrankTextGeneralizationWarnings(label, text, selectedCase));
     }
+    return Array.from(new Set(warnings));
 }
 
 function buildFallbackFrankDraft(input: {
@@ -2594,6 +2913,33 @@ function canProceedFromFrankFitCheck(fitCheck: FrankCaseDomainFitCheck) {
     return fitCheck.status === 'passed' || fitCheck.status === 'warning' || fitCheck.status === 'overridden';
 }
 
+function normalizeFrankSavedPrompts(value: unknown): FrankSavedPrompt[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .map((item, index) => {
+            const record = isRecord(item) ? item : {};
+            const prompt = normalizeOptionalString(record.prompt, '').trim();
+            if (!prompt) {
+                return null;
+            }
+            return {
+                id: normalizeOptionalString(record.id, `prompt_${randomUUID().slice(0, 8)}`),
+                kind: record.kind === 'golden_refinement' ? 'golden_refinement' : 'golden_generation',
+                title: normalizeOptionalString(
+                    record.title,
+                    `${record.kind === 'golden_refinement' ? 'Golden refinement prompt' : 'Golden generation prompt'} ${index + 1}`,
+                ),
+                prompt,
+                createdAt: normalizeOptionalString(record.createdAt, new Date().toISOString()),
+                warnings: normalizeStringArray(record.warnings),
+            } satisfies FrankSavedPrompt;
+        })
+        .filter((item): item is FrankSavedPrompt => Boolean(item))
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
 function normalizeFrankPacket(value: unknown): FrankPacket | null {
     if (!isRecord(value)) {
         return null;
@@ -2626,6 +2972,9 @@ function normalizeFrankPacket(value: unknown): FrankPacket | null {
         fitCheck: normalizeFrankFitCheck(value.fitCheck, selectedCase, analysisDomains),
         benchmarkAnswer: normalizeOptionalString(value.benchmarkAnswer, ''),
         benchmarkQuestion: normalizeOptionalString(value.benchmarkQuestion, ''),
+        goldenWarnings: normalizeStringArray(value.goldenWarnings),
+        questionWarnings: normalizeStringArray(value.questionWarnings),
+        savedPrompts: normalizeFrankSavedPrompts(value.savedPrompts),
         failureModeSeeds: normalizeStringArray(value.failureModeSeeds),
         masterIssueStatement: normalizeOptionalString(value.masterIssueStatement, buildFrankGeneralizedMasterIssueFallback({
             legalDomain,
@@ -2802,6 +3151,9 @@ function normalizeKarthicRubricPack(value: unknown): KarthicRubricPack | null {
             fitCheck: buildNeedsReviewFrankFitCheck(null, domains.map((domain) => ({ id: domain.id, name: domain.name, description: domain.description }))),
             benchmarkAnswer: '',
             benchmarkQuestion: '',
+            goldenWarnings: [],
+            questionWarnings: [],
+            savedPrompts: [],
             failureModeSeeds: [],
             masterIssueStatement: '',
             approvedAt: null,
@@ -3107,6 +3459,15 @@ async function listArtifacts<T>(directoryKey: keyof typeof DATA_DIRECTORIES | st
 async function readArtifact<T>(directoryKey: keyof typeof DATA_DIRECTORIES | string, id: string) {
     const directory = await ensureDirectory(directoryKey);
     return await safeReadJson<T>(path.join(directory, `${sanitizeFileName(id)}.json`));
+}
+
+async function deleteArtifact(directoryKey: keyof typeof DATA_DIRECTORIES | string, id: string) {
+    const directory = await ensureDirectory(directoryKey);
+    await fs.unlink(path.join(directory, `${sanitizeFileName(id)}.json`)).catch((error: NodeJS.ErrnoException) => {
+        if (error?.code !== 'ENOENT') {
+            throw error;
+        }
+    });
 }
 
 async function writeArtifact<T>(directoryKey: keyof typeof DATA_DIRECTORIES | string, id: string, value: T) {

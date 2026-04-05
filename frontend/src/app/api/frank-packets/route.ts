@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { listFrankPackets, saveFrankPacket } from '@/lib/legal-workflow-server';
+import { deleteFrankPacket, listFrankPackets, saveFrankPacket } from '@/lib/legal-workflow-server';
 import type {
     ArtifactRecord,
     FrankAnalysisDomain,
@@ -26,10 +26,16 @@ type SaveFrankRequest = {
     sourceExtraction?: SourceExtraction;
     benchmarkAnswer?: string;
     benchmarkQuestion?: string;
+    goldenWarnings?: string[];
+    questionWarnings?: string[];
     failureModeSeeds?: string[];
     masterIssueStatement?: string;
     sourceArtifacts?: ArtifactRecord[];
     status?: FrankPacket['status'];
+};
+
+type DeleteFrankRequest = {
+    id?: string;
 };
 
 export async function GET() {
@@ -64,6 +70,8 @@ export async function POST(req: Request) {
             sourceExtraction: body.sourceExtraction,
             benchmarkAnswer: body.benchmarkAnswer,
             benchmarkQuestion: body.benchmarkQuestion,
+            goldenWarnings: body.goldenWarnings,
+            questionWarnings: body.questionWarnings,
             failureModeSeeds: body.failureModeSeeds ?? [],
             masterIssueStatement: body.masterIssueStatement,
             sourceArtifacts: body.sourceArtifacts ?? [],
@@ -75,5 +83,26 @@ export async function POST(req: Request) {
         console.error('Failed to save Frank packet.', error);
         const message = error instanceof Error ? error.message : 'Failed to save Frank packet.';
         return NextResponse.json({ error: message }, { status: 500 });
+    }
+}
+
+export async function DELETE(req: Request) {
+    try {
+        const body = (await req.json()) as DeleteFrankRequest;
+        if (!body.id?.trim()) {
+            return NextResponse.json({ error: 'id is required.' }, { status: 400 });
+        }
+
+        await deleteFrankPacket(body.id);
+        return NextResponse.json({
+            ok: true,
+            id: body.id,
+            deletedAt: new Date().toISOString(),
+        });
+    } catch (error) {
+        console.error('Failed to delete Frank packet.', error);
+        const message = error instanceof Error ? error.message : 'Failed to delete Frank packet.';
+        const status = message === 'Frank packet not found.' ? 404 : 500;
+        return NextResponse.json({ error: message }, { status });
     }
 }

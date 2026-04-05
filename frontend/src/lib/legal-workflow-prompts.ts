@@ -105,14 +105,64 @@ export function buildFrankGoldenResponsePrompt(input: {
         '- Explain what is strongly supported, what depends on additional facts, and what remains uncertain.',
         '- If a domain is only weakly implicated, keep the discussion narrow rather than inventing doctrine.',
         '- Include the strongest counterargument or competing interpretation where relevant.',
-        '- Do not mention the case title, citation, court, year, source URL, party names, or any case-specific framing.',
-        '- Do not mention these instructions, JSON, schemas, tool calls, or that this is a benchmark packet.',
+        '- Important: AVOID ALL MENTIONS of the case title, citation, court, year, source URL, party names, or any case-specific framing.',
+        '- Do NOT mention these instructions, JSON, schemas, tool calls, or that this is a benchmark packet.',
         '',
         'Metadata requirements:',
         '- masterIssueStatement should state the central generalized legal question in one sentence.',
         '- failureModeSeeds should list realistic generalized wrong turns a weak answer might make.',
         '- sourceIntake should describe portability and trustworthiness without naming the grounding case.',
         '- sourceExtraction should capture the generalized legal issue, black-letter rule, trigger facts, likely outcome pattern, limits, and uncertainty in plain legal English.',
+    ].join('\n');
+}
+
+export function buildFrankGoldenRefinementPrompt(input: {
+    legalDomain: string;
+    selectedCase: FrankCaseCandidate;
+    analysisDomains: FrankAnalysisDomain[];
+    currentDraft: {
+        masterIssueStatement: string;
+        benchmarkAnswer: string;
+        failureModeSeeds: string[];
+        sourceIntake: FrankPacket['sourceIntake'];
+        sourceExtraction: FrankPacket['sourceExtraction'];
+    };
+    feedback: string[];
+}) {
+    return [
+        buildFrankGoldenResponsePrompt({
+            legalDomain: input.legalDomain,
+            selectedCase: input.selectedCase,
+            analysisDomains: input.analysisDomains,
+        }),
+        '',
+        'You are revising an existing generalized golden response draft.',
+        'Preserve the same legal topic, overall likely outcome direction, and domain structure unless the feedback requires a narrower or more generalized phrasing choice.',
+        'Fix the issues called out in the feedback while keeping the output doctrinally serious and generalized.',
+        '',
+        'Feedback to address:',
+        ...input.feedback.map((item, index) => `${index + 1}. ${item}`),
+        '',
+        'Current draft to revise:',
+        `masterIssueStatement: ${input.currentDraft.masterIssueStatement}`,
+        '',
+        'benchmarkAnswer:',
+        input.currentDraft.benchmarkAnswer.trim().slice(0, 9000),
+        '',
+        `failureModeSeeds: ${input.currentDraft.failureModeSeeds.join(' | ') || 'None provided.'}`,
+        `sourceQualityRating: ${input.currentDraft.sourceIntake.sourceQualityRating}`,
+        `benchmarkPosture: ${input.currentDraft.sourceIntake.benchmarkPosture}`,
+        `recommendation: ${input.currentDraft.sourceIntake.recommendation}`,
+        `jdReviewBurden: ${input.currentDraft.sourceIntake.jdReviewBurden.join(' | ') || 'None provided.'}`,
+        `reverseEngineeringSuitability: ${input.currentDraft.sourceIntake.reverseEngineeringSuitability}`,
+        `legalIssue: ${input.currentDraft.sourceExtraction.legalIssue}`,
+        `blackLetterRule: ${input.currentDraft.sourceExtraction.blackLetterRule}`,
+        `triggerFacts: ${input.currentDraft.sourceExtraction.triggerFacts.join(' | ') || 'None provided.'}`,
+        `holding: ${input.currentDraft.sourceExtraction.holding}`,
+        `limits: ${input.currentDraft.sourceExtraction.limits.join(' | ') || 'None provided.'}`,
+        `uncertainty: ${input.currentDraft.sourceExtraction.uncertainty.join(' | ') || 'None provided.'}`,
+        '',
+        'Revise the draft directly. Do not explain the changes. Return the full replacement output in the same JSON fields as before.',
     ].join('\n');
 }
 
@@ -137,23 +187,31 @@ export function buildFrankQuestionPacketPrompt(input: {
         'Hidden golden response for drafting only:',
         input.benchmarkAnswer.trim().slice(0, 9000),
         '',
-        'Draft a blind legal benchmark question packet that tests reasoning rather than recall.',
+        'Draft a blind exam-style legal hypothetical that tests reasoning rather than recall.',
         'The output must be a fresh generalized hypothetical based on the doctrine, useful fact pattern, and likely outcome direction, not a visible retelling of the grounding case.',
+        'Write the packet so that a later model would naturally respond with a concise structured legal memo that ends in a clear bottom-line conclusion.',
         '',
         'Hard rules:',
         '- Do not mention the source case title, party names, citation, court, year, judge, or procedural posture.',
         '- Do not quote or closely paraphrase distinctive phrases from the source case.',
         '- Do not say anchor case, hidden source, benchmark answer, or golden response.',
         '- Do not include drafting notes, meta-instructions, or an explanation of what you are doing.',
+        '- Do not ask for classroom tools, alternate hypos, witness lists, pleadings strategy, or other extra deliverables beyond the listed tasks.',
         '',
-        'Structure requirements:',
+        'Output format:',
         '- Keep the output as a question packet, not an answer.',
-        '- Start with a short neutral title.',
-        '- Then provide a fact pattern written as a blind legal hypothetical for similar disputes in this topic area.',
-        '- End with a numbered list of analysis tasks, with one task per analysis domain in the same order as listed above.',
-        '- Each task should invite legal analysis without revealing the original case identity.',
-        '- The packet should preserve the central issue and the useful trigger facts, but remove obvious case-identifying details.',
+        '- Use exactly these sections in order: Title, Facts, Tasks, Answer Format.',
+        '- Title: one short neutral title only.',
+        '- Facts: one clean fact pattern written as a blind legal hypothetical for similar disputes in this topic area.',
+        '- Tasks: one numbered task per analysis domain, in the same order as listed above, using each domain name directly.',
+        '- Answer Format: one short instruction telling the responder to write a structured legal memo organized by the numbered tasks and ending with a clear bottom-line conclusion.',
+        '',
+        'Writing requirements for the packet:',
+        '- The fact pattern should preserve the central issue and the useful trigger facts, but remove obvious case-identifying details.',
         '- The hypothetical should usually point toward the same likely legal outcome direction as the hidden grounding case pattern.',
+        '- Each numbered task should sound like a natural legal question, not a machine checklist.',
+        '- Keep the packet focused on core doctrinal analysis only unless a listed domain itself requires something more practical.',
+        '- Do not ask the responder to cite the hidden source case or do external research.',
         '',
         'Return only the finished question packet text inside the benchmarkQuestion field.',
     ].join('\n');

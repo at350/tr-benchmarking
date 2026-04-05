@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { CheckCircle2, FlaskConical, Network, Scale, ScrollText } from 'lucide-react';
+import { CheckCircle2, FlaskConical, Network, Scale, ScrollText, Trash2 } from 'lucide-react';
 
 import { AppShell } from '@/components/ui/AppShell';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -28,6 +28,7 @@ import type {
     FrankCaseCandidate,
     FrankGenerationSettings,
     FrankPacket,
+    FrankSavedPrompt,
     KarthicCriterion,
     KarthicDomain,
     KarthicGoldenDomainTarget,
@@ -47,6 +48,9 @@ type StepExplainerItem<TStep extends string> = {
     promptText?: string | null;
     promptLabel?: string;
     promptEmptyState?: string;
+    extraPromptText?: string | null;
+    extraPromptLabel?: string;
+    extraPromptEmptyState?: string;
 };
 
 type DashaClusterMapPoint = {
@@ -105,6 +109,9 @@ type FrankEditorState = {
     caseCandidates: FrankCaseCandidate[];
     analysisDomains: FrankAnalysisDomain[];
     fitCheck: FrankCaseDomainFitCheck;
+    goldenWarnings: string[];
+    questionWarnings: string[];
+    savedPrompts: FrankSavedPrompt[];
     fitSettings: FrankGenerationSettings;
     goldenSettings: FrankGenerationSettings;
     questionSettings: FrankGenerationSettings;
@@ -152,6 +159,9 @@ const DEFAULT_FRANK_STATE: FrankEditorState = {
     caseCandidates: [],
     analysisDomains: [],
     fitCheck: buildNeedsReviewFrankFitCheckState(null, []),
+    goldenWarnings: [],
+    questionWarnings: [],
+    savedPrompts: [],
     fitSettings: {
         model: 'gpt-5.4-mini',
         reasoningEffort: 'medium',
@@ -192,6 +202,7 @@ const DEFAULT_KARTHIC_STATE: KarthicEditorState = {
 };
 
 function buildFrankExplainerItems(state: FrankEditorState): StepExplainerItem<FrankWizardStep>[] {
+    const latestSavedRefinementPrompt = state.savedPrompts.find((item) => item.kind === 'golden_refinement') ?? null;
     return [
         {
             id: 'domain',
@@ -259,16 +270,21 @@ function buildFrankExplainerItems(state: FrankEditorState): StepExplainerItem<Fr
                 selectedCase: state.selectedCase,
                 analysisDomains: state.analysisDomains,
             }) : null,
+            promptLabel: 'View Exact Golden-Response Prompt',
             promptEmptyState: 'Select a case and add analysis domains to preview the exact golden-response prompt.',
+            extraPromptText: latestSavedRefinementPrompt?.prompt ?? null,
+            extraPromptLabel: 'View Last Saved Refinement Prompt',
         },
         {
             id: 'question',
             title: '6. Question Packet',
-            summary: 'Draft a generalized hypothetical that should elicit analysis across the same vetted domains.',
+            summary: 'Draft an exam-style hypothetical grounded on the case that should elicit analysis across the same topics and domains.',
             detail: [
-                'Instead of evaluating models against the original source materials directly, Frank builds a benchmark question packet designed to trigger the same doctrinal dimensions encoded in the generalized golden response.',
-                'The point is alignment: future models see only the prompt, while evaluators still know which legal dimensions the prompt was engineered to surface.',
-                'That keeps later model comparisons tied to the benchmark design rather than to ad hoc prompt variation.',
+                'Instead of benchmarking models on the original case, Frank builds a benchmark question packet designed to elicit the model to respond with same doctrinal dimensions encoded in the generalized golden respons (grounded upon the case).',
+                'Output is a clean \'fact packet\' plus numbered domain-aligned tasks that produces a structured legal memo.',
+                'This \'golden question\' will be pasesed into Karthic and Dasha, and serves as the grounding for future benchmarking.',
+                'Checking logic: Hard structure checks in legal-workflow-server.ts (fail only if the packet is malformed, like missing sections or missing numbered tasks). Warning-level domain-name checks in legal-workflow-server.ts (the exact-name matching warnings). Warning-level anonymization/meta checks in legal-workflow-server.ts and legal-workflow-server.ts (look for leaked case identifiers or forbidden prompt-style phrases).'
+
             ],
             promptText: state.selectedCase && state.analysisDomains.length > 0 && state.benchmarkAnswer.trim()
                 ? buildFrankQuestionPacketPrompt({
@@ -408,7 +424,10 @@ export default function LegalWorkflowPage() {
     const [frankDraftingDomains, setFrankDraftingDomains] = useState(false);
     const [frankRunningFitCheck, setFrankRunningFitCheck] = useState(false);
     const [frankGeneratingGolden, setFrankGeneratingGolden] = useState(false);
+    const [frankRefiningGolden, setFrankRefiningGolden] = useState(false);
+    const [frankRecheckingGolden, setFrankRecheckingGolden] = useState(false);
     const [frankGeneratingQuestion, setFrankGeneratingQuestion] = useState(false);
+    const [frankDeletingId, setFrankDeletingId] = useState<string | null>(null);
 
     const [karthicEditor, setKarthicEditor] = useState<KarthicEditorState>(DEFAULT_KARTHIC_STATE);
     const [karthicStep, setKarthicStep] = useState<KarthicWizardStep>('packet');
@@ -595,6 +614,9 @@ export default function LegalWorkflowPage() {
             caseCandidates: packet.selectedCase ? [packet.selectedCase] : [],
             analysisDomains: packet.analysisDomains ?? [],
             fitCheck: packet.fitCheck ?? buildNeedsReviewFrankFitCheckState(packet.selectedCase ?? null, packet.analysisDomains ?? []),
+            goldenWarnings: packet.goldenWarnings ?? [],
+            questionWarnings: packet.questionWarnings ?? [],
+            savedPrompts: packet.savedPrompts ?? [],
             fitSettings: options?.preserveSettings ? frankEditor.fitSettings : DEFAULT_FRANK_STATE.fitSettings,
             goldenSettings: options?.preserveSettings ? frankEditor.goldenSettings : DEFAULT_FRANK_STATE.goldenSettings,
             questionSettings: options?.preserveSettings ? frankEditor.questionSettings : DEFAULT_FRANK_STATE.questionSettings,
@@ -635,6 +657,9 @@ export default function LegalWorkflowPage() {
             return {
                 ...next,
                 fitCheck: invalidateFrankCaseDomainCheckpoint(next.selectedCase, next.analysisDomains),
+                goldenWarnings: [],
+                questionWarnings: [],
+                savedPrompts: current.savedPrompts,
                 benchmarkAnswer: '',
                 benchmarkQuestion: '',
             };
@@ -725,6 +750,8 @@ export default function LegalWorkflowPage() {
                     },
                     benchmarkAnswer: frankEditor.benchmarkAnswer,
                     benchmarkQuestion: frankEditor.benchmarkQuestion,
+                    goldenWarnings: frankEditor.goldenWarnings,
+                    questionWarnings: frankEditor.questionWarnings,
                     failureModeSeeds: splitTextarea(frankEditor.failureModeSeedsText),
                     masterIssueStatement: frankEditor.masterIssueStatement,
                     status: frankPackets.find((item) => item.id === frankEditor.id)?.status ?? 'draft',
@@ -813,7 +840,12 @@ export default function LegalWorkflowPage() {
         }
     }
 
-    async function generateFrankGoldenResponse() {
+    async function runFrankGoldenResponseGeneration(options?: {
+        refinementFeedback?: string[];
+        statusMessage?: string;
+        successPrefix?: string;
+        mode?: 'generate' | 'refine';
+    }) {
         if (!frankEditor.selectedCase) {
             setErrorMessage('Pick an anchor case first.');
             return;
@@ -822,9 +854,13 @@ export default function LegalWorkflowPage() {
             setErrorMessage('Frank needs 5-10 analysis domains before generating the golden response.');
             return;
         }
-        setFrankGeneratingGolden(true);
+        if (options?.mode === 'refine') {
+            setFrankRefiningGolden(true);
+        } else {
+            setFrankGeneratingGolden(true);
+        }
         setErrorMessage(null);
-        setStatusMessage('Generating and saving Frank’s golden response locally...');
+        setStatusMessage(options?.statusMessage ?? 'Generating and saving Frank’s golden response locally...');
         try {
             const response = await fetch('/api/frank-packets/golden-response', {
                 method: 'POST',
@@ -836,6 +872,27 @@ export default function LegalWorkflowPage() {
                     analysisDomains: frankEditor.analysisDomains,
                     model: frankEditor.goldenSettings.model,
                     reasoningEffort: frankEditor.goldenSettings.reasoningEffort,
+                    refinementFeedback: options?.refinementFeedback,
+                    currentDraft: {
+                        masterIssueStatement: frankEditor.masterIssueStatement,
+                        benchmarkAnswer: frankEditor.benchmarkAnswer,
+                        failureModeSeeds: splitTextarea(frankEditor.failureModeSeedsText),
+                        sourceIntake: {
+                            sourceQualityRating: frankEditor.sourceQualityRating,
+                            benchmarkPosture: frankEditor.benchmarkPosture,
+                            recommendation: frankEditor.recommendation,
+                            jdReviewBurden: splitTextarea(frankEditor.jdReviewBurdenText),
+                            reverseEngineeringSuitability: frankEditor.reverseEngineeringSuitability,
+                        },
+                        sourceExtraction: {
+                            legalIssue: frankEditor.legalIssue,
+                            blackLetterRule: frankEditor.blackLetterRule,
+                            triggerFacts: splitTextarea(frankEditor.triggerFactsText),
+                            holding: frankEditor.holding,
+                            limits: splitTextarea(frankEditor.limitsText),
+                            uncertainty: splitTextarea(frankEditor.uncertaintyText),
+                        },
+                    },
                 }),
             });
             const json = await response.json();
@@ -845,12 +902,104 @@ export default function LegalWorkflowPage() {
             const item = json.item as FrankPacket;
             applyFrankPacket(item, { step: 'golden', preserveSettings: true });
             setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
-            setStatusMessage(`Golden response saved locally as ${item.id}.`);
+            setStatusMessage(
+                item.goldenWarnings.length > 0
+                    ? `${options?.successPrefix ?? 'Golden response'} saved locally as ${item.id} with ${item.goldenWarnings.length} warning${item.goldenWarnings.length === 1 ? '' : 's'}.`
+                    : `${options?.successPrefix ?? 'Golden response'} saved locally as ${item.id}.`,
+            );
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to generate the golden response.');
             setStatusMessage(null);
         } finally {
-            setFrankGeneratingGolden(false);
+            if (options?.mode === 'refine') {
+                setFrankRefiningGolden(false);
+            } else {
+                setFrankGeneratingGolden(false);
+            }
+        }
+    }
+
+    async function generateFrankGoldenResponse() {
+        await runFrankGoldenResponseGeneration();
+    }
+
+    async function refineFrankGoldenResponseFromWarnings() {
+        if (frankEditor.goldenWarnings.length === 0) {
+            setErrorMessage('There are no saved detector warnings to refine against.');
+            return;
+        }
+        await runFrankGoldenResponseGeneration({
+            mode: 'refine',
+            refinementFeedback: frankEditor.goldenWarnings,
+            statusMessage: 'Refining the saved golden response using detector feedback...',
+            successPrefix: 'Refined golden response',
+        });
+    }
+
+    async function recheckFrankGoldenResponse() {
+        if (!frankEditor.selectedCase) {
+            setErrorMessage('Pick an anchor case first.');
+            return;
+        }
+        if (!isValidFrankDomainCount(frankEditor.analysisDomains)) {
+            setErrorMessage('Frank needs 5-10 analysis domains before re-checking the golden response.');
+            return;
+        }
+        if (!frankEditor.benchmarkAnswer.trim()) {
+            setErrorMessage('Generate or enter a golden response first.');
+            return;
+        }
+        setFrankRecheckingGolden(true);
+        setErrorMessage(null);
+        setStatusMessage('Re-checking the current golden-response draft...');
+        try {
+            const response = await fetch('/api/frank-packets/golden-recheck', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    id: frankEditor.id,
+                    legalDomain: frankEditor.legalDomain,
+                    selectedCase: frankEditor.selectedCase,
+                    analysisDomains: frankEditor.analysisDomains,
+                    currentDraft: {
+                        masterIssueStatement: frankEditor.masterIssueStatement,
+                        benchmarkAnswer: frankEditor.benchmarkAnswer,
+                        failureModeSeeds: splitTextarea(frankEditor.failureModeSeedsText),
+                        sourceIntake: {
+                            sourceQualityRating: frankEditor.sourceQualityRating,
+                            benchmarkPosture: frankEditor.benchmarkPosture,
+                            recommendation: frankEditor.recommendation,
+                            jdReviewBurden: splitTextarea(frankEditor.jdReviewBurdenText),
+                            reverseEngineeringSuitability: frankEditor.reverseEngineeringSuitability,
+                        },
+                        sourceExtraction: {
+                            legalIssue: frankEditor.legalIssue,
+                            blackLetterRule: frankEditor.blackLetterRule,
+                            triggerFacts: splitTextarea(frankEditor.triggerFactsText),
+                            holding: frankEditor.holding,
+                            limits: splitTextarea(frankEditor.limitsText),
+                            uncertainty: splitTextarea(frankEditor.uncertaintyText),
+                        },
+                    },
+                }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to re-check the golden response.');
+            }
+            const item = json.item as FrankPacket;
+            applyFrankPacket(item, { step: 'golden', preserveSettings: true });
+            setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
+            setStatusMessage(
+                item.goldenWarnings.length > 0
+                    ? `Golden response re-checked and saved with ${item.goldenWarnings.length} warning${item.goldenWarnings.length === 1 ? '' : 's'}.`
+                    : 'Golden response re-checked and saved with no detector warnings.',
+            );
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to re-check the golden response.');
+            setStatusMessage(null);
+        } finally {
+            setFrankRecheckingGolden(false);
         }
     }
 
@@ -887,7 +1036,11 @@ export default function LegalWorkflowPage() {
             const item = json.item as FrankPacket;
             applyFrankPacket(item, { step: 'question', preserveSettings: true });
             setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
-            setStatusMessage('Question packet generated and saved locally.');
+            setStatusMessage(
+                item.questionWarnings.length > 0
+                    ? `Question packet saved locally with ${item.questionWarnings.length} warning${item.questionWarnings.length === 1 ? '' : 's'}.`
+                    : 'Question packet generated and saved locally.',
+            );
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to generate the question packet.');
             setStatusMessage(null);
@@ -929,6 +1082,8 @@ export default function LegalWorkflowPage() {
                     },
                     benchmarkAnswer: frankEditor.benchmarkAnswer,
                     benchmarkQuestion: frankEditor.benchmarkQuestion,
+                    goldenWarnings: frankEditor.goldenWarnings,
+                    questionWarnings: frankEditor.questionWarnings,
                     failureModeSeeds: splitTextarea(frankEditor.failureModeSeedsText),
                     masterIssueStatement: frankEditor.masterIssueStatement,
                     status,
@@ -945,6 +1100,64 @@ export default function LegalWorkflowPage() {
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to save Frank packet.');
             setStatusMessage(null);
+        }
+    }
+
+    async function deleteFrank(id: string) {
+        const packet = frankPackets.find((item) => item.id === id);
+        if (!packet) {
+            setErrorMessage('Frank packet not found.');
+            return;
+        }
+        const confirmed = window.confirm(`Delete "${packet.legalDomain} · ${packet.domainScope}"? This cannot be undone.`);
+        if (!confirmed) {
+            return;
+        }
+
+        setFrankDeletingId(id);
+        setErrorMessage(null);
+        setStatusMessage('Deleting Frank packet...');
+        try {
+            const response = await fetch('/api/frank-packets', {
+                method: 'DELETE',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ id }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to delete Frank packet.');
+            }
+
+            const remainingPackets = frankPackets.filter((item) => item.id !== id);
+            setFrankPackets(remainingPackets);
+            if (frankEditor.id === id) {
+                const nextPacket = remainingPackets[0] ?? null;
+                if (nextPacket) {
+                    applyFrankPacket(nextPacket, { preserveSettings: true });
+                } else {
+                    setFrankEditor((current) => ({
+                        ...DEFAULT_FRANK_STATE,
+                        fitSettings: current.fitSettings,
+                        goldenSettings: current.goldenSettings,
+                        questionSettings: current.questionSettings,
+                    }));
+                    setFrankStep('domain');
+                }
+            }
+            if (karthicEditor.frankPacketId === id) {
+                setKarthicEditor((current) => ({
+                    ...DEFAULT_KARTHIC_STATE,
+                    smeNotes: current.smeNotes,
+                    comparisonMethodNote: current.comparisonMethodNote,
+                }));
+                setKarthicStep('packet');
+            }
+            setStatusMessage('Frank packet deleted.');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to delete Frank packet.');
+            setStatusMessage(null);
+        } finally {
+            setFrankDeletingId(null);
         }
     }
 
@@ -1534,30 +1747,57 @@ export default function LegalWorkflowPage() {
                                         <button
                                             type="button"
                                             onClick={() => void generateFrankGoldenResponse()}
-                                            disabled={frankGeneratingGolden || !frankCanGenerateGolden}
+                                            disabled={frankGeneratingGolden || frankRefiningGolden || frankRecheckingGolden || !frankCanGenerateGolden}
                                             className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
                                         >
                                             {frankGeneratingGolden ? 'Generating...' : 'Generate And Save Golden Response'}
                                         </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => void recheckFrankGoldenResponse()}
+                                            disabled={frankGeneratingGolden || frankRefiningGolden || frankRecheckingGolden || !frankEditor.benchmarkAnswer.trim() || !frankCanGenerateGolden}
+                                            className="mt-3 ml-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
+                                        >
+                                            {frankRecheckingGolden ? 'Re-Checking...' : 'Re-Check Current Draft'}
+                                        </button>
                                     </div>
                                     <FrankFitCheckStatusCard fitCheck={frankEditor.fitCheck} />
+                                    {frankEditor.goldenWarnings.length > 0 ? (
+                                        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                                            <p className="text-sm font-semibold">Golden response saved with warning(s).</p>
+                                            <p className="mt-1 text-sm">The detector found language that may still point too directly at the grounding case. The draft remains saved and usable, but review these notes before treating it as final.</p>
+                                            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm">
+                                                {frankEditor.goldenWarnings.map((warning) => (
+                                                    <li key={warning}>{warning}</li>
+                                                ))}
+                                            </ul>
+                                            <button
+                                                type="button"
+                                                onClick={() => void refineFrankGoldenResponseFromWarnings()}
+                                                disabled={frankGeneratingGolden || frankRefiningGolden || frankRecheckingGolden}
+                                                className="mt-3 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-800 disabled:opacity-60"
+                                            >
+                                                {frankRefiningGolden ? 'Refining...' : 'Refine With This Feedback'}
+                                            </button>
+                                        </div>
+                                    ) : null}
                                     <LabeledTextarea
                                         label="Master Issue Statement"
                                         value={frankEditor.masterIssueStatement}
-                                        onChange={(value) => setFrankEditor((current) => ({ ...current, masterIssueStatement: value }))}
+                                        onChange={(value) => setFrankEditor((current) => ({ ...current, masterIssueStatement: value, goldenWarnings: [] }))}
                                         rows={4}
                                     />
                                     <LabeledTextarea
                                         label="Frank Golden Response"
                                         value={frankEditor.benchmarkAnswer}
-                                        onChange={(value) => setFrankEditor((current) => ({ ...current, benchmarkAnswer: value }))}
+                                        onChange={(value) => setFrankEditor((current) => ({ ...current, benchmarkAnswer: value, goldenWarnings: [] }))}
                                         rows={16}
                                         hint={frankEditor.id ? `Saved locally as ${frankEditor.id}.` : 'Frank saves this locally as soon as it is generated.'}
                                     />
                                     <LabeledTextarea
                                         label="Failure-Mode Seeds"
                                         value={frankEditor.failureModeSeedsText}
-                                        onChange={(value) => setFrankEditor((current) => ({ ...current, failureModeSeedsText: value }))}
+                                        onChange={(value) => setFrankEditor((current) => ({ ...current, failureModeSeedsText: value, goldenWarnings: [] }))}
                                         rows={4}
                                         hint="Optional weak-answer notes that can help later refinement."
                                     />
@@ -1623,10 +1863,21 @@ export default function LegalWorkflowPage() {
                                             {frankGeneratingQuestion ? 'Generating...' : 'Generate And Save Question Packet'}
                                         </button>
                                     </div>
+                                    {frankEditor.questionWarnings.length > 0 ? (
+                                        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                                            <p className="text-sm font-semibold">Question packet saved with warning(s).</p>
+                                            <p className="mt-1 text-sm">Frank saved the packet, but the detector found places where anonymization or domain alignment may still need review.</p>
+                                            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm">
+                                                {frankEditor.questionWarnings.map((warning) => (
+                                                    <li key={warning}>{warning}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ) : null}
                                     <LabeledTextarea
                                         label="Question Packet"
                                         value={frankEditor.benchmarkQuestion}
-                                        onChange={(value) => setFrankEditor((current) => ({ ...current, benchmarkQuestion: value }))}
+                                        onChange={(value) => setFrankEditor((current) => ({ ...current, benchmarkQuestion: value, questionWarnings: [] }))}
                                         rows={14}
                                         hint="This stays editable after generation."
                                     />
@@ -1666,12 +1917,21 @@ export default function LegalWorkflowPage() {
                             items={frankExplainerItems}
                             activeStep={frankStep}
                         />
-                        <ArtifactListCard title="Frank Packets" items={frankPackets} onSelect={(id) => {
-                            const item = frankPackets.find((packet) => packet.id === id);
-                            if (item) {
-                                applyFrankPacket(item);
-                            }
-                        }} />
+                        <ArtifactListCard
+                            title="Frank Packets"
+                            items={frankPackets}
+                            selectedId={frankEditor.id}
+                            onSelect={(id) => {
+                                const item = frankPackets.find((packet) => packet.id === id);
+                                if (item) {
+                                    applyFrankPacket(item);
+                                }
+                            }}
+                            onDelete={(id) => {
+                                void deleteFrank(id);
+                            }}
+                            deletingId={frankDeletingId}
+                        />
                     </div>
                 </section>
             )}
@@ -2747,6 +3007,13 @@ function StepExplainerCard<TStep extends string>({
                                         promptLabel={item.promptLabel}
                                         emptyState={item.promptEmptyState}
                                     />
+                                    {item.extraPromptText ? (
+                                        <PromptPreview
+                                            promptText={item.extraPromptText}
+                                            promptLabel={item.extraPromptLabel}
+                                            emptyState={item.extraPromptEmptyState}
+                                        />
+                                    ) : null}
                                 </div>
                             ) : null}
                         </div>
@@ -2798,11 +3065,15 @@ function ArtifactListCard({
     items,
     onSelect,
     selectedId,
+    onDelete,
+    deletingId,
 }: {
     title: string;
     items: Array<{ id: string; status?: string; updatedAt?: string; legalDomain?: string; domainScope?: string; createdAt?: string }>;
     onSelect: (id: string) => void;
     selectedId?: string;
+    onDelete?: (id: string) => void;
+    deletingId?: string | null;
 }) {
     return (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -2815,19 +3086,38 @@ function ArtifactListCard({
                 <div className="mt-4 space-y-3">
                     {items.map((item) => {
                         const isSelected = item.id === selectedId;
+                        const isDeleting = item.id === deletingId;
                         return (
-                        <button
+                        <div
                             key={item.id}
-                            type="button"
-                            onClick={() => onSelect(item.id)}
-                            className={`w-full rounded-xl border px-4 py-3 text-left transition ${isSelected ? 'border-teal-300 bg-teal-50/70 shadow-[0_10px_24px_rgba(13,148,136,0.08)]' : 'border-slate-200 bg-slate-50 hover:border-teal-200 hover:bg-teal-50/40'}`}
+                            className={`rounded-xl border transition ${isSelected ? 'border-teal-300 bg-teal-50/70 shadow-[0_10px_24px_rgba(13,148,136,0.08)]' : 'border-slate-200 bg-slate-50 hover:border-teal-200 hover:bg-teal-50/40'}`}
                         >
-                            <div className="flex items-center justify-between gap-3">
-                                <p className="text-sm font-semibold text-slate-800">{item.legalDomain ? `${item.legalDomain} · ${item.domainScope ?? ''}` : item.id}</p>
-                                <ApprovalBadge approved={item.status === 'approved' || item.status === 'completed'} label={item.status ?? 'draft'} />
+                            <div className="flex items-start gap-3 px-4 py-3">
+                                <button
+                                    type="button"
+                                    onClick={() => onSelect(item.id)}
+                                    className="min-w-0 flex-1 text-left"
+                                >
+                                    <p className="text-sm font-semibold text-slate-800">{item.legalDomain ? `${item.legalDomain} · ${item.domainScope ?? ''}` : item.id}</p>
+                                    <p className="mt-2 text-xs text-slate-500">{item.updatedAt ?? item.createdAt ?? ''}</p>
+                                </button>
+                                <div className="flex shrink-0 items-center gap-2">
+                                    <ApprovalBadge approved={item.status === 'approved' || item.status === 'completed'} label={item.status ?? 'draft'} />
+                                    {onDelete ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => onDelete(item.id)}
+                                            disabled={Boolean(deletingId)}
+                                            aria-label={`Delete ${item.legalDomain ? `${item.legalDomain} ${item.domainScope ?? ''}` : item.id}`}
+                                            className="rounded-lg border border-rose-200 bg-white p-2 text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    ) : null}
+                                </div>
                             </div>
-                            <p className="mt-2 text-xs text-slate-500">{item.updatedAt ?? item.createdAt ?? ''}</p>
-                        </button>
+                            {isDeleting ? <p className="px-4 pb-3 text-xs font-medium text-rose-700">Deleting...</p> : null}
+                        </div>
                         );
                     })}
                 </div>
