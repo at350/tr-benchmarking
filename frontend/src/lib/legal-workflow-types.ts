@@ -34,7 +34,7 @@ export type FrankAnalysisDomain = {
     description: string;
 };
 
-export type FrankDomainFitLabel = 'Direct fit' | 'Weak fit' | 'Does not fit';
+export type FrankDomainFitLabel = 'Direct fit' | 'Peripheral but valid' | 'Weak fit' | 'Does not fit';
 
 export type FrankCaseDomainFitResult = {
     domainId: string;

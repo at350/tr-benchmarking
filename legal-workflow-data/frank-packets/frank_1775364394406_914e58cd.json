@@ -1,0 +1,129 @@
+{
+  "id": "frank_1775364394406_914e58cd",
+  "status": "draft",
+  "legalDomain": "legal standards for establishing intent in homicides",
+  "domainScope": "Morissette v. United States",
+  "sourceFamily": "web_searched_anchor_case",
+  "selectedCase": {
+    "id": "case_1",
+    "title": "Morissette v. United States",
+    "citation": "342 U.S. 246 (1952)",
+    "court": "U.S. Supreme Court",
+    "year": "1952",
+    "url": "https://www.govinfo.gov/content/pkg/USREPORTS-342/pdf/USREPORTS-342-246.pdf",
+    "summary": "Established the strong presumption that criminal statutes require a mens rea (criminal intent) and that omission of intent from a statute will not be read to eliminate it absent a clear congressional command. ([govinfo.gov](https://www.govinfo.gov/content/pkg/USREPORTS-342/pdf/USREPORTS-342-246.pdf?utm_source=openai))",
+    "relevance": "Foundational Supreme Court precedent for the mens rea requirement in criminal homicide and other serious offenses (teachable, doctrinal)."
+  },
+  "analysisDomains": [
+    {
+      "id": "analysis_domain_1",
+      "name": "Presumption of Mens Rea (Morissette Rule)",
+      "description": "Explain and apply the Morissette principle that criminal statutes are subject to a strong presumption in favor of a required mens rea; omission of an explicit mental element will not be read to eliminate scienter unless Congress's intent to do so is clear and compelling. Show how this presumption operates in interpreting homicide statutes and related criminal provisions."
+    },
+    {
+      "id": "analysis_domain_2",
+      "name": "Statutory Text, Structure, and Legislative Intent Signals",
+      "description": "Identify interpretive tools for deciding whether Congress intended to displace mens rea: plain language (words like \"knowingly,\" \"willfully\"), statutory scheme and headings, penalty severity, legislative history, and statutory purpose. Assess how these signals support or undermine reading a mental state into a homicide provision."
+    },
+    {
+      "id": "analysis_domain_3",
+      "name": "Seriousness of the Offense, Stigma, and Common-Law Background",
+      "description": "Weigh the gravity of homicide (high stigma and severe punishment) and common-law traditions requiring intent or malice aforethought against any claim that mens rea should be dispensed with; explain why Morissette treats serious, stigma-laden crimes as especially likely to require scienter."
+    },
+    {
+      "id": "analysis_domain_4",
+      "name": "Nature of the Required Mens Rea in Homicide Contexts",
+      "description": "Differentiate among culpability concepts relevant to killing—specific intent (intent to kill), knowledge, implied malice, recklessness, criminal negligence, transferred intent, and \"malice\" doctrines—and analyze how courts infer or read these states into statutes when the text is silent or ambiguous."
+    },
+    {
+      "id": "analysis_domain_5",
+      "name": "Proof, Inference, and Defenses (Including Mistake and Omissions)",
+      "description": "Address evidentiary approaches for proving mens rea in homicide cases: direct versus circumstantial evidence, permissible inferences from conduct and circumstances, jury instructions, burdens of proof, and defenses such as reasonable mistake of fact or lack of duty where death results from an omission."
+    },
+    {
+      "id": "analysis_domain_6",
+      "name": "Recognized Exceptions and Constitutional Constraints (Public-Welfare, Rule of Lenity, Due Process)",
+      "description": "Map out the limited exceptions where courts allow strict liability or reduced mens rea requirements (public-welfare/regulatory offenses) and the constitutional/fair-notice constraints (due process, rule of lenity) that limit those exceptions—explain why such exceptions rarely apply to homicide and how Morissette informs those limits."
+    }
+  ],
+  "sourceArtifacts": [],
+  "sourceIntake": {
+    "sourceQualityRating": "Web-found appellate case anchor: Morissette v. United States.",
+    "benchmarkPosture": "generalizable_only_with_supporting_authority",
+    "recommendation": "Use Morissette v. United States as the anchor case, but verify continued validity and jurisdictional fit.",
+    "jdReviewBurden": [
+      "Confirm precedential weight and current validity.",
+      "Confirm the rule is stated at the right level of generality for the benchmark."
+    ],
+    "reverseEngineeringSuitability": "moderate"
+  },
+  "sourceExtraction": {
+    "legalIssue": "Held that criminal intent (mens rea) is generally an element of crime—omission of an express mens rea term in a statute should not be read as eliminating that element; intent must be proven and is a jury question.",
+    "blackLetterRule": "State the controlling rule drawn from Morissette v. United States narrowly and accurately.",
+    "triggerFacts": [
+      "Facts relevant to presumption of mens rea and statutory interpretation (morissette principle).",
+      "Facts relevant to categories and definitions of homicide mental states.",
+      "Facts relevant to proof of intent: evidence, inferences, and burden of proof."
+    ],
+    "holding": "Foundational mens rea authority for distinguishing crimes that require intent from strict-liability/public-welfare offenses; very teachable for homicide intent analysis. ([supreme.justia.com](https://supreme.justia.com/cases/federal/us/342/246/?utm_source=openai))",
+    "limits": [
+      "Do not overgeneralize Morissette v. United States beyond its facts, court, and doctrinal setting."
+    ],
+    "uncertainty": [
+      "Validate citation accuracy, current validity, and how portable the rule should be."
+    ]
+  },
+  "fitCheck": {
+    "status": "warning",
+    "overrideAccepted": false,
+    "stale": false,
+    "lastRunAt": "2026-04-05T06:35:59.766Z",
+    "caseFingerprint": "{\"id\":\"case_1\",\"title\":\"Morissette v. United States\",\"citation\":\"342 U.S. 246 (1952)\",\"court\":\"U.S. Supreme Court\",\"year\":\"1952\",\"summary\":\"Established the strong presumption that criminal statutes require a mens rea (criminal intent) and that omission of intent from a statute will not be read to eliminate it absent a clear congressional command. ([govinfo.gov](https://www.govinfo.gov/content/pkg/USREPORTS-342/pdf/USREPORTS-342-246.pdf?utm_source=openai))\",\"relevance\":\"Foundational Supreme Court precedent for the mens rea requirement in criminal homicide and other serious offenses (teachable, doctrinal).\"}",
+    "domainFingerprint": "[{\"id\":\"analysis_domain_1\",\"name\":\"Presumption of Mens Rea (Morissette Rule)\",\"description\":\"Explain and apply the Morissette principle that criminal statutes are subject to a strong presumption in favor of a required mens rea; omission of an explicit mental element will not be read to eliminate scienter unless Congress's intent to do so is clear and compelling. Show how this presumption operates in interpreting homicide statutes and related criminal provisions.\"},{\"id\":\"analysis_domain_2\",\"name\":\"Statutory Text, Structure, and Legislative Intent Signals\",\"description\":\"Identify interpretive tools for deciding whether Congress intended to displace mens rea: plain language (words like \\\"knowingly,\\\" \\\"willfully\\\"), statutory scheme and headings, penalty severity, legislative history, and statutory purpose. Assess how these signals support or undermine reading a mental state into a homicide provision.\"},{\"id\":\"analysis_domain_3\",\"name\":\"Seriousness of the Offense, Stigma, and Common-Law Background\",\"description\":\"Weigh the gravity of homicide (high stigma and severe punishment) and common-law traditions requiring intent or malice aforethought against any claim that mens rea should be dispensed with; explain why Morissette treats serious, stigma-laden crimes as especially likely to require scienter.\"},{\"id\":\"analysis_domain_4\",\"name\":\"Nature of the Required Mens Rea in Homicide Contexts\",\"description\":\"Differentiate among culpability concepts relevant to killing—specific intent (intent to kill), knowledge, implied malice, recklessness, criminal negligence, transferred intent, and \\\"malice\\\" doctrines—and analyze how courts infer or read these states into statutes when the text is silent or ambiguous.\"},{\"id\":\"analysis_domain_5\",\"name\":\"Proof, Inference, and Defenses (Including Mistake and Omissions)\",\"description\":\"Address evidentiary approaches for proving mens rea in homicide cases: direct versus circumstantial evidence, permissible inferences from conduct and circumstances, jury instructions, burdens of proof, and defenses such as reasonable mistake of fact or lack of duty where death results from an omission.\"},{\"id\":\"analysis_domain_6\",\"name\":\"Recognized Exceptions and Constitutional Constraints (Public-Welfare, Rule of Lenity, Due Process)\",\"description\":\"Map out the limited exceptions where courts allow strict liability or reduced mens rea requirements (public-welfare/regulatory offenses) and the constitutional/fair-notice constraints (due process, rule of lenity) that limit those exceptions—explain why such exceptions rarely apply to homicide and how Morissette informs those limits.\"}]",
+    "results": [
+      {
+        "domainId": "analysis_domain_1",
+        "domainName": "Presumption of Mens Rea (Morissette Rule)",
+        "label": "Direct fit",
+        "explanation": "This is the core teaching of Morissette. The case is the canonical statement that courts strongly presume a criminal mens rea requirement even when a statute is silent, absent a clear command to dispense with it. Applying that principle to homicide statutes is a straightforward and benchmark-meaningful extension."
+      },
+      {
+        "domainId": "analysis_domain_2",
+        "domainName": "Statutory Text, Structure, and Legislative Intent Signals",
+        "label": "Direct fit",
+        "explanation": "Morissette is centrally about how courts interpret statutory silence on mental state, using text, context, common-law background, and indications of legislative purpose to decide whether mens rea was displaced. Although the domain lists some tools more broadly than the case itself, this interpretive framework is substantial to what Morissette teaches and transfers well to homicide provisions."
+      },
+      {
+        "domainId": "analysis_domain_3",
+        "domainName": "Seriousness of the Offense, Stigma, and Common-Law Background",
+        "label": "Direct fit",
+        "explanation": "Morissette explicitly contrasts traditional, stigma-laden crimes rooted in the common law with low-level public-welfare offenses, and treats the former as especially unlikely to be strict liability crimes. That reasoning maps directly onto homicide, where gravity, punishment, and common-law mental-state traditions strongly reinforce a scienter requirement."
+      },
+      {
+        "domainId": "analysis_domain_4",
+        "domainName": "Nature of the Required Mens Rea in Homicide Contexts",
+        "label": "Weak fit",
+        "explanation": "Morissette supports the general proposition that some culpable mental state is ordinarily required, but it does not teach the distinct homicide mens rea categories listed here—intent to kill, knowledge, implied malice, recklessness, criminal negligence, transferred intent, or malice doctrine. Those are important homicide doctrines, but they go well beyond the specific contribution of the anchor case."
+      },
+      {
+        "domainId": "analysis_domain_5",
+        "domainName": "Proof, Inference, and Defenses (Including Mistake and Omissions)",
+        "label": "Peripheral but valid",
+        "explanation": "Morissette does meaningfully connect to proof of mens rea, jury instructions, and mistake-of-fact-type issues, because the error in the case was removing intent from the jury despite evidence bearing on the defendant's state of mind. But the broader domain—especially omission liability and generalized homicide defenses—extends well beyond the case, so it is connected but secondary."
+      },
+      {
+        "domainId": "analysis_domain_6",
+        "domainName": "Recognized Exceptions and Constitutional Constraints (Public-Welfare, Rule of Lenity, Due Process)",
+        "label": "Direct fit",
+        "explanation": "A major part of Morissette is identifying the narrow class of public-welfare offenses where mens rea may be reduced or omitted, while emphasizing that such treatment does not ordinarily extend to serious common-law-type crimes. That makes the exceptions framework directly tied to the case; the rule-of-lenity and due-process aspects are adjacent rather than express holdings, but they fit the same doctrinal logic and are benchmark-useful in homicide analysis."
+      }
+    ]
+  },
+  "benchmarkAnswer": "",
+  "benchmarkQuestion": "",
+  "failureModeSeeds": [],
+  "masterIssueStatement": "Foundational mens rea authority for distinguishing crimes that require intent from strict-liability/public-welfare offenses; very teachable for homicide intent analysis. ([supreme.justia.com](https://supreme.justia.com/cases/federal/us/342/246/?utm_source=openai))",
+  "approvedAt": null,
+  "createdAt": "2026-04-05T04:46:34.406Z",
+  "updatedAt": "2026-04-05T06:35:59.769Z"
+}

@@ -10,6 +10,17 @@ import { promisify } from 'util';
 
 import OpenAI from 'openai';
 
+import {
+    buildDashaGenerationUserPrompt,
+    buildFrankAnalysisDomainsPrompt,
+    buildFrankCaseSearchPrompt,
+    buildFrankFitCheckPrompt,
+    buildFrankGoldenResponsePrompt,
+    buildFrankQuestionPacketPrompt,
+    buildKarthicDomainDraftPrompt,
+    buildKarthicGoldenTargetsPrompt,
+    DASHA_GENERATION_SYSTEM_PROMPT,
+} from '@/lib/legal-workflow-prompts';
 import type {
     ArtifactRecord,
     ArtifactRole,
@@ -87,6 +98,8 @@ type RunFrankFitCheckInput = {
     legalDomain: string;
     selectedCase: FrankCaseCandidate;
     analysisDomains: FrankAnalysisDomain[];
+    model?: string;
+    reasoningEffort?: ReasoningEffort;
 };
 
 type GenerateFrankQuestionPacketInput = {
@@ -259,7 +272,10 @@ export async function saveFrankPacket(input: SaveFrankInput): Promise<FrankPacke
     const benchmarkQuestion = normalizeOptionalString(input.benchmarkQuestion, existing?.benchmarkQuestion ?? '');
     const masterIssueStatement = normalizeOptionalString(
         input.masterIssueStatement,
-        existing?.masterIssueStatement ?? selectedCase?.relevance ?? `Analyze ${input.legalDomain.trim()} using the selected anchor case.`,
+        existing?.masterIssueStatement ?? buildFrankGeneralizedMasterIssueFallback({
+            legalDomain: input.legalDomain,
+            analysisDomains,
+        }),
     );
 
     const packet: FrankPacket = {
@@ -319,13 +335,7 @@ export async function searchFrankCaseCandidates(input: SearchFrankCasesInput): P
     try {
         const response = await openai.responses.create({
             model: 'gpt-5-mini',
-            input: [
-                `Legal domain: ${legalDomain}`,
-                '',
-                'Search the open web for 3-5 strong U.S. anchor cases that could ground a benchmarking packet.',
-                'Prefer cases that are well-known, teachable, and have a clear holding.',
-                'Return concise results only.',
-            ].join('\n'),
+            input: buildFrankCaseSearchPrompt(legalDomain),
             tools: [{
                 type: 'web_search',
                 user_location: {
@@ -395,19 +405,11 @@ export async function draftFrankAnalysisDomains(input: DraftFrankAnalysisDomains
     try {
         const response = await openai.responses.create({
             model: 'gpt-5-mini',
-            input: [
-                `Legal domain: ${legalDomain}`,
-                `Anchor case: ${selectedCase.title}`,
-                `Citation: ${selectedCase.citation}`,
-                `Court: ${selectedCase.court}`,
-                `Year: ${selectedCase.year}`,
-                `Summary: ${selectedCase.summary}`,
-                `Why this case matters: ${selectedCase.relevance}`,
-                '',
-                `Create ${Math.min(Math.max(input.desiredCount ?? 6, 5), 10)} editable analysis domains for a benchmark packet.`,
-                'Each domain should be short, human-readable, and distinct.',
-                'These are analysis buckets, not rubric rows.',
-            ].join('\n'),
+            input: buildFrankAnalysisDomainsPrompt({
+                legalDomain,
+                selectedCase,
+                desiredCount: input.desiredCount,
+            }),
             text: {
                 verbosity: 'medium',
                 format: {
@@ -459,32 +461,31 @@ export async function runFrankCaseDomainFitCheck(input: RunFrankFitCheckInput): 
     }
 
     const existing = input.id ? await getFrankPacket(input.id) : null;
+    const model = normalizeFrankGenerationModel(input.model);
+    const reasoningEffort = normalizeFrankGenerationReasoningEffort(input.reasoningEffort);
     requireOpenAiApiKey('Frank case-domain fit check');
     let fitCheck: FrankCaseDomainFitCheck;
     try {
-        const response = await openai.responses.create({
-            model: 'gpt-5-mini',
-            input: [
-                'Evaluate whether each proposed benchmark analysis domain fits the selected anchor case.',
-                `Legal domain: ${legalDomain}`,
-                `Anchor case title: ${selectedCase.title}`,
-                `Citation: ${selectedCase.citation}`,
-                `Court: ${selectedCase.court}`,
-                `Year: ${selectedCase.year}`,
-                `Case summary: ${selectedCase.summary}`,
-                `Why selected: ${selectedCase.relevance}`,
-                '',
-                'Use exactly one label for each domain:',
-                '- Direct fit: the case directly teaches or squarely supports this domain.',
-                '- Weak fit: the domain is only tangential, conditional, or secondary to what the case actually covers.',
-                '- Does not fit: the domain imports a different doctrinal frame and would likely contaminate the packet.',
-                '',
-                'Return every domain once, keeping the same domainId and domainName.',
-                'Be strict. If a domain would push the benchmark into a different doctrine, mark Does not fit.',
-                '',
-                'Domains:',
-                ...analysisDomains.map((domain, index) => `${index + 1}. ${domain.id} | ${domain.name} | ${domain.description}`),
-            ].join('\n'),
+        const request: {
+            model: string;
+            input: string;
+            text: {
+                verbosity: 'medium';
+                format: {
+                    type: 'json_schema';
+                    name: 'frank_case_domain_fit_check';
+                    strict: true;
+                    schema: Record<string, unknown>;
+                };
+            };
+            reasoning?: { effort: 'low' | 'medium' | 'high'; summary: 'auto' };
+        } = {
+            model,
+            input: buildFrankFitCheckPrompt({
+                legalDomain,
+                selectedCase,
+                analysisDomains,
+            }),
             text: {
                 verbosity: 'medium',
                 format: {
@@ -506,7 +507,7 @@ export async function runFrankCaseDomainFitCheck(input: RunFrankFitCheckInput): 
                                         domainName: { type: 'string' },
                                         label: {
                                             type: 'string',
-                                            enum: ['Direct fit', 'Weak fit', 'Does not fit'],
+                                            enum: ['Direct fit', 'Peripheral but valid', 'Weak fit', 'Does not fit'],
                                         },
                                         explanation: { type: 'string' },
                                     },
@@ -518,7 +519,15 @@ export async function runFrankCaseDomainFitCheck(input: RunFrankFitCheckInput): 
                     },
                 },
             },
-        });
+        };
+        const mappedEffort = mapReasoningEffort(reasoningEffort);
+        if (mappedEffort) {
+            request.reasoning = {
+                effort: mappedEffort,
+                summary: 'auto',
+            };
+        }
+        const response = await openai.responses.create(request);
 
         const parsed = safeJsonParse<{ results?: unknown }>(extractResponsesText(response));
         fitCheck = normalizeFrankFitCheckResults(parsed?.results, selectedCase, analysisDomains);
@@ -540,7 +549,10 @@ export async function runFrankCaseDomainFitCheck(input: RunFrankFitCheckInput): 
         benchmarkAnswer: existing?.benchmarkAnswer ?? '',
         benchmarkQuestion: existing?.benchmarkQuestion ?? '',
         failureModeSeeds: existing?.failureModeSeeds ?? [],
-        masterIssueStatement: existing?.masterIssueStatement ?? selectedCase.relevance,
+        masterIssueStatement: existing?.masterIssueStatement ?? buildFrankGeneralizedMasterIssueFallback({
+            legalDomain,
+            analysisDomains,
+        }),
         status: existing?.status ?? 'draft',
     });
 }
@@ -593,38 +605,11 @@ export async function generateFrankGoldenResponse(input: GenerateFrankGoldenResp
             reasoning?: { effort: 'low' | 'medium' | 'high'; summary: 'auto' };
         } = {
             model,
-            input: [
-                `Legal domain: ${legalDomain}`,
-                `Anchor case title: ${selectedCase.title}`,
-                `Citation: ${selectedCase.citation}`,
-                `Court: ${selectedCase.court}`,
-                `Year: ${selectedCase.year}`,
-                `Source URL: ${selectedCase.url}`,
-                `Case summary: ${selectedCase.summary}`,
-                `Why selected: ${selectedCase.relevance}`,
-                '',
-                'Analysis domains:',
-                ...analysisDomains.map((domain, index) => `${index + 1}. ${domain.name}: ${domain.description}`),
-                '',
-                'You are drafting the internal golden answer for a legal benchmarking packet.',
-                'Use the anchor case and any search results to produce a source-grounded, doctrinally serious memo that will later support rubric design.',
-                'Write for legal analysis, not for persuasion or classroom theatrics.',
-                '',
-                'Benchmark-answer requirements:',
-                '- Start with a one-paragraph bottom-line answer to the core issue.',
-                '- Then add one clearly labeled section per analysis domain, using the domain names exactly as provided.',
-                '- In each domain section, separate the governing rule from the application of the facts.',
-                '- Explain what the case clearly supports, what is only inferentially supported, and what remains uncertain.',
-                '- If a domain is only weakly addressed, say that explicitly and keep the discussion narrow rather than inventing doctrine.',
-                '- Include the strongest counterargument or competing interpretation where relevant.',
-                '- Do not mention these instructions, JSON, schemas, tool calls, or that this is a benchmark packet.',
-                '',
-                'Metadata requirements:',
-                '- masterIssueStatement should state the central legal question in one sentence.',
-                '- failureModeSeeds should list realistic wrong turns a weak answer might make.',
-                '- sourceIntake should describe how portable and trustworthy the source is for benchmarking.',
-                '- sourceExtraction should capture the legal issue, black-letter rule, trigger facts, holding, limits, and uncertainty in plain legal English.',
-            ].join('\n'),
+            input: buildFrankGoldenResponsePrompt({
+                legalDomain,
+                selectedCase,
+                analysisDomains,
+            }),
             tools: [{
                 type: 'web_search',
                 user_location: {
@@ -728,6 +713,7 @@ export async function generateFrankGoldenResponse(input: GenerateFrankGoldenResp
             sourceIntake: normalizeSourceIntake(parsed?.sourceIntake, fallback.sourceIntake),
             sourceExtraction: normalizeSourceExtraction(parsed?.sourceExtraction, fallback.sourceExtraction),
         };
+        assertGeneralizedFrankGoldenDraft(draft, selectedCase);
     } catch (error) {
         throw new Error(`Frank golden response generation failed: ${describeError(error, 'OpenAI request failed.')}`);
     }
@@ -786,40 +772,12 @@ export async function generateFrankQuestionPacket(input: GenerateFrankQuestionPa
             reasoning?: { effort: 'low' | 'medium' | 'high'; summary: 'auto' };
         } = {
             model,
-            input: [
-                `Legal domain: ${legalDomain}`,
-                `Hidden source case title: ${selectedCase.title}`,
-                `Hidden source citation: ${selectedCase.citation}`,
-                `Hidden source court: ${selectedCase.court}`,
-                `Hidden source year: ${selectedCase.year}`,
-                `Hidden source summary: ${selectedCase.summary}`,
-                `Why the source matters: ${selectedCase.relevance}`,
-                '',
-                'Analysis domains:',
-                ...analysisDomains.map((domain, index) => `${index + 1}. ${domain.name}: ${domain.description}`),
-                '',
-                'Hidden golden response for drafting only:',
-                benchmarkAnswer.slice(0, 9000),
-                '',
-                'Draft a blind legal benchmark question packet that tests reasoning rather than recall.',
-                'The output must be a fresh hypothetical based on the doctrine and fact pattern, not a visible retelling of the anchor case.',
-                '',
-                'Hard rules:',
-                '- Do not mention the source case title, party names, citation, court, year, judge, or procedural posture.',
-                '- Do not quote or closely paraphrase distinctive phrases from the source case.',
-                '- Do not say anchor case, hidden source, benchmark answer, or golden response.',
-                '- Do not include drafting notes, meta-instructions, or an explanation of what you are doing.',
-                '',
-                'Structure requirements:',
-                '- Keep the output as a question packet, not an answer.',
-                '- Start with a short neutral title.',
-                '- Then provide a fact pattern written as a blind legal hypothetical.',
-                '- End with a numbered list of analysis tasks, with one task per analysis domain in the same order as listed above.',
-                '- Each task should invite legal analysis without revealing the original case identity.',
-                '- The packet should preserve the central issue and the useful trigger facts, but remove obvious case-identifying details.',
-                '',
-                'Return only the finished question packet text inside the benchmarkQuestion field.',
-            ].join('\n'),
+            input: buildFrankQuestionPacketPrompt({
+                legalDomain,
+                selectedCase,
+                analysisDomains,
+                benchmarkAnswer,
+            }),
             text: {
                 verbosity: 'medium',
                 format: {
@@ -848,6 +806,7 @@ export async function generateFrankQuestionPacket(input: GenerateFrankQuestionPa
 
         const parsed = safeJsonParse<{ benchmarkQuestion?: unknown }>(extractResponsesText(response));
         benchmarkQuestion = normalizeNonEmptyString(parsed?.benchmarkQuestion, fallback);
+        assertFrankTextGeneralized('Frank question packet', benchmarkQuestion, selectedCase);
     } catch (error) {
         throw new Error(`Frank question packet generation failed: ${describeError(error, 'OpenAI request failed.')}`);
     }
@@ -866,7 +825,10 @@ export async function generateFrankQuestionPacket(input: GenerateFrankQuestionPa
         sourceIntake: existing?.sourceIntake,
         sourceExtraction: existing?.sourceExtraction,
         failureModeSeeds: existing?.failureModeSeeds ?? [],
-        masterIssueStatement: existing?.masterIssueStatement ?? selectedCase.relevance,
+        masterIssueStatement: existing?.masterIssueStatement ?? buildFrankGeneralizedMasterIssueFallback({
+            legalDomain,
+            analysisDomains,
+        }),
     });
 }
 
@@ -896,22 +858,7 @@ export async function draftKarthicDomains(input: DraftKarthicDomainsInput): Prom
     try {
         const response = await openai.responses.create({
             model: 'gpt-5-mini',
-            input: [
-                `Legal domain: ${frankPacket.legalDomain}`,
-                `Anchor case: ${frankPacket.selectedCase?.title ?? frankPacket.domainScope}`,
-                `Master issue: ${frankPacket.masterIssueStatement}`,
-                '',
-                'Frank analysis domains:',
-                ...frankPacket.analysisDomains.map((domain, index) => `${index + 1}. ${domain.name}: ${domain.description}`),
-                '',
-                'Frank golden answer:',
-                frankPacket.benchmarkAnswer.slice(0, 7000),
-                '',
-                'Draft Karthic domains from the Frank packet.',
-                'Keep the names human-editable and close to Frank’s domains.',
-                'Each domain needs a short description, a default weight, and NA guidance.',
-                'Weights should usually stay between 1 and 5.',
-            ].join('\n'),
+            input: buildKarthicDomainDraftPrompt({ frankPacket }),
             text: {
                 verbosity: 'medium',
                 format: {
@@ -972,7 +919,7 @@ export async function generateKarthicGoldenTargets(input: GenerateKarthicGoldenT
     }
 
     let comparisonMethodNote = [
-        'Each centroid is compared against a structured domain target derived from Frank’s golden answer.',
+        'Each centroid is compared against a structured domain target derived from Frank’s generalized golden response.',
         'Differences are stored separately as matched points, missing points, extra points, and contradiction flags.',
     ].join(' ');
     requireOpenAiApiKey('Karthic golden target generation');
@@ -980,25 +927,11 @@ export async function generateKarthicGoldenTargets(input: GenerateKarthicGoldenT
     try {
         const response = await openai.responses.create({
             model: 'gpt-5-mini',
-            input: [
-                `Legal domain: ${frankPacket.legalDomain}`,
-                `Anchor case: ${frankPacket.selectedCase?.title ?? frankPacket.domainScope}`,
-                `Master issue: ${frankPacket.masterIssueStatement}`,
-                `SME notes: ${input.smeNotes?.trim() || 'None provided.'}`,
-                '',
-                'Karthic domains:',
-                ...domains.map((domain, index) => `${index + 1}. ${domain.name} (weight ${domain.weight}): ${domain.description} | NA guidance: ${domain.naGuidance}`),
-                '',
-                'Frank golden answer:',
-                frankPacket.benchmarkAnswer.slice(0, 9000),
-                '',
-                'For each domain, create a structured comparison target extracted from the golden answer.',
-                'Keep the target separate from the answer prose itself.',
-                'Use 2-4 short "golden contains" points per domain.',
-                'Use "allowed omissions" only when the golden answer would reasonably leave something unstated.',
-                'Use contradiction flags for statements that would count against a centroid.',
-                'Return JSON only.',
-            ].join('\n'),
+            input: buildKarthicGoldenTargetsPrompt({
+                frankPacket,
+                domains,
+                smeNotes: input.smeNotes,
+            }),
             text: {
                 verbosity: 'medium',
                 format: {
@@ -1703,15 +1636,10 @@ async function generateDashaResponses(questionText: string, selectedModels: Dash
             const responseText = await generateModelResponse({
                 provider: task.selectedModel.provider,
                 model: task.selectedModel.model,
-                systemPrompt: 'You are generating a free-form legal answer for benchmark evaluation. Write a concise legal analysis with a clear conclusion.',
+                systemPrompt: DASHA_GENERATION_SYSTEM_PROMPT,
                 messages: [{
                     role: 'user',
-                    content: [
-                        'Answer the following legal question in a structured but natural free-form analysis.',
-                        'Do not use bullet points.',
-                        '',
-                        questionText,
-                    ].join('\n'),
+                    content: buildDashaGenerationUserPrompt(questionText),
                 }],
                 temperature: task.temperature,
                 reasoningEffort: task.selectedModel.reasoningEffort ?? 'medium',
@@ -2025,11 +1953,11 @@ async function extractTextFromUploadedFile(bytes: Uint8Array, fileName: string) 
 function buildFrankSourceIntakeFallback(selectedCase: FrankCaseCandidate | null): SourceIntake {
     return {
         sourceQualityRating: selectedCase
-            ? `Web-found appellate case anchor: ${selectedCase.title}.`
-            : 'Web-found legal source anchor requiring validation.',
+            ? 'Web-found appellate grounding case identified; verify validity, portability, and doctrinal fit.'
+            : 'Web-found legal grounding source requiring validation.',
         benchmarkPosture: 'generalizable_only_with_supporting_authority',
         recommendation: selectedCase
-            ? `Use ${selectedCase.title} as the anchor case, but verify continued validity and jurisdictional fit.`
+            ? 'Use the selected case as a hidden grounding example, but generalize the benchmark beyond any single dispute and verify jurisdictional fit.'
             : 'Use the selected case as a starting point, then validate with JD review.',
         jdReviewBurden: [
             'Confirm precedential weight and current validity.',
@@ -2039,19 +1967,33 @@ function buildFrankSourceIntakeFallback(selectedCase: FrankCaseCandidate | null)
     };
 }
 
+function buildFrankGeneralizedMasterIssueFallback(input: {
+    legalDomain: string;
+    analysisDomains: FrankAnalysisDomain[];
+}) {
+    const legalDomain = input.legalDomain.trim() || 'the selected legal topic';
+    const focus = input.analysisDomains
+        .map((domain) => domain.name.trim())
+        .filter(Boolean)
+        .slice(0, 3);
+    if (focus.length === 0) {
+        return `What is the strongest generalized legal analysis for ${legalDomain}?`;
+    }
+    return `What is the strongest generalized ${legalDomain} analysis for similar disputes involving ${focus.join(', ')}?`;
+}
+
 function buildFrankSourceExtractionFallback(input: {
     legalDomain: string;
     selectedCase: FrankCaseCandidate | null;
     analysisDomains: FrankAnalysisDomain[];
 }): SourceExtraction {
-    const title = input.selectedCase?.title || 'the selected case';
     return {
-        legalIssue: input.selectedCase?.summary || `What legal issue in ${input.legalDomain} is best anchored by ${title}?`,
-        blackLetterRule: `State the controlling rule drawn from ${title} narrowly and accurately.`,
-        triggerFacts: input.analysisDomains.slice(0, 3).map((domain) => `Facts relevant to ${domain.name.toLowerCase()}.`),
-        holding: input.selectedCase?.relevance || `The holding from ${title} should control the benchmark analysis.`,
-        limits: [`Do not overgeneralize ${title} beyond its facts, court, and doctrinal setting.`],
-        uncertainty: ['Validate citation accuracy, current validity, and how portable the rule should be.'],
+        legalIssue: buildFrankGeneralizedMasterIssueFallback(input),
+        blackLetterRule: `State the controlling ${input.legalDomain} rule at the level of generality supported by the vetted domains.`,
+        triggerFacts: input.analysisDomains.slice(0, 3).map((domain) => `Facts that materially bear on ${domain.name.toLowerCase()}.`),
+        holding: `State the likely legal outcome pattern for similar ${input.legalDomain.toLowerCase()} disputes without tying the benchmark to one named case.`,
+        limits: ['Do not overgeneralize beyond the doctrinal boundaries supported by the vetted domains.'],
+        uncertainty: ['Flag jurisdiction-specific limits, fact-sensitive edges, and portability concerns explicitly.'],
     };
 }
 
@@ -2063,21 +2005,21 @@ function buildFallbackFrankGoldenDraft(input: {
     const sourceIntake = buildFrankSourceIntakeFallback(input.selectedCase);
     const sourceExtraction = buildFrankSourceExtractionFallback(input);
     return {
-        masterIssueStatement: `${input.selectedCase.title} provides the anchor rule for this ${input.legalDomain} benchmark.`,
+        masterIssueStatement: buildFrankGeneralizedMasterIssueFallback(input),
         benchmarkAnswer: [
-            `Anchor case: ${input.selectedCase.title} (${input.selectedCase.citation})`,
+            `Generalized golden response for ${input.legalDomain}:`,
             '',
             ...input.analysisDomains.flatMap((domain) => ([
                 `${domain.name}:`,
-                `${domain.description} The answer should explain how ${input.selectedCase.title} bears on this domain.`,
+                `State the governing rule, explain how similar fact patterns typically trigger ${domain.name.toLowerCase()}, identify the most likely legal direction, and flag the main limits or uncertainty relevant to ${domain.description}.`,
                 '',
             ])),
         ].join('\n').trim(),
         failureModeSeeds: [
-            'Names the case but never states the rule clearly.',
-            'Recites the rule but does not connect it to the facts.',
-            'Overgeneralizes the case beyond its real limits.',
-            'Ignores a listed analysis domain without saying why.',
+            'States the topic at a high level but never identifies the controlling rule precisely.',
+            'Treats one factual wrinkle as automatically dispositive without explaining the governing standard.',
+            'Overgeneralizes the likely outcome beyond the doctrinal limits described in the domains.',
+            'Ignores a listed analysis domain or collapses separate domains into one vague conclusion.',
         ],
         sourceIntake,
         sourceExtraction,
@@ -2090,13 +2032,124 @@ function buildFallbackFrankQuestionPacket(input: {
     analysisDomains: FrankAnalysisDomain[];
 }) {
     return [
-        `Use ${input.selectedCase.title} (${input.selectedCase.citation}) as the anchor authority for a ${input.legalDomain} analysis.`,
+        `${input.legalDomain} Hypothetical`,
+        '',
+        'A dispute should be framed broadly enough to apply across similar cases in this topic area while still pointing toward a likely legal result.',
+        'The packet should stay anonymous, avoid named authorities, and give enough facts to trigger the listed domains.',
         '',
         'Draft a legal analysis that addresses the following domains:',
         ...input.analysisDomains.map((domain, index) => `${index + 1}. ${domain.name}: ${domain.description}`),
         '',
-        'Explain which domains are clearly triggered, which are only weakly implicated, and which are not meaningfully addressed by the anchor case.',
+        'Explain which domains are clearly triggered, which are only weakly implicated, and what facts matter most to the likely result.',
     ].join('\n');
+}
+
+const FRANK_CASE_TITLE_STOP_WORDS = new Set([
+    'v',
+    'vs',
+    'versus',
+    'in',
+    're',
+    'ex',
+    'rel',
+    'the',
+    'of',
+    'and',
+    'et',
+    'al',
+]);
+
+function escapeRegExp(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function buildFlexiblePhraseRegex(phrase: string) {
+    const tokens = phrase.trim().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) {
+        return null;
+    }
+    return new RegExp(tokens.map((token) => escapeRegExp(token)).join('\\s+'), 'i');
+}
+
+function buildFrankGroundingLeakPatterns(selectedCase: FrankCaseCandidate) {
+    const patterns: Array<{ label: string; regex: RegExp }> = [];
+    const titleRegex = buildFlexiblePhraseRegex(selectedCase.title);
+    if (titleRegex) {
+        patterns.push({ label: `case title "${selectedCase.title}"`, regex: titleRegex });
+    }
+    const citationRegex = buildFlexiblePhraseRegex(selectedCase.citation);
+    if (citationRegex) {
+        patterns.push({ label: `citation "${selectedCase.citation}"`, regex: citationRegex });
+    }
+    const courtRegex = buildFlexiblePhraseRegex(selectedCase.court);
+    if (courtRegex) {
+        patterns.push({ label: `court "${selectedCase.court}"`, regex: courtRegex });
+    }
+    const titleTokens = Array.from(new Set(
+        selectedCase.title
+            .split(/[^A-Za-z0-9]+/)
+            .map((token) => token.trim())
+            .filter((token) => token.length >= 4 && !FRANK_CASE_TITLE_STOP_WORDS.has(token.toLowerCase())),
+    ));
+    for (const token of titleTokens) {
+        patterns.push({
+            label: `party name "${token}"`,
+            regex: new RegExp(`\\b${escapeRegExp(token)}\\b`, 'i'),
+        });
+    }
+    return patterns;
+}
+
+function assertFrankTextGeneralized(label: string, text: string, selectedCase: FrankCaseCandidate) {
+    const value = text.trim();
+    if (!value) {
+        return;
+    }
+    const matches = buildFrankGroundingLeakPatterns(selectedCase)
+        .filter((pattern) => pattern.regex.test(value))
+        .map((pattern) => pattern.label);
+    if (matches.length > 0) {
+        throw new Error(`${label} still reveals the grounding case via ${matches.slice(0, 2).join(' and ')}. Regenerate with more generalized wording.`);
+    }
+}
+
+function assertGeneralizedFrankGoldenDraft(
+    draft: {
+        masterIssueStatement: string;
+        benchmarkAnswer: string;
+        failureModeSeeds: string[];
+        sourceIntake: SourceIntake;
+        sourceExtraction: SourceExtraction;
+    },
+    selectedCase: FrankCaseCandidate,
+) {
+    const items: Array<[string, string]> = [
+        ['Frank master issue statement', draft.masterIssueStatement],
+        ['Frank benchmark answer', draft.benchmarkAnswer],
+        ['Frank source quality rating', draft.sourceIntake.sourceQualityRating],
+        ['Frank source recommendation', draft.sourceIntake.recommendation],
+        ['Frank legal issue note', draft.sourceExtraction.legalIssue],
+        ['Frank black-letter rule note', draft.sourceExtraction.blackLetterRule],
+        ['Frank holding note', draft.sourceExtraction.holding],
+    ];
+    draft.sourceIntake.jdReviewBurden.forEach((item, index) => {
+        items.push([`Frank JD-review burden note ${index + 1}`, item]);
+    });
+    draft.sourceExtraction.triggerFacts.forEach((item, index) => {
+        items.push([`Frank trigger-facts note ${index + 1}`, item]);
+    });
+    draft.sourceExtraction.limits.forEach((item, index) => {
+        items.push([`Frank limits note ${index + 1}`, item]);
+    });
+    draft.sourceExtraction.uncertainty.forEach((item, index) => {
+        items.push([`Frank uncertainty note ${index + 1}`, item]);
+    });
+    draft.failureModeSeeds.forEach((item, index) => {
+        items.push([`Frank failure-mode seed ${index + 1}`, item]);
+    });
+    for (const [label, text] of items) {
+        assertFrankTextGeneralized(label, text, selectedCase);
+    }
 }
 
 function buildFallbackFrankDraft(input: {
@@ -2172,16 +2225,16 @@ function buildFallbackKarthicGoldenTargets(input: {
         id: `golden_target_${index + 1}`,
         domainId: domain.id,
         domainName: domain.name,
-        summary: `${input.frankPacket.selectedCase?.title ?? input.frankPacket.domainScope} should anchor the ${domain.name} domain.`,
+        summary: `The generalized golden response should anchor the ${domain.name} domain.`,
         goldenContains: [
             `The answer should directly address ${domain.name}.`,
-            `The answer should connect ${domain.name} back to the golden answer’s legal reasoning.`,
+            `The answer should connect ${domain.name} back to the generalized golden response’s legal reasoning.`,
         ],
         allowedOmissions: [
             `Minor subpoints within ${domain.name} may be omitted if the question packet does not materially trigger them.`,
         ],
         contradictionFlags: [
-            `The centroid should not affirm a position that contradicts the golden answer on ${domain.name}.`,
+            `The centroid should not affirm a position that contradicts the generalized golden response on ${domain.name}.`,
         ],
         comparisonGuidance: `Compare centroid coverage of ${domain.name} against the structured golden target rather than against raw prose overlap alone.`,
     }));
@@ -2413,11 +2466,14 @@ function computeFrankFitCheckStatus(results: FrankCaseDomainFitResult[], overrid
     if (results.some((result) => result.label === 'Weak fit')) {
         return 'warning';
     }
+    if (results.some((result) => result.label === 'Peripheral but valid')) {
+        return 'warning';
+    }
     return 'passed';
 }
 
 function normalizeFrankFitLabel(value: unknown): FrankDomainFitLabel {
-    return value === 'Weak fit' || value === 'Does not fit' ? value : 'Direct fit';
+    return value === 'Peripheral but valid' || value === 'Weak fit' || value === 'Does not fit' ? value : 'Direct fit';
 }
 
 function normalizeFrankFitResults(
@@ -2571,7 +2627,10 @@ function normalizeFrankPacket(value: unknown): FrankPacket | null {
         benchmarkAnswer: normalizeOptionalString(value.benchmarkAnswer, ''),
         benchmarkQuestion: normalizeOptionalString(value.benchmarkQuestion, ''),
         failureModeSeeds: normalizeStringArray(value.failureModeSeeds),
-        masterIssueStatement: normalizeOptionalString(value.masterIssueStatement, selectedCase?.relevance ?? ''),
+        masterIssueStatement: normalizeOptionalString(value.masterIssueStatement, buildFrankGeneralizedMasterIssueFallback({
+            legalDomain,
+            analysisDomains,
+        })),
         approvedAt: typeof value.approvedAt === 'string' && value.approvedAt.trim() ? value.approvedAt : null,
         createdAt: normalizeOptionalString(value.createdAt, new Date().toISOString()),
         updatedAt: normalizeOptionalString(value.updatedAt, new Date().toISOString()),

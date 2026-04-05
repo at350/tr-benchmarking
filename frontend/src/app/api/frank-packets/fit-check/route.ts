@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { runFrankCaseDomainFitCheck } from '@/lib/legal-workflow-server';
-import type { FrankAnalysisDomain, FrankCaseCandidate } from '@/lib/legal-workflow-types';
+import type { FrankAnalysisDomain, FrankCaseCandidate, ReasoningEffort } from '@/lib/legal-workflow-types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -11,6 +11,8 @@ type FitCheckRequest = {
     legalDomain?: string;
     selectedCase?: FrankCaseCandidate;
     analysisDomains?: FrankAnalysisDomain[];
+    model?: string;
+    reasoningEffort?: ReasoningEffort;
 };
 
 export async function POST(req: Request) {
@@ -25,6 +27,8 @@ export async function POST(req: Request) {
             legalDomain: body.legalDomain,
             selectedCase: body.selectedCase,
             analysisDomains: body.analysisDomains,
+            model: body.model,
+            reasoningEffort: body.reasoningEffort,
         });
 
         return NextResponse.json({ item });

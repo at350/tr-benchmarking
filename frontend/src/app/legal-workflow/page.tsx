@@ -7,6 +7,17 @@ import { AppShell } from '@/components/ui/AppShell';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { MODEL_OPTIONS_BY_PROVIDER, PROVIDER_LABELS, REASONING_OPTIONS, type ModelProvider } from '@/lib/model-options';
+import {
+    buildDashaGenerationUserPrompt,
+    buildFrankAnalysisDomainsPrompt,
+    buildFrankCaseSearchPrompt,
+    buildFrankFitCheckPrompt,
+    buildFrankGoldenResponsePrompt,
+    buildFrankQuestionPacketPrompt,
+    buildKarthicDomainDraftPrompt,
+    buildKarthicGoldenTargetsPrompt,
+    DASHA_GENERATION_SYSTEM_PROMPT,
+} from '@/lib/legal-workflow-prompts';
 import type {
     ArtifactRole,
     DashaRun,
@@ -28,6 +39,15 @@ type WorkflowTab = 'frank' | 'karthic' | 'dasha';
 type FrankWizardStep = 'domain' | 'case' | 'domains' | 'fit' | 'golden' | 'question';
 type KarthicWizardStep = 'packet' | 'domains' | 'targets' | 'approve';
 type DashaWizardStep = 'rubric' | 'question' | 'models' | 'run';
+type StepExplainerItem<TStep extends string> = {
+    id: TStep;
+    title: string;
+    summary: string;
+    detail: string[];
+    promptText?: string | null;
+    promptLabel?: string;
+    promptEmptyState?: string;
+};
 
 type DashaClusterMapPoint = {
     x: number;
@@ -85,6 +105,7 @@ type FrankEditorState = {
     caseCandidates: FrankCaseCandidate[];
     analysisDomains: FrankAnalysisDomain[];
     fitCheck: FrankCaseDomainFitCheck;
+    fitSettings: FrankGenerationSettings;
     goldenSettings: FrankGenerationSettings;
     questionSettings: FrankGenerationSettings;
     sourceArtifacts: FrankPacket['sourceArtifacts'];
@@ -131,6 +152,10 @@ const DEFAULT_FRANK_STATE: FrankEditorState = {
     caseCandidates: [],
     analysisDomains: [],
     fitCheck: buildNeedsReviewFrankFitCheckState(null, []),
+    fitSettings: {
+        model: 'gpt-5.4-mini',
+        reasoningEffort: 'medium',
+    },
     goldenSettings: {
         model: 'gpt-5.4-mini',
         reasoningEffort: 'medium',
@@ -165,6 +190,208 @@ const DEFAULT_KARTHIC_STATE: KarthicEditorState = {
     smeNotes: '',
     comparisonMethodNote: '',
 };
+
+function buildFrankExplainerItems(state: FrankEditorState): StepExplainerItem<FrankWizardStep>[] {
+    return [
+        {
+            id: 'domain',
+            title: '1. Domain',
+            summary: 'Define the area of law that constrains the rest of the evaluative and rubric-generation process.',
+            detail: [
+                'Choose which legal domain to evaluate the model.',
+                'This can be broad or specific - anything from \'contract law\' to \'legal standards for establishing intent in homicides\'. ',
+            ],
+        },
+        {
+            id: 'case',
+            title: '2. Case Search',
+            summary: 'Pick an anchor case with a clear holding and enough doctrinal structure to support a teaching-quality packet.',
+            detail: [
+                'Frank uses OpenAI\'s web_search, surfacing cases that function as doctrinal anchors for analysis.',
+                'Extracts title/context, generates case summary and relevance (why this case matters).',
+            ],
+            promptText: state.legalDomain.trim() ? buildFrankCaseSearchPrompt(state.legalDomain) : null,
+            promptEmptyState: 'Enter a legal domain to preview the exact case-search prompt.',
+        },
+        {
+            id: 'domains',
+            title: '3. Analysis Domains',
+            summary: 'Use the selected case and topic context to draft benchmark domains.',
+            detail: [
+                '\'Draft analysis domains\' drafts domains from the grounding case and its context. Domains can also be manually added.',
+                'They form the bridge between source-grounded case understanding and the later structured evaluation logic used by Karthic and Dasha.',
+                'A subsequent validation step prevents miswritten or misfitted domains.',
+            ],
+            promptText: state.selectedCase ? buildFrankAnalysisDomainsPrompt({
+                legalDomain: state.legalDomain,
+                selectedCase: state.selectedCase,
+                desiredCount: 6,
+            }) : null,
+            promptEmptyState: 'Pick an anchor case to preview the exact domain-drafting prompt.',
+        },
+        {
+            id: 'fit',
+            title: '4. Fit Check',
+            summary: 'Verify that each proposed analysis domain is genuinely supported by the anchor case.',
+            detail: [
+                'Checks whether each domain is rationally justified by the selected authority.',
+                'Any subsequent modification, addition, or deletion of domains triggers an invalidation, requiring fit check re-run.',
+            ],
+            promptText: state.selectedCase && state.analysisDomains.length > 0 ? buildFrankFitCheckPrompt({
+                legalDomain: state.legalDomain,
+                selectedCase: state.selectedCase,
+                analysisDomains: state.analysisDomains,
+            }) : null,
+            promptEmptyState: 'Select a case and add analysis domains to preview the exact fit-check prompt.',
+        },
+        {
+            id: 'golden',
+            title: '5. Golden Response',
+            summary: 'Draft the benchmark\'s generalized golden response from the vetted case-domain frame.',
+            detail: [
+                'Frank writes the generalized golden response that later systems will treat as the benchmark answer for the legal topic chosen at step 1 of Frank.',
+                'The selected case still grounds likely outcome direction and doctrinal boundaries, but the saved golden response is no longer a summary or answer tied to that one case.',
+                'This is where the generalized golden response captures generalized issue statements, black-letter rules, trigger facts, likely outcome patterns, limitations, and uncertainty boundaries.',
+                'Technically, this is the last stage where full answer synthesis happens before Karthic decomposes that answer into structured comparison targets.',
+            ],
+            promptText: state.selectedCase && state.analysisDomains.length > 0 ? buildFrankGoldenResponsePrompt({
+                legalDomain: state.legalDomain,
+                selectedCase: state.selectedCase,
+                analysisDomains: state.analysisDomains,
+            }) : null,
+            promptEmptyState: 'Select a case and add analysis domains to preview the exact golden-response prompt.',
+        },
+        {
+            id: 'question',
+            title: '6. Question Packet',
+            summary: 'Draft a generalized hypothetical that should elicit analysis across the same vetted domains.',
+            detail: [
+                'Instead of evaluating models against the original source materials directly, Frank builds a benchmark question packet designed to trigger the same doctrinal dimensions encoded in the generalized golden response.',
+                'The point is alignment: future models see only the prompt, while evaluators still know which legal dimensions the prompt was engineered to surface.',
+                'That keeps later model comparisons tied to the benchmark design rather than to ad hoc prompt variation.',
+            ],
+            promptText: state.selectedCase && state.analysisDomains.length > 0 && state.benchmarkAnswer.trim()
+                ? buildFrankQuestionPacketPrompt({
+                    legalDomain: state.legalDomain,
+                    selectedCase: state.selectedCase,
+                    analysisDomains: state.analysisDomains,
+                    benchmarkAnswer: state.benchmarkAnswer,
+                })
+                : null,
+            promptEmptyState: 'Generate or enter a golden response to preview the exact question-packet prompt.',
+        },
+    ];
+}
+
+function buildKarthicExplainerItems(
+    frankPacket: FrankPacket | null,
+    editor: KarthicEditorState,
+): StepExplainerItem<KarthicWizardStep>[] {
+    return [
+        {
+            id: 'packet',
+            title: '1. Approved Frank Packet',
+            summary: 'Load only a Frank packet that has already been approved as source-grounded and complete.',
+            detail: [
+                'Karthic is intentionally downstream-only.',
+                'It does not revisit open-web search or rewrite Frank’s source-intake logic; it consumes an approved Frank packet as fixed input.',
+                'That separation matters because Karthic’s job is to formalize evaluation structure, not to change the benchmark’s underlying legal authority or prompt design.',
+            ],
+        },
+        {
+            id: 'domains',
+            title: '2. Weighted Domains',
+            summary: 'Turn Frank’s analysis domains into the weighted evaluation dimensions Dasha will later score against.',
+            detail: [
+                'This stage takes Frank’s coverage buckets and makes them operational for evaluation.',
+                'Each domain gets editable names, descriptions, relative weights, and NA guidance.',
+                'That lets later comparison logic distinguish core doctrinal failures from lower-importance misses or genuinely inapplicable categories.',
+            ],
+            promptText: frankPacket ? buildKarthicDomainDraftPrompt({ frankPacket }) : null,
+            promptEmptyState: 'Select an approved Frank packet to preview the exact Karthic domain-drafting prompt.',
+        },
+        {
+            id: 'targets',
+            title: '3. Structured Golden Targets',
+            summary: 'Decompose the generalized golden response into domain-specific comparison targets.',
+            detail: [
+                'Karthic extracts per-domain target structures rather than keeping the generalized golden response as one undifferentiated block of prose.',
+                'Those structures include what the generalized golden response affirmatively contains, what omissions can be tolerated, and what contradictions should count against a generated answer.',
+                'This matters technically because Dasha compares centroid representatives against structured target fields, not against a single essay blob.',
+            ],
+            promptText: frankPacket && editor.domains.length > 0 ? buildKarthicGoldenTargetsPrompt({
+                frankPacket,
+                domains: editor.domains,
+                smeNotes: editor.smeNotes,
+            }) : null,
+            promptEmptyState: 'Load a Frank packet and define Karthic domains to preview the exact golden-target prompt.',
+        },
+        {
+            id: 'approve',
+            title: '4. Approval For Dasha',
+            summary: 'Freeze the rubric pack once its domains, targets, and comparison note are stable enough for evaluation.',
+            detail: [
+                'Approval marks the point where the rubric becomes executable input for Dasha rather than an editable draft.',
+                'The comparison-method note and domain-target set now define the terms on which cluster representatives will be judged.',
+                'Approving here is effectively approving the evaluation contract for the run stage.',
+            ],
+        },
+    ];
+}
+
+function buildDashaExplainerItems(frankPacket: FrankPacket | null): StepExplainerItem<DashaWizardStep>[] {
+    const questionText = frankPacket?.benchmarkQuestion?.trim() ?? '';
+    return [
+        {
+            id: 'rubric',
+            title: '1. Rubric Pack',
+            summary: 'Select the approved Karthic pack that defines the scoring targets and domain weights.',
+            detail: [
+                'Dasha does not invent evaluation criteria.',
+                'It imports the already-approved rubric pack so the later clustering and scoring steps operate against a fixed structured target set.',
+                'This preserves the stage boundary: Dasha generates and compares answers, but the benchmark standard itself is inherited rather than rewritten here.',
+            ],
+        },
+        {
+            id: 'question',
+            title: '2. Canonical Question Packet',
+            summary: 'Reuse Frank’s exact benchmark prompt instead of introducing a new evaluation prompt.',
+            detail: [
+                'This step enforces prompt continuity across the pipeline.',
+                'The same question packet that Frank reverse-engineered and Karthic implicitly relied on is what Dasha sends to the frontier models.',
+                'That prevents accidental prompt drift and keeps downstream result differences attributable to model behavior and clustering, not to a changed task formulation.',
+            ],
+            promptText: questionText || null,
+            promptLabel: 'View Exact Question Packet',
+            promptEmptyState: 'Generate a Frank question packet to preview the exact prompt Dasha reuses.',
+        },
+        {
+            id: 'models',
+            title: '3. Frontier Models',
+            summary: 'Choose the model set and the total raw response budget for the run.',
+            detail: [
+                'Dasha’s input is not one answer per model but a pooled response set.',
+                'The selected models and requested sample count determine how large and how heterogeneous that raw pool will be before clustering.',
+                'Cluster quality, centroid selection, and eventual coverage comparisons all depend on having a sufficiently rich answer distribution rather than a tiny sample.',
+            ],
+        },
+        {
+            id: 'run',
+            title: '4. Run Dasha',
+            summary: 'Generate the raw pool, cluster it, pick representatives, and compare those representatives against the structured golden targets.',
+            detail: [
+                'Operationally, this is the evaluation engine: Dasha collects responses, embeds them, reduces dimensionality with UMAP, and groups them with HDBSCAN.',
+                'It then selects one medoid-style representative per cluster rather than scoring every raw answer independently.',
+                'Those representatives are compared against Karthic’s structured targets so the stored results capture matched points, omissions, extras, contradictions, and weighted domain outcomes instead of a single opaque score.',
+            ],
+            promptText: questionText
+                ? `System prompt:\n${DASHA_GENERATION_SYSTEM_PROMPT}\n\nUser prompt:\n${buildDashaGenerationUserPrompt(questionText)}`
+                : null,
+            promptLabel: 'View Exact Model Prompt',
+            promptEmptyState: 'Generate a Frank question packet to preview the exact prompt Dasha sends to the selected models.',
+        },
+    ];
+}
 
 export default function LegalWorkflowPage() {
     const [activeTab, setActiveTab] = useState<WorkflowTab>('frank');
@@ -215,9 +442,22 @@ export default function LegalWorkflowPage() {
         () => frankPackets.find((item) => item.id === selectedDashaPack?.frankPacketId) ?? null,
         [frankPackets, selectedDashaPack],
     );
+    const selectedKarthicFrankPacket = useMemo(
+        () => frankPackets.find((item) => item.id === karthicEditor.frankPacketId) ?? null,
+        [frankPackets, karthicEditor.frankPacketId],
+    );
     const selectedDashaRun = useMemo(
         () => dashaRuns.find((item) => item.id === selectedDashaRunId) ?? dashaRuns[0] ?? null,
         [dashaRuns, selectedDashaRunId],
+    );
+    const frankExplainerItems = useMemo(() => buildFrankExplainerItems(frankEditor), [frankEditor]);
+    const karthicExplainerItems = useMemo(
+        () => buildKarthicExplainerItems(selectedKarthicFrankPacket, karthicEditor),
+        [selectedKarthicFrankPacket, karthicEditor],
+    );
+    const dashaExplainerItems = useMemo(
+        () => buildDashaExplainerItems(selectedDashaFrankPacket),
+        [selectedDashaFrankPacket],
     );
 
     useEffect(() => {
@@ -330,7 +570,7 @@ export default function LegalWorkflowPage() {
         }
     }
 
-    function applyFrankPacket(packet: FrankPacket) {
+    function applyFrankPacket(packet: FrankPacket, options?: { step?: FrankWizardStep; preserveSettings?: boolean }) {
         const nextState: FrankEditorState = {
             id: packet.id,
             legalDomain: packet.legalDomain,
@@ -355,12 +595,13 @@ export default function LegalWorkflowPage() {
             caseCandidates: packet.selectedCase ? [packet.selectedCase] : [],
             analysisDomains: packet.analysisDomains ?? [],
             fitCheck: packet.fitCheck ?? buildNeedsReviewFrankFitCheckState(packet.selectedCase ?? null, packet.analysisDomains ?? []),
-            goldenSettings: DEFAULT_FRANK_STATE.goldenSettings,
-            questionSettings: DEFAULT_FRANK_STATE.questionSettings,
+            fitSettings: options?.preserveSettings ? frankEditor.fitSettings : DEFAULT_FRANK_STATE.fitSettings,
+            goldenSettings: options?.preserveSettings ? frankEditor.goldenSettings : DEFAULT_FRANK_STATE.goldenSettings,
+            questionSettings: options?.preserveSettings ? frankEditor.questionSettings : DEFAULT_FRANK_STATE.questionSettings,
             sourceArtifacts: packet.sourceArtifacts ?? [],
         };
         setFrankEditor(nextState);
-        setFrankStep(inferFrankStep(nextState));
+        setFrankStep(options?.step ?? inferFrankStep(nextState));
     }
 
     function applyKarthicPack(pack: KarthicRubricPack) {
@@ -421,8 +662,8 @@ export default function LegalWorkflowPage() {
                     legalDomain: frankEditor.legalDomain,
                     selectedCase: frankEditor.selectedCase,
                     analysisDomains: frankEditor.analysisDomains,
-                    model: frankEditor.goldenSettings.model,
-                    reasoningEffort: frankEditor.goldenSettings.reasoningEffort,
+                    model: frankEditor.fitSettings.model,
+                    reasoningEffort: frankEditor.fitSettings.reasoningEffort,
                 }),
             });
             const json = await response.json();
@@ -430,7 +671,7 @@ export default function LegalWorkflowPage() {
                 throw new Error(json.error || 'Failed to run the case-domain fit check.');
             }
             const item = json.item as FrankPacket;
-            applyFrankPacket(item);
+            applyFrankPacket(item, { step: 'fit', preserveSettings: true });
             setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
             setStatusMessage('Case-domain fit check saved.');
         } catch (error) {
@@ -494,7 +735,7 @@ export default function LegalWorkflowPage() {
                 throw new Error(json.error || 'Failed to save the fit-check override.');
             }
             const item = json.item as FrankPacket;
-            applyFrankPacket(item);
+            applyFrankPacket(item, { step: 'fit', preserveSettings: true });
             setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
             setStatusMessage('Manual override saved. Golden generation is now unlocked for this packet.');
         } catch (error) {
@@ -602,7 +843,7 @@ export default function LegalWorkflowPage() {
                 throw new Error(json.error || 'Failed to generate the golden response.');
             }
             const item = json.item as FrankPacket;
-            applyFrankPacket(item);
+            applyFrankPacket(item, { step: 'golden', preserveSettings: true });
             setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
             setStatusMessage(`Golden response saved locally as ${item.id}.`);
         } catch (error) {
@@ -644,7 +885,7 @@ export default function LegalWorkflowPage() {
                 throw new Error(json.error || 'Failed to generate the question packet.');
             }
             const item = json.item as FrankPacket;
-            applyFrankPacket(item);
+            applyFrankPacket(item, { step: 'question', preserveSettings: true });
             setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
             setStatusMessage('Question packet generated and saved locally.');
         } catch (error) {
@@ -698,7 +939,7 @@ export default function LegalWorkflowPage() {
                 throw new Error(json.error || 'Failed to save Frank packet.');
             }
             const item = json.item as FrankPacket;
-            applyFrankPacket(item);
+            applyFrankPacket(item, { step: frankStep, preserveSettings: true });
             setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
             setStatusMessage(status === 'approved' ? 'Frank packet approved for Karthic.' : 'Frank packet saved.');
         } catch (error) {
@@ -935,7 +1176,7 @@ export default function LegalWorkflowPage() {
                         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                             <SectionHeader
                                 title="Frank Wizard"
-                                description="One step at a time: pick a legal domain, search for an anchor case, edit the analysis domains, run the case-domain fit check, generate the golden response, then generate the question packet."
+                                description="One step at a time: pick a legal domain, search for an anchor case, edit the analysis domains, run the case-domain fit check, generate the generalized golden response, then generate the question packet."
                                 actions={frankReady ? <ApprovalBadge approved={frankPackets.find((item) => item.id === frankEditor.id)?.status === 'approved'} /> : null}
                             />
                             <FrankStepRail
@@ -1064,7 +1305,7 @@ export default function LegalWorkflowPage() {
                                         <div className="flex flex-wrap items-center justify-between gap-3">
                                             <div>
                                                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 3 · Analysis Domains</p>
-                                                <p className="mt-1 text-sm text-slate-500">Draft 5-10 human-editable analysis buckets. You can rename, rewrite, add, or delete them before Frank writes the golden response.</p>
+                                        <p className="mt-1 text-sm text-slate-500">Draft 5-10 human-editable analysis buckets. You can rename, rewrite, add, or delete them before Frank writes the generalized golden response.</p>
                                             </div>
                                             <button
                                                 type="button"
@@ -1161,7 +1402,34 @@ export default function LegalWorkflowPage() {
                                     <FrankSummaryRow label="Analysis Domains" value={`${frankEditor.analysisDomains.length} domain(s)`} />
                                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 4 · Case-Domain Fit Check</p>
-                                        <p className="mt-1 text-sm text-slate-500">Run a preflight check before Frank writes the golden response. This catches domains that drift away from what the chosen case actually teaches.</p>
+                                        <p className="mt-1 text-sm text-slate-500">Run a preflight check before Frank writes the generalized golden response. This catches domains that drift away from what the chosen case actually teaches.</p>
+                                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                            <LabeledSelect
+                                                label="Fit Check Model"
+                                                value={frankEditor.fitSettings.model}
+                                                onChange={(value) => setFrankEditor((current) => ({
+                                                    ...current,
+                                                    fitSettings: {
+                                                        ...current.fitSettings,
+                                                        model: value,
+                                                    },
+                                                }))}
+                                                options={MODEL_OPTIONS_BY_PROVIDER.openai}
+                                            />
+                                            <LabeledSelect
+                                                label="Fit Check Reasoning"
+                                                value={frankEditor.fitSettings.reasoningEffort}
+                                                onChange={(value) => setFrankEditor((current) => ({
+                                                    ...current,
+                                                    fitSettings: {
+                                                        ...current.fitSettings,
+                                                        reasoningEffort: value as ReasoningEffort,
+                                                    },
+                                                }))}
+                                                options={REASONING_OPTIONS}
+                                            />
+                                        </div>
+                                        <p className="mt-3 text-xs text-slate-500">These controls apply only to Frank’s fit check and currently use OpenAI models.</p>
                                         <button
                                             type="button"
                                             onClick={() => void runFrankFitCheck()}
@@ -1192,7 +1460,7 @@ export default function LegalWorkflowPage() {
                                             </div>
                                         </div>
                                     ) : (
-                                        <p className="text-sm text-slate-500">No saved fit-check results yet. Run the check to see which domains fit directly, which are only weakly related, and which do not belong.</p>
+                                        <p className="text-sm text-slate-500">No saved fit-check results yet. Run the check to see which domains fit directly, which are peripheral but valid, which are weak fits, and which do not belong.</p>
                                     )}
 
                                     {isFrankFitCheckOverrideRequiredState(frankEditor.fitCheck) ? (
@@ -1235,7 +1503,7 @@ export default function LegalWorkflowPage() {
                                     <FrankSummaryRow label="Analysis Domains" value={`${frankEditor.analysisDomains.length} domain(s)`} />
                                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 5 · Golden Response</p>
-                                        <p className="mt-1 text-sm text-slate-500">Frank now writes the benchmark answer across your chosen domains, but only after the saved fit check is either clean or explicitly overridden.</p>
+                                        <p className="mt-1 text-sm text-slate-500">Frank now writes the benchmark’s generalized golden response across your chosen domains. The selected case still grounds likely direction and doctrinal fit, but the saved golden response should stay broader than that one dispute.</p>
                                         <div className="mt-4 grid gap-3 md:grid-cols-2">
                                             <LabeledSelect
                                                 label="Golden Model"
@@ -1318,7 +1586,7 @@ export default function LegalWorkflowPage() {
                                     <FrankSummaryRow label="Anchor Case" value={frankEditor.selectedCase ? `${frankEditor.selectedCase.title} · ${frankEditor.selectedCase.citation}` : 'No case selected yet'} />
                                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 6 · Question Packet</p>
-                                        <p className="mt-1 text-sm text-slate-500">After the golden response is locked in, Frank drafts the legal-case-packet question that should elicit analysis across those same domains.</p>
+                                        <p className="mt-1 text-sm text-slate-500">After the generalized golden response is locked in, Frank drafts a fresh hypothetical question packet that should elicit analysis across those same domains without retelling the grounding case.</p>
                                         <div className="mt-4 grid gap-3 md:grid-cols-2">
                                             <LabeledSelect
                                                 label="Question Model"
@@ -1392,38 +1660,12 @@ export default function LegalWorkflowPage() {
                     </div>
 
                     <div className="space-y-6">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                            <SectionHeader
-                                title="How Frank Works"
-                                description="A compact view of what each Frank step is doing behind the scenes."
-                            />
-                            <div className="mt-4 space-y-4 text-sm text-slate-600">
-                                <div>
-                                    <p className="font-semibold text-slate-900">1. Domain</p>
-                                    <p className="mt-1">Set the broad area of law that will guide case search and the overall benchmark frame.</p>
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-slate-900">2. Case Search</p>
-                                    <p className="mt-1">Search the open web for a teaching-friendly anchor case with a clear holding that can ground the packet.</p>
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-slate-900">3. Analysis Domains</p>
-                                    <p className="mt-1">Turn the chosen case into a small set of editable analysis buckets that define what the benchmark should cover.</p>
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-slate-900">4. Fit Check</p>
-                                    <p className="mt-1">Judge whether each domain actually fits the selected case, and stop normal progress if the rubric frame has drifted off-case.</p>
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-slate-900">5. Golden Response</p>
-                                    <p className="mt-1">Write the benchmark’s canonical answer and extract the key legal issue, rule, holding, limits, and likely failure modes.</p>
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-slate-900">6. Question Packet</p>
-                                    <p className="mt-1">Reverse-engineer a fact pattern and prompt that should elicit analysis across those same domains from future models.</p>
-                                </div>
-                            </div>
-                        </div>
+                        <StepExplainerCard
+                            title="How Frank Works"
+                            description="Every Frank step stays visible; the current step opens into a more substantial explanation."
+                            items={frankExplainerItems}
+                            activeStep={frankStep}
+                        />
                         <ArtifactListCard title="Frank Packets" items={frankPackets} onSelect={(id) => {
                             const item = frankPackets.find((packet) => packet.id === id);
                             if (item) {
@@ -1637,7 +1879,7 @@ export default function LegalWorkflowPage() {
                                             />
                                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 3 · Structured Golden Targets</p>
-                                                <p className="mt-1 text-sm text-slate-500">Karthic now turns Frank’s golden answer into separate comparison targets per domain: what the golden answer contains, what can be omitted, and what would count as a contradiction.</p>
+                                                <p className="mt-1 text-sm text-slate-500">Karthic now turns Frank’s generalized golden response into separate comparison targets per domain: what the golden response contains, what can be omitted, and what would count as a contradiction.</p>
                                                 <button
                                                     type="button"
                                                     onClick={() => void generateKarthicTargets()}
@@ -1786,6 +2028,12 @@ export default function LegalWorkflowPage() {
                     </div>
 
                     <div className="space-y-6">
+                        <StepExplainerCard
+                            title="How Karthic Works"
+                            description="The active Karthic step expands so the evaluation-role of that stage is legible while the full pipeline remains visible."
+                            items={karthicExplainerItems}
+                            activeStep={karthicStep}
+                        />
                         <ArtifactListCard title="Karthic Rubric Packs" items={karthicPacks} onSelect={(id) => {
                             const item = karthicPacks.find((pack) => pack.id === id);
                             if (item) {
@@ -2081,6 +2329,12 @@ export default function LegalWorkflowPage() {
                     </div>
 
                     <div className="space-y-6">
+                        <StepExplainerCard
+                            title="How Dasha Works"
+                            description="The current Dasha step expands to show the evaluation mechanics without hiding the rest of the run flow."
+                            items={dashaExplainerItems}
+                            activeStep={dashaStep}
+                        />
                         <ArtifactListCard
                             title="Dasha Runs"
                             items={dashaRuns}
@@ -2221,6 +2475,9 @@ function fitLabelClassName(label: FrankCaseDomainFitResult['label']) {
     if (label === 'Direct fit') {
         return 'text-emerald-700 font-semibold';
     }
+    if (label === 'Peripheral but valid') {
+        return 'text-sky-700 font-semibold';
+    }
     if (label === 'Weak fit') {
         return 'text-amber-700 font-semibold';
     }
@@ -2251,7 +2508,7 @@ function frankFitCardMessage(fitCheck: FrankCaseDomainFitCheck) {
         return 'Every saved domain is a direct fit for the selected anchor case.';
     }
     if (fitCheck.status === 'warning') {
-        return 'The fit check passed with caution: at least one domain is only a weak fit.';
+        return 'The fit check passed with caution: at least one domain is peripheral but valid or only a weak fit.';
     }
     if (fitCheck.status === 'overridden') {
         return 'A blocking mismatch was manually overridden. The warning remains attached to this packet.';
@@ -2449,6 +2706,81 @@ function StageCard(props: {
             <h2 className="mt-4 text-lg font-bold text-slate-900">{props.title}</h2>
             <p className="mt-2 text-sm text-slate-600">{props.description}</p>
         </button>
+    );
+}
+
+function StepExplainerCard<TStep extends string>({
+    title,
+    description,
+    items,
+    activeStep,
+}: {
+    title: string;
+    description: string;
+    items: StepExplainerItem<TStep>[];
+    activeStep: TStep;
+}) {
+    return (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <SectionHeader title={title} description={description} />
+            <div className="mt-4 space-y-3">
+                {items.map((item) => {
+                    const expanded = item.id === activeStep;
+                    return (
+                        <div
+                            key={item.id}
+                            className={`rounded-2xl border px-4 py-4 transition ${expanded ? 'border-teal-200 bg-teal-50/70' : 'border-slate-200 bg-slate-50'}`}
+                        >
+                            <div>
+                                <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                                <p className="mt-1 text-sm text-slate-600">{item.summary}</p>
+                            </div>
+                            {expanded ? (
+                                <div className="mt-3 space-y-3">
+                                    <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
+                                        {item.detail.map((bullet) => (
+                                            <li key={bullet}>{bullet}</li>
+                                        ))}
+                                    </ul>
+                                    <PromptPreview
+                                        promptText={item.promptText ?? null}
+                                        promptLabel={item.promptLabel}
+                                        emptyState={item.promptEmptyState}
+                                    />
+                                </div>
+                            ) : null}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+function PromptPreview({
+    promptText,
+    promptLabel,
+    emptyState,
+}: {
+    promptText: string | null;
+    promptLabel?: string;
+    emptyState?: string;
+}) {
+    if (!promptText) {
+        return emptyState ? <p className="text-xs text-slate-500">{emptyState}</p> : null;
+    }
+
+    return (
+        <details className="rounded-xl border border-slate-200 bg-white">
+            <summary className="cursor-pointer list-none px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
+                {promptLabel ?? 'View Exact Prompt'}
+            </summary>
+            <div className="border-t border-slate-200 px-3 py-3">
+                <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-slate-950 p-3 text-xs leading-6 text-slate-100">
+                    {promptText}
+                </pre>
+            </div>
+        </details>
     );
 }
 
