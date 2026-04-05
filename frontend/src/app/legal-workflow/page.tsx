@@ -676,7 +676,7 @@ export default function LegalWorkflowPage() {
         }
         setDashaRunning(true);
         setErrorMessage(null);
-        setStatusMessage('Running Dasha evaluation using Frank’s canonical question packet: large-sample model generation, raw clustering, and per-domain centroid scoring...');
+        setStatusMessage('Running Dasha evaluation using Frank’s canonical question packet: large-sample model generation, raw clustering, and ensemble per-domain centroid scoring...');
         try {
             const formData = new FormData();
             formData.set('rubricPackId', dashaForm.rubricPackId);
@@ -704,6 +704,33 @@ export default function LegalWorkflowPage() {
             }
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to run Dasha.');
+            setStatusMessage(null);
+        } finally {
+            setDashaRunning(false);
+        }
+    }
+
+    async function rejudgeSelectedDashaRun() {
+        if (!selectedDashaRun?.id) {
+            return;
+        }
+        setDashaRunning(true);
+        setErrorMessage(null);
+        setStatusMessage('Rejudging the selected Dasha run with the OpenAI-Claude-DeepSeek ensemble...');
+        try {
+            const response = await fetch(`/api/dasha-runs/${selectedDashaRun.id}`, {
+                method: 'POST',
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to rejudge Dasha run.');
+            }
+            const item = json.item as DashaRun;
+            setSelectedDashaRunId(item.id);
+            setDashaRuns((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
+            setStatusMessage('Dasha run rejudged with the ensemble panel.');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to rejudge Dasha run.');
             setStatusMessage(null);
         } finally {
             setDashaRunning(false);
@@ -1670,7 +1697,8 @@ export default function LegalWorkflowPage() {
                                                     <p>Dasha generates a large raw pool of answers across the selected models, targeting the response count shown above.</p>
                                                     <p>Every model gets the exact same canonical question packet that Frank generated.</p>
                                                     <p>Dasha then clusters the full raw pool using the same density methodology used in the LSH-runs workflow: instructor embeddings, UMAP reduction, HDBSCAN clustering, then one medoid-style representative per cluster.</p>
-                                                    <p>Each cluster representative is compared against Karthic’s structured golden targets and stored as matched points, missing points, extra points, and contradiction points.</p>
+                                                    <p>Each cluster representative is then judged against Karthic’s structured golden targets by a three-model ensemble: OpenAI, Claude, and DeepSeek.</p>
+                                                    <p>The ensemble uses majority vote for applicability and the median judge score for the stored domain score, while also preserving judge-level matched points, missing points, extra points, contradiction points, and disagreement statistics.</p>
                                                 </div>
                                             </div>
                                             <div className="flex flex-wrap gap-3">
@@ -1712,13 +1740,24 @@ export default function LegalWorkflowPage() {
                                     <MetricCard label="Clustering" value={selectedDashaRun.clusteringMethod || 'unknown'} />
                                     <MetricCard label="Selected Models" value={String(selectedDashaRun.selectedModels.length)} />
                                 </div>
-                                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                <div className="mt-4 grid gap-4 md:grid-cols-3">
                                     <MetricCard label="Weighted Score" value={selectedDashaRun.weightedSummary.weightedScore === null ? 'N/A' : selectedDashaRun.weightedSummary.weightedScore.toFixed(1)} />
                                     <MetricCard label="Not Applicable Domains" value={String(selectedDashaRun.weightedSummary.notApplicableDomainIds.length)} />
+                                    <MetricCard label="Judge Panel" value={selectedDashaRun.judgeConfiguration?.judges.map((judge) => judge.provider).join(', ') || 'heuristic'} />
                                 </div>
                                 {selectedDashaRun.clusteringNotes ? (
                                     <p className="mt-4 text-sm text-slate-500">{selectedDashaRun.clusteringNotes}</p>
                                 ) : null}
+                                <div className="mt-4 flex flex-wrap gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => void rejudgeSelectedDashaRun()}
+                                        disabled={dashaRunning}
+                                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
+                                    >
+                                        {dashaRunning ? 'Working...' : 'Rejudge With Ensemble'}
+                                    </button>
+                                </div>
 
                                 <div className="mt-5 grid gap-4 xl:grid-cols-2">
                                     <ReadOnlyListCard
@@ -1733,6 +1772,12 @@ export default function LegalWorkflowPage() {
                                                     ? [
                                                         result.winningModelMix.map((entry) => `${entry.model} x${entry.count}`).join(', '),
                                                         winningEvaluation?.difference?.differenceSummary ?? null,
+                                                        winningEvaluation?.judgeEnsemble
+                                                            ? `Judges ${winningEvaluation.judgeEnsemble.applicableJudgeCount}/${winningEvaluation.judgeEnsemble.participatingJudgeCount} applicable · agreement ${Math.round(winningEvaluation.judgeEnsemble.agreementRatio * 100)}%`
+                                                            : null,
+                                                        winningEvaluation?.judgeEnsemble?.scoreSpread !== null && winningEvaluation?.judgeEnsemble?.scoreSpread !== undefined
+                                                            ? `score spread ${winningEvaluation.judgeEnsemble.scoreSpread}`
+                                                            : null,
                                                         winningEvaluation
                                                             ? `Matched ${winningEvaluation.difference?.matchedGoldenPoints.length ?? 0}, missing ${winningEvaluation.difference?.missingGoldenPoints.length ?? 0}, extra ${winningEvaluation.difference?.extraCentroidPoints.length ?? 0}, contradictions ${winningEvaluation.difference?.contradictionPoints.length ?? 0}`
                                                             : null,

@@ -1,0 +1,573 @@
+{
+  "timestamp": "20260405061041",
+  "dashaRunPath": "/Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/dasha-runs/dasha_1775367155213_70677f12.json",
+  "karthicPackPath": "/Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/karthic-rubric-packs/karthic_1775367155213_270af0ba.json",
+  "judges": [
+    {
+      "judgeId": "openai_gpt41mini",
+      "provider": "openai",
+      "model": "gpt-4.1-mini"
+    },
+    {
+      "judgeId": "anthropic_claude4sonnet",
+      "provider": "replicate",
+      "model": "anthropic/claude-4-sonnet"
+    },
+    {
+      "judgeId": "deepseek_v3",
+      "provider": "replicate",
+      "model": "deepseek-ai/deepseek-v3"
+    }
+  ],
+  "overall": {
+    "auditedDomains": 6,
+    "meanAgreementRatio": 1,
+    "meanMedianScore": 79.17,
+    "fullyUnanimousDomains": 6,
+    "domainsWithDisagreement": 0
+  },
+  "domainAudits": [
+    {
+      "domainId": "analysis_domain_1",
+      "domainName": "Issue and Bottom-Line Enforceability",
+      "winningCentroidId": "cluster_13",
+      "archivedWinningScore": 63,
+      "representativeResponseId": "response_26833751",
+      "judgeOutputs": [
+        {
+          "judgeId": "openai_gpt41mini",
+          "model": "gpt-4.1-mini",
+          "provider": "OpenAI",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer directly addresses the enforceability of the father's oral promise, engaging with the controlling legal issue and the bottom-line enforceability question.",
+          "score": 85,
+          "confidence": 0.9,
+          "matchedGoldenPoints": [
+            "The controlling issue is whether the father's oral promise to pay the son's student loans is enforceable.",
+            "The best bottom-line answer is that the oral promise is unenforceable."
+          ],
+          "missingGoldenPoints": [
+            "Explicit reference to the marriage-consideration Statute of Frauds writing requirement."
+          ],
+          "extraCentroidPoints": [
+            "Discussion of the son's pre-existing plan to marry as negating consideration.",
+            "Mention of the father's failed tax deduction motivation as undermining enforceability."
+          ],
+          "contradictionPoints": [],
+          "differenceSummary": "The centroid answer identifies the correct issue and concludes unenforceability but emphasizes lack of consideration and failure of the tax deduction condition rather than explicitly citing the Statute of Frauds writing requirement tied to marriage consideration.",
+          "rationale": "The centroid correctly frames the issue as the enforceability of the father's oral promise and concludes it is unenforceable, aligning with the benchmark. However, it focuses more on lack of consideration and the failed tax deduction condition rather than explicitly applying the Statute of Frauds related to marriage consideration and absence of writing. This is a minor omission given the overall correct conclusion and issue identification."
+        },
+        {
+          "judgeId": "anthropic_claude4sonnet",
+          "model": "anthropic/claude-4-sonnet",
+          "provider": "Claude",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer directly engages with the Issue and Bottom-Line Enforceability domain by identifying the legal issue and providing a clear conclusion about enforceability.",
+          "score": 65,
+          "confidence": 0.8,
+          "matchedGoldenPoints": [
+            "Identifies the controlling legal issue as whether the father's oral promise is enforceable",
+            "Concludes that the oral promise is unenforceable",
+            "Mentions Statute of Frauds and lack of written agreement"
+          ],
+          "missingGoldenPoints": [
+            "Does not specifically identify the marriage-consideration Statute of Frauds provision as the controlling issue",
+            "Does not focus on the marriage-consideration writing requirement as the primary basis for unenforceability"
+          ],
+          "extraCentroidPoints": [
+            "Extensive analysis of consideration doctrine and preexisting duty",
+            "Discussion of the father's failed tax motivation",
+            "Analysis of conditional promises and bargained-for exchange"
+          ],
+          "contradictionPoints": [],
+          "differenceSummary": "The representative answer reaches the correct conclusion but focuses primarily on consideration issues rather than the marriage-consideration Statute of Frauds provision that the benchmark identifies as the controlling issue.",
+          "rationale": "While the representative answer correctly identifies the enforceability issue and reaches the benchmark conclusion of unenforceability, it emphasizes consideration doctrine over the marriage-consideration Statute of Frauds writing requirement that should be the controlling analysis. The answer mentions Statute of Frauds but doesn't specifically focus on the marriage-consideration provision as the primary ground for unenforceability."
+        },
+        {
+          "judgeId": "deepseek_v3",
+          "model": "deepseek-ai/deepseek-v3",
+          "provider": "DeepSeek",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer engages with the Issue and Bottom-Line Enforceability domain by addressing the enforceability of the father's oral promise under the Statute of Frauds and consideration requirements.",
+          "score": 85,
+          "confidence": 0.8,
+          "matchedGoldenPoints": [
+            "The controlling issue is whether the father's oral promise to pay the son's student loans is enforceable.",
+            "The best bottom-line answer is that the oral promise is unenforceable."
+          ],
+          "missingGoldenPoints": [
+            "The response does not explicitly mention the marriage-consideration Statute of Frauds writing requirement, though it implies it."
+          ],
+          "extraCentroidPoints": [
+            "The response discusses the lack of consideration due to the son's pre-existing intent to marry, which is not explicitly mentioned in the golden target."
+          ],
+          "contradictionPoints": [],
+          "differenceSummary": "The representative answer aligns well with the golden target but adds analysis on consideration that the golden target does not explicitly cover.",
+          "rationale": "The representative answer correctly identifies the issue and concludes the promise is unenforceable, matching the golden target. It provides additional analysis on consideration, which is not contradictory but adds depth."
+        }
+      ],
+      "ensemble": {
+        "participatingJudgeCount": 3,
+        "applicableJudgeCount": 3,
+        "notApplicableJudgeCount": 0,
+        "applicabilityStatus": "applicable",
+        "agreementRatio": 1,
+        "medianScore": 85,
+        "scoreSpread": 20,
+        "scoreStdDev": 9.43
+      }
+    },
+    {
+      "domainId": "analysis_domain_2",
+      "domainName": "Formation and Consideration",
+      "winningCentroidId": "cluster_13",
+      "archivedWinningScore": 56,
+      "representativeResponseId": "response_26833751",
+      "judgeOutputs": [
+        {
+          "judgeId": "openai_gpt41mini",
+          "model": "gpt-4.1-mini",
+          "provider": "OpenAI",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer addresses the enforceability of the father's oral promise in the context of contract formation and consideration, engaging with the Formation and Consideration domain as required.",
+          "score": 65,
+          "confidence": 0.8,
+          "matchedGoldenPoints": [
+            "The son's prior intent to marry weakens, but does not automatically defeat, a consideration analysis"
+          ],
+          "missingGoldenPoints": [
+            "Identifies the father's conditional promise and the son's marriage within 18 months as offer and acceptance forming a unilateral contract",
+            "Recognizes the issue whether the son's marriage constitutes bargained-for consideration or is merely a condition on a gratuitous promise",
+            "A strong answer distinguishes bargained-for consideration from a mere conditional gift"
+          ],
+          "extraCentroidPoints": [
+            "Discusses the Statute of Frauds and its potential application to the oral promise",
+            "Mentions the father's motivation by a tax deduction and its failure as undermining enforceability"
+          ],
+          "contradictionPoints": [
+            "Treats the son's marriage as not constituting consideration solely because the son already planned to marry, without recognizing that consideration may still exist",
+            "Concludes the promise is unenforceable due to lack of consideration without analyzing the offer-acceptance structure of a unilateral contract"
+          ],
+          "differenceSummary": "The representative answer focuses heavily on the lack of consideration due to the son's prior intent and the failure of the father's tax deduction motive, but it fails to frame the promise as a unilateral contract with acceptance by performance. It also omits the nuanced distinction between bargained-for consideration and a conditional gift, which is central to the golden target.",
+          "rationale": "While the answer correctly identifies the key issue of consideration and notes the son's prior intent to marry, it does not engage with the unilateral contract framework or the offer-acceptance analysis. It also incorrectly treats the son's marriage as automatically failing to constitute consideration, contrary to the golden target's more balanced approach. The inclusion of the Statute of Frauds discussion is an additional point not required by the golden target but relevant to enforceability. Overall, the answer partially covers the domain but misses critical conceptual points necessary for a full and accurate analysis."
+        },
+        {
+          "judgeId": "anthropic_claude4sonnet",
+          "model": "anthropic/claude-4-sonnet",
+          "provider": "Claude",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer directly addresses formation and consideration issues in analyzing the enforceability of the father's promise.",
+          "score": 65,
+          "confidence": 0.8,
+          "matchedGoldenPoints": [
+            "Recognizes the consideration issue whether the son's marriage constitutes bargained-for consideration",
+            "Notes that the son's prior intent to marry weakens the consideration analysis",
+            "Distinguishes bargained-for consideration from conditional promises"
+          ],
+          "missingGoldenPoints": [
+            "Does not identify or explain the unilateral contract structure with offer-by-promise and acceptance-by-performance",
+            "Does not recognize that prior intent weakens but does not automatically defeat consideration analysis",
+            "Lacks nuanced treatment of the contestable nature of consideration rather than definitively concluding no consideration exists"
+          ],
+          "extraCentroidPoints": [
+            "Extensive discussion of Statute of Frauds issues",
+            "Focus on the father's failed tax motivation as undermining enforceability",
+            "Treatment of the promise as conditional on the father's own benefit"
+          ],
+          "contradictionPoints": [
+            "Concludes definitively that there is no consideration, whereas the golden target treats consideration as contestable rather than clearly absent"
+          ],
+          "differenceSummary": "The representative answer correctly identifies the core consideration issue and the son's prior intent problem, but fails to analyze the unilateral contract structure and treats consideration as definitively absent rather than contestable. It also adds significant Statute of Frauds analysis not present in the domain focus.",
+          "rationale": "The answer engages with key formation and consideration concepts but misses the unilateral contract framework that is central to the golden target. While it correctly identifies the bargain vs. gift distinction and the son's prior intent issue, it reaches a more definitive conclusion about lack of consideration rather than recognizing the contestable nature of the analysis."
+        },
+        {
+          "judgeId": "deepseek_v3",
+          "model": "deepseek-ai/deepseek-v3",
+          "provider": "DeepSeek",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer engages with the Formation and Consideration domain by analyzing the enforceability of the father's promise, focusing on consideration and the conditional nature of the promise.",
+          "score": 70,
+          "confidence": 0.8,
+          "matchedGoldenPoints": [
+            "Recognizes the issue whether the son's marriage constitutes bargained-for consideration or is merely a condition on a gratuitous promise.",
+            "The son's prior intent to marry weakens, but does not automatically defeat, a consideration analysis."
+          ],
+          "missingGoldenPoints": [
+            "Identifies the father's conditional promise and the son's marriage within 18 months as offer and acceptance forming a unilateral contract.",
+            "A strong answer distinguishes bargained-for consideration from a mere conditional gift."
+          ],
+          "extraCentroidPoints": [
+            "The father's motivation (tax deduction) also failed, further undermining the enforceability of the promise.",
+            "The father's promise was conditional on his own benefit (tax deduction), which did not materialize."
+          ],
+          "contradictionPoints": [],
+          "differenceSummary": "The representative answer correctly identifies the lack of consideration due to the son's prior intent to marry and the conditional nature of the father's promise. However, it misses the unilateral contract structure and does not clearly distinguish between bargained-for consideration and a conditional gift. It also introduces additional points about the father's motivation and the failure of the tax deduction condition.",
+          "rationale": "The answer aligns with the domain by addressing consideration and the conditional promise but falls short in fully capturing the unilateral contract framework and the distinction between consideration and a conditional gift. The additional points about the father's motivation and the tax deduction condition, while relevant, are not central to the golden target's focus."
+        }
+      ],
+      "ensemble": {
+        "participatingJudgeCount": 3,
+        "applicableJudgeCount": 3,
+        "notApplicableJudgeCount": 0,
+        "applicabilityStatus": "applicable",
+        "agreementRatio": 1,
+        "medianScore": 65,
+        "scoreSpread": 5,
+        "scoreStdDev": 2.36
+      }
+    },
+    {
+      "domainId": "analysis_domain_3",
+      "domainName": "Marriage-Consideration Statute of Frauds",
+      "winningCentroidId": "cluster_19",
+      "archivedWinningScore": 55,
+      "representativeResponseId": "response_dbdde01f",
+      "judgeOutputs": [
+        {
+          "judgeId": "openai_gpt41mini",
+          "model": "gpt-4.1-mini",
+          "provider": "OpenAI",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer directly addresses the Marriage-Consideration Statute of Frauds by identifying the promise as made in consideration of marriage and noting the lack of a signed writing.",
+          "score": 90,
+          "confidence": 0.9,
+          "matchedGoldenPoints": [
+            "The promise falls within the Statute of Frauds as a contract in consideration of marriage.",
+            "No signed writing exists between father and son.",
+            "That writing failure is the dispositive reason the promise is unenforceable."
+          ],
+          "missingGoldenPoints": [],
+          "extraCentroidPoints": [
+            "Discussion of the father's primary motivation being a hoped-for tax deduction and its possible effect on mutuality of obligation.",
+            "Clarification that the one-year provision does not apply because the marriage occurred within 18 months."
+          ],
+          "contradictionPoints": [],
+          "differenceSummary": "The representative answer adds analysis about the father's motivation and the one-year provision, which are not in the golden target but do not contradict it.",
+          "rationale": "The answer clearly identifies the promise as a contract in consideration of marriage, notes the absence of a signed writing, and concludes unenforceability under the Statute of Frauds, aligning well with the golden target. The additional points enrich the analysis without contradicting the core doctrinal route."
+        },
+        {
+          "judgeId": "anthropic_claude4sonnet",
+          "model": "anthropic/claude-4-sonnet",
+          "provider": "Claude",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer directly engages with the Marriage-Consideration Statute of Frauds domain by identifying that the father's promise was made in consideration of marriage and analyzing the writing requirement.",
+          "score": 85,
+          "confidence": 0.9,
+          "matchedGoldenPoints": [
+            "The promise falls within the Statute of Frauds as a contract in consideration of marriage",
+            "No signed writing exists between father and son",
+            "That writing failure is the dispositive reason the promise is unenforceable"
+          ],
+          "missingGoldenPoints": [],
+          "extraCentroidPoints": [
+            "Discussion of one-year provision of Statute of Frauds",
+            "Analysis of consideration and mutuality of obligation based on father's tax motivation"
+          ],
+          "contradictionPoints": [],
+          "differenceSummary": "The representative answer covers all core golden target elements but includes additional analysis of other Statute of Frauds provisions and consideration doctrine that goes beyond the marriage-consideration focus.",
+          "rationale": "The answer clearly identifies that the promise was made in consideration of marriage, recognizes the absence of a written contract between father and son, and concludes that this writing failure makes the promise unenforceable under the Statute of Frauds. While it includes some extraneous discussion of the one-year rule and consideration issues, these do not contradict the core marriage-consideration analysis and are permitted under the allowed omissions guidance. The answer demonstrates strong understanding of the marriage-consideration Statute of Frauds as the dispositive legal issue."
+        },
+        {
+          "judgeId": "deepseek_v3",
+          "model": "deepseek-ai/deepseek-v3",
+          "provider": "DeepSeek",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer correctly identifies the marriage-consideration Statute of Frauds as the key issue and concludes that the lack of a signed writing makes the promise unenforceable.",
+          "score": 90,
+          "confidence": 0.9,
+          "matchedGoldenPoints": [
+            "The promise falls within the Statute of Frauds as a contract in consideration of marriage.",
+            "No signed writing exists between father and son.",
+            "That writing failure is the dispositive reason the promise is unenforceable."
+          ],
+          "missingGoldenPoints": [],
+          "extraCentroidPoints": [
+            "The response discusses the one-year provision of the Statute of Frauds, though it correctly notes it does not apply here.",
+            "The response mentions the father's motivation (tax deduction) and its potential impact on mutuality of obligation, though this is not central to the Statute of Frauds analysis."
+          ],
+          "contradictionPoints": [],
+          "differenceSummary": "The representative answer aligns well with the golden target, correctly focusing on the marriage-consideration Statute of Frauds and the lack of a signed writing. It includes some additional, non-dispositive points about the one-year provision and the father's motivation, but these do not contradict the core analysis.",
+          "rationale": "The response accurately applies the marriage-consideration Statute of Frauds and correctly concludes the promise is unenforceable due to the lack of a signed writing. Minor additional points do not detract from the core correctness."
+        }
+      ],
+      "ensemble": {
+        "participatingJudgeCount": 3,
+        "applicableJudgeCount": 3,
+        "notApplicableJudgeCount": 0,
+        "applicabilityStatus": "applicable",
+        "agreementRatio": 1,
+        "medianScore": 90,
+        "scoreSpread": 5,
+        "scoreStdDev": 2.36
+      }
+    },
+    {
+      "domainId": "analysis_domain_4",
+      "domainName": "Suretyship and Main-Purpose Doctrine",
+      "winningCentroidId": "cluster_4",
+      "archivedWinningScore": 49,
+      "representativeResponseId": "response_38ec5c00",
+      "judgeOutputs": [
+        {
+          "judgeId": "openai_gpt41mini",
+          "model": "gpt-4.1-mini",
+          "provider": "OpenAI",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer clearly engages with the Suretyship and Main-Purpose Doctrine domain by analyzing the Statute of Frauds as it applies to suretyship and the main-purpose exception, and by addressing the marriage-consideration issue.",
+          "score": 85,
+          "confidence": 0.9,
+          "matchedGoldenPoints": [
+            "Suretyship is a possible but secondary issue because the promise was made to the son rather than directly to the lender.",
+            "The main-purpose or leading-object doctrine matters only if suretyship is otherwise in play.",
+            "Even a main-purpose argument would not cure the independent marriage-consideration Statute of Frauds problem."
+          ],
+          "missingGoldenPoints": [],
+          "extraCentroidPoints": [
+            "Explicitly states that the main purpose doctrine exception to the debt provision does not apply to the marriage provision of the Statute of Frauds.",
+            "Emphasizes that the contract must be in writing to be enforceable under the marriage provision."
+          ],
+          "contradictionPoints": [],
+          "differenceSummary": "The representative answer focuses more explicitly on the marriage-consideration provision of the Statute of Frauds and clarifies that the main-purpose exception does not apply to it, whereas the golden target emphasizes suretyship as a secondary issue and main-purpose analysis as subordinate to the marriage-consideration bar.",
+          "rationale": "The answer correctly identifies that the promise to pay the son's debt is not a classic suretyship because the promise was made to the son, not the creditor. It also correctly notes that the main-purpose doctrine is irrelevant because the promise is grounded in marriage consideration, which requires a written contract. This aligns well with the golden target's guidance that suretyship and main-purpose analysis are subordinate to the marriage-consideration issue. The answer's clear rejection of enforceability due to the marriage-consideration Statute of Frauds bar is consistent with the golden target, justifying a high score."
+        },
+        {
+          "judgeId": "anthropic_claude4sonnet",
+          "model": "anthropic/claude-4-sonnet",
+          "provider": "Claude",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer directly engages with the Suretyship and Main-Purpose Doctrine domain by discussing promises to answer for the debt of another and the main purpose exception.",
+          "score": 25,
+          "confidence": 0.8,
+          "matchedGoldenPoints": [
+            "The main-purpose or leading-object doctrine matters only if suretyship is otherwise in play",
+            "Even a main-purpose argument would not cure the independent marriage-consideration Statute of Frauds problem"
+          ],
+          "missingGoldenPoints": [
+            "Suretyship is a possible but secondary issue because the promise was made to the son rather than directly to the lender"
+          ],
+          "extraCentroidPoints": [
+            "Detailed analysis of marriage consideration as primary governing provision",
+            "Explicit statement that main purpose exception does not apply to marriage provision"
+          ],
+          "contradictionPoints": [],
+          "differenceSummary": "The answer correctly subordinates suretyship and main-purpose analysis to the marriage-consideration issue, but fails to analyze the key threshold question of whether suretyship applies at all given that the promise was made to the debtor (son) rather than the creditor.",
+          "rationale": "While the answer demonstrates understanding that main-purpose doctrine cannot overcome the marriage-consideration bar and properly treats suretyship as secondary, it misses the critical analysis of whether classic suretyship is even triggered on these facts. The answer assumes suretyship applies without examining that the promise was made to the son rather than directly to the lender, which is a fundamental threshold issue in suretyship analysis."
+        },
+        {
+          "judgeId": "deepseek_v3",
+          "model": "deepseek-ai/deepseek-v3",
+          "provider": "DeepSeek",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer engages with the Suretyship and Main-Purpose Doctrine domain by analyzing the suretyship Statute of Frauds provision and the main-purpose doctrine, while also addressing the marriage-consideration issue.",
+          "score": 90,
+          "confidence": 0.9,
+          "matchedGoldenPoints": [
+            "The main-purpose or leading-object doctrine matters only if suretyship is otherwise in play.",
+            "Even a main-purpose argument would not cure the independent marriage-consideration Statute of Frauds problem."
+          ],
+          "missingGoldenPoints": [
+            "Suretyship is a possible but secondary issue because the promise was made to the son rather than directly to the lender."
+          ],
+          "extraCentroidPoints": [
+            "The response explicitly states that the main purpose exception does not apply to the marriage provision of the Statute of Frauds."
+          ],
+          "contradictionPoints": [],
+          "differenceSummary": "The representative answer correctly subordinates the main-purpose doctrine to the marriage-consideration issue and does not treat the main-purpose doctrine as sufficient to make the promise enforceable. However, it slightly misses the point that suretyship is a secondary issue because the promise was made to the son rather than directly to the lender.",
+          "rationale": "The answer effectively addresses the main-purpose doctrine and its irrelevance to the marriage-consideration Statute of Frauds problem, aligning well with the golden target. It could slightly improve by noting the secondary nature of the suretyship issue due to the promise being made to the son."
+        }
+      ],
+      "ensemble": {
+        "participatingJudgeCount": 3,
+        "applicableJudgeCount": 3,
+        "notApplicableJudgeCount": 0,
+        "applicabilityStatus": "applicable",
+        "agreementRatio": 1,
+        "medianScore": 85,
+        "scoreSpread": 65,
+        "scoreStdDev": 29.53
+      }
+    },
+    {
+      "domainId": "analysis_domain_5",
+      "domainName": "Promissory Estoppel and Reliance",
+      "winningCentroidId": "cluster_15",
+      "archivedWinningScore": 52,
+      "representativeResponseId": "response_ba1ae1a2",
+      "judgeOutputs": [
+        {
+          "judgeId": "openai_gpt41mini",
+          "model": "gpt-4.1-mini",
+          "provider": "OpenAI",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer directly addresses the enforceability of the father's oral promise under the Statute of Frauds and promissory estoppel, engaging with the Promissory Estoppel and Reliance domain as required.",
+          "score": 85,
+          "confidence": 0.9,
+          "matchedGoldenPoints": [
+            "Promissory estoppel is a possible fallback theory.",
+            "The son's preexisting intent to marry weakens inducement and reliance.",
+            "Courts may be reluctant to use estoppel to override the Statute of Frauds in this setting."
+          ],
+          "missingGoldenPoints": [],
+          "extraCentroidPoints": [
+            "The father's primary motivation was a potential tax deduction, which does not affect the requirement for a written contract."
+          ],
+          "contradictionPoints": [],
+          "differenceSummary": "The representative answer includes an explicit mention of the father's tax deduction motivation as irrelevant to the enforceability, which is not in the golden summary but is a reasonable additional point. It does not contradict the golden points and appropriately treats reliance as weak due to the son's prior intent to marry.",
+          "rationale": "The answer correctly identifies the Statute of Frauds as a barrier to enforceability and treats promissory estoppel as a possible but weak fallback due to the son's preexisting intent to marry, aligning well with the golden summary. The inclusion of the tax deduction motivation adds helpful context without contradicting the core analysis. The answer avoids treating reliance as obviously strong, consistent with the nuanced approach required."
+        },
+        {
+          "judgeId": "anthropic_claude4sonnet",
+          "model": "anthropic/claude-4-sonnet",
+          "provider": "Claude",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer directly addresses promissory estoppel as a potential exception to the Statute of Frauds and analyzes the reliance element in the context of the son's pre-existing intent.",
+          "score": 85,
+          "confidence": 0.9,
+          "matchedGoldenPoints": [
+            "Promissory estoppel is a possible fallback theory",
+            "The son's preexisting intent to marry weakens inducement and reliance"
+          ],
+          "missingGoldenPoints": [
+            "Courts may be reluctant to use estoppel to override the Statute of Frauds in this setting"
+          ],
+          "extraCentroidPoints": [
+            "Detailed analysis of the father's tax motivation as irrelevant to written contract requirement"
+          ],
+          "contradictionPoints": [],
+          "differenceSummary": "The response provides strong analysis of the core promissory estoppel issues but lacks discussion of judicial reluctance to use estoppel to circumvent Statute of Frauds requirements.",
+          "rationale": "The representative answer demonstrates nuanced understanding by recognizing promissory estoppel as a potential theory while properly identifying why it's weak due to the son's pre-existing intent. The analysis correctly concludes that the son 'likely did not rely on the father's promise to his detriment' and 'did not change his position,' which aligns with the golden target's emphasis on weak reliance. The response avoids categorical rejection while explaining the weakness of the claim."
+        },
+        {
+          "judgeId": "deepseek_v3",
+          "model": "deepseek-ai/deepseek-v3",
+          "provider": "DeepSeek",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer engages with the Promissory Estoppel and Reliance domain by discussing the potential applicability of promissory estoppel despite the Statute of Frauds requirement.",
+          "score": 80,
+          "confidence": 0.8,
+          "matchedGoldenPoints": [
+            "Promissory estoppel is a possible fallback theory.",
+            "The son's preexisting intent to marry weakens inducement and reliance.",
+            "Courts may be reluctant to use estoppel to override the Statute of Frauds in this setting."
+          ],
+          "missingGoldenPoints": [],
+          "extraCentroidPoints": [
+            "The father's primary motivation was a potential tax deduction, which does not affect the requirement for a written contract."
+          ],
+          "contradictionPoints": [],
+          "differenceSummary": "The representative answer aligns well with the golden target, covering all key points about promissory estoppel's weakness due to the son's prior intent and the Statute of Frauds. It adds a minor point about the father's motivation, which does not contradict the golden target.",
+          "rationale": "The answer effectively evaluates promissory estoppel as a possible but weak exception to the Statute of Frauds, noting the son's prior intent to marry weakens reliance. It also correctly identifies the Statute of Frauds as a barrier to enforcement."
+        }
+      ],
+      "ensemble": {
+        "participatingJudgeCount": 3,
+        "applicableJudgeCount": 3,
+        "notApplicableJudgeCount": 0,
+        "applicabilityStatus": "applicable",
+        "agreementRatio": 1,
+        "medianScore": 85,
+        "scoreSpread": 5,
+        "scoreStdDev": 2.36
+      }
+    },
+    {
+      "domainId": "analysis_domain_6",
+      "domainName": "Mistake, One-Year Rule, and Counterarguments",
+      "winningCentroidId": "cluster_18",
+      "archivedWinningScore": 53,
+      "representativeResponseId": "response_b5d250b8",
+      "judgeOutputs": [
+        {
+          "judgeId": "openai_gpt41mini",
+          "model": "gpt-4.1-mini",
+          "provider": "OpenAI",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer addresses the enforceability of the father's oral promise in light of the Statute of Frauds, the one-year rule, and the father's mistaken belief about a tax deduction, engaging with the key issues in the domain.",
+          "score": 65,
+          "confidence": 0.7,
+          "matchedGoldenPoints": [
+            "The father's tax-deduction mistake does not excuse performance unless the promise was expressly conditioned on receiving the deduction."
+          ],
+          "missingGoldenPoints": [
+            "The one-year provision does not apply because the promise could have been performed within one year.",
+            "Avoids conflating the one-year provision with the marriage-consideration Statute of Frauds requirement.",
+            "Includes counterarguments such as the son's prior intent negating inducement and the possibility of promissory estoppel.",
+            "The response acknowledges meaningful counterarguments rather than presenting a one-sided conclusion."
+          ],
+          "extraCentroidPoints": [
+            "Discusses the main purpose doctrine as an exception to the Statute of Frauds.",
+            "States that the promise falls under both the promise to answer for another's debt and the one-year rule."
+          ],
+          "contradictionPoints": [
+            "Treats the one-year rule as dispositive and applies it to the promise, despite the promise being performable within one year.",
+            "Concludes the promise is likely unenforceable due to the Statute of Frauds without clearly addressing exceptions or counterarguments."
+          ],
+          "differenceSummary": "The representative answer incorrectly treats the one-year rule as applicable despite the promise being performable within one year, conflates the one-year provision with the marriage-consideration Statute of Frauds requirement, and fails to address key counterarguments such as promissory estoppel or the son's prior intent. It also emphasizes the main purpose doctrine, which is not highlighted in the golden target. The answer concludes the promise is likely unenforceable without sufficiently engaging with exceptions or defenses.",
+          "rationale": "While the answer correctly notes that the father's mistaken belief about the tax deduction does not invalidate the promise absent an express condition, it errs by applying the one-year Statute of Frauds provision where it does not apply and conflates it with the marriage-consideration requirement. It also lacks discussion of important counterarguments and defenses, such as promissory estoppel and the son's prior intent, which are critical to a careful doctrinal analysis in this domain. The inclusion of the main purpose doctrine is an additional point but does not compensate for the doctrinal errors and omissions."
+        },
+        {
+          "judgeId": "anthropic_claude4sonnet",
+          "model": "anthropic/claude-4-sonnet",
+          "provider": "Claude",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer directly engages with the Mistake, One-Year Rule, and Counterarguments domain by discussing the father's tax deduction mistake, analyzing Statute of Frauds provisions including the one-year rule, and addressing various legal counterarguments.",
+          "score": 25,
+          "confidence": 0.85,
+          "matchedGoldenPoints": [
+            "The father's tax-deduction mistake does not excuse performance - answer states the mistake 'does not affect the validity of the contract formation'"
+          ],
+          "missingGoldenPoints": [
+            "Clear statement that the one-year provision does not apply because the promise could have been performed within one year",
+            "Acknowledgment of meaningful counterarguments such as son's prior intent negating inducement and possibility of promissory estoppel",
+            "Analysis of whether promise was expressly conditioned on receiving the tax deduction"
+          ],
+          "extraCentroidPoints": [
+            "Extensive discussion of main purpose doctrine as potential exception",
+            "Analysis of consideration through the marriage itself"
+          ],
+          "contradictionPoints": [
+            "Treats the one-year rule as applicable when the promise could have been performed within one year (18-month timeframe but performance possible earlier)",
+            "Presents largely one-sided conclusion without acknowledging strongest counterarguments"
+          ],
+          "differenceSummary": "The representative answer makes a critical doctrinal error by treating the one-year rule as applicable, fails to acknowledge key counterarguments, and doesn't analyze whether the promise was expressly conditioned on the tax deduction.",
+          "rationale": "While the answer correctly identifies that the father's mistake doesn't excuse performance, it commits the major contradiction flag of treating the one-year rule as dispositive when the promise could have been performed within one year. It also fails to address meaningful counterarguments and presents a one-sided analysis, contrary to the domain's emphasis on acknowledging counterarguments rather than presenting one-sided conclusions."
+        },
+        {
+          "judgeId": "deepseek_v3",
+          "model": "deepseek-ai/deepseek-v3",
+          "provider": "DeepSeek",
+          "applicabilityStatus": "applicable",
+          "applicabilityExplanation": "The representative answer engages with the Mistake, One-Year Rule, and Counterarguments domain by addressing the father's tax-deduction mistake, the one-year rule, and potential counterarguments.",
+          "score": 70,
+          "confidence": 0.8,
+          "matchedGoldenPoints": [
+            "The father's tax-deduction mistake does not excuse performance unless the promise was expressly conditioned on receiving the deduction.",
+            "The response acknowledges meaningful counterarguments rather than presenting a one-sided conclusion."
+          ],
+          "missingGoldenPoints": [
+            "The one-year provision does not apply because the promise could have been performed within one year.",
+            "The response addresses the principal counterargument or defense when relevant."
+          ],
+          "extraCentroidPoints": [
+            "The main purpose doctrine may apply since the father was primarily motivated by his own tax benefit rather than helping his son."
+          ],
+          "contradictionPoints": [
+            "The response treats the one-year rule as the dispositive Statute of Frauds category."
+          ],
+          "differenceSummary": "The representative answer correctly addresses the father's tax-deduction mistake and includes counterarguments, but it incorrectly treats the one-year rule as dispositive and misses the point that the promise could have been performed within one year. It also adds an emphasis on the main purpose doctrine.",
+          "rationale": "The answer is largely aligned with the domain but contains a material doctrinal error by conflating the one-year provision with the Statute of Frauds requirement. It also misses some key points from the golden target, such as the inapplicability of the one-year rule and the need to address the principal counterargument."
+        }
+      ],
+      "ensemble": {
+        "participatingJudgeCount": 3,
+        "applicableJudgeCount": 3,
+        "notApplicableJudgeCount": 0,
+        "applicabilityStatus": "applicable",
+        "agreementRatio": 1,
+        "medianScore": 65,
+        "scoreSpread": 45,
+        "scoreStdDev": 20.14
+      }
+    }
+  ]
+}

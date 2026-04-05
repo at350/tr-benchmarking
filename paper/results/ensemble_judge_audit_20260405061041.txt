@@ -1,0 +1,64 @@
+Dasha Ensemble Judge Audit
+Timestamp: 20260405061041
+Dasha run: /Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/dasha-runs/dasha_1775367155213_70677f12.json
+Karthic pack: /Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/karthic-rubric-packs/karthic_1775367155213_270af0ba.json
+
+Audited domains: 6
+Mean agreement ratio: 1
+Mean ensemble median score: 79.17
+Fully unanimous domains: 6
+Domains with disagreement: 0
+
+Issue and Bottom-Line Enforceability -> cluster_13
+  ensemble applicability: applicable
+  agreement: 1
+  median score: 85
+  score spread: 20
+  OpenAI: applicable score=85 conf=0.9
+  Claude: applicable score=65 conf=0.8
+  DeepSeek: applicable score=85 conf=0.8
+
+Formation and Consideration -> cluster_13
+  ensemble applicability: applicable
+  agreement: 1
+  median score: 65
+  score spread: 5
+  OpenAI: applicable score=65 conf=0.8
+  Claude: applicable score=65 conf=0.8
+  DeepSeek: applicable score=70 conf=0.8
+
+Marriage-Consideration Statute of Frauds -> cluster_19
+  ensemble applicability: applicable
+  agreement: 1
+  median score: 90
+  score spread: 5
+  OpenAI: applicable score=90 conf=0.9
+  Claude: applicable score=85 conf=0.9
+  DeepSeek: applicable score=90 conf=0.9
+
+Suretyship and Main-Purpose Doctrine -> cluster_4
+  ensemble applicability: applicable
+  agreement: 1
+  median score: 85
+  score spread: 65
+  OpenAI: applicable score=85 conf=0.9
+  Claude: applicable score=25 conf=0.8
+  DeepSeek: applicable score=90 conf=0.9
+
+Promissory Estoppel and Reliance -> cluster_15
+  ensemble applicability: applicable
+  agreement: 1
+  median score: 85
+  score spread: 5
+  OpenAI: applicable score=85 conf=0.9
+  Claude: applicable score=85 conf=0.9
+  DeepSeek: applicable score=80 conf=0.8
+
+Mistake, One-Year Rule, and Counterarguments -> cluster_18
+  ensemble applicability: applicable
+  agreement: 1
+  median score: 65
+  score spread: 45
+  OpenAI: applicable score=65 conf=0.7
+  Claude: applicable score=25 conf=0.85
+  DeepSeek: applicable score=70 conf=0.8

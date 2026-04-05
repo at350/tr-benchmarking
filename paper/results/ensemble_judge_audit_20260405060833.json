@@ -1,0 +1,253 @@
+{
+  "timestamp": "20260405060833",
+  "dashaRunPath": "/Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/dasha-runs/dasha_1775367155213_70677f12.json",
+  "karthicPackPath": "/Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/karthic-rubric-packs/karthic_1775367155213_270af0ba.json",
+  "judges": [
+    {
+      "judgeId": "openai_gpt41mini",
+      "provider": "openai",
+      "model": "gpt-4.1-mini"
+    },
+    {
+      "judgeId": "anthropic_claude4sonnet",
+      "provider": "replicate",
+      "model": "anthropic/claude-4-sonnet"
+    },
+    {
+      "judgeId": "deepseek_v3",
+      "provider": "replicate",
+      "model": "deepseek-ai/deepseek-v3"
+    }
+  ],
+  "overall": {
+    "auditedDomains": 6,
+    "meanAgreementRatio": null,
+    "meanMedianScore": null,
+    "fullyUnanimousDomains": 0,
+    "domainsWithDisagreement": 6
+  },
+  "domainAudits": [
+    {
+      "domainId": "analysis_domain_1",
+      "domainName": "Issue and Bottom-Line Enforceability",
+      "winningCentroidId": "cluster_13",
+      "archivedWinningScore": 63,
+      "representativeResponseId": "response_26833751",
+      "judgeOutputs": [
+        {
+          "judgeId": "openai_gpt41mini",
+          "model": "gpt-4.1-mini",
+          "provider": "OpenAI",
+          "error": "Connection error."
+        },
+        {
+          "judgeId": "anthropic_claude4sonnet",
+          "model": "anthropic/claude-4-sonnet",
+          "provider": "Claude",
+          "error": "fetch failed"
+        },
+        {
+          "judgeId": "deepseek_v3",
+          "model": "deepseek-ai/deepseek-v3",
+          "provider": "DeepSeek",
+          "error": "fetch failed"
+        }
+      ],
+      "ensemble": {
+        "participatingJudgeCount": 0,
+        "applicableJudgeCount": 0,
+        "notApplicableJudgeCount": 0,
+        "applicabilityStatus": "not_applicable",
+        "agreementRatio": null,
+        "medianScore": null,
+        "scoreSpread": null,
+        "scoreStdDev": null
+      }
+    },
+    {
+      "domainId": "analysis_domain_2",
+      "domainName": "Formation and Consideration",
+      "winningCentroidId": "cluster_13",
+      "archivedWinningScore": 56,
+      "representativeResponseId": "response_26833751",
+      "judgeOutputs": [
+        {
+          "judgeId": "openai_gpt41mini",
+          "model": "gpt-4.1-mini",
+          "provider": "OpenAI",
+          "error": "Connection error."
+        },
+        {
+          "judgeId": "anthropic_claude4sonnet",
+          "model": "anthropic/claude-4-sonnet",
+          "provider": "Claude",
+          "error": "fetch failed"
+        },
+        {
+          "judgeId": "deepseek_v3",
+          "model": "deepseek-ai/deepseek-v3",
+          "provider": "DeepSeek",
+          "error": "fetch failed"
+        }
+      ],
+      "ensemble": {
+        "participatingJudgeCount": 0,
+        "applicableJudgeCount": 0,
+        "notApplicableJudgeCount": 0,
+        "applicabilityStatus": "not_applicable",
+        "agreementRatio": null,
+        "medianScore": null,
+        "scoreSpread": null,
+        "scoreStdDev": null
+      }
+    },
+    {
+      "domainId": "analysis_domain_3",
+      "domainName": "Marriage-Consideration Statute of Frauds",
+      "winningCentroidId": "cluster_19",
+      "archivedWinningScore": 55,
+      "representativeResponseId": "response_dbdde01f",
+      "judgeOutputs": [
+        {
+          "judgeId": "openai_gpt41mini",
+          "model": "gpt-4.1-mini",
+          "provider": "OpenAI",
+          "error": "Connection error."
+        },
+        {
+          "judgeId": "anthropic_claude4sonnet",
+          "model": "anthropic/claude-4-sonnet",
+          "provider": "Claude",
+          "error": "fetch failed"
+        },
+        {
+          "judgeId": "deepseek_v3",
+          "model": "deepseek-ai/deepseek-v3",
+          "provider": "DeepSeek",
+          "error": "fetch failed"
+        }
+      ],
+      "ensemble": {
+        "participatingJudgeCount": 0,
+        "applicableJudgeCount": 0,
+        "notApplicableJudgeCount": 0,
+        "applicabilityStatus": "not_applicable",
+        "agreementRatio": null,
+        "medianScore": null,
+        "scoreSpread": null,
+        "scoreStdDev": null
+      }
+    },
+    {
+      "domainId": "analysis_domain_4",
+      "domainName": "Suretyship and Main-Purpose Doctrine",
+      "winningCentroidId": "cluster_4",
+      "archivedWinningScore": 49,
+      "representativeResponseId": "response_38ec5c00",
+      "judgeOutputs": [
+        {
+          "judgeId": "openai_gpt41mini",
+          "model": "gpt-4.1-mini",
+          "provider": "OpenAI",
+          "error": "Connection error."
+        },
+        {
+          "judgeId": "anthropic_claude4sonnet",
+          "model": "anthropic/claude-4-sonnet",
+          "provider": "Claude",
+          "error": "fetch failed"
+        },
+        {
+          "judgeId": "deepseek_v3",
+          "model": "deepseek-ai/deepseek-v3",
+          "provider": "DeepSeek",
+          "error": "fetch failed"
+        }
+      ],
+      "ensemble": {
+        "participatingJudgeCount": 0,
+        "applicableJudgeCount": 0,
+        "notApplicableJudgeCount": 0,
+        "applicabilityStatus": "not_applicable",
+        "agreementRatio": null,
+        "medianScore": null,
+        "scoreSpread": null,
+        "scoreStdDev": null
+      }
+    },
+    {
+      "domainId": "analysis_domain_5",
+      "domainName": "Promissory Estoppel and Reliance",
+      "winningCentroidId": "cluster_15",
+      "archivedWinningScore": 52,
+      "representativeResponseId": "response_ba1ae1a2",
+      "judgeOutputs": [
+        {
+          "judgeId": "openai_gpt41mini",
+          "model": "gpt-4.1-mini",
+          "provider": "OpenAI",
+          "error": "Connection error."
+        },
+        {
+          "judgeId": "anthropic_claude4sonnet",
+          "model": "anthropic/claude-4-sonnet",
+          "provider": "Claude",
+          "error": "fetch failed"
+        },
+        {
+          "judgeId": "deepseek_v3",
+          "model": "deepseek-ai/deepseek-v3",
+          "provider": "DeepSeek",
+          "error": "fetch failed"
+        }
+      ],
+      "ensemble": {
+        "participatingJudgeCount": 0,
+        "applicableJudgeCount": 0,
+        "notApplicableJudgeCount": 0,
+        "applicabilityStatus": "not_applicable",
+        "agreementRatio": null,
+        "medianScore": null,
+        "scoreSpread": null,
+        "scoreStdDev": null
+      }
+    },
+    {
+      "domainId": "analysis_domain_6",
+      "domainName": "Mistake, One-Year Rule, and Counterarguments",
+      "winningCentroidId": "cluster_18",
+      "archivedWinningScore": 53,
+      "representativeResponseId": "response_b5d250b8",
+      "judgeOutputs": [
+        {
+          "judgeId": "openai_gpt41mini",
+          "model": "gpt-4.1-mini",
+          "provider": "OpenAI",
+          "error": "Connection error."
+        },
+        {
+          "judgeId": "anthropic_claude4sonnet",
+          "model": "anthropic/claude-4-sonnet",
+          "provider": "Claude",
+          "error": "fetch failed"
+        },
+        {
+          "judgeId": "deepseek_v3",
+          "model": "deepseek-ai/deepseek-v3",
+          "provider": "DeepSeek",
+          "error": "fetch failed"
+        }
+      ],
+      "ensemble": {
+        "participatingJudgeCount": 0,
+        "applicableJudgeCount": 0,
+        "notApplicableJudgeCount": 0,
+        "applicabilityStatus": "not_applicable",
+        "agreementRatio": null,
+        "medianScore": null,
+        "scoreSpread": null,
+        "scoreStdDev": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+Dasha Ensemble Full Rejudge
+Timestamp: 20260405064117
+Dasha run: /Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/dasha-runs/dasha_1775367155213_70677f12.json
+Karthic pack: /Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/karthic-rubric-packs/karthic_1775367155213_270af0ba.json
+Concurrency: 2
+
+Domains judged: 6
+Clusters judged per domain: 22
+Total cluster-domain evaluations: 132
+Mean agreement ratio (all evaluations): 0.95
+Mean median score (all applicable evaluations): 59.15
+Fully unanimous evaluations: 112
+Evaluations with disagreement: 20
+Weighted score: 89.8
+
+Issue and Bottom-Line Enforceability -> cluster_12 score=95 agreement=1 spread=10
+Formation and Consideration -> cluster_12 score=85 agreement=1 spread=5
+Marriage-Consideration Statute of Frauds -> cluster_17 score=95 agreement=1 spread=5
+Suretyship and Main-Purpose Doctrine -> cluster_12 score=90 agreement=1 spread=15
+Promissory Estoppel and Reliance -> cluster_15 score=85 agreement=1 spread=0
+Mistake, One-Year Rule, and Counterarguments -> cluster_2 score=85 agreement=1 spread=25

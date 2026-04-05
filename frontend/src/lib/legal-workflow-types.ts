@@ -175,6 +175,31 @@ export type DomainCentroidDifference = {
     differenceSummary: string;
 };
 
+export type DashaJudgeProvider = 'openai' | 'anthropic' | 'deepseek';
+
+export type DashaJudgeRecord = {
+    judgeId: string;
+    provider: DashaJudgeProvider;
+    model: string;
+    applicabilityStatus: 'applicable' | 'not_applicable';
+    applicabilityExplanation: string;
+    score: number | null;
+    confidence: number | null;
+    rationale: string;
+    difference: DomainCentroidDifference;
+};
+
+export type DashaJudgeEnsemble = {
+    method: 'median_score_majority_vote';
+    judgeIds: string[];
+    participatingJudgeCount: number;
+    applicableJudgeCount: number;
+    notApplicableJudgeCount: number;
+    agreementRatio: number;
+    scoreSpread: number | null;
+    scoreStdDev: number | null;
+};
+
 export type DomainCentroidEvaluation = {
     clusterId: string;
     applicabilityStatus: 'applicable' | 'not_applicable';
@@ -183,6 +208,8 @@ export type DomainCentroidEvaluation = {
     confidence: number | null;
     rationale: string;
     difference: DomainCentroidDifference;
+    judgeOutputs?: DashaJudgeRecord[];
+    judgeEnsemble?: DashaJudgeEnsemble | null;
 };
 
 export type DomainResult = {
@@ -209,6 +236,15 @@ export type WeightedSummary = {
     notApplicableDomainIds: string[];
 };
 
+export type DashaJudgeConfiguration = {
+    method: 'median_score_majority_vote';
+    judges: Array<{
+        judgeId: string;
+        provider: DashaJudgeProvider;
+        model: string;
+    }>;
+};
+
 export type DashaRun = {
     id: string;
     rubricPackId: string;
@@ -222,6 +258,7 @@ export type DashaRun = {
     clusters: DashaClusterRecord[];
     domainResults: DomainResult[];
     weightedSummary: WeightedSummary;
+    judgeConfiguration?: DashaJudgeConfiguration | null;
     clusteringMethod: string;
     clusteringNotes: string | null;
     errorMessage?: string;

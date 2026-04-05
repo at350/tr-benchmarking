@@ -1,0 +1,64 @@
+Dasha Ensemble Judge Audit
+Timestamp: 20260405060833
+Dasha run: /Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/dasha-runs/dasha_1775367155213_70677f12.json
+Karthic pack: /Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/karthic-rubric-packs/karthic_1775367155213_270af0ba.json
+
+Audited domains: 6
+Mean agreement ratio: null
+Mean ensemble median score: null
+Fully unanimous domains: 0
+Domains with disagreement: 6
+
+Issue and Bottom-Line Enforceability -> cluster_13
+  ensemble applicability: not_applicable
+  agreement: null
+  median score: null
+  score spread: null
+  OpenAI: ERROR Connection error.
+  Claude: ERROR fetch failed
+  DeepSeek: ERROR fetch failed
+
+Formation and Consideration -> cluster_13
+  ensemble applicability: not_applicable
+  agreement: null
+  median score: null
+  score spread: null
+  OpenAI: ERROR Connection error.
+  Claude: ERROR fetch failed
+  DeepSeek: ERROR fetch failed
+
+Marriage-Consideration Statute of Frauds -> cluster_19
+  ensemble applicability: not_applicable
+  agreement: null
+  median score: null
+  score spread: null
+  OpenAI: ERROR Connection error.
+  Claude: ERROR fetch failed
+  DeepSeek: ERROR fetch failed
+
+Suretyship and Main-Purpose Doctrine -> cluster_4
+  ensemble applicability: not_applicable
+  agreement: null
+  median score: null
+  score spread: null
+  OpenAI: ERROR Connection error.
+  Claude: ERROR fetch failed
+  DeepSeek: ERROR fetch failed
+
+Promissory Estoppel and Reliance -> cluster_15
+  ensemble applicability: not_applicable
+  agreement: null
+  median score: null
+  score spread: null
+  OpenAI: ERROR Connection error.
+  Claude: ERROR fetch failed
+  DeepSeek: ERROR fetch failed
+
+Mistake, One-Year Rule, and Counterarguments -> cluster_18
+  ensemble applicability: not_applicable
+  agreement: null
+  median score: null
+  score spread: null
+  OpenAI: ERROR Connection error.
+  Claude: ERROR fetch failed
+  DeepSeek: ERROR fetch failed

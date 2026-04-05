@@ -15,6 +15,8 @@ import type {
     ArtifactRecord,
     ArtifactRole,
     DashaClusterRecord,
+    DashaJudgeConfiguration,
+    DashaJudgeRecord,
     DashaResponseRecord,
     DashaRun,
     DashaSelectedModel,
@@ -119,6 +121,36 @@ const DATA_DIRECTORIES = {
     dasha: 'dasha-runs',
     artifacts: 'artifacts',
 } as const;
+
+const DASHA_JUDGE_PANEL = [
+    {
+        judgeId: 'openai_gpt41mini',
+        provider: 'openai' as const,
+        judgeProvider: 'openai' as const,
+        model: 'gpt-4.1-mini',
+    },
+    {
+        judgeId: 'anthropic_claude4sonnet',
+        provider: 'replicate' as const,
+        judgeProvider: 'anthropic' as const,
+        model: 'anthropic/claude-4-sonnet',
+    },
+    {
+        judgeId: 'deepseek_v3',
+        provider: 'replicate' as const,
+        judgeProvider: 'deepseek' as const,
+        model: 'deepseek-ai/deepseek-v3',
+    },
+];
+
+const DEFAULT_DASHA_JUDGE_CONFIGURATION: DashaJudgeConfiguration = {
+    method: 'median_score_majority_vote',
+    judges: DASHA_JUDGE_PANEL.map((judge) => ({
+        judgeId: judge.judgeId,
+        provider: judge.judgeProvider,
+        model: judge.model,
+    })),
+};
 
 export async function listFrankPackets() {
     return await listArtifacts<FrankPacket>(DATA_DIRECTORIES.frank);
@@ -888,6 +920,7 @@ export async function runDashaEvaluation(input: DashaRunInput): Promise<DashaRun
             weightedScore: null,
             notApplicableDomainIds: [],
         },
+        judgeConfiguration: DEFAULT_DASHA_JUDGE_CONFIGURATION,
         clusteringMethod: 'pending',
         clusteringNotes: 'Dasha evaluation started and is running in the background.',
         createdAt: now,
@@ -926,6 +959,41 @@ export async function executeDashaRun(id: string): Promise<DashaRun> {
     });
 }
 
+export async function rejudgeDashaRun(id: string): Promise<DashaRun> {
+    const run = await getDashaRun(id);
+    if (!run) {
+        throw new Error('Dasha run not found.');
+    }
+
+    const pack = await getKarthicRubricPack(run.rubricPackId);
+    if (!pack) {
+        throw new Error('Karthic rubric pack not found.');
+    }
+    if (pack.status !== 'approved') {
+        throw new Error('Karthic rubric pack must be approved before Dasha judging can run.');
+    }
+
+    const validResponses = run.responses.filter((response) => !response.error && response.responseText.trim().length > 0);
+    const domainResults = await evaluateClustersAgainstDomains({
+        questionText: run.questionText,
+        pack,
+        clusters: run.clusters,
+        responses: validResponses,
+    });
+    const weightedSummary = summarizeDomainResults(domainResults);
+    const refreshedRun: DashaRun = {
+        ...run,
+        status: 'completed',
+        validResponseCount: validResponses.length,
+        domainResults,
+        weightedSummary,
+        judgeConfiguration: DEFAULT_DASHA_JUDGE_CONFIGURATION,
+        completedAt: new Date().toISOString(),
+    };
+    await writeArtifact(DATA_DIRECTORIES.dasha, refreshedRun.id, refreshedRun);
+    return refreshedRun;
+}
+
 async function finalizeDashaRun(input: {
     runId: string;
     createdAt: string;
@@ -957,6 +1025,7 @@ async function finalizeDashaRun(input: {
                     weightedScore: null,
                     notApplicableDomainIds: [],
                 },
+                judgeConfiguration: DEFAULT_DASHA_JUDGE_CONFIGURATION,
                 clusteringMethod: 'not_run',
                 clusteringNotes: 'No valid responses were available for clustering.',
                 errorMessage: 'No model responses were generated successfully.',
@@ -990,6 +1059,7 @@ async function finalizeDashaRun(input: {
             clusters,
             domainResults,
             weightedSummary,
+            judgeConfiguration: DEFAULT_DASHA_JUDGE_CONFIGURATION,
             clusteringMethod: clusteringResult.method,
             clusteringNotes: clusteringResult.notes,
             createdAt: input.createdAt,
@@ -1015,6 +1085,7 @@ async function finalizeDashaRun(input: {
                 weightedScore: null,
                 notApplicableDomainIds: [],
             },
+            judgeConfiguration: DEFAULT_DASHA_JUDGE_CONFIGURATION,
             clusteringMethod: 'not_run',
             clusteringNotes: 'Dasha evaluation terminated before clustering completed.',
             errorMessage: error instanceof Error ? error.message : 'Failed to run Dasha evaluation.',
@@ -1039,7 +1110,7 @@ async function evaluateClustersAgainstDomains(input: {
         const criteria = input.pack.criteria
             .filter((criterion) => criterion.domainId === domain.id && criterion.status === 'active')
             .map((criterion) => criterion.text);
-        const centroidEvaluations = (await Promise.all(input.clusters.map(async (cluster) => {
+        const evaluationRows: Array<DomainCentroidEvaluation | null> = await Promise.all(input.clusters.map(async (cluster) => {
             const representative = responseById.get(cluster.representativeResponseId);
             if (!representative) {
                 return null;
@@ -1061,8 +1132,11 @@ async function evaluateClustersAgainstDomains(input: {
                 confidence: evaluation.confidence,
                 rationale: evaluation.rationale,
                 difference: evaluation.difference,
+                judgeOutputs: evaluation.judgeOutputs,
+                judgeEnsemble: evaluation.judgeEnsemble,
             };
-        }))).filter((evaluation): evaluation is DomainCentroidEvaluation => Boolean(evaluation));
+        }));
+        const centroidEvaluations = evaluationRows.filter((evaluation): evaluation is DomainCentroidEvaluation => evaluation !== null);
 
         const winning = chooseWinningCentroid(centroidEvaluations, input.clusters);
         return {
@@ -1095,19 +1169,44 @@ async function evaluateDomainAgainstResponse(input: {
     confidence: number | null;
     rationale: string;
     difference: DomainCentroidDifference;
+    judgeOutputs: DashaJudgeRecord[];
+    judgeEnsemble: DomainCentroidEvaluation['judgeEnsemble'];
 }> {
     const fallback = heuristicDomainEvaluation(input);
-    if (!process.env.OPENAI_API_KEY) {
-        return fallback;
+    const systemPrompt = buildDashaJudgeSystemPrompt();
+    const userPrompt = buildDashaJudgeUserPrompt(input);
+    const judgeOutputs = (await Promise.all(
+        DASHA_JUDGE_PANEL.map((judge) => evaluateWithSingleJudge(judge, systemPrompt, userPrompt, fallback)),
+    )).filter((result): result is DashaJudgeRecord => Boolean(result));
+
+    if (judgeOutputs.length === 0) {
+        return {
+            ...fallback,
+            judgeOutputs: [],
+            judgeEnsemble: null,
+        };
     }
 
-    const systemPrompt = [
+    return aggregateJudgeOutputs(judgeOutputs, fallback);
+}
+
+function buildDashaJudgeSystemPrompt() {
+    return [
         'You are a Dasha-stage domain judge.',
         'Evaluate one clustered answer representative against one approved domain only.',
         'Do not compare models globally.',
         'Return JSON only.',
     ].join(' ');
-    const userPrompt = [
+}
+
+function buildDashaJudgeUserPrompt(input: {
+    questionText: string;
+    domain: KarthicDomain;
+    goldenTarget: KarthicGoldenDomainTarget;
+    criteria: string[];
+    responseText: string;
+}) {
+    return [
         `Domain: ${input.domain.name}`,
         `Domain description: ${input.domain.description}`,
         `NA guidance: ${input.domain.naGuidance}`,
@@ -1144,30 +1243,163 @@ async function evaluateDomainAgainstResponse(input: {
         'Representative answer:',
         input.responseText.slice(0, 3500),
     ].join('\n');
+}
 
-    const parsed = await tryOpenAiJson(systemPrompt, userPrompt);
-    if (!parsed) {
-        return fallback;
+async function evaluateWithSingleJudge(
+    judge: (typeof DASHA_JUDGE_PANEL)[number],
+    systemPrompt: string,
+    userPrompt: string,
+    fallback: ReturnType<typeof heuristicDomainEvaluation>,
+): Promise<DashaJudgeRecord | null> {
+    if (judge.provider === 'openai' && !process.env.OPENAI_API_KEY) {
+        return null;
+    }
+    if (judge.provider === 'replicate' && !process.env.REPLICATE_API_TOKEN) {
+        return null;
     }
 
-    const applicabilityStatus = parsed.applicabilityStatus === 'applicable' ? 'applicable' : 'not_applicable';
-    const score = applicabilityStatus === 'applicable'
-        ? clampNumber(toNumber(parsed.score, fallback.score ?? 0), 0, 100)
+    try {
+        let parsed: Record<string, unknown> | null;
+        if (judge.provider === 'openai') {
+            parsed = await tryOpenAiJson(systemPrompt, userPrompt, judge.model);
+        } else {
+            const raw = await generateModelResponse({
+                provider: judge.provider,
+                model: judge.model,
+                systemPrompt,
+                messages: [{ role: 'user', content: userPrompt }],
+                temperature: 0.1,
+                reasoningEffort: 'none',
+            });
+            parsed = safeJsonParse<Record<string, unknown>>(raw);
+        }
+
+        if (!parsed) {
+            return null;
+        }
+
+        const applicabilityStatus = parsed.applicabilityStatus === 'applicable' ? 'applicable' : 'not_applicable';
+        const score = applicabilityStatus === 'applicable'
+            ? clampNumber(toNumber(parsed.score, fallback.score ?? 0), 0, 100)
+            : null;
+
+        return {
+            judgeId: judge.judgeId,
+            provider: judge.judgeProvider,
+            model: judge.model,
+            applicabilityStatus,
+            applicabilityExplanation: normalizeNonEmptyString(parsed.applicabilityExplanation, fallback.applicabilityExplanation),
+            score,
+            confidence: clampNumber(toNumber(parsed.confidence, fallback.confidence ?? 0.5), 0, 1),
+            rationale: normalizeNonEmptyString(parsed.rationale, fallback.rationale),
+            difference: {
+                matchedGoldenPoints: normalizeStringArray(parsed.matchedGoldenPoints),
+                missingGoldenPoints: normalizeStringArray(parsed.missingGoldenPoints),
+                extraCentroidPoints: normalizeStringArray(parsed.extraCentroidPoints),
+                contradictionPoints: normalizeStringArray(parsed.contradictionPoints),
+                differenceSummary: normalizeNonEmptyString(parsed.differenceSummary, fallback.difference.differenceSummary),
+            },
+        };
+    } catch {
+        return null;
+    }
+}
+
+function aggregateJudgeOutputs(
+    judgeOutputs: DashaJudgeRecord[],
+    fallback: ReturnType<typeof heuristicDomainEvaluation>,
+): {
+    applicabilityStatus: 'applicable' | 'not_applicable';
+    applicabilityExplanation: string;
+    score: number | null;
+    confidence: number | null;
+    rationale: string;
+    difference: DomainCentroidDifference;
+    judgeOutputs: DashaJudgeRecord[];
+    judgeEnsemble: DomainCentroidEvaluation['judgeEnsemble'];
+} {
+    const applicableJudges = judgeOutputs.filter((output) => output.applicabilityStatus === 'applicable');
+    const notApplicableJudges = judgeOutputs.length - applicableJudges.length;
+    const applicabilityStatus = applicableJudges.length >= Math.ceil(judgeOutputs.length / 2)
+        ? 'applicable'
+        : 'not_applicable';
+    const panelForSummary = applicabilityStatus === 'applicable' && applicableJudges.length > 0
+        ? applicableJudges
+        : judgeOutputs;
+    const scoreCandidates = applicabilityStatus === 'applicable'
+        ? applicableJudges
+            .map((output) => output.score)
+            .filter((score): score is number => typeof score === 'number')
+        : [];
+    const confidenceCandidates = panelForSummary
+        .map((output) => output.confidence)
+        .filter((confidence): confidence is number => typeof confidence === 'number');
+    const consensusJudge = pickConsensusJudge(panelForSummary, fallback);
+    const aggregatedScore = applicabilityStatus === 'applicable' && scoreCandidates.length > 0
+        ? computeMedian(scoreCandidates)
         : null;
+    const scoreSpread = scoreCandidates.length > 0
+        ? roundToTwo(Math.max(...scoreCandidates) - Math.min(...scoreCandidates))
+        : null;
+    const scoreStdDev = scoreCandidates.length > 0
+        ? roundToTwo(computeStandardDeviation(scoreCandidates))
+        : null;
+    const agreementRatio = roundToTwo(
+        Math.max(applicableJudges.length, notApplicableJudges) / Math.max(judgeOutputs.length, 1),
+    );
 
     return {
         applicabilityStatus,
-        applicabilityExplanation: normalizeNonEmptyString(parsed.applicabilityExplanation, fallback.applicabilityExplanation),
-        score,
-        confidence: clampNumber(toNumber(parsed.confidence, fallback.confidence ?? 0.5), 0, 1),
-        rationale: normalizeNonEmptyString(parsed.rationale, fallback.rationale),
-        difference: {
-            matchedGoldenPoints: normalizeStringArray(parsed.matchedGoldenPoints),
-            missingGoldenPoints: normalizeStringArray(parsed.missingGoldenPoints),
-            extraCentroidPoints: normalizeStringArray(parsed.extraCentroidPoints),
-            contradictionPoints: normalizeStringArray(parsed.contradictionPoints),
-            differenceSummary: normalizeNonEmptyString(parsed.differenceSummary, fallback.difference.differenceSummary),
+        applicabilityExplanation: consensusJudge?.applicabilityExplanation ?? fallback.applicabilityExplanation,
+        score: aggregatedScore,
+        confidence: confidenceCandidates.length > 0
+            ? roundToTwo(confidenceCandidates.reduce((sum, value) => sum + value, 0) / confidenceCandidates.length)
+            : fallback.confidence,
+        rationale: consensusJudge
+            ? `${consensusJudge.rationale} Ensemble method: majority vote for applicability, median score across applicable judges.`
+            : fallback.rationale,
+        difference: consensusJudge?.difference ?? fallback.difference,
+        judgeOutputs,
+        judgeEnsemble: {
+            method: 'median_score_majority_vote',
+            judgeIds: judgeOutputs.map((output) => output.judgeId),
+            participatingJudgeCount: judgeOutputs.length,
+            applicableJudgeCount: applicableJudges.length,
+            notApplicableJudgeCount: notApplicableJudges,
+            agreementRatio,
+            scoreSpread,
+            scoreStdDev,
         },
+    };
+}
+
+function pickConsensusJudge(
+    judgeOutputs: DashaJudgeRecord[],
+    fallback: ReturnType<typeof heuristicDomainEvaluation>,
+) {
+    if (judgeOutputs.length === 0) {
+        return null;
+    }
+
+    return [...judgeOutputs].sort((left, right) => {
+        const scoreDelta = (right.score ?? -1) - (left.score ?? -1);
+        if (scoreDelta !== 0) {
+            return scoreDelta;
+        }
+        const confidenceDelta = (right.confidence ?? -1) - (left.confidence ?? -1);
+        if (confidenceDelta !== 0) {
+            return confidenceDelta;
+        }
+        const matchedDelta = (right.difference.matchedGoldenPoints.length) - (left.difference.matchedGoldenPoints.length);
+        if (matchedDelta !== 0) {
+            return matchedDelta;
+        }
+        return left.judgeId.localeCompare(right.judgeId);
+    })[0] ?? {
+        judgeId: 'fallback',
+        provider: 'openai',
+        model: 'heuristic',
+        ...fallback,
     };
 }
 
@@ -2138,10 +2370,10 @@ function normalizeOptionalString(value: unknown, fallback: string) {
     return typeof value === 'string' ? value.trim() : fallback;
 }
 
-async function tryOpenAiJson(systemPrompt: string, userPrompt: string) {
+async function tryOpenAiJson(systemPrompt: string, userPrompt: string, model = 'gpt-4.1-mini') {
     try {
         const response = await openai.chat.completions.create({
-            model: 'gpt-4.1-mini',
+            model,
             temperature: 0.1,
             messages: [
                 { role: 'system', content: systemPrompt },
@@ -2301,6 +2533,24 @@ function safeJsonParse<T = Record<string, unknown>>(value: string) {
     try {
         return JSON.parse(value) as T;
     } catch {
+        const fencedMatch = value.match(/```(?:json)?\s*([\s\S]*?)```/i);
+        if (fencedMatch?.[1]) {
+            try {
+                return JSON.parse(fencedMatch[1].trim()) as T;
+            } catch {
+                // Continue to object extraction.
+            }
+        }
+
+        const objectStart = value.indexOf('{');
+        const objectEnd = value.lastIndexOf('}');
+        if (objectStart >= 0 && objectEnd > objectStart) {
+            try {
+                return JSON.parse(value.slice(objectStart, objectEnd + 1)) as T;
+            } catch {
+                return null;
+            }
+        }
         return null;
     }
 }
@@ -2319,6 +2569,27 @@ function clampNumber(value: number, min: number, max: number) {
 
 function roundToTwo(value: number) {
     return Math.round(value * 100) / 100;
+}
+
+function computeMedian(values: number[]) {
+    if (values.length === 0) {
+        return null;
+    }
+    const sorted = [...values].sort((left, right) => left - right);
+    const middle = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 === 0
+        ? (sorted[middle - 1] + sorted[middle]) / 2
+        : sorted[middle];
+    return roundToTwo(median);
+}
+
+function computeStandardDeviation(values: number[]) {
+    if (values.length === 0) {
+        return 0;
+    }
+    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+    const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length;
+    return Math.sqrt(variance);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
