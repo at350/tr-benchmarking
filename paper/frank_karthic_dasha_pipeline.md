@@ -6,7 +6,7 @@
 ## Abstract
 This paper evaluates the Frank-Karthic-Dasha legal benchmarking pipeline on a single hard contracts hypothetical: whether a father's oral promise to assume his son's student loans is enforceable when the promise is tied to the son's marriage to a politician's daughter, the father hoped for a tax deduction, no writing exists, and the son already intended to marry. Frank constructs the benchmark packet and benchmark answer; Karthic decomposes that packet into weighted doctrinal rubrics; Dasha generates repeated model outputs, embeds them, clusters them, and statistically validates the resulting structure.
 
-The final artifact analyzed here is a 240-response corpus containing 20 responses from each of 12 models across six model families, stored at [father_son_responses_20260404_230517.json](/Users/alantai/Documents/GitHub/tr-benchmarking/paper/data/father_son_responses_20260404_230517.json). Clustering uses UMAP (`n_components = 5`) followed by HDBSCAN (`min_cluster_size = 5`). We compare instruction-tuned embeddings from `hkunlp/instructor-large` against baseline point embeddings from `all-MiniLM-L6-v2`. On the final artifact, instruction-tuned embeddings outperform baseline embeddings on internal cluster quality (`Silhouette = 0.5960` vs. `0.5254`; `Davies-Bouldin = 0.5426` vs. `0.6304`) and on external cluster-family correspondence (`NMI = 0.6328` vs. `0.5375`; `ARI = 0.3061` vs. `0.2021`). Seed-to-seed cluster stability is also high for both representations, with instruction-tuned embeddings again stronger (`NMI = 0.9106`, `ARI = 0.7820`). Robustness is established with permutation tests for NMI and ARI rather than bootstrap confidence intervals, because resampling-with-replacement distorts the local density geometry that HDBSCAN depends on. The result is an end-to-end benchmark showing that legal-reasoning diversity is both measurable and statistically stable at the cluster level.
+The final workflow lineage analyzed here is the newer app-backed chain stored in `legal-workflow-data`: Frank packet [frank_1775367155212_48b90d17.json](/Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/frank-packets/frank_1775367155212_48b90d17.json), Karthic rubric pack [karthic_1775367155213_270af0ba.json](/Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/karthic-rubric-packs/karthic_1775367155213_270af0ba.json), and Dasha run [dasha_1775367155213_70677f12.json](/Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/dasha-runs/dasha_1775367155213_70677f12.json). The Dasha run contains 240 responses, exactly 20 from each of 12 models across six model families. We verified that the `responseText` payloads in this Dasha run are exactly identical to the accepted 240-response benchmark corpus previously exported at [father_son_responses_20260404_230517.json](/Users/alantai/Documents/GitHub/tr-benchmarking/paper/data/father_son_responses_20260404_230517.json); accordingly, the statistical validation reported here applies to the newer workflow artifact itself. For this test-run question, the Frank packet uses the newer frontend schema but was seeded from a legacy benchmark question and golden answer rather than from a live anchor-case intake plus web search; the Karthic and Dasha stages then run in the newer artifact format. Clustering uses UMAP (`n_components = 5`) followed by HDBSCAN (`min_cluster_size = 5`). We compare instruction-tuned embeddings from `hkunlp/instructor-large` against baseline point embeddings from `all-MiniLM-L6-v2`. On the final artifact, instruction-tuned embeddings outperform baseline embeddings on internal cluster quality (`Silhouette = 0.5668` vs. `0.4768`; `Davies-Bouldin = 0.5899` vs. `0.7240`) and on external cluster-family correspondence (`NMI = 0.6303` vs. `0.5459`; `ARI = 0.2814` vs. `0.2005`). Seed-to-seed cluster stability is also high for both representations, with instruction-tuned embeddings again stronger (`NMI = 0.9215`, `ARI = 0.8122`). Robustness is established with permutation tests for NMI and ARI rather than bootstrap confidence intervals, because resampling-with-replacement distorts the local density geometry that HDBSCAN depends on. The result is an end-to-end benchmark showing that legal-reasoning diversity is both measurable and statistically stable at the cluster level.
 
 ## 1. Introduction
 Legal benchmarking should not collapse model behavior to a single correctness score. In open-ended legal analysis, two responses can reach the same outcome for different doctrinal reasons, and two responses can discuss the same doctrine while assigning it very different weights. For this father-son hypothetical, a serious answer must sort through at least five overlapping issues: unilateral contract formation, whether marriage is consideration or only a gift condition, whether the marriage-consideration branch of the Statute of Frauds is independently dispositive, whether suretyship or the main-purpose doctrine matters, and whether promissory estoppel survives the son's preexisting intent to marry.
@@ -47,10 +47,23 @@ The question is useful because the strongest answer is not a one-rule answer. It
 ## 4. Methodology
 
 ### 4.1 Frank: Benchmark Construction
-The Frank-stage artifact for this study is [question_golden_input.json](/Users/alantai/Documents/GitHub/tr-benchmarking/rubric-automation/question_golden_input.json). Frank fixes the legal domain as Contracts, the jurisdiction as the United States, and stores both the benchmark question and a benchmark answer. The benchmark answer concludes that the father's promise is likely unenforceable because the promise is made in consideration of marriage, which independently triggers the Statute of Frauds writing requirement. Frank also records the secondary doctrinal paths that later stages must distinguish: unilateral contract formation, suretyship as a nuanced secondary issue, the one-year rule as inapplicable, promissory estoppel as weak because of the son's prior intent, and the father's tax-deduction mistake as non-dispositive unless the promise was expressly conditioned on the deduction.
+The Frank-stage artifact for this study is [frank_1775367155212_48b90d17.json](/Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/frank-packets/frank_1775367155212_48b90d17.json). In the native newer workflow, Frank would start from an anchor case, collect case metadata and supporting context, optionally use web search, and then generate the benchmark packet and golden answer in the approved frontend schema. For this father-son test run, however, we used a controlled variant of that process: the packet was written into the same frontend schema, but its benchmark question and benchmark answer were imported from the legacy father-son benchmark materials, with a synthetic internal `selectedCase` record and manually specified source-intake metadata. This modification preserves the downstream FKD interfaces while avoiding the fiction that the father-son hypothetical was derived from a live anchor-case retrieval step.
+
+Within that modified Frank packet, the legal domain is Contracts, the jurisdictional posture is a United States/common-law contracts hypothetical, and the benchmark answer concludes that the father's promise is likely unenforceable because the promise is made in consideration of marriage, which independently triggers the Statute of Frauds writing requirement.
+
+Frank's six analysis domains are:
+
+1. Issue and Bottom-Line Enforceability
+2. Formation and Consideration
+3. Marriage-Consideration Statute of Frauds
+4. Suretyship and Main-Purpose Doctrine
+5. Promissory Estoppel and Reliance
+6. Mistake, One-Year Rule, and Counterarguments
+
+This domain structure is important because later Karthic and Dasha artifacts are keyed directly to these domain identifiers rather than to an unstructured answer blob.
 
 ### 4.2 Karthic: Rubric Decomposition
-The Karthic-stage artifact is [final_rubrics.json](/Users/alantai/Documents/GitHub/tr-benchmarking/rubric-automation/outputs/openai_question_golden/question_golden_input/final_rubrics.json). For this question, Karthic produced 13 active rubrics with normalized weights summing to 1.0. The rubric set covers contract formation, consideration, Statute of Frauds, doctrinal accuracy, promissory estoppel, mistake, counterarguments, and bottom-line conclusion. Six rubrics are explicitly marked as core, four as secondary, and the remainder retain neutral metadata while remaining active in scoring.
+The Karthic-stage artifact is [karthic_1775367155213_270af0ba.json](/Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/karthic-rubric-packs/karthic_1775367155213_270af0ba.json). For this question, Karthic produced an approved rubric pack with six weighted domains, 13 active criteria, and six domain-specific golden targets. The domain weights are `5, 4, 5, 4, 4, 3`, summing to 25 total weight units. The criteria cover contract formation, consideration, the marriage branch of the Statute of Frauds, suretyship, the main-purpose doctrine, promissory estoppel, mistake, and counterarguments.
 
 The highest-weighted rubrics capture the legal center of the problem:
 
@@ -66,7 +79,7 @@ The highest-weighted rubrics capture the legal center of the problem:
 This matters methodologically because Dasha's later cluster structure can be interpreted relative to a concrete doctrinal target rather than a single opaque gold answer.
 
 ### 4.3 Dasha: Response Generation
-The final Dasha corpus for this paper is [father_son_responses_20260404_230517.json](/Users/alantai/Documents/GitHub/tr-benchmarking/paper/data/father_son_responses_20260404_230517.json). It contains 240 valid IRAC-structured responses: 20 from each of 12 models.
+The final Dasha artifact for this paper is [dasha_1775367155213_70677f12.json](/Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/dasha-runs/dasha_1775367155213_70677f12.json). It is linked to the approved Karthic pack by `rubricPackId`, contains 240 valid IRAC-structured responses, and stores 22 archived clusters plus a workflow-level weighted score of `55.08`. Because the app-backed Dasha run persists responses as `responseText` rather than as a nested IRAC object, the validation script normalizes those payloads back into the canonical four-field IRAC form before embedding.
 
 | Family | Model |
 |---|---|
@@ -118,23 +131,27 @@ The null is generated by permuting one label vector while holding the observed g
 ### 5.1 Artifact Lineage
 The final artifact chain used in this paper is:
 
-1. Frank packet: [question_golden_input.json](/Users/alantai/Documents/GitHub/tr-benchmarking/rubric-automation/question_golden_input.json)
-2. Karthic rubrics: [final_rubrics.json](/Users/alantai/Documents/GitHub/tr-benchmarking/rubric-automation/outputs/openai_question_golden/question_golden_input/final_rubrics.json)
-3. Dasha corpus: [father_son_responses_20260404_230517.json](/Users/alantai/Documents/GitHub/tr-benchmarking/paper/data/father_son_responses_20260404_230517.json)
-4. Validation report: [validation_report_20260404_230517.json](/Users/alantai/Documents/GitHub/tr-benchmarking/paper/results/validation_report_20260404_230517.json)
+1. Frank packet: [frank_1775367155212_48b90d17.json](/Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/frank-packets/frank_1775367155212_48b90d17.json)
+2. Karthic rubric pack: [karthic_1775367155213_270af0ba.json](/Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/karthic-rubric-packs/karthic_1775367155213_270af0ba.json)
+3. Dasha run: [dasha_1775367155213_70677f12.json](/Users/alantai/Documents/GitHub/tr-benchmarking/legal-workflow-data/dasha-runs/dasha_1775367155213_70677f12.json)
+4. Statistical validation report: [statistical_validation_20260405_002105.json](/Users/alantai/Documents/GitHub/tr-benchmarking/paper/results/statistical_validation_20260405_002105.json)
 
-The companion script [run_statistical_validation.py](/Users/alantai/Documents/GitHub/tr-benchmarking/paper/run_statistical_validation.py) now defaults to the 240-response father-son artifact and enforces the 12-model, 20-samples-per-model design target.
+The companion scripts [import_father_son_into_frontend_chain.py](/Users/alantai/Documents/GitHub/tr-benchmarking/paper/import_father_son_into_frontend_chain.py) and [run_statistical_validation.py](/Users/alantai/Documents/GitHub/tr-benchmarking/paper/run_statistical_validation.py) now support the newer frontend-backed artifact format directly. The importer materializes the father-son question into `legal-workflow-data`, and the validator canonicalizes the resulting `responseText` records back into IRAC form for statistical evaluation.
+
+Two provenance facts matter. First, the Frank packet in this run is a schema-faithful frontend artifact but not a fully native Frank retrieval run: it backfills the father-son hypothetical into the new workflow from a legacy benchmark question and golden answer. Second, the 240 `responseText` entries stored in the new Dasha run are exactly identical to the accepted 240-response export previously used for standalone statistical validation. The reported clustering and permutation metrics therefore attach to the newer Frank -> Karthic -> Dasha chain, even though the Frank intake step for this particular test question was modified.
 
 ### 5.2 Frank Output
-Frank resolves the doctrinal center of gravity of the benchmark. The benchmark answer takes the marriage-consideration branch of the Statute of Frauds as dispositive, treats the one-year rule as inapplicable because the agreement could have been performed within one year, treats suretyship as secondary because the promise was made to the debtor rather than the lender, and treats promissory estoppel as weak because the son already planned to propose. This is exactly the kind of benchmark packet a clustering study needs: one strong target answer plus clearly articulated alternate paths that may still appear in the model population.
+Frank resolves the doctrinal center of gravity of the benchmark and decomposes it into six inspectable analysis domains. The benchmark answer takes the marriage-consideration branch of the Statute of Frauds as dispositive, treats the one-year rule as inapplicable because the agreement could have been performed within one year, treats suretyship as secondary because the promise was made to the debtor rather than the lender, and treats promissory estoppel as weak because the son already planned to propose. This is exactly the kind of benchmark packet a clustering study needs: one strong target answer plus clearly articulated alternate paths that may still appear in the model population.
 
 ### 5.3 Karthic Output
-Karthic turns that benchmark answer into a weighted rubric pack. The resulting 13 active rubrics preserve both core and peripheral doctrinal structure. The heaviest weights are assigned not just to the final conclusion, but also to secondary failure modes that distinguish sophisticated from shallow answers: whether the model overreads suretyship, whether it mishandles the main-purpose doctrine, whether it notices the son's prior intent, and whether it treats the father's tax-deduction mistake as legally irrelevant unless explicitly made a condition.
+Karthic turns that benchmark answer into a weighted rubric pack aligned to the six Frank domains. The resulting 13 active criteria and six golden targets preserve both core and peripheral doctrinal structure. The heaviest weights are assigned not just to the final conclusion, but also to secondary failure modes that distinguish sophisticated from shallow answers: whether the model overreads suretyship, whether it mishandles the main-purpose doctrine, whether it notices the son's prior intent, and whether it treats the father's tax-deduction mistake as legally irrelevant unless explicitly made a condition.
 
 This is important for the pipeline as a whole. Frank supplies the canonical legal theory. Karthic makes that theory machine-readable at the proposition level.
 
 ### 5.4 Dasha Output
-The final Dasha corpus contains 240 valid responses, with exact per-model balance and the following family totals: GPT 80, Claude 40, Gemini 40, LLAMA 40, DeepSeek 20, and Kimi 20. The raw response space already shows doctrinal spread before clustering. Across the 240 responses:
+The final Dasha run contains 240 valid responses, with exact per-model balance and the following family totals: GPT 80, Claude 40, Gemini 40, LLAMA 40, DeepSeek 20, and Kimi 20. The archived app-backed run stores 22 clusters and a weighted summary of `55.08 / 100` across all six applicable domains. At the domain level, Dasha selected cluster `13` as the winning centroid for both the bottom-line-enforceability and formation/consideration domains, cluster `19` for the marriage-consideration Statute of Frauds domain, cluster `4` for suretyship/main-purpose, cluster `15` for promissory estoppel, and cluster `18` for mistake/one-year/counterarguments.
+
+The raw response space already shows doctrinal spread before clustering. Across the 240 responses:
 
 | Doctrinal signal | Responses mentioning it |
 |---|---:|
@@ -155,15 +172,15 @@ The final validation report shows that instruction-tuned embeddings dominate bas
 
 | Metric | Instruction-tuned | Baseline | Better direction |
 |---|---:|---:|---|
-| Clusters found | 20 | 22 | Context dependent |
-| Noise points | 7 | 0 | Lower |
-| Noise ratio | 0.0292 | 0.0000 | Lower |
-| Silhouette Score | 0.5960 | 0.5254 | Higher |
-| Davies-Bouldin Index | 0.5426 | 0.6304 | Lower |
-| Stability NMI | 0.9106 | 0.8815 | Higher |
-| Stability ARI | 0.7820 | 0.7633 | Higher |
-| Cluster-family NMI | 0.6328 | 0.5375 | Higher |
-| Cluster-family ARI | 0.3061 | 0.2021 | Higher |
+| Clusters found | 24 | 23 | Context dependent |
+| Noise points | 7 | 11 | Lower |
+| Noise ratio | 0.0292 | 0.0458 | Lower |
+| Silhouette Score | 0.5668 | 0.4768 | Higher |
+| Davies-Bouldin Index | 0.5899 | 0.7240 | Lower |
+| Stability NMI | 0.9215 | 0.8801 | Higher |
+| Stability ARI | 0.8122 | 0.6066 | Higher |
+| Cluster-family NMI | 0.6303 | 0.5459 | Higher |
+| Cluster-family ARI | 0.2814 | 0.2005 | Higher |
 
 The practical interpretation is straightforward. The instruction-tuned representation yields tighter clusters, better inter-cluster separation, stronger correspondence with model-family labels, and slightly better seed-to-seed reproducibility. The baseline representation still finds structure, but it finds a noisier and less family-aligned structure.
 
@@ -172,12 +189,12 @@ Both robustness tests are decisively significant. In the stored report, the perm
 
 | Test | Statistic | Instruction-tuned | Baseline |
 |---|---|---:|---:|
-| Seed stability | NMI | 0.9106 (`p < 0.001`) | 0.8815 (`p < 0.001`) |
-| Seed stability | ARI | 0.7820 (`p < 0.001`) | 0.7633 (`p < 0.001`) |
-| Cluster-family correspondence | NMI | 0.6328 (`p < 0.001`) | 0.5375 (`p < 0.001`) |
-| Cluster-family correspondence | ARI | 0.3061 (`p < 0.001`) | 0.2021 (`p < 0.001`) |
+| Seed stability | NMI | 0.9215 (`p < 0.001`) | 0.8801 (`p < 0.001`) |
+| Seed stability | ARI | 0.8122 (`p < 0.001`) | 0.6066 (`p < 0.001`) |
+| Cluster-family correspondence | NMI | 0.6303 (`p < 0.001`) | 0.5459 (`p < 0.001`) |
+| Cluster-family correspondence | ARI | 0.2814 (`p < 0.001`) | 0.2005 (`p < 0.001`) |
 
-The null distributions are not close to the observed values. For instruction-tuned embeddings, the cluster-family null NMI mean is `0.1045` and the observed value is `0.6328`; the cluster-family null ARI mean is effectively zero and the observed value is `0.3061`. For seed stability, the instruction-tuned null NMI mean is `0.2781` and the observed value is `0.9106`. Those gaps are too large to describe as accidental partitioning.
+The null distributions are not close to the observed values. For instruction-tuned embeddings, the cluster-family null NMI mean is `0.1210` and the observed value is `0.6303`; the cluster-family null ARI mean is effectively zero and the observed value is `0.2814`. For seed stability, the instruction-tuned null NMI mean is `0.3103` and the observed value is `0.9215`. Those gaps are too large to describe as accidental partitioning.
 
 ### 5.7 Interpreting the Cluster Structure
 The discovered clusters are also intelligible at the family level. Under instruction-tuned embeddings, several clusters are nearly pure by family: cluster `7` is all GPT with 24 responses; cluster `16` is all Kimi with 17 responses; cluster `12` is all DeepSeek with 11 responses; cluster `3` is all Claude with 14 responses; cluster `2` and cluster `5` are all-Gemini clusters with 14 and 15 responses; cluster `0` and cluster `11` are all-LLAMA clusters with 7 responses each. Mixed clusters still exist, especially where GPT, Claude, and Kimi overlap, but the overall structure is far from random.
@@ -187,7 +204,7 @@ That result matters because it shows that Dasha is not merely grouping stylistic
 ## 6. Discussion
 The final artifact shows that the Frank-Karthic-Dasha pipeline is functioning as an integrated research instrument rather than as three disconnected utilities.
 
-Frank succeeded at benchmark design. The father-son question is hard enough to induce multiple coherent reasoning paths without being so open-ended that every answer becomes incomparable. Karthic succeeded at doctrinal decomposition. The rubric pack exposes exactly which propositions matter and how heavily they matter. Dasha succeeded at large-sample response analysis. The 240-response corpus produces stable clusters, and those clusters remain family-structured under a valid null test.
+Frank succeeded at benchmark design, with one qualification. The father-son question is hard enough to induce multiple coherent reasoning paths without being so open-ended that every answer becomes incomparable, but the Frank packet for this paper was backfilled from legacy benchmark materials rather than freshly generated from live anchor-case search. Karthic succeeded at doctrinal decomposition. The rubric pack exposes exactly which propositions matter and how heavily they matter. Dasha succeeded at large-sample response analysis. The 240-response corpus produces stable clusters, and those clusters remain family-structured under a valid null test.
 
 The embedding comparison is also substantively important. Legal reasoning is not just topic similarity. The instruction-tuned model appears to preserve doctrinal organization better than the baseline embedding model. That is the central methodological result of the paper.
 
@@ -196,8 +213,10 @@ This paper studies one benchmark question. That was an intentional design choice
 
 A second limitation is that cluster-family correspondence should not be confused with legal correctness. A family-pure cluster may still be doctrinally weak. That is why the pipeline needs Frank and Karthic upstream: clustering shows structure, while the benchmark packet and rubric pack explain whether that structure reflects good law, bad law, or merely different theory selection.
 
+A third limitation is provenance symmetry across stages. For this father-son run, Karthic and Dasha operate in the newer frontend-backed artifact chain, but Frank is a controlled import into that chain rather than a native live-retrieval Frank run. The paper therefore evaluates the newer workflow faithfully from the rubric stage forward and faithfully at the artifact-schema level throughout, but it does not yet show a full anchor-case-to-golden-answer Frank generation pass for this specific question.
+
 ## 8. Conclusion
-On the father-son oral-promise benchmark, the final 240-response artifact demonstrates that the Frank-Karthic-Dasha pipeline works end to end. Frank constructs a legally diagnostic benchmark packet. Karthic converts that packet into a weighted doctrinal rubric set. Dasha generates a balanced multi-model corpus, clusters the response space, and validates the resulting structure with permutation tests.
+On the father-son oral-promise benchmark, the final 240-response artifact demonstrates that the Frank-Karthic-Dasha pipeline works end to end in its newer artifact form, with a modified Frank intake step for this test run. Frank constructs a legally diagnostic benchmark packet, here by importing a legacy benchmark question and golden answer into the frontend schema. Karthic converts that packet into a weighted doctrinal rubric set. Dasha generates a balanced multi-model corpus, clusters the response space, and validates the resulting structure with permutation tests.
 
 The empirical result is strong: instruction-tuned embeddings produce better legal-reasoning clusters than baseline point embeddings, and the resulting clusters are stable across seeds and strongly associated with model families. The methodological result is equally strong: permutation tests are the right inferential tool for NMI and ARI in density-based legal-response clustering because they preserve the manifold instead of distorting it. For legal AI benchmarking, that is the correct standard of evidence.
 

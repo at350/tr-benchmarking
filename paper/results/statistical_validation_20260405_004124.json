@@ -1,0 +1,648 @@
+{
+  "timestamp": "20260405_004124",
+  "frank_stage": {
+    "artifact_path": "/Users/alantai/Documents/GitHub/tr-benchmarking/rubric-automation/question_golden_input.json",
+    "legal_question": "A father promised his son that if the son married the daughter of a politician within 18 months, the father would assume responsibility for the son's student loans. The father was primarily motivated to make this promise by a tax deduction that he thought would be available to him if he paid the son's student loans, although he was also glad to help his son and hoped the son would marry the politician's daughter. The son agreed because he already planned to propose to the politician's daughter, but the father and son never signed a written contract. Fourteen months later, the son married the politician's daughter. The father refused to make any payments on the son's loans, however, because the father had learned that he would not in fact qualify for any tax deductions. Is the father's oral promise to pay off the son's student loans enforceable?",
+    "jurisdiction": "United States",
+    "legal_domain": "Contracts"
+  },
+  "karthic_stage": {
+    "artifact_path": "/Users/alantai/Documents/GitHub/tr-benchmarking/rubric-automation/outputs/openai_question_golden/question_golden_input/final_rubrics.json",
+    "rubric_count": 13,
+    "rubric_categories": [
+      "conclusion",
+      "consideration",
+      "contract formation",
+      "counterargument",
+      "counterarguments",
+      "doctrinal accuracy",
+      "element",
+      "exceptions",
+      "factual application",
+      "issue",
+      "mistake",
+      "statute of frauds"
+    ]
+  },
+  "dasha_stage": {
+    "artifact_path": "legal-workflow-data/dasha-runs/dasha_1775367050638_b6841a8a.json",
+    "total_responses": 240,
+    "responses_per_model": {
+      "claude-3.5-haiku": 20,
+      "claude-4-sonnet": 20,
+      "deepseek-v3": 20,
+      "gemini-3-flash": 20,
+      "gemini-3-pro": 20,
+      "gpt-4.1-nano": 20,
+      "gpt-4o": 20,
+      "gpt-5.4": 20,
+      "gpt-5.4-mini": 20,
+      "kimi-k2-thinking": 20,
+      "llama-4-maverick-instruct": 20,
+      "llama-4-scout-instruct": 20
+    },
+    "responses_per_family": {
+      "Claude": 40,
+      "DeepSeek": 20,
+      "GPT": 80,
+      "Gemini": 40,
+      "Kimi": 20,
+      "LLAMA": 40
+    }
+  },
+  "design_target": {
+    "total_responses": 240,
+    "responses_per_model": 20,
+    "model_roster": [
+      "gpt-4o",
+      "gpt-5.4",
+      "gpt-5.4-mini",
+      "gpt-4.1-nano",
+      "claude-4-sonnet",
+      "claude-3.5-haiku",
+      "gemini-3-pro",
+      "gemini-3-flash",
+      "deepseek-v3",
+      "kimi-k2-thinking",
+      "llama-4-maverick-instruct",
+      "llama-4-scout-instruct"
+    ],
+    "instruction_embedding_model": "hkunlp/instructor-large",
+    "baseline_embedding_model": "all-MiniLM-L6-v2",
+    "clustering": {
+      "dimensionality_reduction": "UMAP",
+      "n_components": 5,
+      "n_neighbors": 5,
+      "min_dist": 0.1,
+      "clustering_algorithm": "HDBSCAN",
+      "min_cluster_size": 5,
+      "min_samples": 2
+    }
+  },
+  "corpus_validation": {
+    "expected_total": 240,
+    "actual_total": 240,
+    "expected_per_model": 20,
+    "expected_model_count": 12,
+    "actual_model_count": 12,
+    "missing_models": [],
+    "unexpected_models": [],
+    "models_with_nonstandard_counts": {},
+    "matches_target_configuration": true
+  },
+  "existing_dasha_run": {
+    "artifact_path": "/Users/alantai/Documents/GitHub/tr-benchmarking/lsh-IRAC/results/run_20260224_010918.json",
+    "n_items": 180,
+    "n_clusters": 12,
+    "cluster_family_correspondence": {
+      "observed_nmi": 0.647992,
+      "observed_ari": 0.355675,
+      "p_value_nmi": 0.0001999600079984003,
+      "p_value_ari": 0.0001999600079984003,
+      "null_nmi_mean": 0.056657,
+      "null_nmi_std": 0.013009,
+      "null_ari_mean": 0.000102,
+      "null_ari_std": 0.006751,
+      "effect_size_nmi": 45.4567,
+      "effect_size_ari": 52.6666,
+      "permutations": 5000
+    }
+  },
+  "instruction_tuned": {
+    "embedding_name": "hkunlp/instructor-large",
+    "run_a_seed": 42,
+    "run_b_seed": 123,
+    "cluster_quality": {
+      "n_total": 240,
+      "n_clusters": 7,
+      "n_noise": 85,
+      "noise_ratio": 0.3542,
+      "silhouette_score": 0.0382,
+      "davies_bouldin_index": 1.7124
+    },
+    "stability_test": {
+      "observed_nmi": 0.142916,
+      "observed_ari": -0.013373,
+      "p_value_nmi": 0.001998001998001998,
+      "p_value_ari": 0.7752247752247752,
+      "null_nmi_mean": 0.094091,
+      "null_nmi_std": 0.011864,
+      "null_ari_mean": -0.000187,
+      "null_ari_std": 0.017067,
+      "effect_size_nmi": 4.1152,
+      "effect_size_ari": -0.7726,
+      "permutations": 1000
+    },
+    "correspondence_test": {
+      "observed_nmi": 0.189066,
+      "observed_ari": 0.143343,
+      "p_value_nmi": 0.000999000999000999,
+      "p_value_ari": 0.000999000999000999,
+      "null_nmi_mean": 0.048987,
+      "null_nmi_std": 0.009846,
+      "null_ari_mean": -0.000177,
+      "null_ari_std": 0.009756,
+      "effect_size_nmi": 14.2264,
+      "effect_size_ari": 14.7117,
+      "permutations": 1000
+    },
+    "cluster_summaries": {
+      "-1": {
+        "size": 85,
+        "family_breakdown": {
+          "Claude": 17,
+          "DeepSeek": 7,
+          "GPT": 18,
+          "Gemini": 20,
+          "Kimi": 10,
+          "LLAMA": 13
+        },
+        "outcome_breakdown": {
+          "mixed": 85
+        },
+        "representative_id": "response_8e2ef606",
+        "representative_model": "gpt-4o",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "0": {
+        "size": 5,
+        "family_breakdown": {
+          "DeepSeek": 3,
+          "Gemini": 1,
+          "Kimi": 1
+        },
+        "outcome_breakdown": {
+          "mixed": 5
+        },
+        "representative_id": "response_76635c5a",
+        "representative_model": "gemini-3-flash",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "1": {
+        "size": 5,
+        "family_breakdown": {
+          "Gemini": 1,
+          "Kimi": 2,
+          "LLAMA": 2
+        },
+        "outcome_breakdown": {
+          "mixed": 5
+        },
+        "representative_id": "response_05c8d02a",
+        "representative_model": "kimi-k2-thinking",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "2": {
+        "size": 28,
+        "family_breakdown": {
+          "Claude": 14,
+          "GPT": 8,
+          "Gemini": 5,
+          "LLAMA": 1
+        },
+        "outcome_breakdown": {
+          "mixed": 28
+        },
+        "representative_id": "response_a99d52f6",
+        "representative_model": "claude-4-sonnet",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "3": {
+        "size": 74,
+        "family_breakdown": {
+          "Claude": 5,
+          "DeepSeek": 4,
+          "GPT": 50,
+          "Gemini": 5,
+          "Kimi": 2,
+          "LLAMA": 8
+        },
+        "outcome_breakdown": {
+          "mixed": 74
+        },
+        "representative_id": "response_e89351f3",
+        "representative_model": "gpt-5.4-mini",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "4": {
+        "size": 18,
+        "family_breakdown": {
+          "Claude": 1,
+          "DeepSeek": 1,
+          "GPT": 1,
+          "Kimi": 1,
+          "LLAMA": 14
+        },
+        "outcome_breakdown": {
+          "mixed": 18
+        },
+        "representative_id": "response_a80a6fc3",
+        "representative_model": "llama-4-maverick-instruct",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "5": {
+        "size": 20,
+        "family_breakdown": {
+          "Claude": 3,
+          "DeepSeek": 3,
+          "GPT": 3,
+          "Gemini": 6,
+          "Kimi": 3,
+          "LLAMA": 2
+        },
+        "outcome_breakdown": {
+          "mixed": 20
+        },
+        "representative_id": "response_315317f8",
+        "representative_model": "llama-4-maverick-instruct",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "6": {
+        "size": 5,
+        "family_breakdown": {
+          "DeepSeek": 2,
+          "Gemini": 2,
+          "Kimi": 1
+        },
+        "outcome_breakdown": {
+          "mixed": 5
+        },
+        "representative_id": "response_4a04c350",
+        "representative_model": "deepseek-v3",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      }
+    }
+  },
+  "baseline": {
+    "embedding_name": "all-MiniLM-L6-v2",
+    "run_a_seed": 42,
+    "run_b_seed": 123,
+    "cluster_quality": {
+      "n_total": 240,
+      "n_clusters": 11,
+      "n_noise": 150,
+      "noise_ratio": 0.625,
+      "silhouette_score": 0.2279,
+      "davies_bouldin_index": 1.2651
+    },
+    "stability_test": {
+      "observed_nmi": 0.185429,
+      "observed_ari": 0.009443,
+      "p_value_nmi": 0.04395604395604396,
+      "p_value_ari": 0.3806193806193806,
+      "null_nmi_mean": 0.164735,
+      "null_nmi_std": 0.011275,
+      "null_ari_mean": -0.000116,
+      "null_ari_std": 0.032276,
+      "effect_size_nmi": 1.8354,
+      "effect_size_ari": 0.2962,
+      "permutations": 1000
+    },
+    "correspondence_test": {
+      "observed_nmi": 0.186082,
+      "observed_ari": 0.032255,
+      "p_value_nmi": 0.000999000999000999,
+      "p_value_ari": 0.03896103896103896,
+      "null_nmi_mean": 0.082297,
+      "null_nmi_std": 0.012186,
+      "null_ari_mean": 0.000415,
+      "null_ari_std": 0.015858,
+      "effect_size_nmi": 8.5171,
+      "effect_size_ari": 2.0078,
+      "permutations": 1000
+    },
+    "cluster_summaries": {
+      "-1": {
+        "size": 150,
+        "family_breakdown": {
+          "Claude": 20,
+          "DeepSeek": 11,
+          "GPT": 55,
+          "Gemini": 26,
+          "Kimi": 13,
+          "LLAMA": 25
+        },
+        "outcome_breakdown": {
+          "mixed": 150
+        },
+        "representative_id": "response_f0f8a589",
+        "representative_model": "gpt-4o",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "0": {
+        "size": 5,
+        "family_breakdown": {
+          "DeepSeek": 1,
+          "Gemini": 1,
+          "Kimi": 1,
+          "LLAMA": 2
+        },
+        "outcome_breakdown": {
+          "mixed": 5
+        },
+        "representative_id": "response_9fef537d",
+        "representative_model": "deepseek-v3",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "1": {
+        "size": 13,
+        "family_breakdown": {
+          "Claude": 8,
+          "DeepSeek": 2,
+          "Gemini": 3
+        },
+        "outcome_breakdown": {
+          "mixed": 13
+        },
+        "representative_id": "response_f2e72c1d",
+        "representative_model": "claude-3.5-haiku",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "2": {
+        "size": 8,
+        "family_breakdown": {
+          "Claude": 5,
+          "Gemini": 3
+        },
+        "outcome_breakdown": {
+          "mixed": 8
+        },
+        "representative_id": "response_9858811b",
+        "representative_model": "claude-3.5-haiku",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "3": {
+        "size": 10,
+        "family_breakdown": {
+          "Claude": 1,
+          "DeepSeek": 1,
+          "GPT": 4,
+          "Gemini": 1,
+          "Kimi": 2,
+          "LLAMA": 1
+        },
+        "outcome_breakdown": {
+          "mixed": 10
+        },
+        "representative_id": "response_ede8403d",
+        "representative_model": "gpt-4o",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "4": {
+        "size": 5,
+        "family_breakdown": {
+          "GPT": 5
+        },
+        "outcome_breakdown": {
+          "mixed": 5
+        },
+        "representative_id": "response_c3ee2055",
+        "representative_model": "gpt-4.1-nano",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "5": {
+        "size": 5,
+        "family_breakdown": {
+          "GPT": 5
+        },
+        "outcome_breakdown": {
+          "mixed": 5
+        },
+        "representative_id": "response_cd195049",
+        "representative_model": "gpt-5.4-mini",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "6": {
+        "size": 5,
+        "family_breakdown": {
+          "DeepSeek": 1,
+          "Gemini": 2,
+          "Kimi": 1,
+          "LLAMA": 1
+        },
+        "outcome_breakdown": {
+          "mixed": 5
+        },
+        "representative_id": "response_6fb7f82b",
+        "representative_model": "kimi-k2-thinking",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "7": {
+        "size": 8,
+        "family_breakdown": {
+          "Claude": 5,
+          "GPT": 3
+        },
+        "outcome_breakdown": {
+          "mixed": 8
+        },
+        "representative_id": "response_d5356e41",
+        "representative_model": "claude-4-sonnet",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "8": {
+        "size": 7,
+        "family_breakdown": {
+          "GPT": 7
+        },
+        "outcome_breakdown": {
+          "mixed": 7
+        },
+        "representative_id": "response_552a9249",
+        "representative_model": "gpt-5.4-mini",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "9": {
+        "size": 9,
+        "family_breakdown": {
+          "DeepSeek": 1,
+          "GPT": 1,
+          "Gemini": 2,
+          "LLAMA": 5
+        },
+        "outcome_breakdown": {
+          "mixed": 9
+        },
+        "representative_id": "response_7a7b9ad1",
+        "representative_model": "deepseek-v3",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      },
+      "10": {
+        "size": 15,
+        "family_breakdown": {
+          "Claude": 1,
+          "DeepSeek": 3,
+          "Gemini": 2,
+          "Kimi": 3,
+          "LLAMA": 6
+        },
+        "outcome_breakdown": {
+          "mixed": 15
+        },
+        "representative_id": "response_11da0aec",
+        "representative_model": "gemini-3-pro",
+        "representative_conclusion": "",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 0
+        }
+      }
+    }
+  }
+}

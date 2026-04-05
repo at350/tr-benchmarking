@@ -1,0 +1,91 @@
+{
+  "id": "frank_1775367050637_3e9ae3ce",
+  "status": "approved",
+  "legalDomain": "Contracts",
+  "domainScope": "Oral Promise to Pay Student Loans in Consideration of Marriage",
+  "sourceFamily": "imported_benchmark_hypothetical",
+  "selectedCase": {
+    "id": "case_father_son_benchmark",
+    "title": "Father-Son Oral Promise Benchmark Hypothetical",
+    "citation": "Internal benchmark hypothetical",
+    "court": "Internal benchmark packet",
+    "year": "2026",
+    "url": "https://example.invalid/father-son-benchmark",
+    "summary": "Contracts benchmark testing unilateral contract structure, marriage-consideration Statute of Frauds, suretyship, main-purpose doctrine, promissory estoppel, and mistake.",
+    "relevance": "Strong benchmark for separating legally similar but doctrinally distinct theories of enforceability."
+  },
+  "analysisDomains": [
+    {
+      "id": "analysis_domain_1",
+      "name": "Issue and Bottom-Line Enforceability",
+      "description": "Identify the controlling legal issue and give the clearest enforceability conclusion."
+    },
+    {
+      "id": "analysis_domain_2",
+      "name": "Formation and Consideration",
+      "description": "Address unilateral contract structure and whether marriage is bargained-for consideration or only a conditional gift term."
+    },
+    {
+      "id": "analysis_domain_3",
+      "name": "Marriage-Consideration Statute of Frauds",
+      "description": "Identify the marriage-consideration branch of the Statute of Frauds as the central writing requirement and explain why no writing defeats enforcement."
+    },
+    {
+      "id": "analysis_domain_4",
+      "name": "Suretyship and Main-Purpose Doctrine",
+      "description": "Analyze the debt-assumption issue, explain why suretyship is weakened because the promise was made to the son rather than the creditor, and treat main-purpose doctrine as secondary."
+    },
+    {
+      "id": "analysis_domain_5",
+      "name": "Promissory Estoppel and Reliance",
+      "description": "Evaluate promissory estoppel as a possible fallback while recognizing that the son's prior intent to marry weakens inducement and reliance."
+    },
+    {
+      "id": "analysis_domain_6",
+      "name": "Mistake, One-Year Rule, and Counterarguments",
+      "description": "Handle secondary doctrinal clean-up: the one-year rule does not apply, the father's tax-deduction mistake is not a defense absent an express condition, and the best counterarguments should still be acknowledged."
+    }
+  ],
+  "sourceArtifacts": [],
+  "sourceIntake": {
+    "sourceQualityRating": "Benchmark hypothetical derived from internal legal-analysis workflow and structured golden answer.",
+    "benchmarkPosture": "portable_common_law_benchmark",
+    "recommendation": "Use this packet to stress-test how models prioritize overlapping contracts doctrines rather than merely whether they know one black-letter rule.",
+    "jdReviewBurden": [
+      "Confirm that the marriage-consideration Statute of Frauds framing matches the intended jurisdictional assumptions.",
+      "Confirm the treatment of suretyship and main-purpose doctrine under the chosen common-law baseline."
+    ],
+    "reverseEngineeringSuitability": "strong"
+  },
+  "sourceExtraction": {
+    "legalIssue": "Whether the father's oral promise to assume the son's student loans is enforceable when the promise is tied to the son's marriage and no signed writing exists.",
+    "blackLetterRule": "A promise made in consideration of marriage, other than mutual promises to marry, ordinarily falls within the Statute of Frauds and requires a signed writing.",
+    "triggerFacts": [
+      "The father promised to assume the son's student loans if the son married a specific person within 18 months.",
+      "The son married within 14 months but no written contract was signed.",
+      "The father later refused to pay after learning the hoped-for tax deduction was unavailable."
+    ],
+    "holding": "Under the benchmark answer, the oral promise is unenforceable because the marriage-consideration Statute of Frauds independently requires a writing.",
+    "limits": [
+      "Suretyship and main-purpose doctrine remain relevant but secondary.",
+      "Promissory estoppel is weakened because the son already intended to marry.",
+      "The father's unilateral mistake about tax treatment does not by itself excuse performance."
+    ],
+    "uncertainty": [
+      "Jurisdictions vary in how aggressively they use estoppel against Statute of Frauds defenses.",
+      "Some formulations treat debt-assumption and suretyship differently depending on creditor assent and promisee identity."
+    ]
+  },
+  "benchmarkAnswer": "(benchmark answer and reasoning based on U.S. common law and Restatement (Contracts))\n\nLIKELY RESULT: (condensed final answer) The father\u2019s oral promise is not enforceable (because it falls within a Statute of Frauds category requiring a writing, namely, a contract \u201cin consideration of marriage,\u201d and no writing exists).\n\nREASONING:\nI. Contract formation: was there a bargain?\nOffer/acceptance: The father made a conditional promise: if the son married the politician\u2019s daughter within 18 months, the father would assume responsibility for the son\u2019s student loans. That is an offer capable of acceptance by performance (a unilateral contract structure). The son\u2019s marriage within the specified period is acceptance by performance.\nConsideration v.s. conditional gift: The harder formation question is whether the marriage is bargained-for consideration (the \u201cprice\u201d of the father\u2019s promise) or merely a condition on a gratuitous promise (a conditional gift).\nFacts supporting bargain/consideration: the father expressly conditioned his promise on the son marrying a particular person within a set time; the marriage is the requested performance.\nFact cutting against bargain (and against reliance later): the son \u201cagreed because he already planned to propose,\u201d which suggests the promise may not have induced the marriage. However, prior intent does not automatically defeat consideration if the act is still demanded as the exchange; it just creates an argument that this is more like a family-gift condition than a true bargain.\nAssuming arguendo there is consideration (or at least a colorable contract), enforceability still turns on the Statute of Frauds.\nII. Statute of Frauds \u201cgates\u201d (enforceability, not proof)\nGate A: Contract in consideration of marriage (dispositive here*)\nUnder the traditional Statute of Frauds, a promise is unenforceable unless in a signed writing when it is a contract made upon consideration of marriage, other than mutual promises to marry.\nThis promise fits that category: the father promised to pay the son\u2019s loans in exchange for the son marrying a specific person within 18 months. It is not a mutual promise between the spouses to marry; it is a third-party promise where marriage is the consideration.\nBecause the father and son never signed any written contract, the father\u2019s promise is within the marriage-consideration Statute of Frauds and therefore unenforceable.\nThe son\u2019s full performance (the marriage) does not automatically remove this category from the Statute of Frauds; the writing requirement still applies unless the jurisdiction recognizes a specific substitute doctrine (discussed below).\nGate B: One-year provision (not a bar here)\nAlthough the condition window is 18 months, the one-year Statute of Frauds applies only if the agreement cannot possibly be performed within one year at the time it is made. Here, the son could have married within one year, so the one-year provision does not apply\u2014even though he actually married in 14 months.\nGate C: Suretyship (promise to pay another\u2019s debt; secondary and nuanced)\nThere is also a potential suretyship issue because the father promised to pay an existing debt (student loans). But classic suretyship Statute of Frauds analysis typically turns on whether the promise is made to the creditor to answer for another\u2019s debt.\nOn these facts, the promise is made to the son (the debtor), not to the lender. That weakens (and in many treatments defeats) the classic \u201csuretyship\u201d Statute of Frauds trigger.\nIf the father had separately promised the lender to pay or guarantee the loans, that would be within suretyship and ordinarily require a writing (subject to exceptions like \u201cmain purpose\u201d).\nIf the father intended to \u201cassume\u201d the loans in the sense of a novation/assumption making him primarily liable to the lender, that generally would require creditor assent and often a writing as well.\nEven if suretyship did apply, it would not fix the separate, independent marriage-consideration Statute of Frauds problem.\nIII. Exceptions/substitutes\n\u201cMain purpose\u201d/\u201cleading object\u201d doctrine (only relevant if suretyship applies)\nIf a suretyship writing requirement were triggered (e.g., promise to creditor), the \u201cmain purpose\u201d exception may remove the promise from that suretyship category if the father\u2019s dominant purpose was to secure a personal economic benefit. The father\u2019s hoped-for tax deduction is a pecuniary motive, but courts vary on whether that is \u201cdirect\u201d enough.\nCritically: even a successful main-purpose argument would only address suretyship, not the separate marriage-consideration writing requirement. So it is not dispositive here.\nPromissory estoppel (possible but weak on these facts; often limited against SoF)\nThe son might argue promissory estoppel to enforce an oral promise to avoid injustice. But two major problems:\nInducement/reliance is weak: the prompt says the son already planned to propose. That undermines the claim that the promise caused the marriage.\nSoF override is jurisdiction-sensitive: many courts are cautious about using promissory estoppel to circumvent Statute of Frauds categories\u2014especially where the category is designed to require formal proof (like marriage-related bargains). Even where estoppel is allowed, remedies may be limited to what justice requires rather than full expectation.\nGiven those limits and the weak reliance showing, estoppel is an unlikely path to enforce this promise.\nIV. Father\u2019s tax-deduction mistake\nThe father\u2019s later discovery that he did not qualify for a deduction is generally a unilateral mistake about an expected benefit. Unless the promise was expressly conditioned on actually receiving the deduction (it was not stated as such), the mistake does not excuse performance. But this point matters only if the promise were otherwise enforceable.\nV. Conclusion\nThe father\u2019s oral promise is likely unenforceable because it is a promise made in consideration of marriage, which falls within the Statute of Frauds and requires a signed writing, and none exists. The one-year provision does not apply, and suretyship/main-purpose issues (even if relevant) do not overcome the independent marriage-consideration writing requirement. Promissory estoppel is an uncertain and factually weak fallback given the son\u2019s prior intent to marry.",
+  "benchmarkQuestion": "\u200b\u200bA father promised his son that if the son married the daughter of a politician within 18 months, the father would assume responsibility for the son's student loans. The father was primarily motivated to make this promise by a tax deduction that he thought would be available to him if he paid the son's student loans, although he was also glad to help his son and hoped the son would marry the politician's daughter. The son agreed because he already planned to propose to the politician's daughter, but the father and son never signed a written contract. Fourteen months later, the son married the politician's daughter. The father refused to make any payments on the son's loans, however, because the father had learned that he would not in fact qualify for any tax deductions. Is the father's oral promise to pay off the son's student loans enforceable?",
+  "failureModeSeeds": [
+    "Treating the one-year rule as the dispositive Statute of Frauds issue.",
+    "Treating suretyship or main-purpose doctrine as enough to overcome the separate marriage-consideration writing requirement.",
+    "Assuming promissory estoppel is strong even though the son already intended to marry.",
+    "Treating the father's tax-deduction mistake as an automatic excuse."
+  ],
+  "masterIssueStatement": "Whether the father's oral promise to assume the son's student loans is enforceable despite the absence of a writing and the overlap between marriage-consideration, suretyship, reliance, and mistake doctrines.",
+  "approvedAt": "2026-04-05T05:30:50Z",
+  "createdAt": "2026-04-05T05:30:50Z",
+  "updatedAt": "2026-04-05T05:30:50Z"
+}

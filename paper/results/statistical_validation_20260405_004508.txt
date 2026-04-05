@@ -1,0 +1,33 @@
+Frank-Karthic-Dasha Statistical Validation
+Timestamp: 20260405_004508
+Question: A father promised his son that if the son married the daughter of a politician within 18 months, the father would assume responsibility for the son's student loans. The father was primarily motivated to make this promise by a tax deduction that he thought would be available to him if he paid the son's student loans, although he was also glad to help his son and hoped the son would marry the politician's daughter. The son agreed because he already planned to propose to the politician's daughter, but the father and son never signed a written contract. Fourteen months later, the son married the politician's daughter. The father refused to make any payments on the son's loans, however, because the father had learned that he would not in fact qualify for any tax deductions. Is the father's oral promise to pay off the son's student loans enforceable?
+Total responses: 240
+
+Frank stage
+- Jurisdiction: United States
+- Legal domain: Contracts
+Karthic stage
+- Active rubrics: 13
+- Categories: conclusion, consideration, contract formation, counterargument, counterarguments, doctrinal accuracy, element, exceptions, factual application, issue, mistake, statute of frauds
+Dasha stage
+- Models: claude-3.5-haiku (20), claude-4-sonnet (20), deepseek-v3 (20), gemini-3-flash (20), gemini-3-pro (20), gpt-4.1-nano (20), gpt-4o (20), gpt-5.4 (20), gpt-5.4-mini (20), kimi-k2-thinking (20), llama-4-maverick-instruct (20), llama-4-scout-instruct (20)
+- Target corpus: 240 responses across 12 models (20 each)
+- Actual corpus: 240 responses across 12 models
+Archived Dasha artifact
+- Cluster-family NMI: 0.647992
+- Cluster-family ARI: 0.355675
+- Correspondence p-values: NMI=0.000200, ARI=0.000200
+
+Instruction Tuned
+- Clusters: 2, noise: 29 (12.1%)
+- Silhouette: 0.0869
+- Davies-Bouldin: 1.1622
+- Stability: NMI=0.039461, ARI=-0.070889, p_NMI=0.500500, p_ARI=0.996004
+- Family correspondence: NMI=0.064979, ARI=0.037745, p_NMI=0.001998, p_ARI=0.000999
+
+Baseline
+- Clusters: 9, noise: 103 (42.9%)
+- Silhouette: 0.0687
+- Davies-Bouldin: 1.3899
+- Stability: NMI=0.048276, ARI=-0.036989, p_NMI=0.100899, p_ARI=0.977023
+- Family correspondence: NMI=0.163235, ARI=0.029742, p_NMI=0.000999, p_ARI=0.012987

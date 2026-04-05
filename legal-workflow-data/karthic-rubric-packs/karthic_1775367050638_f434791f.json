@@ -1,0 +1,390 @@
+{
+  "id": "karthic_1775367050638_f434791f",
+  "frankPacketId": "frank_1775367050637_3e9ae3ce",
+  "status": "approved",
+  "domains": [
+    {
+      "id": "analysis_domain_1",
+      "name": "Issue and Bottom-Line Enforceability",
+      "description": "Identify the controlling legal issue and give the clearest enforceability conclusion.",
+      "weight": 5,
+      "naGuidance": "Mark not applicable only if the response never reaches a bottom-line enforceability position."
+    },
+    {
+      "id": "analysis_domain_2",
+      "name": "Formation and Consideration",
+      "description": "Address unilateral contract structure and whether marriage is bargained-for consideration or only a conditional gift term.",
+      "weight": 4,
+      "naGuidance": "Mark not applicable only if the response does not discuss formation or consideration at all."
+    },
+    {
+      "id": "analysis_domain_3",
+      "name": "Marriage-Consideration Statute of Frauds",
+      "description": "Identify the marriage-consideration branch of the Statute of Frauds as the central writing requirement and explain why no writing defeats enforcement.",
+      "weight": 5,
+      "naGuidance": "Mark not applicable only if the response never discusses the marriage-consideration writing requirement."
+    },
+    {
+      "id": "analysis_domain_4",
+      "name": "Suretyship and Main-Purpose Doctrine",
+      "description": "Analyze the debt-assumption issue, explain why suretyship is weakened because the promise was made to the son rather than the creditor, and treat main-purpose doctrine as secondary.",
+      "weight": 4,
+      "naGuidance": "Mark not applicable only if the response omits debt-assumption analysis entirely."
+    },
+    {
+      "id": "analysis_domain_5",
+      "name": "Promissory Estoppel and Reliance",
+      "description": "Evaluate promissory estoppel as a possible fallback while recognizing that the son's prior intent to marry weakens inducement and reliance.",
+      "weight": 4,
+      "naGuidance": "Mark not applicable only if the response never discusses estoppel or reliance."
+    },
+    {
+      "id": "analysis_domain_6",
+      "name": "Mistake, One-Year Rule, and Counterarguments",
+      "description": "Handle secondary doctrinal clean-up: the one-year rule does not apply, the father's tax-deduction mistake is not a defense absent an express condition, and the best counterarguments should still be acknowledged.",
+      "weight": 3,
+      "naGuidance": "Mark not applicable only if the response omits all secondary doctrinal refinement and counterargument handling."
+    }
+  ],
+  "goldenTargets": [
+    {
+      "id": "golden_target_1",
+      "domainId": "analysis_domain_1",
+      "domainName": "Issue and Bottom-Line Enforceability",
+      "summary": "The benchmark answer treats the controlling issue as whether the father's oral promise is enforceable despite the lack of a writing, and concludes the promise is not enforceable.",
+      "goldenContains": [
+        "The controlling issue is whether the father's oral promise to pay the son's student loans is enforceable.",
+        "The best bottom-line answer is that the oral promise is unenforceable."
+      ],
+      "allowedOmissions": [
+        "A response need not use the exact phrase bottom-line if the ultimate legal conclusion is clear."
+      ],
+      "contradictionFlags": [
+        "The response concludes that the promise is enforceable without squarely overcoming the marriage-consideration Statute of Frauds problem."
+      ],
+      "comparisonGuidance": "Prioritize whether the centroid identifies the right issue and reaches the benchmark conclusion."
+    },
+    {
+      "id": "golden_target_2",
+      "domainId": "analysis_domain_2",
+      "domainName": "Formation and Consideration",
+      "summary": "The benchmark answer recognizes a unilateral-contract structure but treats consideration as contestable because the son already intended to marry.",
+      "goldenContains": [
+        "The father's promise can be analyzed as an offer accepted by performance in a unilateral contract structure.",
+        "A strong answer distinguishes bargained-for consideration from a mere conditional gift.",
+        "The son's prior intent to marry weakens, but does not automatically defeat, a consideration analysis."
+      ],
+      "allowedOmissions": [
+        "A response may omit the label unilateral contract if it still explains acceptance by performance."
+      ],
+      "contradictionFlags": [
+        "The response treats the promise as enforceable solely because marriage occurred without analyzing bargain or inducement."
+      ],
+      "comparisonGuidance": "Look for correct treatment of offer-by-promise, acceptance-by-performance, and the consideration-versus-gift distinction."
+    },
+    {
+      "id": "golden_target_3",
+      "domainId": "analysis_domain_3",
+      "domainName": "Marriage-Consideration Statute of Frauds",
+      "summary": "The strongest doctrinal route is that the promise is made in consideration of marriage and is therefore unenforceable absent a signed writing.",
+      "goldenContains": [
+        "The promise falls within the Statute of Frauds as a contract in consideration of marriage.",
+        "No signed writing exists between father and son.",
+        "That writing failure is the dispositive reason the promise is unenforceable."
+      ],
+      "allowedOmissions": [
+        "A response need not discuss every Statute of Frauds category if it correctly treats marriage consideration as independently sufficient."
+      ],
+      "contradictionFlags": [
+        "The response says the marriage-consideration Statute of Frauds does not apply.",
+        "The response treats completion of the marriage as automatically satisfying the writing requirement."
+      ],
+      "comparisonGuidance": "This is the core domain. Favor centroids that clearly identify marriage consideration as the benchmark rule of decision."
+    },
+    {
+      "id": "golden_target_4",
+      "domainId": "analysis_domain_4",
+      "domainName": "Suretyship and Main-Purpose Doctrine",
+      "summary": "A strong answer explains that classic suretyship is not a perfect fit on these facts and that main-purpose analysis matters only if suretyship is first triggered.",
+      "goldenContains": [
+        "Suretyship is a possible but secondary issue because the promise was made to the son rather than directly to the lender.",
+        "The main-purpose or leading-object doctrine matters only if suretyship is otherwise in play.",
+        "Even a main-purpose argument would not cure the independent marriage-consideration Statute of Frauds problem."
+      ],
+      "allowedOmissions": [
+        "A response may omit the label leading object if it still addresses the promisor's personal-benefit theory."
+      ],
+      "contradictionFlags": [
+        "The response treats main-purpose doctrine as sufficient to make the promise enforceable without addressing the separate marriage-consideration bar."
+      ],
+      "comparisonGuidance": "Favor centroids that keep suretyship and main-purpose analysis subordinate to the marriage-consideration issue."
+    },
+    {
+      "id": "golden_target_5",
+      "domainId": "analysis_domain_5",
+      "domainName": "Promissory Estoppel and Reliance",
+      "summary": "Promissory estoppel is a plausible fallback theory but weak here because the son already intended to propose.",
+      "goldenContains": [
+        "Promissory estoppel is a possible fallback theory.",
+        "The son's preexisting intent to marry weakens inducement and reliance.",
+        "Courts may be reluctant to use estoppel to override the Statute of Frauds in this setting."
+      ],
+      "allowedOmissions": [
+        "A response may discuss reliance without using the exact phrase promissory estoppel if the doctrine is clear."
+      ],
+      "contradictionFlags": [
+        "The response treats reliance as obviously strong despite the son's prior intent to marry."
+      ],
+      "comparisonGuidance": "Look for nuanced treatment of weak reliance rather than categorical acceptance or rejection."
+    },
+    {
+      "id": "golden_target_6",
+      "domainId": "analysis_domain_6",
+      "domainName": "Mistake, One-Year Rule, and Counterarguments",
+      "summary": "A careful answer avoids conflating the one-year rule with the marriage-consideration bar and treats the father's tax-deduction mistake as legally non-dispositive.",
+      "goldenContains": [
+        "The one-year provision does not apply because the promise could have been performed within one year.",
+        "The father's tax-deduction mistake does not excuse performance unless the promise was expressly conditioned on receiving the deduction.",
+        "The response acknowledges meaningful counterarguments rather than presenting a one-sided conclusion."
+      ],
+      "allowedOmissions": [
+        "A response need not discuss every counterargument if it addresses the strongest secondary objections."
+      ],
+      "contradictionFlags": [
+        "The response treats the one-year rule as the dispositive Statute of Frauds category.",
+        "The response says the father's mistake alone voids the promise."
+      ],
+      "comparisonGuidance": "This domain separates careful doctrinal answers from shallow ones that mishandle secondary rules."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "criterion_r001",
+      "domainId": "analysis_domain_2",
+      "text": "Identifies the father's conditional promise and the son's marriage within 18 months as offer and acceptance forming a unilateral contract.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_r002",
+      "domainId": "analysis_domain_2",
+      "text": "Recognizes the issue whether the son's marriage constitutes bargained-for consideration or is merely a condition on a gratuitous promise.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_r004",
+      "domainId": "analysis_domain_3",
+      "text": "Explains that no signed writing exists between father and son, making the oral promise unenforceable under the marriage-consideration Statute of Frauds.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_r006",
+      "domainId": "analysis_domain_4",
+      "text": "Analyzes the suretyship Statute of Frauds provision and concludes it likely does not apply because the promise was made to the son (debtor), not the creditor.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_r008",
+      "domainId": "analysis_domain_5",
+      "text": "Evaluates promissory estoppel as a possible but weak exception to the Statute of Frauds due to weak inducement and reliance by the son.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_r009",
+      "domainId": "analysis_domain_5",
+      "text": "Notes that the son's prior intent to marry the politician's daughter weakens inducement and reliance for consideration and promissory estoppel.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_r010",
+      "domainId": "analysis_domain_6",
+      "text": "States that the father's unilateral mistake about the availability of a tax deduction does not excuse performance or affect enforceability absent express condition.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_r011",
+      "domainId": "analysis_domain_1",
+      "text": "Concludes that the father's oral promise is unenforceable due to the marriage-consideration Statute of Frauds writing requirement and absence of writing.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_r012",
+      "domainId": "analysis_domain_6",
+      "text": "Avoids material doctrinal error by not conflating the one-year provision with the marriage-consideration Statute of Frauds requirement.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_r014",
+      "domainId": "analysis_domain_6",
+      "text": "Includes counterarguments such as the son's prior intent negating inducement and the possibility of promissory estoppel.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_r016",
+      "domainId": "analysis_domain_1",
+      "text": "The response identifies the controlling legal issue raised by the facts.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_r018",
+      "domainId": "analysis_domain_6",
+      "text": "The response addresses the principal counterargument or defense when relevant.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_r025",
+      "domainId": "analysis_domain_4",
+      "text": "The response addresses the element of Main purpose of promisor.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    }
+  ],
+  "refinementLog": [
+    {
+      "id": "log_r001",
+      "timestamp": "2026-04-05T05:30:50Z",
+      "domainId": "analysis_domain_2",
+      "criterionId": "criterion_r001",
+      "action": "created_seed",
+      "note": "Imported criterion from the father-son legacy Karthic rubric artifact."
+    },
+    {
+      "id": "log_r002",
+      "timestamp": "2026-04-05T05:30:50Z",
+      "domainId": "analysis_domain_2",
+      "criterionId": "criterion_r002",
+      "action": "created_seed",
+      "note": "Imported criterion from the father-son legacy Karthic rubric artifact."
+    },
+    {
+      "id": "log_r004",
+      "timestamp": "2026-04-05T05:30:50Z",
+      "domainId": "analysis_domain_3",
+      "criterionId": "criterion_r004",
+      "action": "created_seed",
+      "note": "Imported criterion from the father-son legacy Karthic rubric artifact."
+    },
+    {
+      "id": "log_r006",
+      "timestamp": "2026-04-05T05:30:50Z",
+      "domainId": "analysis_domain_4",
+      "criterionId": "criterion_r006",
+      "action": "created_seed",
+      "note": "Imported criterion from the father-son legacy Karthic rubric artifact."
+    },
+    {
+      "id": "log_r008",
+      "timestamp": "2026-04-05T05:30:50Z",
+      "domainId": "analysis_domain_5",
+      "criterionId": "criterion_r008",
+      "action": "created_seed",
+      "note": "Imported criterion from the father-son legacy Karthic rubric artifact."
+    },
+    {
+      "id": "log_r009",
+      "timestamp": "2026-04-05T05:30:50Z",
+      "domainId": "analysis_domain_5",
+      "criterionId": "criterion_r009",
+      "action": "created_seed",
+      "note": "Imported criterion from the father-son legacy Karthic rubric artifact."
+    },
+    {
+      "id": "log_r010",
+      "timestamp": "2026-04-05T05:30:50Z",
+      "domainId": "analysis_domain_6",
+      "criterionId": "criterion_r010",
+      "action": "created_seed",
+      "note": "Imported criterion from the father-son legacy Karthic rubric artifact."
+    },
+    {
+      "id": "log_r011",
+      "timestamp": "2026-04-05T05:30:50Z",
+      "domainId": "analysis_domain_1",
+      "criterionId": "criterion_r011",
+      "action": "created_seed",
+      "note": "Imported criterion from the father-son legacy Karthic rubric artifact."
+    },
+    {
+      "id": "log_r012",
+      "timestamp": "2026-04-05T05:30:50Z",
+      "domainId": "analysis_domain_6",
+      "criterionId": "criterion_r012",
+      "action": "created_seed",
+      "note": "Imported criterion from the father-son legacy Karthic rubric artifact."
+    },
+    {
+      "id": "log_r014",
+      "timestamp": "2026-04-05T05:30:50Z",
+      "domainId": "analysis_domain_6",
+      "criterionId": "criterion_r014",
+      "action": "created_seed",
+      "note": "Imported criterion from the father-son legacy Karthic rubric artifact."
+    },
+    {
+      "id": "log_r016",
+      "timestamp": "2026-04-05T05:30:50Z",
+      "domainId": "analysis_domain_1",
+      "criterionId": "criterion_r016",
+      "action": "created_seed",
+      "note": "Imported criterion from the father-son legacy Karthic rubric artifact."
+    },
+    {
+      "id": "log_r018",
+      "timestamp": "2026-04-05T05:30:50Z",
+      "domainId": "analysis_domain_6",
+      "criterionId": "criterion_r018",
+      "action": "created_seed",
+      "note": "Imported criterion from the father-son legacy Karthic rubric artifact."
+    },
+    {
+      "id": "log_r025",
+      "timestamp": "2026-04-05T05:30:50Z",
+      "domainId": "analysis_domain_4",
+      "criterionId": "criterion_r025",
+      "action": "created_seed",
+      "note": "Imported criterion from the father-son legacy Karthic rubric artifact."
+    }
+  ],
+  "smeNotes": "Imported from the approved father-son benchmark answer and legacy rubric decomposition so the paper can use the newer frontend artifact lineage.",
+  "comparisonMethodNote": "Each Dasha cluster representative is compared against structured golden-answer targets imported from the father-son benchmark answer rather than against raw prose overlap alone.",
+  "approvedAt": "2026-04-05T05:30:50Z",
+  "createdAt": "2026-04-05T05:30:50Z",
+  "updatedAt": "2026-04-05T05:30:50Z"
+}

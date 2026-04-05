@@ -5,11 +5,11 @@ Reproducible statistical validation for the Frank-Karthic-Dasha pipeline.
 This script is deliberately local-artifact-first:
 
 - Frank stage:
-  `rubric-automation/question_golden_input.json`
+  `legal-workflow-data/frank-packets/frank_1775367155212_48b90d17.json`
 - Karthic stage:
-  `rubric-automation/outputs/openai_question_golden/question_golden_input/final_rubrics.json`
+  `legal-workflow-data/karthic-rubric-packs/karthic_1775367155213_270af0ba.json`
 - Dasha stage:
-  `paper/data/father_son_responses_20260404_230517.json`
+  `legal-workflow-data/dasha-runs/dasha_1775367155213_70677f12.json`
 
 It evaluates a single benchmark question:
 the father-son oral promise / student-loan enforceability hypothetical.
@@ -62,17 +62,23 @@ except ImportError as exc:  # pragma: no cover
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_FRANK_JSON = PROJECT_ROOT / "rubric-automation" / "question_golden_input.json"
+DEFAULT_FRANK_JSON = (
+    PROJECT_ROOT
+    / "legal-workflow-data"
+    / "frank-packets"
+    / "frank_1775367155212_48b90d17.json"
+)
 DEFAULT_KARTHIC_JSON = (
     PROJECT_ROOT
-    / "rubric-automation"
-    / "outputs"
-    / "openai_question_golden"
-    / "question_golden_input"
-    / "final_rubrics.json"
+    / "legal-workflow-data"
+    / "karthic-rubric-packs"
+    / "karthic_1775367155213_270af0ba.json"
 )
 DEFAULT_DASHA_JSON = (
-    PROJECT_ROOT / "paper" / "data" / "father_son_responses_20260404_230517.json"
+    PROJECT_ROOT
+    / "legal-workflow-data"
+    / "dasha-runs"
+    / "dasha_1775367155213_70677f12.json"
 )
 DEFAULT_EXISTING_RUN_JSON = (
     PROJECT_ROOT / "lsh-IRAC" / "results" / "run_20260224_010918.json"
@@ -171,29 +177,75 @@ def format_irac_for_embedding(irac_dict: Dict[str, Any]) -> str:
     return "\n".join(sections)
 
 
+def normalize_multiline_text(text: Any) -> str:
+    if text is None:
+        return ""
+    lines = [re.sub(r"\s+", " ", str(line)).strip() for line in str(text).splitlines()]
+    return "\n".join(line for line in lines if line).strip()
+
+
+def parse_irac_response_text(text: str) -> Dict[str, str] | None:
+    pattern = re.compile(
+        r"(Issue|Rule|Application|Conclusion)\s*:\s*(.*?)(?=(?:Issue|Rule|Application|Conclusion)\s*:|$)",
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    matches = pattern.findall(text)
+    if not matches:
+        return None
+
+    parsed = {
+        "issue": "",
+        "rule": "",
+        "application": "",
+        "conclusion": "",
+    }
+    for section, content in matches:
+        parsed[section.lower()] = normalize_multiline_text(content)
+    if not any(parsed.values()):
+        return None
+    return parsed
+
+
 def normalize_response_record(item: Dict[str, Any], index: int) -> Dict[str, Any]:
     normalized = dict(item)
     normalized.setdefault("id", f"response_{index}")
     normalized["model"] = canonicalize_model_name(normalized.get("model", "unknown-model"))
     normalized.setdefault("family", infer_family(normalized["model"]))
-    normalized.setdefault("response", {})
+    response = normalized.get("response", {})
 
-    response = normalized["response"]
-    if not isinstance(response, dict):
-        raise ValueError(f"Response payload for {normalized['id']} is not a dictionary.")
+    if isinstance(response, dict):
+        for key in ("issue", "rule", "application", "conclusion"):
+            response.setdefault(key, "")
+        normalized["response"] = response
+        normalized["response_text"] = format_irac_for_embedding(response)
+        normalized["full_text"] = "\n".join(
+            [
+                normalized["response"].get("issue", ""),
+                normalized["response"].get("rule", ""),
+                normalized["response"].get("application", ""),
+                normalized["response"].get("conclusion", ""),
+            ]
+        ).strip()
+        return normalized
 
-    for key in ("issue", "rule", "application", "conclusion"):
-        response.setdefault(key, "")
+    raw_response_text = normalized.get("responseText", "") or normalized.get("raw_text", "")
+    response_text = normalize_multiline_text(raw_response_text)
+    if not response_text:
+        raise ValueError(f"Response payload for {normalized['id']} is not usable.")
 
-    normalized["response_text"] = format_irac_for_embedding(response)
-    normalized["full_text"] = "\n".join(
-        [
-            normalized["response"].get("issue", ""),
-            normalized["response"].get("rule", ""),
-            normalized["response"].get("application", ""),
-            normalized["response"].get("conclusion", ""),
-        ]
-    ).strip()
+    parsed_response = parse_irac_response_text(response_text)
+    normalized["response"] = parsed_response or {
+        "issue": "",
+        "rule": "",
+        "application": "",
+        "conclusion": "",
+    }
+    normalized["response_text"] = (
+        format_irac_for_embedding(parsed_response)
+        if parsed_response
+        else response_text
+    )
+    normalized["full_text"] = response_text
     return normalized
 
 
@@ -205,7 +257,11 @@ def load_artifacts(
     frank = load_json(frank_json)
     karthic = load_json(karthic_json)
     dasha_raw = load_json(dasha_json)
-    dasha = [normalize_response_record(item, index) for index, item in enumerate(dasha_raw)]
+    if isinstance(dasha_raw, dict) and isinstance(dasha_raw.get("responses"), list):
+        dasha_items = dasha_raw["responses"]
+    else:
+        dasha_items = dasha_raw
+    dasha = [normalize_response_record(item, index) for index, item in enumerate(dasha_items)]
     return frank, karthic, dasha
 
 
