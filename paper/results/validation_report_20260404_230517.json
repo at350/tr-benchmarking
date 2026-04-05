@@ -1,0 +1,409 @@
+{
+  "timestamp": "20260404_230517",
+  "case_study": "Father-Son Oral Promise Enforceability",
+  "question": "A father promised his son that if the son married the daughter of a politician within 18 months, the father would assume responsibility for the son's student loans. The father was primarily motivated to make this promise by a tax deduction that he thought would be available to him if he paid the son's student loans, although he was also glad to help his son and hoped the son would marry the politician's daughter. The son agreed because he already planned to propose to the politician's daughter, but the father and son never signed a written contract. Fourteen months later, the son married the politician's daughter. The father refused to make any payments on the son's loans, however, because the father had learned that he would not in fact qualify for any tax deductions. Is the father's oral promise to pay off the son's student loans enforceable?",
+  "pipeline_config": {
+    "umap_n_components": 5,
+    "umap_n_neighbors": 5,
+    "umap_min_dist": 0.1,
+    "hdbscan_min_cluster_size": 5,
+    "hdbscan_min_samples": 2,
+    "embedding_instruction_model": "hkunlp/instructor-large",
+    "embedding_baseline_model": "all-MiniLM-L6-v2",
+    "permutation_iterations": 1000
+  },
+  "data_summary": {
+    "total_responses": 240,
+    "responses_per_model": {
+      "claude-3.5-haiku": 20,
+      "claude-4-sonnet": 20,
+      "deepseek-v3": 20,
+      "gemini-3-flash": 20,
+      "gemini-3-pro": 20,
+      "gpt-4.1-nano": 20,
+      "gpt-4o": 20,
+      "gpt-5.4": 20,
+      "gpt-5.4-mini": 20,
+      "kimi-k2-thinking": 20,
+      "llama-4-maverick-instruct": 20,
+      "llama-4-scout-instruct": 20
+    },
+    "model_families": {
+      "gpt-4o": "GPT",
+      "gpt-5.4": "GPT",
+      "gpt-5.4-mini": "GPT",
+      "gpt-4.1-nano": "GPT",
+      "claude-4-sonnet": "Claude",
+      "claude-3.5-haiku": "Claude",
+      "gemini-3-pro": "Gemini",
+      "gemini-3-flash": "Gemini",
+      "deepseek-v3": "DeepSeek",
+      "kimi-k2-thinking": "Kimi",
+      "llama-4-maverick-instruct": "LLAMA",
+      "llama-4-scout-instruct": "LLAMA"
+    }
+  },
+  "instruction_tuned": {
+    "cluster_quality": {
+      "n_clusters": 20,
+      "n_noise": 7,
+      "n_total": 240,
+      "noise_ratio": 0.0292,
+      "silhouette_score": 0.596,
+      "davies_bouldin_index": 0.5426
+    },
+    "stability_test": {
+      "observed_nmi": 0.91059,
+      "observed_ari": 0.781977,
+      "p_value_nmi": 0.0,
+      "p_value_ari": 0.0,
+      "null_nmi_mean": 0.278107,
+      "null_nmi_std": 0.011231,
+      "null_ari_mean": -0.00019,
+      "null_ari_std": 0.005908,
+      "effect_size_nmi": 56.316,
+      "effect_size_ari": 132.3993,
+      "n_permutations": 1000
+    },
+    "correspondence_test": {
+      "observed_nmi": 0.632808,
+      "observed_ari": 0.306136,
+      "p_value_nmi": 0.0,
+      "p_value_ari": 0.0,
+      "null_nmi_mean": 0.104502,
+      "null_nmi_std": 0.012649,
+      "null_ari_mean": 2.8e-05,
+      "null_ari_std": 0.004844,
+      "n_permutations": 1000
+    },
+    "cluster_composition": {
+      "-1": {
+        "size": 7,
+        "families": {
+          "Claude": 5,
+          "Gemini": 2
+        }
+      },
+      "0": {
+        "size": 7,
+        "families": {
+          "LLAMA": 7
+        }
+      },
+      "1": {
+        "size": 12,
+        "families": {
+          "GPT": 1,
+          "Kimi": 1,
+          "LLAMA": 10
+        }
+      },
+      "2": {
+        "size": 14,
+        "families": {
+          "Gemini": 14
+        }
+      },
+      "3": {
+        "size": 14,
+        "families": {
+          "Claude": 14
+        }
+      },
+      "4": {
+        "size": 9,
+        "families": {
+          "Gemini": 9
+        }
+      },
+      "5": {
+        "size": 15,
+        "families": {
+          "Gemini": 15
+        }
+      },
+      "6": {
+        "size": 23,
+        "families": {
+          "GPT": 21,
+          "Claude": 2
+        }
+      },
+      "7": {
+        "size": 24,
+        "families": {
+          "GPT": 24
+        }
+      },
+      "8": {
+        "size": 8,
+        "families": {
+          "GPT": 5,
+          "DeepSeek": 2,
+          "Claude": 1
+        }
+      },
+      "9": {
+        "size": 14,
+        "families": {
+          "DeepSeek": 1,
+          "LLAMA": 13
+        }
+      },
+      "10": {
+        "size": 13,
+        "families": {
+          "GPT": 4,
+          "DeepSeek": 6,
+          "LLAMA": 3
+        }
+      },
+      "11": {
+        "size": 7,
+        "families": {
+          "LLAMA": 7
+        }
+      },
+      "12": {
+        "size": 11,
+        "families": {
+          "DeepSeek": 11
+        }
+      },
+      "13": {
+        "size": 5,
+        "families": {
+          "GPT": 5
+        }
+      },
+      "14": {
+        "size": 7,
+        "families": {
+          "Claude": 7
+        }
+      },
+      "15": {
+        "size": 7,
+        "families": {
+          "Claude": 7
+        }
+      },
+      "16": {
+        "size": 17,
+        "families": {
+          "Kimi": 17
+        }
+      },
+      "17": {
+        "size": 6,
+        "families": {
+          "GPT": 1,
+          "Claude": 4,
+          "Kimi": 1
+        }
+      },
+      "18": {
+        "size": 11,
+        "families": {
+          "GPT": 10,
+          "Kimi": 1
+        }
+      },
+      "19": {
+        "size": 9,
+        "families": {
+          "GPT": 9
+        }
+      }
+    },
+    "run1_n_clusters": 20,
+    "run2_n_clusters": 20
+  },
+  "baseline": {
+    "cluster_quality": {
+      "n_clusters": 22,
+      "n_noise": 0,
+      "n_total": 240,
+      "noise_ratio": 0.0,
+      "silhouette_score": 0.5254,
+      "davies_bouldin_index": 0.6304
+    },
+    "stability_test": {
+      "observed_nmi": 0.881521,
+      "observed_ari": 0.763322,
+      "p_value_nmi": 0.0,
+      "p_value_ari": 0.0,
+      "null_nmi_mean": 0.287699,
+      "null_nmi_std": 0.010704,
+      "null_ari_mean": 0.000209,
+      "null_ari_std": 0.007003,
+      "effect_size_nmi": 55.4778,
+      "effect_size_ari": 108.9699,
+      "n_permutations": 1000
+    },
+    "correspondence_test": {
+      "observed_nmi": 0.537538,
+      "observed_ari": 0.202111,
+      "p_value_nmi": 0.0,
+      "p_value_ari": 0.0,
+      "null_nmi_mean": 0.109758,
+      "null_nmi_std": 0.012587,
+      "null_ari_mean": 3.8e-05,
+      "null_ari_std": 0.006418,
+      "n_permutations": 1000
+    },
+    "cluster_composition": {
+      "0": {
+        "size": 18,
+        "families": {
+          "Gemini": 16,
+          "Kimi": 2
+        }
+      },
+      "1": {
+        "size": 10,
+        "families": {
+          "Gemini": 10
+        }
+      },
+      "2": {
+        "size": 38,
+        "families": {
+          "GPT": 20,
+          "Claude": 16,
+          "DeepSeek": 2
+        }
+      },
+      "3": {
+        "size": 5,
+        "families": {
+          "Gemini": 5
+        }
+      },
+      "4": {
+        "size": 23,
+        "families": {
+          "GPT": 11,
+          "Claude": 9,
+          "Kimi": 3
+        }
+      },
+      "5": {
+        "size": 7,
+        "families": {
+          "GPT": 6,
+          "LLAMA": 1
+        }
+      },
+      "6": {
+        "size": 5,
+        "families": {
+          "GPT": 1,
+          "Claude": 4
+        }
+      },
+      "7": {
+        "size": 10,
+        "families": {
+          "GPT": 1,
+          "Gemini": 9
+        }
+      },
+      "8": {
+        "size": 8,
+        "families": {
+          "LLAMA": 8
+        }
+      },
+      "9": {
+        "size": 10,
+        "families": {
+          "DeepSeek": 1,
+          "LLAMA": 9
+        }
+      },
+      "10": {
+        "size": 7,
+        "families": {
+          "Claude": 2,
+          "Kimi": 5
+        }
+      },
+      "11": {
+        "size": 12,
+        "families": {
+          "GPT": 12
+        }
+      },
+      "12": {
+        "size": 8,
+        "families": {
+          "Claude": 8
+        }
+      },
+      "13": {
+        "size": 7,
+        "families": {
+          "DeepSeek": 1,
+          "LLAMA": 6
+        }
+      },
+      "14": {
+        "size": 12,
+        "families": {
+          "GPT": 12
+        }
+      },
+      "15": {
+        "size": 5,
+        "families": {
+          "GPT": 5
+        }
+      },
+      "16": {
+        "size": 6,
+        "families": {
+          "GPT": 6
+        }
+      },
+      "17": {
+        "size": 13,
+        "families": {
+          "GPT": 2,
+          "Kimi": 1,
+          "LLAMA": 10
+        }
+      },
+      "18": {
+        "size": 14,
+        "families": {
+          "GPT": 3,
+          "Claude": 1,
+          "DeepSeek": 10
+        }
+      },
+      "19": {
+        "size": 7,
+        "families": {
+          "GPT": 1,
+          "DeepSeek": 6
+        }
+      },
+      "20": {
+        "size": 7,
+        "families": {
+          "Kimi": 1,
+          "LLAMA": 6
+        }
+      },
+      "21": {
+        "size": 8,
+        "families": {
+          "Kimi": 8
+        }
+      }
+    },
+    "run1_n_clusters": 22,
+    "run2_n_clusters": 21
+  }
+}

@@ -6,19 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "dasha:smoke": "node scripts/dasha-model-smoke-test.mjs"
   },
   "dependencies": {
-    "clsx": "^2.1.1",
-    "csv-parse": "^6.1.0",
-    "framer-motion": "^12.29.2",
     "lucide-react": "^0.563.0",
     "next": "16.2.2",
     "openai": "^6.17.0",
     "pdf-parse": "^2.4.5",
     "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "tailwind-merge": "^3.4.0"
+    "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

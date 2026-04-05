@@ -1,14 +1,21 @@
 # tr-benchmarking
 
-This current demo uses the Law data from the [SuperGPQA](https://github.com/SuperGPQA/SuperGPQA) benchmark.
+The active product surface in this repo is the `frank-karthic-dasha` legal benchmarking pipeline in [frontend](/Users/alantai/Documents/GitHub/tr-benchmarking/frontend).
 
-## Instructions for use
-Put .env file with OpenAI key in frontend folder.
+## Frontend setup
 
-## Limitations
-- Possible question bias
-- Lack of reasoning evaluation
+Create `frontend/.env.local` with:
 
-## Next steps
-- Collect more data
-- Implement LLM-as-a-judge capabilities
+```bash
+OPENAI_API_KEY=...
+REPLICATE_API_TOKEN=...
+```
+
+Then run:
+
+```bash
+cd frontend
+npm run dev
+```
+
+The frontend now exposes only the Frank, Karthic, and Dasha workflow.

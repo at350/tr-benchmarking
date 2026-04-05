@@ -131,7 +131,7 @@ export type KarthicRubricPack = {
     updatedAt: string;
 };
 
-export type ModelProvider = 'openai' | 'anthropic' | 'gemini';
+export type ModelProvider = 'openai' | 'replicate';
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh';
 
 export type DashaSelectedModel = {

@@ -8,7 +8,6 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { MODEL_OPTIONS_BY_PROVIDER, PROVIDER_LABELS, type ModelProvider } from '@/lib/model-options';
 import type {
-    ArtifactRole,
     DashaRun,
     DashaSelectedModel,
     FrankAnalysisDomain,
@@ -51,11 +50,6 @@ type DashaAxisDomain = {
     maxX: number;
     minY: number;
     maxY: number;
-};
-
-type UploadRow = {
-    role: ArtifactRole;
-    file: File;
 };
 
 type FrankEditorState = {
@@ -128,17 +122,24 @@ const DEFAULT_FRANK_STATE: FrankEditorState = {
 };
 
 const DEFAULT_MODEL_KEYS = [
+    'openai::gpt-4o',
     'openai::gpt-5.4',
-    'anthropic::claude-opus-4-6',
-    'gemini::gemini-3.1-pro-preview',
+    'openai::gpt-5.4-mini',
+    'openai::gpt-4.1-nano',
+    'replicate::anthropic/claude-4-sonnet',
+    'replicate::anthropic/claude-3.5-haiku',
+    'replicate::google/gemini-3-pro',
+    'replicate::google/gemini-3-flash',
+    'replicate::deepseek-ai/deepseek-v3',
+    'replicate::moonshotai/kimi-k2-thinking',
+    'replicate::meta/llama-4-maverick-instruct',
+    'replicate::meta/llama-4-scout-instruct',
 ];
 
 const DASHA_MAP_WIDTH = 980;
 const DASHA_MAP_HEIGHT = 640;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const MODEL_PALETTE = ['#22c55e', '#ef4444', '#94a3b8', '#3b82f6', '#f97316', '#14b8a6', '#eab308', '#a855f7', '#06b6d4', '#f43f5e'];
-
-const DASHA_ROLES: ArtifactRole[] = ['question_packet', 'issue_statement', 'evidence_packet', 'supplemental'];
 
 const DEFAULT_KARTHIC_STATE: KarthicEditorState = {
     frankPacketId: '',
@@ -171,12 +172,11 @@ export default function LegalWorkflowPage() {
     const [karthicStep, setKarthicStep] = useState<KarthicWizardStep>('packet');
     const [karthicDraftingDomains, setKarthicDraftingDomains] = useState(false);
     const [karthicGeneratingTargets, setKarthicGeneratingTargets] = useState(false);
-    const [dashaUploads, setDashaUploads] = useState<UploadRow[]>([]);
     const [dashaStep, setDashaStep] = useState<DashaWizardStep>('rubric');
     const [dashaForm, setDashaForm] = useState<DashaFormState>({
         rubricPackId: '',
         selectedModelKeys: DEFAULT_MODEL_KEYS,
-        sampleCount: '200',
+        sampleCount: '240',
     });
     const [dashaRunning, setDashaRunning] = useState(false);
     const [selectedDashaRunId, setSelectedDashaRunId] = useState<string | null>(null);
@@ -682,10 +682,6 @@ export default function LegalWorkflowPage() {
             formData.set('rubricPackId', dashaForm.rubricPackId);
             formData.set('selectedModels', JSON.stringify(buildSelectedModels(dashaForm.selectedModelKeys)));
             formData.set('sampleCount', dashaForm.sampleCount || '200');
-            dashaUploads.forEach((upload, index) => {
-                formData.append('files', upload.file);
-                formData.set(`role_${index}`, upload.role);
-            });
             const response = await fetch('/api/dasha-runs', {
                 method: 'POST',
                 body: formData,
@@ -740,7 +736,7 @@ export default function LegalWorkflowPage() {
         <AppShell
             eyebrow="Stage-Separated Workflow"
             title="Frank → Karthic → Dasha"
-            subtitle="Draft source-grounded Frank packets, turn approved packets into Karthic rubric packs, then run Dasha centroid-first evaluations without stage leakage."
+            subtitle="Build source-grounded Frank packets, approve Karthic rubric packs, and run Dasha evaluations with providers this app actually supports: OpenAI and Replicate."
             maxWidthClassName="max-w-[1600px]"
         >
             <section className="grid gap-4 lg:grid-cols-3">
@@ -1156,7 +1152,7 @@ export default function LegalWorkflowPage() {
                                                         smeNotes: karthicEditor.smeNotes,
                                                         status: 'draft',
                                                         domains: packet
-                                                            ? packet.analysisDomains.map((domain, index) => ({
+                                                            ? packet.analysisDomains.map((domain) => ({
                                                                 id: domain.id,
                                                                 name: domain.name,
                                                                 description: domain.description,
@@ -1592,8 +1588,8 @@ export default function LegalWorkflowPage() {
                                                     : 'No linked Frank question packet loaded yet'}
                                             />
                                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 3 · Frontier Models</p>
-                                                <p className="mt-1 text-sm text-slate-500">Choose the frontier models and the size of the raw answer pool. Dasha will generate a large response set, cluster that full set, then score cluster centroids against Karthic’s structured golden targets.</p>
+                                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 3 · Execution Models</p>
+                                                <p className="mt-1 text-sm text-slate-500">Choose the OpenAI and Replicate models you want in the answer pool. OpenAI models use <code>OPENAI_API_KEY</code>; Replicate models use <code>REPLICATE_API_TOKEN</code>.</p>
                                             </div>
                                             <div className="grid gap-4 md:grid-cols-2">
                                                 <LabeledInput
@@ -1613,7 +1609,7 @@ export default function LegalWorkflowPage() {
                                                     <div key={provider} className="rounded-xl border border-slate-200 bg-white p-4">
                                                         <p className="text-sm font-semibold text-slate-800">{PROVIDER_LABELS[provider]}</p>
                                                         <div className="mt-2 space-y-2">
-                                                            {MODEL_OPTIONS_BY_PROVIDER[provider].slice(0, 4).map((option) => {
+                                                            {MODEL_OPTIONS_BY_PROVIDER[provider].map((option) => {
                                                                 const key = `${provider}::${option.value}`;
                                                                 const checked = dashaForm.selectedModelKeys.includes(key);
                                                                 return (
@@ -2123,13 +2119,7 @@ function ClusterViewCard({
     const selectedEntry = selectedClusterId ? filteredLookup.get(selectedClusterId) ?? null : null;
     const hoveredEntry = hoveredClusterId ? filteredLookup.get(hoveredClusterId) ?? null : null;
     const focusEntry = selectedEntry ?? hoveredEntry;
-    const activeClusterId = selectedClusterId ?? hoveredClusterId;
-
-    useEffect(() => {
-        if (hoveredClusterId && !entries.some((entry) => entry.cluster.id === hoveredClusterId)) {
-            setHoveredClusterId(null);
-        }
-    }, [entries, hoveredClusterId]);
+    const activeClusterId = selectedClusterId ?? hoveredEntry?.cluster.id ?? null;
 
     return (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -2597,9 +2587,6 @@ function buildSelectedModels(keys: string[]): DashaSelectedModel[] {
 function defaultReasoningEffort(provider: ModelProvider, model: string): ReasoningEffort {
     if (provider === 'openai' && model.startsWith('gpt-5')) {
         return 'medium';
-    }
-    if (provider === 'gemini') {
-        return model.includes('pro') ? 'high' : 'medium';
     }
     return 'none';
 }

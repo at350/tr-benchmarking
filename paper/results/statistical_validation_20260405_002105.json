@@ -1,0 +1,1240 @@
+{
+  "timestamp": "20260405_002105",
+  "frank_stage": {
+    "artifact_path": "/Users/alantai/Documents/GitHub/tr-benchmarking/rubric-automation/question_golden_input.json",
+    "legal_question": "A father promised his son that if the son married the daughter of a politician within 18 months, the father would assume responsibility for the son's student loans. The father was primarily motivated to make this promise by a tax deduction that he thought would be available to him if he paid the son's student loans, although he was also glad to help his son and hoped the son would marry the politician's daughter. The son agreed because he already planned to propose to the politician's daughter, but the father and son never signed a written contract. Fourteen months later, the son married the politician's daughter. The father refused to make any payments on the son's loans, however, because the father had learned that he would not in fact qualify for any tax deductions. Is the father's oral promise to pay off the son's student loans enforceable?",
+    "jurisdiction": "United States",
+    "legal_domain": "Contracts"
+  },
+  "karthic_stage": {
+    "artifact_path": "/Users/alantai/Documents/GitHub/tr-benchmarking/rubric-automation/outputs/openai_question_golden/question_golden_input/final_rubrics.json",
+    "rubric_count": 13,
+    "rubric_categories": [
+      "conclusion",
+      "consideration",
+      "contract formation",
+      "counterargument",
+      "counterarguments",
+      "doctrinal accuracy",
+      "element",
+      "exceptions",
+      "factual application",
+      "issue",
+      "mistake",
+      "statute of frauds"
+    ]
+  },
+  "dasha_stage": {
+    "artifact_path": "/Users/alantai/Documents/GitHub/tr-benchmarking/paper/data/father_son_responses_20260404_230517.json",
+    "total_responses": 240,
+    "responses_per_model": {
+      "claude-3.5-haiku": 20,
+      "claude-4-sonnet": 20,
+      "deepseek-v3": 20,
+      "gemini-3-flash": 20,
+      "gemini-3-pro": 20,
+      "gpt-4.1-nano": 20,
+      "gpt-4o": 20,
+      "gpt-5.4": 20,
+      "gpt-5.4-mini": 20,
+      "kimi-k2-thinking": 20,
+      "llama-4-maverick-instruct": 20,
+      "llama-4-scout-instruct": 20
+    },
+    "responses_per_family": {
+      "Claude": 40,
+      "DeepSeek": 20,
+      "GPT": 80,
+      "Gemini": 40,
+      "Kimi": 20,
+      "LLAMA": 40
+    }
+  },
+  "design_target": {
+    "total_responses": 240,
+    "responses_per_model": 20,
+    "model_roster": [
+      "gpt-4o",
+      "gpt-5.4",
+      "gpt-5.4-mini",
+      "gpt-4.1-nano",
+      "claude-4-sonnet",
+      "claude-3.5-haiku",
+      "gemini-3-pro",
+      "gemini-3-flash",
+      "deepseek-v3",
+      "kimi-k2-thinking",
+      "llama-4-maverick-instruct",
+      "llama-4-scout-instruct"
+    ],
+    "instruction_embedding_model": "hkunlp/instructor-large",
+    "baseline_embedding_model": "all-MiniLM-L6-v2",
+    "clustering": {
+      "dimensionality_reduction": "UMAP",
+      "n_components": 5,
+      "n_neighbors": 5,
+      "min_dist": 0.1,
+      "clustering_algorithm": "HDBSCAN",
+      "min_cluster_size": 5,
+      "min_samples": 2
+    }
+  },
+  "corpus_validation": {
+    "expected_total": 240,
+    "actual_total": 240,
+    "expected_per_model": 20,
+    "expected_model_count": 12,
+    "actual_model_count": 12,
+    "missing_models": [],
+    "unexpected_models": [],
+    "models_with_nonstandard_counts": {},
+    "matches_target_configuration": true
+  },
+  "existing_dasha_run": {
+    "artifact_path": "/Users/alantai/Documents/GitHub/tr-benchmarking/lsh-IRAC/results/run_20260224_010918.json",
+    "n_items": 180,
+    "n_clusters": 12,
+    "cluster_family_correspondence": {
+      "observed_nmi": 0.647992,
+      "observed_ari": 0.355675,
+      "p_value_nmi": 0.0001999600079984003,
+      "p_value_ari": 0.0001999600079984003,
+      "null_nmi_mean": 0.056657,
+      "null_nmi_std": 0.013009,
+      "null_ari_mean": 0.000102,
+      "null_ari_std": 0.006751,
+      "effect_size_nmi": 45.4567,
+      "effect_size_ari": 52.6666,
+      "permutations": 5000
+    }
+  },
+  "instruction_tuned": {
+    "embedding_name": "hkunlp/instructor-large",
+    "run_a_seed": 42,
+    "run_b_seed": 123,
+    "cluster_quality": {
+      "n_total": 240,
+      "n_clusters": 24,
+      "n_noise": 7,
+      "noise_ratio": 0.0292,
+      "silhouette_score": 0.5668,
+      "davies_bouldin_index": 0.5899
+    },
+    "stability_test": {
+      "observed_nmi": 0.921454,
+      "observed_ari": 0.812212,
+      "p_value_nmi": 0.000999000999000999,
+      "p_value_ari": 0.000999000999000999,
+      "null_nmi_mean": 0.310301,
+      "null_nmi_std": 0.010505,
+      "null_ari_mean": -0.000292,
+      "null_ari_std": 0.006089,
+      "effect_size_nmi": 58.1757,
+      "effect_size_ari": 133.4376,
+      "permutations": 1000
+    },
+    "correspondence_test": {
+      "observed_nmi": 0.630325,
+      "observed_ari": 0.281383,
+      "p_value_nmi": 0.000999000999000999,
+      "p_value_ari": 0.000999000999000999,
+      "null_nmi_mean": 0.121,
+      "null_nmi_std": 0.012625,
+      "null_ari_mean": -3.9e-05,
+      "null_ari_std": 0.004826,
+      "effect_size_nmi": 40.3426,
+      "effect_size_ari": 58.3157,
+      "permutations": 1000
+    },
+    "cluster_summaries": {
+      "-1": {
+        "size": 7,
+        "family_breakdown": {
+          "Claude": 4,
+          "GPT": 1,
+          "Kimi": 2
+        },
+        "outcome_breakdown": {
+          "enforceable": 3,
+          "unenforceable": 4
+        },
+        "representative_id": "gpt-5.4_18",
+        "representative_model": "gpt-5.4",
+        "representative_conclusion": "No. The father's oral promise is not enforceable because it was a promise made in consideration of marriage and therefore required a signed writing under the Statute of Frauds.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 13,
+          "suretyship": 11,
+          "main_purpose": 9,
+          "promissory_estoppel": 0,
+          "one_year_rule": 1,
+          "consideration": 34
+        }
+      },
+      "0": {
+        "size": 26,
+        "family_breakdown": {
+          "Gemini": 26
+        },
+        "outcome_breakdown": {
+          "unenforceable": 26
+        },
+        "representative_id": "gemini-3-flash_8",
+        "representative_model": "gemini-3-flash",
+        "representative_conclusion": "The father's oral promise is not enforceable because it fails to satisfy the writing requirement of the Statute of Frauds for contracts made in consideration of marriage.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 65,
+          "suretyship": 75,
+          "main_purpose": 22,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 98
+        }
+      },
+      "1": {
+        "size": 14,
+        "family_breakdown": {
+          "Gemini": 14
+        },
+        "outcome_breakdown": {
+          "unenforceable": 14
+        },
+        "representative_id": "gemini-3-pro_117",
+        "representative_model": "gemini-3-pro",
+        "representative_conclusion": "No, the oral promise of the father to pay off the student loans of the son is not enforceable because it was made in consideration of marriage and lacks a written agreement as required by the Statute of Frauds.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 47,
+          "suretyship": 48,
+          "main_purpose": 39,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 66
+        }
+      },
+      "2": {
+        "size": 7,
+        "family_breakdown": {
+          "LLAMA": 7
+        },
+        "outcome_breakdown": {
+          "enforceable": 7
+        },
+        "representative_id": "llama-4-maverick-instruct_8",
+        "representative_model": "llama-4-maverick-instruct",
+        "representative_conclusion": "The father's oral promise to pay off the son's student loans is enforceable.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 14,
+          "main_purpose": 15,
+          "promissory_estoppel": 0,
+          "one_year_rule": 4,
+          "consideration": 41
+        }
+      },
+      "3": {
+        "size": 11,
+        "family_breakdown": {
+          "GPT": 1,
+          "LLAMA": 10
+        },
+        "outcome_breakdown": {
+          "enforceable": 3,
+          "unenforceable": 8
+        },
+        "representative_id": "llama-4-maverick-instruct_7",
+        "representative_model": "llama-4-maverick-instruct",
+        "representative_conclusion": "The father's oral promise to pay off the son's student loans is enforceable.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 18,
+          "main_purpose": 0,
+          "promissory_estoppel": 2,
+          "one_year_rule": 9,
+          "consideration": 18
+        }
+      },
+      "4": {
+        "size": 8,
+        "family_breakdown": {
+          "Claude": 1,
+          "DeepSeek": 2,
+          "GPT": 5
+        },
+        "outcome_breakdown": {
+          "enforceable": 1,
+          "unenforceable": 7
+        },
+        "representative_id": "gpt-4.1-nano_6",
+        "representative_model": "gpt-4.1-nano",
+        "representative_conclusion": "The father's oral promise to pay the son's student loans is potentially enforceable based on the consideration of marriage and the son's reliance, despite the absence of a signed written agreement.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 12,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 24,
+          "one_year_rule": 4,
+          "consideration": 22
+        }
+      },
+      "5": {
+        "size": 6,
+        "family_breakdown": {
+          "Claude": 6
+        },
+        "outcome_breakdown": {
+          "enforceable": 6
+        },
+        "representative_id": "claude-3.5-haiku_7",
+        "representative_model": "claude-3.5-haiku",
+        "representative_conclusion": "The father's oral promise is likely enforceable through the doctrine of promissory estoppel, as the son reasonably relied on the promise and the father's subsequent refusal would result in substantial injustice to the son",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 1,
+          "suretyship": 5,
+          "main_purpose": 0,
+          "promissory_estoppel": 16,
+          "one_year_rule": 2,
+          "consideration": 1
+        }
+      },
+      "6": {
+        "size": 9,
+        "family_breakdown": {
+          "Claude": 9
+        },
+        "outcome_breakdown": {
+          "enforceable": 8,
+          "unenforceable": 1
+        },
+        "representative_id": "claude-3.5-haiku_17",
+        "representative_model": "claude-3.5-haiku",
+        "representative_conclusion": "The father's oral promise is likely enforceable under the doctrine of promissory estoppel. The son reasonably relied on the father's promise by marrying the specified person within the designated timeframe, and the father's subsequent refusal to honor the promise would be considered unjust. Despite the lack of a written contract, the son's detrimental reliance creates a legal obligation for the father to pay the student loans.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 2,
+          "suretyship": 4,
+          "main_purpose": 0,
+          "promissory_estoppel": 27,
+          "one_year_rule": 3,
+          "consideration": 9
+        }
+      },
+      "7": {
+        "size": 7,
+        "family_breakdown": {
+          "Claude": 7
+        },
+        "outcome_breakdown": {
+          "enforceable": 1,
+          "unenforceable": 6
+        },
+        "representative_id": "claude-4-sonnet_8",
+        "representative_model": "claude-4-sonnet",
+        "representative_conclusion": "The father's oral promise is not enforceable because it violates the Statute of Frauds writing requirement and lacks valid consideration.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 8,
+          "suretyship": 7,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 8,
+          "consideration": 58
+        }
+      },
+      "8": {
+        "size": 7,
+        "family_breakdown": {
+          "Claude": 7
+        },
+        "outcome_breakdown": {
+          "enforceable": 4,
+          "unenforceable": 3
+        },
+        "representative_id": "claude-4-sonnet_1",
+        "representative_model": "claude-4-sonnet",
+        "representative_conclusion": "The father's oral promise is likely unenforceable due to the Statute of Frauds requirement that promises to answer for another's debt must be in writing, despite the existence of valid consideration through the son's performance.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 2,
+          "suretyship": 9,
+          "main_purpose": 0,
+          "promissory_estoppel": 2,
+          "one_year_rule": 14,
+          "consideration": 38
+        }
+      },
+      "9": {
+        "size": 14,
+        "family_breakdown": {
+          "DeepSeek": 1,
+          "LLAMA": 13
+        },
+        "outcome_breakdown": {
+          "enforceable": 8,
+          "unenforceable": 6
+        },
+        "representative_id": "llama-4-scout-instruct_19",
+        "representative_model": "llama-4-scout-instruct",
+        "representative_conclusion": "The father's oral promise to pay off the son's student loans is not enforceable under the Statute of Frauds because it was not in writing and signed by the father.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 5,
+          "main_purpose": 39,
+          "promissory_estoppel": 2,
+          "one_year_rule": 2,
+          "consideration": 3
+        }
+      },
+      "10": {
+        "size": 9,
+        "family_breakdown": {
+          "DeepSeek": 6,
+          "GPT": 3
+        },
+        "outcome_breakdown": {
+          "enforceable": 2,
+          "unenforceable": 7
+        },
+        "representative_id": "deepseek-v3_8",
+        "representative_model": "deepseek-v3",
+        "representative_conclusion": "The father's oral promise is likely unenforceable due to the lack of a written agreement as required by the Statute of Frauds and the absence of valid consideration.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 3,
+          "suretyship": 9,
+          "main_purpose": 0,
+          "promissory_estoppel": 2,
+          "one_year_rule": 1,
+          "consideration": 37
+        }
+      },
+      "11": {
+        "size": 16,
+        "family_breakdown": {
+          "GPT": 16
+        },
+        "outcome_breakdown": {
+          "enforceable": 12,
+          "unenforceable": 4
+        },
+        "representative_id": "gpt-4.1-nano_15",
+        "representative_model": "gpt-4.1-nano",
+        "representative_conclusion": "The father's oral promise to pay the son's student loans is likely enforceable under the doctrine of promissory estoppel, given the son's reasonable reliance and marriage within the specified period, notwithstanding the absence of a written contract.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 10,
+          "suretyship": 1,
+          "main_purpose": 0,
+          "promissory_estoppel": 42,
+          "one_year_rule": 17,
+          "consideration": 37
+        }
+      },
+      "12": {
+        "size": 8,
+        "family_breakdown": {
+          "GPT": 8
+        },
+        "outcome_breakdown": {
+          "enforceable": 1,
+          "unenforceable": 7
+        },
+        "representative_id": "gpt-4.1-nano_12",
+        "representative_model": "gpt-4.1-nano",
+        "representative_conclusion": "The father's oral promise to pay the son's student loans is not enforceable.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 2,
+          "suretyship": 1,
+          "main_purpose": 0,
+          "promissory_estoppel": 4,
+          "one_year_rule": 7,
+          "consideration": 31
+        }
+      },
+      "13": {
+        "size": 11,
+        "family_breakdown": {
+          "DeepSeek": 11
+        },
+        "outcome_breakdown": {
+          "enforceable": 1,
+          "unenforceable": 10
+        },
+        "representative_id": "deepseek-v3_11",
+        "representative_model": "deepseek-v3",
+        "representative_conclusion": "The father's oral promise is not enforceable because it violates the Statute of Frauds and lacks valid consideration.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 2,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 23,
+          "consideration": 45
+        }
+      },
+      "14": {
+        "size": 5,
+        "family_breakdown": {
+          "GPT": 5
+        },
+        "outcome_breakdown": {
+          "enforceable": 3,
+          "unenforceable": 2
+        },
+        "representative_id": "gpt-4o_16",
+        "representative_model": "gpt-4o",
+        "representative_conclusion": "The father's oral promise to pay the son's student loans is not enforceable due to the Statute of Frauds' requirement for a written contract in consideration of marriage, and the lack of a written agreement makes the promise unenforceable.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 7,
+          "suretyship": 1,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 12,
+          "consideration": 26
+        }
+      },
+      "15": {
+        "size": 17,
+        "family_breakdown": {
+          "Kimi": 17
+        },
+        "outcome_breakdown": {
+          "enforceable": 13,
+          "unenforceable": 4
+        },
+        "representative_id": "kimi-k2-thinking_1",
+        "representative_model": "kimi-k2-thinking",
+        "representative_conclusion": "The father\u2019s oral promise to pay the son\u2019s student loans is enforceable.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 11,
+          "suretyship": 45,
+          "main_purpose": 72,
+          "promissory_estoppel": 10,
+          "one_year_rule": 11,
+          "consideration": 77
+        }
+      },
+      "16": {
+        "size": 6,
+        "family_breakdown": {
+          "GPT": 6
+        },
+        "outcome_breakdown": {
+          "unenforceable": 6
+        },
+        "representative_id": "gpt-5.4-mini_19",
+        "representative_model": "gpt-5.4-mini",
+        "representative_conclusion": "No. The father\u2019s oral promise is not enforceable because it was a promise made in consideration of marriage and was never put in a signed writing as required by the Statute of Frauds.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 16,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 30
+        }
+      },
+      "17": {
+        "size": 5,
+        "family_breakdown": {
+          "Claude": 4,
+          "GPT": 1
+        },
+        "outcome_breakdown": {
+          "enforceable": 2,
+          "unenforceable": 3
+        },
+        "representative_id": "claude-4-sonnet_14",
+        "representative_model": "claude-4-sonnet",
+        "representative_conclusion": "The father's oral promise is likely enforceable under the main purpose doctrine exception to the Statute of Frauds, as his primary motivation was personal economic benefit, and valid consideration existed through the son's performance of marrying within the specified timeframe.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 6,
+          "main_purpose": 17,
+          "promissory_estoppel": 0,
+          "one_year_rule": 2,
+          "consideration": 13
+        }
+      },
+      "18": {
+        "size": 5,
+        "family_breakdown": {
+          "GPT": 1,
+          "LLAMA": 4
+        },
+        "outcome_breakdown": {
+          "enforceable": 4,
+          "unenforceable": 1
+        },
+        "representative_id": "llama-4-maverick-instruct_13",
+        "representative_model": "llama-4-maverick-instruct",
+        "representative_conclusion": "The father's oral promise to pay off the son's student loans is enforceable.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 2,
+          "suretyship": 13,
+          "main_purpose": 13,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 8
+        }
+      },
+      "19": {
+        "size": 6,
+        "family_breakdown": {
+          "LLAMA": 6
+        },
+        "outcome_breakdown": {
+          "enforceable": 6
+        },
+        "representative_id": "llama-4-maverick-instruct_4",
+        "representative_model": "llama-4-maverick-instruct",
+        "representative_conclusion": "The father's oral promise to pay off the son's student loans is enforceable because it is an original promise primarily motivated by a potential personal benefit to the father, and there was sufficient consideration provided by the son's actions.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 8,
+          "main_purpose": 2,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 7
+        }
+      },
+      "20": {
+        "size": 7,
+        "family_breakdown": {
+          "GPT": 7
+        },
+        "outcome_breakdown": {
+          "enforceable": 4,
+          "unenforceable": 3
+        },
+        "representative_id": "gpt-5.4-mini_18",
+        "representative_model": "gpt-5.4-mini",
+        "representative_conclusion": "Yes. The father\u2019s oral promise is likely enforceable because it was supported by consideration, was not barred by the Statute of Frauds, and the father\u2019s mistaken belief about a tax deduction does not excuse performance.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 12,
+          "suretyship": 2,
+          "main_purpose": 2,
+          "promissory_estoppel": 0,
+          "one_year_rule": 8,
+          "consideration": 58
+        }
+      },
+      "21": {
+        "size": 9,
+        "family_breakdown": {
+          "Claude": 2,
+          "GPT": 7
+        },
+        "outcome_breakdown": {
+          "enforceable": 6,
+          "unenforceable": 3
+        },
+        "representative_id": "gpt-5.4-mini_0",
+        "representative_model": "gpt-5.4-mini",
+        "representative_conclusion": "Yes. The father's oral promise is likely enforceable because it was supported by consideration, the son performed the requested condition by marrying within the promised time, and the father's mistaken belief about a tax deduction does not excuse his obligation.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 2,
+          "suretyship": 12,
+          "main_purpose": 4,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 57
+        }
+      },
+      "22": {
+        "size": 11,
+        "family_breakdown": {
+          "GPT": 10,
+          "Kimi": 1
+        },
+        "outcome_breakdown": {
+          "enforceable": 1,
+          "unenforceable": 10
+        },
+        "representative_id": "gpt-5.4_10",
+        "representative_model": "gpt-5.4",
+        "representative_conclusion": "No. The father\u2019s oral promise is not enforceable because it is a promise made upon consideration of the son\u2019s marriage to a third person and therefore falls within the Statute of Frauds, which requires a signed writing.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 30,
+          "suretyship": 3,
+          "main_purpose": 4,
+          "promissory_estoppel": 4,
+          "one_year_rule": 5,
+          "consideration": 100
+        }
+      },
+      "23": {
+        "size": 9,
+        "family_breakdown": {
+          "GPT": 9
+        },
+        "outcome_breakdown": {
+          "enforceable": 4,
+          "unenforceable": 5
+        },
+        "representative_id": "gpt-5.4_14",
+        "representative_model": "gpt-5.4",
+        "representative_conclusion": "No. The father's oral promise is not enforceable because it was a promise made in exchange for the son's marriage and therefore falls within the Statute of Frauds marriage provision, which requires a written agreement.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 16,
+          "suretyship": 18,
+          "main_purpose": 25,
+          "promissory_estoppel": 0,
+          "one_year_rule": 11,
+          "consideration": 89
+        }
+      }
+    }
+  },
+  "baseline": {
+    "embedding_name": "all-MiniLM-L6-v2",
+    "run_a_seed": 42,
+    "run_b_seed": 123,
+    "cluster_quality": {
+      "n_total": 240,
+      "n_clusters": 23,
+      "n_noise": 11,
+      "noise_ratio": 0.0458,
+      "silhouette_score": 0.4768,
+      "davies_bouldin_index": 0.724
+    },
+    "stability_test": {
+      "observed_nmi": 0.880056,
+      "observed_ari": 0.606551,
+      "p_value_nmi": 0.000999000999000999,
+      "p_value_ari": 0.000999000999000999,
+      "null_nmi_mean": 0.27543,
+      "null_nmi_std": 0.010904,
+      "null_ari_mean": -6.3e-05,
+      "null_ari_std": 0.005776,
+      "effect_size_nmi": 55.4501,
+      "effect_size_ari": 105.0266,
+      "permutations": 1000
+    },
+    "correspondence_test": {
+      "observed_nmi": 0.545926,
+      "observed_ari": 0.20045,
+      "p_value_nmi": 0.000999000999000999,
+      "p_value_ari": 0.000999000999000999,
+      "null_nmi_mean": 0.116321,
+      "null_nmi_std": 0.012482,
+      "null_ari_mean": -6e-06,
+      "null_ari_std": 0.004384,
+      "effect_size_nmi": 34.4187,
+      "effect_size_ari": 45.7273,
+      "permutations": 1000
+    },
+    "cluster_summaries": {
+      "-1": {
+        "size": 11,
+        "family_breakdown": {
+          "Claude": 4,
+          "GPT": 6,
+          "Kimi": 1
+        },
+        "outcome_breakdown": {
+          "enforceable": 3,
+          "unenforceable": 8
+        },
+        "representative_id": "gpt-4o_0",
+        "representative_model": "gpt-4o",
+        "representative_conclusion": "The father's oral promise to pay off the son's student loans is likely enforceable due to the son's part performance by marrying the politician's daughter, which may satisfy the consideration requirement and potentially remove the agreement from the Statute of Frauds despite the lack of a written contract.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 8,
+          "suretyship": 10,
+          "main_purpose": 15,
+          "promissory_estoppel": 4,
+          "one_year_rule": 7,
+          "consideration": 49
+        }
+      },
+      "0": {
+        "size": 7,
+        "family_breakdown": {
+          "GPT": 6,
+          "LLAMA": 1
+        },
+        "outcome_breakdown": {
+          "enforceable": 5,
+          "unenforceable": 2
+        },
+        "representative_id": "gpt-4o_5",
+        "representative_model": "gpt-4o",
+        "representative_conclusion": "The father's oral promise to pay off the son's student loans may be enforceable due to the son completing the performance by marrying the politician's daughter, thus potentially invoking an exception to the Statute of Frauds.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 7,
+          "suretyship": 1,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 14,
+          "consideration": 27
+        }
+      },
+      "1": {
+        "size": 5,
+        "family_breakdown": {
+          "Gemini": 5
+        },
+        "outcome_breakdown": {
+          "unenforceable": 5
+        },
+        "representative_id": "gemini-3-flash_18",
+        "representative_model": "gemini-3-flash",
+        "representative_conclusion": "The father's oral promise is not enforceable because it violates the Statute of Frauds regarding contracts made in consideration of marriage and promises to answer for the debt of another.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 11,
+          "suretyship": 17,
+          "main_purpose": 2,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 19
+        }
+      },
+      "2": {
+        "size": 12,
+        "family_breakdown": {
+          "Gemini": 12
+        },
+        "outcome_breakdown": {
+          "unenforceable": 12
+        },
+        "representative_id": "gemini-3-pro_16",
+        "representative_model": "gemini-3-pro",
+        "representative_conclusion": "No, the oral promise of the father is not enforceable because it was made in consideration of marriage and therefore must be in writing to satisfy the Statute of Frauds.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 42,
+          "suretyship": 37,
+          "main_purpose": 33,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 56
+        }
+      },
+      "3": {
+        "size": 17,
+        "family_breakdown": {
+          "GPT": 17
+        },
+        "outcome_breakdown": {
+          "enforceable": 4,
+          "unenforceable": 13
+        },
+        "representative_id": "gpt-5.4_3",
+        "representative_model": "gpt-5.4",
+        "representative_conclusion": "No. The father's oral promise is not enforceable because, although supported by consideration, it was a contract made upon consideration of marriage and therefore required a written agreement under the Statute of Frauds.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 43,
+          "suretyship": 25,
+          "main_purpose": 32,
+          "promissory_estoppel": 0,
+          "one_year_rule": 11,
+          "consideration": 166
+        }
+      },
+      "4": {
+        "size": 6,
+        "family_breakdown": {
+          "Claude": 4,
+          "GPT": 2
+        },
+        "outcome_breakdown": {
+          "enforceable": 2,
+          "unenforceable": 4
+        },
+        "representative_id": "claude-3.5-haiku_9",
+        "representative_model": "claude-3.5-haiku",
+        "representative_conclusion": "The father's oral promise is likely not enforceable due to the Statute of Frauds requirements and the absence of a clear, written agreement. While the son performed the condition, the oral nature of the promise and the father's questionable intent create significant legal barriers to contract enforcement.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 8,
+          "suretyship": 2,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 1,
+          "consideration": 22
+        }
+      },
+      "5": {
+        "size": 9,
+        "family_breakdown": {
+          "Gemini": 9
+        },
+        "outcome_breakdown": {
+          "unenforceable": 9
+        },
+        "representative_id": "gemini-3-flash_117",
+        "representative_model": "gemini-3-flash",
+        "representative_conclusion": "No, the oral promise of the father is not enforceable because it violates the Statute of Frauds.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 22,
+          "suretyship": 14,
+          "main_purpose": 1,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 32
+        }
+      },
+      "6": {
+        "size": 10,
+        "family_breakdown": {
+          "Gemini": 10
+        },
+        "outcome_breakdown": {
+          "unenforceable": 10
+        },
+        "representative_id": "gemini-3-flash_17",
+        "representative_model": "gemini-3-flash",
+        "representative_conclusion": "The father's oral promise is not enforceable because it falls within the Statute of Frauds and lacks the necessary written documentation.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 24,
+          "suretyship": 36,
+          "main_purpose": 16,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 37
+        }
+      },
+      "7": {
+        "size": 6,
+        "family_breakdown": {
+          "Gemini": 4,
+          "Kimi": 2
+        },
+        "outcome_breakdown": {
+          "unenforceable": 6
+        },
+        "representative_id": "gemini-3-pro_4",
+        "representative_model": "gemini-3-pro",
+        "representative_conclusion": "No, the oral promise of the father to pay off the student loans of his son is not enforceable because it violates the Statute of Frauds, which mandates that contracts made in consideration of marriage must be in a written format.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 21,
+          "suretyship": 29,
+          "main_purpose": 23,
+          "promissory_estoppel": 0,
+          "one_year_rule": 0,
+          "consideration": 42
+        }
+      },
+      "8": {
+        "size": 8,
+        "family_breakdown": {
+          "Claude": 8
+        },
+        "outcome_breakdown": {
+          "enforceable": 3,
+          "unenforceable": 5
+        },
+        "representative_id": "claude-4-sonnet_118",
+        "representative_model": "claude-4-sonnet",
+        "representative_conclusion": "The father's oral promise is likely enforceable despite violating the Statute of Frauds because the son fully performed his obligations under the agreement, providing valid consideration through his marriage within the specified timeframe.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 7,
+          "suretyship": 8,
+          "main_purpose": 0,
+          "promissory_estoppel": 2,
+          "one_year_rule": 14,
+          "consideration": 50
+        }
+      },
+      "9": {
+        "size": 7,
+        "family_breakdown": {
+          "LLAMA": 7
+        },
+        "outcome_breakdown": {
+          "enforceable": 1,
+          "unenforceable": 6
+        },
+        "representative_id": "llama-4-scout-instruct_117",
+        "representative_model": "llama-4-scout-instruct",
+        "representative_conclusion": "The father's oral promise to pay off the son's student loans is not enforceable.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 13,
+          "main_purpose": 0,
+          "promissory_estoppel": 2,
+          "one_year_rule": 5,
+          "consideration": 7
+        }
+      },
+      "10": {
+        "size": 11,
+        "family_breakdown": {
+          "DeepSeek": 1,
+          "LLAMA": 10
+        },
+        "outcome_breakdown": {
+          "enforceable": 7,
+          "unenforceable": 4
+        },
+        "representative_id": "llama-4-scout-instruct_12",
+        "representative_model": "llama-4-scout-instruct",
+        "representative_conclusion": "The father's oral promise to pay off the son's student loans is not enforceable because it was not in writing and signed by the father.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 9,
+          "main_purpose": 26,
+          "promissory_estoppel": 2,
+          "one_year_rule": 2,
+          "consideration": 0
+        }
+      },
+      "11": {
+        "size": 9,
+        "family_breakdown": {
+          "Kimi": 9
+        },
+        "outcome_breakdown": {
+          "enforceable": 8,
+          "unenforceable": 1
+        },
+        "representative_id": "kimi-k2-thinking_14",
+        "representative_model": "kimi-k2-thinking",
+        "representative_conclusion": "The father's oral promise is enforceable.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 2,
+          "suretyship": 17,
+          "main_purpose": 32,
+          "promissory_estoppel": 0,
+          "one_year_rule": 9,
+          "consideration": 27
+        }
+      },
+      "12": {
+        "size": 13,
+        "family_breakdown": {
+          "DeepSeek": 1,
+          "LLAMA": 12
+        },
+        "outcome_breakdown": {
+          "enforceable": 12,
+          "unenforceable": 1
+        },
+        "representative_id": "deepseek-v3_14",
+        "representative_model": "deepseek-v3",
+        "representative_conclusion": "The father's oral promise is likely not enforceable due to lack of sufficient consideration and the potential application of the Statute of Frauds.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 23,
+          "main_purpose": 25,
+          "promissory_estoppel": 0,
+          "one_year_rule": 4,
+          "consideration": 48
+        }
+      },
+      "13": {
+        "size": 13,
+        "family_breakdown": {
+          "GPT": 2,
+          "Kimi": 1,
+          "LLAMA": 10
+        },
+        "outcome_breakdown": {
+          "enforceable": 9,
+          "unenforceable": 4
+        },
+        "representative_id": "llama-4-maverick-instruct_14",
+        "representative_model": "llama-4-maverick-instruct",
+        "representative_conclusion": "The father's oral promise to pay off the son's student loans is enforceable.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 2,
+          "suretyship": 14,
+          "main_purpose": 20,
+          "promissory_estoppel": 0,
+          "one_year_rule": 4,
+          "consideration": 23
+        }
+      },
+      "14": {
+        "size": 5,
+        "family_breakdown": {
+          "Kimi": 5
+        },
+        "outcome_breakdown": {
+          "enforceable": 5
+        },
+        "representative_id": "kimi-k2-thinking_116",
+        "representative_model": "kimi-k2-thinking",
+        "representative_conclusion": "The father's oral promise to pay off the son's student loans is enforceable.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 10,
+          "main_purpose": 17,
+          "promissory_estoppel": 12,
+          "one_year_rule": 7,
+          "consideration": 22
+        }
+      },
+      "15": {
+        "size": 12,
+        "family_breakdown": {
+          "Claude": 1,
+          "DeepSeek": 9,
+          "GPT": 2
+        },
+        "outcome_breakdown": {
+          "enforceable": 1,
+          "unenforceable": 11
+        },
+        "representative_id": "deepseek-v3_8",
+        "representative_model": "deepseek-v3",
+        "representative_conclusion": "The father's oral promise is likely unenforceable due to the lack of a written agreement as required by the Statute of Frauds and the absence of valid consideration.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 3,
+          "suretyship": 10,
+          "main_purpose": 0,
+          "promissory_estoppel": 2,
+          "one_year_rule": 7,
+          "consideration": 44
+        }
+      },
+      "16": {
+        "size": 18,
+        "family_breakdown": {
+          "Claude": 6,
+          "GPT": 12
+        },
+        "outcome_breakdown": {
+          "enforceable": 12,
+          "unenforceable": 6
+        },
+        "representative_id": "gpt-4o_3",
+        "representative_model": "gpt-4o",
+        "representative_conclusion": "The father's oral promise to pay off the son's student loans is likely not enforceable due to the Statute of Frauds requiring a written agreement for promises made in consideration of marriage. Additionally, promissory estoppel is unlikely to apply as the son did not change his position based on the father's promise.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 12,
+          "suretyship": 3,
+          "main_purpose": 0,
+          "promissory_estoppel": 54,
+          "one_year_rule": 10,
+          "consideration": 27
+        }
+      },
+      "17": {
+        "size": 18,
+        "family_breakdown": {
+          "Claude": 10,
+          "DeepSeek": 2,
+          "GPT": 6
+        },
+        "outcome_breakdown": {
+          "enforceable": 12,
+          "unenforceable": 6
+        },
+        "representative_id": "claude-3.5-haiku_11",
+        "representative_model": "claude-3.5-haiku",
+        "representative_conclusion": "The father's oral promise is likely enforceable under the doctrine of promissory estoppel, as the son reasonably relied on the promise and married the specified person within the promised timeframe, and preventing enforcement would result in an unjust outcome.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 10,
+          "suretyship": 7,
+          "main_purpose": 0,
+          "promissory_estoppel": 55,
+          "one_year_rule": 11,
+          "consideration": 34
+        }
+      },
+      "18": {
+        "size": 12,
+        "family_breakdown": {
+          "GPT": 12
+        },
+        "outcome_breakdown": {
+          "enforceable": 1,
+          "unenforceable": 11
+        },
+        "representative_id": "gpt-5.4-mini_13",
+        "representative_model": "gpt-5.4-mini",
+        "representative_conclusion": "No. The father's oral promise is not enforceable because it was a promise made in consideration of marriage and no signed writing exists to satisfy the Statute of Frauds.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 31,
+          "suretyship": 1,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 9,
+          "consideration": 84
+        }
+      },
+      "19": {
+        "size": 6,
+        "family_breakdown": {
+          "DeepSeek": 5,
+          "GPT": 1
+        },
+        "outcome_breakdown": {
+          "enforceable": 1,
+          "unenforceable": 5
+        },
+        "representative_id": "deepseek-v3_18",
+        "representative_model": "deepseek-v3",
+        "representative_conclusion": "The father's oral promise is likely not enforceable due to the Statute of Frauds and the lack of valid consideration.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 0,
+          "suretyship": 2,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 14,
+          "consideration": 31
+        }
+      },
+      "20": {
+        "size": 5,
+        "family_breakdown": {
+          "DeepSeek": 2,
+          "GPT": 3
+        },
+        "outcome_breakdown": {
+          "enforceable": 1,
+          "unenforceable": 4
+        },
+        "representative_id": "gpt-4.1-nano_4",
+        "representative_model": "gpt-4.1-nano",
+        "representative_conclusion": "The father's oral promise to pay off the son's student loans is not legally enforceable under the Statute of Frauds and because the promise was primarily motivated by tax considerations and lacked the necessary formalities and mutual contractual intent.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 1,
+          "suretyship": 0,
+          "main_purpose": 0,
+          "promissory_estoppel": 0,
+          "one_year_rule": 8,
+          "consideration": 22
+        }
+      },
+      "21": {
+        "size": 7,
+        "family_breakdown": {
+          "Claude": 6,
+          "Kimi": 1
+        },
+        "outcome_breakdown": {
+          "enforceable": 4,
+          "unenforceable": 3
+        },
+        "representative_id": "claude-4-sonnet_0",
+        "representative_model": "claude-4-sonnet",
+        "representative_conclusion": "The father's oral promise is likely unenforceable due to the Statute of Frauds requirement that promises to pay another's debt and contracts in consideration of marriage must be in writing, despite the existence of valid consideration through the son's performance of the agreed-upon condition.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 3,
+          "suretyship": 10,
+          "main_purpose": 8,
+          "promissory_estoppel": 0,
+          "one_year_rule": 6,
+          "consideration": 50
+        }
+      },
+      "22": {
+        "size": 13,
+        "family_breakdown": {
+          "Claude": 1,
+          "GPT": 11,
+          "Kimi": 1
+        },
+        "outcome_breakdown": {
+          "enforceable": 9,
+          "unenforceable": 4
+        },
+        "representative_id": "gpt-5.4-mini_10",
+        "representative_model": "gpt-5.4-mini",
+        "representative_conclusion": "Yes. The father's oral promise is enforceable because it was a bargained-for promise that the son fully performed by marrying within the required time, and the father's mistaken expectation of a tax deduction does not nullify the agreement.",
+        "doctrine_profile": {
+          "marriage_statute_of_frauds": 4,
+          "suretyship": 19,
+          "main_purpose": 13,
+          "promissory_estoppel": 2,
+          "one_year_rule": 1,
+          "consideration": 84
+        }
+      }
+    }
+  }
+}

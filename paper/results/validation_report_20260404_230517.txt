@@ -1,0 +1,89 @@
+========================================================================
+  FRANK-KARTHIC-DASHA PIPELINE: STATISTICAL VALIDATION REPORT
+========================================================================
+  Timestamp: 20260404_230517
+  Case Study: Father-Son Oral Promise Enforceability
+  Total Responses: 240
+  Permutation Iterations: 1000
+
+------------------------------------------------------------------------
+  DATA SUMMARY
+------------------------------------------------------------------------
+        Claude (claude-3.5-haiku): 20 responses
+        Claude (claude-4-sonnet): 20 responses
+      DeepSeek (deepseek-v3): 20 responses
+        Gemini (gemini-3-flash): 20 responses
+        Gemini (gemini-3-pro): 20 responses
+           GPT (gpt-4.1-nano): 20 responses
+           GPT (gpt-4o): 20 responses
+           GPT (gpt-5.4): 20 responses
+           GPT (gpt-5.4-mini): 20 responses
+          Kimi (kimi-k2-thinking): 20 responses
+         LLAMA (llama-4-maverick-instruct): 20 responses
+         LLAMA (llama-4-scout-instruct): 20 responses
+
+------------------------------------------------------------------------
+  INSTRUCTION-TUNED (Instructor-Large)
+------------------------------------------------------------------------
+    Clusters Found: 20
+    Noise Points:   7 (2.9%)
+    Silhouette Score:     0.596
+    Davies-Bouldin Index: 0.5426
+
+    --- Stability Permutation Test (Seed 42 vs Seed 123) ---
+    Observed NMI: 0.91059
+    Observed ARI: 0.781977
+    p-value (NMI): 0.0
+    p-value (ARI): 0.0
+    Null NMI:   μ=0.278107, σ=0.011231
+    Null ARI:   μ=-0.00019, σ=0.005908
+    Effect Size (NMI): 56.316
+    Effect Size (ARI): 132.3993
+    ★ RESULT: Highly significant (p < 0.01). Clustering is STABLE.
+
+    --- Correspondence Permutation Test (Clusters vs Model Families) ---
+    Observed NMI: 0.632808
+    Observed ARI: 0.306136
+    p-value (NMI): 0.0
+    p-value (ARI): 0.0
+    Null NMI:   μ=0.104502, σ=0.012649
+    Null ARI:   μ=2.8e-05, σ=0.004844
+
+------------------------------------------------------------------------
+  BASELINE (MiniLM-L6-v2)
+------------------------------------------------------------------------
+    Clusters Found: 22
+    Noise Points:   0 (0.0%)
+    Silhouette Score:     0.5254
+    Davies-Bouldin Index: 0.6304
+
+    --- Stability Permutation Test (Seed 42 vs Seed 123) ---
+    Observed NMI: 0.881521
+    Observed ARI: 0.763322
+    p-value (NMI): 0.0
+    p-value (ARI): 0.0
+    Null NMI:   μ=0.287699, σ=0.010704
+    Null ARI:   μ=0.000209, σ=0.007003
+    Effect Size (NMI): 55.4778
+    Effect Size (ARI): 108.9699
+    ★ RESULT: Highly significant (p < 0.01). Clustering is STABLE.
+
+    --- Correspondence Permutation Test (Clusters vs Model Families) ---
+    Observed NMI: 0.537538
+    Observed ARI: 0.202111
+    p-value (NMI): 0.0
+    p-value (ARI): 0.0
+    Null NMI:   μ=0.109758, σ=0.012587
+    Null ARI:   μ=3.8e-05, σ=0.006418
+
+------------------------------------------------------------------------
+  COMPARATIVE SUMMARY: Instruction-Tuned vs Baseline
+------------------------------------------------------------------------
+    Metric                     Instr-Tuned     Baseline     Winner
+    ------------------------- ------------ ------------ ----------
+    Silhouette Score                0.5960       0.5254      Instr
+    Davies-Bouldin Index            0.5426       0.6304      Instr
+    Clusters                            20           22
+    Noise Ratio                       2.9%         0.0%
+
+========================================================================

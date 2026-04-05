@@ -1,0 +1,384 @@
+{
+  "id": "karthic_1775358461589_d0ca7202",
+  "frankPacketId": "frank_1775357846762_37b84cad",
+  "status": "approved",
+  "domains": [
+    {
+      "id": "analysis_domain_1",
+      "name": "Duty and Scope of Protection",
+      "description": "Analyze whether a legal duty existed and to whom it extended — identify the defendant’s obligations, how Cardozo framed duty limits, and factors that expand or restrict the class of protectable plaintiffs.",
+      "weight": 5,
+      "naGuidance": "Mark N/A if the problem does not dispute whether any duty existed (e.g., duty established by statute or undisputed by parties) or if the question is confined solely to damages or causation without touching duty/scope issues."
+    },
+    {
+      "id": "analysis_domain_2",
+      "name": "Foreseeability and Proximate Cause",
+      "description": "Evaluate foreseeability as a limiter on liability and how proximate cause connects act and injury — assess whether the harm was a reasonably foreseeable result of the defendant’s conduct under Cardozo and alternative tests.",
+      "weight": 5,
+      "naGuidance": "Mark N/A if foreseeability/proximate-cause is conceded or irrelevant (for example, if strict liability applies, or the issue is purely breach of duty without contested causal/legal‑limit questions)."
+    },
+    {
+      "id": "analysis_domain_3",
+      "name": "Plaintiff Identity and Zone of Danger",
+      "description": "Examine the significance of the plaintiff’s identity, location, and relationship to the risk (the ‘zone of danger’ concept) and whether liability hinges on the plaintiff belonging to a foreseeable class.",
+      "weight": 4,
+      "naGuidance": "Mark N/A when the plaintiff’s location/identity is not at issue (e.g., the claimant is obviously within the immediate risk area, or the case involves only property damage where ‘zone’ concepts are less relevant)."
+    },
+    {
+      "id": "analysis_domain_4",
+      "name": "Factual Causation and Intervening Causes",
+      "description": "Scrutinize but‑for causation and the chain of events, including potential intervening or superseding acts that could break legal causation between the defendant’s act and the injury.",
+      "weight": 3,
+      "naGuidance": "Mark N/A when factual causation is undisputed or irrelevant (e.g., the facts establish a direct causal chain with no plausible intervening events, or the problem only asks about legal duty)."
+    },
+    {
+      "id": "analysis_domain_5",
+      "name": "Policy Considerations and Limits on Liability",
+      "description": "Identify policy rationales (floodgates, fairness, administrability, deterrence) used to justify restricting or expanding liability and how Cardozo and Andrews weigh those concerns.",
+      "weight": 4,
+      "naGuidance": "Mark N/A if the assignment forbids policy analysis or specifically limits discussion to doctrinal elements only (e.g., a purely mechanical application of elements without policy reasoning)."
+    },
+    {
+      "id": "analysis_domain_6",
+      "name": "Comparative Doctrinal Approaches and Jurisdictional Variants",
+      "description": "Compare alternate formulations (Andrews’s broader foreseeability view, modern proximate‑cause tests, Restatement provisions, and other jurisdictions’ treatments) and implications for outcomes and precedent.",
+      "weight": 3,
+      "naGuidance": "Mark N/A when jurisdictional variation is irrelevant to the question (for example, when the exam specifies New York law under Palsgraf or when the task focuses solely on Cardozo’s reasoning without comparative inquiry)."
+    }
+  ],
+  "goldenTargets": [
+    {
+      "id": "golden_target_1",
+      "domainId": "analysis_domain_1",
+      "domainName": "Duty and Scope of Protection",
+      "summary": "Cardozo frames duty as owed only to a foreseeable class of plaintiffs; duty is a threshold question delimiting protectable plaintiffs, and because Palsgraf was outside that foreseeable class the railroad owed her no duty and cannot be held liable.",
+      "goldenContains": [
+        "Duty limited to those plaintiffs who are within the class reasonably expected to be endangered by the defendant’s negligent act (foreseeable class).",
+        "Cardozo treats duty as a threshold question that delimits the class of protectable plaintiffs rather than a pure factfinder/breach issue.",
+        "Because Palsgraf was outside the foreseeable class/zone of risk created by the employees, no duty was owed to her and therefore no liability."
+      ],
+      "allowedOmissions": [
+        "Not necessary to invoke statute-based duties or to discuss procedural allocation of duty/fact questions in depth."
+      ],
+      "contradictionFlags": [
+        "Asserting the railroad owed a legal duty to Palsgraf under Cardozo’s analysis.",
+        "Claiming duty is determined solely by breach and never as a threshold or categorial question."
+      ],
+      "comparisonGuidance": "Look for explicit linkage between foreseeability-of-plaintiff and duty. Partial credit if student recognizes duty limits but mislabels them, but deduct if they state Cardozo would find a duty to the remote bystander."
+    },
+    {
+      "id": "golden_target_2",
+      "domainId": "analysis_domain_2",
+      "domainName": "Foreseeability and Proximate Cause",
+      "summary": "Cardozo uses foreseeability of the plaintiff/harms as the principal limiter on liability; because the particular harm to Palsgraf was not a reasonably foreseeable result of the employees’ conduct, proximate cause (legal causation) fails.",
+      "goldenContains": [
+        "Foreseeability of the plaintiff (or class of plaintiffs) operates as the primary limiter on liability/proximate cause in Cardozo’s opinion.",
+        "Cardozo places foreseeability early (duty stage) rather than leaving it solely to jury fact-finding about proximate cause.",
+        "The explosion and resulting injury to Palsgraf were not a foreseeable result of the employees’ actions, so legal proximate cause is lacking."
+      ],
+      "allowedOmissions": [
+        "Detailed articulation of alternative proximate-cause formulations (e.g., substantial-factor) may be omitted if Cardozo’s foreseeability focus is correctly stated."
+      ],
+      "contradictionFlags": [
+        "Saying the injury was a reasonably foreseeable result of the employees’ conduct under Cardozo.",
+        "Treating foreseeability as irrelevant to proximate cause in Cardozo’s framework."
+      ],
+      "comparisonGuidance": "Check that the answer separates factual causation from legal proximate cause and that foreseeability is identified as operating at the duty/proximate-cause boundary per Cardozo."
+    },
+    {
+      "id": "golden_target_3",
+      "domainId": "analysis_domain_3",
+      "domainName": "Plaintiff Identity and Zone of Danger",
+      "summary": "Palsgraf’s identity and location (outside the zone of danger) are critical: Cardozo links liability to whether the injured person belongs to the foreseeable class or zone of risk; because she was remote, liability is barred.",
+      "goldenContains": [
+        "Palsgraf was outside the 'zone of danger' created by the employees’ conduct, which is central to Cardozo’s holding.",
+        "Cardozo links liability to whether the injured person belongs to the foreseeable class/zone put at risk by the act.",
+        "If the plaintiff had been within the immediate risk area, Cardozo suggests a different result could follow."
+      ],
+      "allowedOmissions": [
+        "The precise phrase 'zone of danger' may be paraphrased without losing credit, so long as the concept (foreseeable class/location) is present."
+      ],
+      "contradictionFlags": [
+        "Claiming plaintiff identity/location was irrelevant to Cardozo’s analysis.",
+        "Asserting Palsgraf was within the foreseeable zone under the majority opinion."
+      ],
+      "comparisonGuidance": "Give credit only if the student connects plaintiff identity/location to foreseeability/duty; mere recitation of events without linking to 'zone' concept is weak."
+    },
+    {
+      "id": "golden_target_4",
+      "domainId": "analysis_domain_4",
+      "domainName": "Factual Causation and Intervening Causes",
+      "summary": "Factual (but-for) causation existed (the chain of events is traceable), but Cardozo denies liability on legal/ proximate-cause grounds; intervening explosion and falling scales are treated as unforeseeable sequences that cut off legal responsibility.",
+      "goldenContains": [
+        "Factual causation (but-for/direct chain) is not disputed — the chain from employees’ act to Palsgraf’s injury is factually traceable.",
+        "Cardozo’s denial of liability rests on lack of legal proximate cause, not on lack of factual causation.",
+        "The intervening explosion and falling scales are treated as unforeseeable events that prevent legal responsibility for the remote plaintiff."
+      ],
+      "allowedOmissions": [
+        "Detailed mapping of but-for tests or alternative causation doctrines may be omitted if the distinction between factual and legal causation is made."
+      ],
+      "contradictionFlags": [
+        "Asserting factual causation was absent in Cardozo’s reasoning.",
+        "Saying Cardozo accepted that intervening events did not limit legal responsibility in this case."
+      ],
+      "comparisonGuidance": "Ensure the student distinguishes factual causation from proximate cause and identifies the role of intervening events in cutting off legal liability under Cardozo."
+    },
+    {
+      "id": "golden_target_5",
+      "domainId": "analysis_domain_5",
+      "domainName": "Policy Considerations and Limits on Liability",
+      "summary": "Cardozo’s approach is justified by policy concerns—preventing indeterminate liability, preserving administrability and fairness—while Andrews emphasized compensation and deterrence; these policy tradeoffs explain the doctrinal split.",
+      "goldenContains": [
+        "Cardozo’s rationale includes preventing indeterminate/floodgate liability and preserving administrable limits on duty.",
+        "Fairness (imposing liability only where harm/ plaintiff were reasonably foreseeable) is central to Cardozo’s policy reasoning.",
+        "Andrews’s dissent emphasizes compensating actual victims and deterrence, weighing against overly restrictive duty limits."
+      ],
+      "allowedOmissions": [
+        "Not necessary to exhaustively catalog every policy argument if the principal floodgate/compensation tradeoff is described."
+      ],
+      "contradictionFlags": [
+        "Claiming Cardozo ignored policy or that he prioritized compensation/deterrence over administrability.",
+        "Saying there were no relevant policy considerations affecting the result."
+      ],
+      "comparisonGuidance": "Look for articulation of the floodgates/administrability rationale vs. compensation/deterrence; answers that neglect policy entirely lose substantial credit in this domain."
+    },
+    {
+      "id": "golden_target_6",
+      "domainId": "analysis_domain_6",
+      "domainName": "Comparative Doctrinal Approaches and Jurisdictional Variants",
+      "summary": "Andrews’s dissent supports a broader foreseeability/proximate-cause approach; modern jurisdictions and the Restatement use varied formulations (scope-of-risk, substantial-factor, directness), so outcomes can differ by jurisdiction.",
+      "goldenContains": [
+        "Andrews advocates a broader proximate-cause/foreseeability approach that would be more likely to impose liability where negligence sets harmful events in motion.",
+        "Modern tests and the Restatement offer alternative formulations (scope-of-risk, substantial-factor, directness) that may permit recovery where Cardozo would not.",
+        "Jurisdictional variation means the case’s outcome depends on which doctrinal approach a court follows."
+      ],
+      "allowedOmissions": [
+        "Not required to list every modern test or every jurisdictional variant; reference to the main alternatives suffices."
+      ],
+      "contradictionFlags": [
+        "Asserting Andrews agreed with Cardozo’s narrow duty rule.",
+        "Claiming all jurisdictions follow Cardozo and none adopt broader foreseeability approaches."
+      ],
+      "comparisonGuidance": "Credit answers that contrast Cardozo and Andrews and note that modern/Restatement approaches can produce different results; deduct if the response treats Palsgraf as universally binding without mention of doctrinal alternatives."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "criterion_ff64cc22",
+      "domainId": "analysis_domain_1",
+      "text": "Duty limited to those plaintiffs who are within the class reasonably expected to be endangered by the defendant’s negligent act (foreseeable class).",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_10927f35",
+      "domainId": "analysis_domain_1",
+      "text": "Cardozo treats duty as a threshold question that delimits the class of protectable plaintiffs rather than a pure factfinder/breach issue.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_344aa2f7",
+      "domainId": "analysis_domain_1",
+      "text": "Because Palsgraf was outside the foreseeable class/zone of risk created by the employees, no duty was owed to her and therefore no liability.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_11474f1e",
+      "domainId": "analysis_domain_2",
+      "text": "Foreseeability of the plaintiff (or class of plaintiffs) operates as the primary limiter on liability/proximate cause in Cardozo’s opinion.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_d47526bd",
+      "domainId": "analysis_domain_2",
+      "text": "Cardozo places foreseeability early (duty stage) rather than leaving it solely to jury fact-finding about proximate cause.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_4e40e685",
+      "domainId": "analysis_domain_2",
+      "text": "The explosion and resulting injury to Palsgraf were not a foreseeable result of the employees’ actions, so legal proximate cause is lacking.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_654f7f21",
+      "domainId": "analysis_domain_3",
+      "text": "Palsgraf was outside the 'zone of danger' created by the employees’ conduct, which is central to Cardozo’s holding.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_070027c8",
+      "domainId": "analysis_domain_3",
+      "text": "Cardozo links liability to whether the injured person belongs to the foreseeable class/zone put at risk by the act.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_7179676e",
+      "domainId": "analysis_domain_3",
+      "text": "If the plaintiff had been within the immediate risk area, Cardozo suggests a different result could follow.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_5002e922",
+      "domainId": "analysis_domain_4",
+      "text": "Factual causation (but-for/direct chain) is not disputed — the chain from employees’ act to Palsgraf’s injury is factually traceable.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_4f64bdee",
+      "domainId": "analysis_domain_4",
+      "text": "Cardozo’s denial of liability rests on lack of legal proximate cause, not on lack of factual causation.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_cd71960b",
+      "domainId": "analysis_domain_4",
+      "text": "The intervening explosion and falling scales are treated as unforeseeable events that prevent legal responsibility for the remote plaintiff.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_da55b35b",
+      "domainId": "analysis_domain_5",
+      "text": "Cardozo’s rationale includes preventing indeterminate/floodgate liability and preserving administrable limits on duty.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_0991d894",
+      "domainId": "analysis_domain_5",
+      "text": "Fairness (imposing liability only where harm/ plaintiff were reasonably foreseeable) is central to Cardozo’s policy reasoning.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_aa4a3cdf",
+      "domainId": "analysis_domain_5",
+      "text": "Andrews’s dissent emphasizes compensating actual victims and deterrence, weighing against overly restrictive duty limits.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_b7e75109",
+      "domainId": "analysis_domain_6",
+      "text": "Andrews advocates a broader proximate-cause/foreseeability approach that would be more likely to impose liability where negligence sets harmful events in motion.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_fc427d78",
+      "domainId": "analysis_domain_6",
+      "text": "Modern tests and the Restatement offer alternative formulations (scope-of-risk, substantial-factor, directness) that may permit recovery where Cardozo would not.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_5076ce79",
+      "domainId": "analysis_domain_6",
+      "text": "Jurisdictional variation means the case’s outcome depends on which doctrinal approach a court follows.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    }
+  ],
+  "refinementLog": [
+    {
+      "id": "log_a60163d5",
+      "timestamp": "2026-04-05T03:07:41.585Z",
+      "domainId": "analysis_domain_1",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_9c580bb8",
+      "timestamp": "2026-04-05T03:07:41.585Z",
+      "domainId": "analysis_domain_2",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_d3d5678a",
+      "timestamp": "2026-04-05T03:07:41.585Z",
+      "domainId": "analysis_domain_3",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_7bd91027",
+      "timestamp": "2026-04-05T03:07:41.585Z",
+      "domainId": "analysis_domain_4",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_d5cf0015",
+      "timestamp": "2026-04-05T03:07:41.585Z",
+      "domainId": "analysis_domain_5",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_adaf75c5",
+      "timestamp": "2026-04-05T03:07:41.585Z",
+      "domainId": "analysis_domain_6",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    }
+  ],
+  "smeNotes": "",
+  "comparisonMethodNote": "Compare student answers to the golden targets by checking for the presence of the core doctrinal propositions listed for each domain. Give greatest weight to domains 1 (Duty) and 2 (Foreseeability/Proximate Cause). Treat factual mismatches with the goldenContains as significant contradictions; minor omissions listed under allowedOmissions are acceptable. Answers that explicitly assert the opposite of any contradictionFlags should be scored down heavily. Where students use alternative labels or modern formulations, map those to the goldenContains points (e.g., 'scope of risk' ≈ Cardozo's foreseeable class).",
+  "approvedAt": "2026-04-05T03:13:00.136Z",
+  "createdAt": "2026-04-05T03:07:41.589Z",
+  "updatedAt": "2026-04-05T03:13:00.136Z"
+}
