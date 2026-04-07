@@ -19,6 +19,28 @@ export function buildFrankCaseSearchPrompt(legalDomain: string) {
     ].join('\n');
 }
 
+export function buildFrankUploadedCasePrompt(input: {
+    legalDomain: string;
+    sourceFamily: string;
+    fileNames: string[];
+    sourceText: string;
+}) {
+    return [
+        `Legal domain: ${input.legalDomain.trim()}`,
+        `Source family: ${input.sourceFamily.trim()}`,
+        `Uploaded files: ${input.fileNames.join(', ') || 'Unknown PDF upload'}`,
+        '',
+        'You are identifying a single anchor case from uploaded source materials.',
+        'Decide whether the uploaded text is usable as an anchor case for the stated legal domain.',
+        'If usable, extract the case metadata and write a concise summary plus a short note explaining why the case matters for benchmarking.',
+        'If not usable, set isUsable to false and explain the failure clearly in reason.',
+        'Return JSON only.',
+        '',
+        'Source text:',
+        input.sourceText,
+    ].join('\n');
+}
+
 export function buildFrankAnalysisDomainsPrompt(input: {
     legalDomain: string;
     selectedCase: FrankCaseCandidate;

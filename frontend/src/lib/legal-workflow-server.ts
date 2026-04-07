@@ -2,6 +2,7 @@
 
 import 'server-only';
 
+import fsSync from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
@@ -17,6 +18,7 @@ import {
     buildFrankFitCheckPrompt,
     buildFrankGoldenRefinementPrompt,
     buildFrankGoldenResponsePrompt,
+    buildFrankUploadedCasePrompt,
     buildFrankQuestionPacketPrompt,
     buildKarthicDomainDraftPrompt,
     buildKarthicGoldenTargetsPrompt,
@@ -181,6 +183,19 @@ type ChatMessage = {
     content: string;
 };
 
+type LegacyPdfParser = (buffer: Buffer) => Promise<{ text?: string }>;
+type PdfParseClassLike = {
+    new (options: { data: Buffer | Uint8Array }): {
+        getText: () => Promise<{ text?: string }>;
+        destroy: () => Promise<void>;
+    };
+    setWorker?: (workerSrc?: string) => string;
+};
+type ParsedPdfModule = {
+    default?: LegacyPdfParser;
+    PDFParse?: PdfParseClassLike;
+};
+
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
@@ -223,6 +238,7 @@ function normalizeFrankGenerationReasoningEffort(reasoningEffort?: ReasoningEffo
 }
 
 const execFileAsync = promisify(execFile);
+let pdfWorkerConfigured = false;
 
 const DATA_DIRECTORIES = {
     frank: 'frank-packets',
@@ -269,44 +285,60 @@ export async function deleteFrankPacket(id: string) {
 export async function draftFrankPacket(input: FrankDraftInput): Promise<FrankPacket> {
     const now = new Date().toISOString();
     const id = `frank_${Date.now()}_${randomUUID().slice(0, 8)}`;
-    const sourceArtifacts = await saveUploadedArtifacts(id, input.files);
-    const combinedText = sourceArtifacts
-        .map((artifact) => `# ${artifact.role}\n${artifact.extractedText}`.trim())
-        .join('\n\n')
-        .trim();
-    const draft = await generateFrankDraft({
-        legalDomain: input.legalDomain,
-        domainScope: input.domainScope,
-        sourceFamily: input.sourceFamily,
-        combinedText,
-    });
+    try {
+        const sourceArtifacts = await saveUploadedArtifacts(id, input.files);
+        const selectedCase = await extractFrankUploadedCaseCandidate({
+            legalDomain: input.legalDomain,
+            sourceFamily: input.sourceFamily,
+            sourceArtifacts,
+        });
 
-    const packet: FrankPacket = {
-        id,
-        status: 'draft',
-        legalDomain: input.legalDomain.trim(),
-        domainScope: input.domainScope.trim(),
-        sourceFamily: input.sourceFamily.trim(),
-        selectedCase: null,
-        analysisDomains: [],
-        sourceArtifacts,
-        sourceIntake: draft.sourceIntake,
-        sourceExtraction: draft.sourceExtraction,
-        fitCheck: buildNeedsReviewFrankFitCheck(null, []),
-        benchmarkAnswer: draft.benchmarkAnswer,
-        benchmarkQuestion: draft.benchmarkQuestion,
-        goldenWarnings: [],
-        questionWarnings: [],
-        savedPrompts: [],
-        failureModeSeeds: draft.failureModeSeeds,
-        masterIssueStatement: draft.masterIssueStatement,
-        approvedAt: null,
-        createdAt: now,
-        updatedAt: now,
-    };
+        const packet: FrankPacket = {
+            id,
+            status: 'draft',
+            legalDomain: input.legalDomain.trim(),
+            domainScope: selectedCase.title || input.domainScope.trim(),
+            sourceFamily: input.sourceFamily.trim(),
+            selectedCase,
+            analysisDomains: [],
+            sourceArtifacts,
+            sourceIntake: {
+                sourceQualityRating: 'Uploaded anchor-case opinion extracted from PDF; verify OCR/text quality and jurisdictional fit.',
+                benchmarkPosture: 'generalizable_only_with_supporting_authority',
+                recommendation: 'Use the uploaded opinion as the hidden grounding case, then validate doctrinal fit before generating the golden response.',
+                jdReviewBurden: [
+                    'Confirm the uploaded opinion text was extracted cleanly.',
+                    'Confirm the opinion is the right doctrinal anchor for the selected legal domain.',
+                ],
+                reverseEngineeringSuitability: 'moderate',
+            },
+            sourceExtraction: buildFrankSourceExtractionFallback({
+                legalDomain: input.legalDomain,
+                selectedCase,
+                analysisDomains: [],
+            }),
+            fitCheck: buildNeedsReviewFrankFitCheck(selectedCase, []),
+            benchmarkAnswer: '',
+            benchmarkQuestion: '',
+            goldenWarnings: [],
+            questionWarnings: [],
+            savedPrompts: [],
+            failureModeSeeds: [],
+            masterIssueStatement: buildFrankGeneralizedMasterIssueFallback({
+                legalDomain: input.legalDomain,
+                analysisDomains: [],
+            }),
+            approvedAt: null,
+            createdAt: now,
+            updatedAt: now,
+        };
 
-    await writeArtifact(DATA_DIRECTORIES.frank, packet.id, packet);
-    return packet;
+        await writeArtifact(DATA_DIRECTORIES.frank, packet.id, packet);
+        return packet;
+    } catch (error) {
+        await deleteUploadedArtifacts(id).catch(() => undefined);
+        throw error;
+    }
 }
 
 export async function saveFrankPacket(input: SaveFrankInput): Promise<FrankPacket> {
@@ -449,6 +481,84 @@ export async function searchFrankCaseCandidates(input: SearchFrankCasesInput): P
         return candidates;
     } catch (error) {
         throw new Error(`Frank case search failed: ${describeError(error, 'OpenAI request failed.')}`);
+    }
+}
+
+async function extractFrankUploadedCaseCandidate(input: {
+    legalDomain: string;
+    sourceFamily: string;
+    sourceArtifacts: ArtifactRecord[];
+}): Promise<FrankCaseCandidate> {
+    const sourceText = input.sourceArtifacts
+        .map((artifact) => `# ${artifact.fileName}\n${artifact.extractedText}`.trim())
+        .join('\n\n')
+        .slice(0, 16000)
+        .trim();
+    if (!sourceText) {
+        throw new Error('Uploaded PDF could not be processed because no readable text was extracted.');
+    }
+
+    requireOpenAiApiKey('Frank uploaded anchor-case extraction');
+
+    try {
+        const response = await openai.responses.create({
+            model: 'gpt-5-mini',
+            input: buildFrankUploadedCasePrompt({
+                legalDomain: input.legalDomain,
+                sourceFamily: input.sourceFamily,
+                fileNames: input.sourceArtifacts.map((artifact) => artifact.fileName),
+                sourceText,
+            }),
+            text: {
+                verbosity: 'medium',
+                format: {
+                    type: 'json_schema',
+                    name: 'frank_uploaded_case',
+                    strict: true,
+                    schema: {
+                        type: 'object',
+                        additionalProperties: false,
+                        properties: {
+                            isUsable: { type: 'boolean' },
+                            reason: { type: 'string' },
+                            case: {
+                                type: 'object',
+                                additionalProperties: false,
+                                properties: {
+                                    title: { type: 'string' },
+                                    citation: { type: 'string' },
+                                    court: { type: 'string' },
+                                    year: { type: 'string' },
+                                    url: { type: 'string' },
+                                    summary: { type: 'string' },
+                                    relevance: { type: 'string' },
+                                },
+                                required: ['title', 'citation', 'court', 'year', 'url', 'summary', 'relevance'],
+                            },
+                        },
+                        required: ['isUsable', 'reason', 'case'],
+                    },
+                },
+            },
+        });
+
+        const parsed = safeJsonParse<{
+            isUsable?: unknown;
+            reason?: unknown;
+            case?: unknown;
+        }>(extractResponsesText(response));
+
+        if (parsed?.isUsable === false) {
+            throw new Error(normalizeNonEmptyString(parsed.reason, 'Uploaded PDF is not usable as an anchor case.'));
+        }
+
+        const candidate = normalizeFrankCaseCandidate(parsed?.case);
+        if (!candidate) {
+            throw new Error(normalizeNonEmptyString(parsed?.reason, 'Uploaded PDF did not yield usable case metadata.'));
+        }
+        return candidate;
+    } catch (error) {
+        throw new Error(`Frank uploaded anchor-case extraction failed: ${describeError(error, 'OpenAI request failed.')}`);
     }
 }
 
@@ -1483,73 +1593,6 @@ async function finalizeDashaRun(input: {
     }
 }
 
-async function generateFrankDraft(input: {
-    legalDomain: string;
-    domainScope: string;
-    sourceFamily: string;
-    combinedText: string;
-}) {
-    const fallback = buildFallbackFrankDraft(input);
-    const content = input.combinedText.slice(0, 16000);
-    if (!content) {
-        throw new Error('Frank packet drafting failed: no source text was extracted from the uploaded materials.');
-    }
-    requireOpenAiApiKey('Frank packet drafting');
-
-    const systemPrompt = [
-        'You are a Frank-stage legal benchmark drafting assistant.',
-        'Only perform source intake, source extraction, benchmark answer drafting, reverse-engineered question drafting, and optional failure-mode seeding.',
-        'Do not create final evaluative rubrics, model rankings, or centroid-selection logic.',
-        'Return JSON only.',
-    ].join(' ');
-
-    const userPrompt = [
-        `Legal domain: ${input.legalDomain}`,
-        `Domain scope: ${input.domainScope}`,
-        `Source family: ${input.sourceFamily}`,
-        '',
-        'Use a source-grounded common-law drafting posture. Treat portability carefully.',
-        'Produce this JSON shape:',
-        JSON.stringify({
-            sourceIntake: {
-                sourceQualityRating: 'string',
-                benchmarkPosture: 'narrow_source_grounded_benchmark_only',
-                recommendation: 'string',
-                jdReviewBurden: ['string'],
-                reverseEngineeringSuitability: 'strong',
-            },
-            sourceExtraction: {
-                legalIssue: 'string',
-                blackLetterRule: 'string',
-                triggerFacts: ['string'],
-                holding: 'string',
-                limits: ['string'],
-                uncertainty: ['string'],
-            },
-            benchmarkAnswer: 'string',
-            benchmarkQuestion: 'string',
-            failureModeSeeds: ['string'],
-            masterIssueStatement: 'string',
-        }),
-        '',
-        'Preserve stage boundaries: benchmarkAnswer may be clean and evaluator-facing, but do not invent rubric rows.',
-        '',
-        'Source text:',
-        content,
-    ].join('\n');
-
-    const parsed = await tryOpenAiJson('Frank packet drafting', systemPrompt, userPrompt);
-
-    return {
-        sourceIntake: normalizeSourceIntake(parsed.sourceIntake, fallback.sourceIntake),
-        sourceExtraction: normalizeSourceExtraction(parsed.sourceExtraction, fallback.sourceExtraction),
-        benchmarkAnswer: normalizeNonEmptyString(parsed.benchmarkAnswer, fallback.benchmarkAnswer),
-        benchmarkQuestion: normalizeNonEmptyString(parsed.benchmarkQuestion, fallback.benchmarkQuestion),
-        failureModeSeeds: normalizeStringArray(parsed.failureModeSeeds).slice(0, 6),
-        masterIssueStatement: normalizeNonEmptyString(parsed.masterIssueStatement, fallback.masterIssueStatement),
-    };
-}
-
 async function generateRefinedCriteria(input: {
     domain: KarthicDomain;
     benchmarkAnswer: string;
@@ -2093,17 +2136,53 @@ async function extractTextFromUploadedFile(bytes: Uint8Array, fileName: string) 
     const extension = path.extname(fileName).toLowerCase();
     if (extension === '.pdf') {
         try {
-            const { PDFParse } = await import('pdf-parse');
-            const parser = new PDFParse({ data: Buffer.from(bytes) });
-            const parsed = await parser.getText();
-            await parser.destroy().catch(() => undefined);
-            return normalizeExtractedText(parsed.text || '');
+            return normalizeExtractedText(await getPdfTextFromBuffer(Buffer.from(bytes)));
         } catch {
             return '';
         }
     }
 
     return normalizeExtractedText(Buffer.from(bytes).toString('utf8'));
+}
+
+async function getPdfTextFromBuffer(buffer: Buffer) {
+    const pdfParseModule = (await import('pdf-parse')) as ParsedPdfModule;
+    if (typeof pdfParseModule.default === 'function') {
+        const parsed = await pdfParseModule.default(buffer);
+        return typeof parsed.text === 'string' ? parsed.text : '';
+    }
+
+    if (typeof pdfParseModule.PDFParse === 'function') {
+        if (!pdfWorkerConfigured) {
+            const workerCandidates = [
+                path.resolve(process.cwd(), 'node_modules/pdf-parse/dist/pdf-parse/cjs/pdf.worker.mjs'),
+                path.resolve(process.cwd(), 'node_modules/pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs'),
+                path.resolve(process.cwd(), 'frontend/node_modules/pdf-parse/dist/pdf-parse/cjs/pdf.worker.mjs'),
+                path.resolve(process.cwd(), 'frontend/node_modules/pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs'),
+                path.resolve(process.cwd(), '../frontend/node_modules/pdf-parse/dist/pdf-parse/cjs/pdf.worker.mjs'),
+                path.resolve(process.cwd(), '../frontend/node_modules/pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs'),
+            ];
+            const workerPath = workerCandidates.find((candidate) => fsSync.existsSync(candidate));
+            if (workerPath) {
+                try {
+                    pdfParseModule.PDFParse.setWorker?.(workerPath);
+                } catch (error) {
+                    console.error('Failed to configure pdf-parse worker path for legal workflow uploads.', error);
+                }
+            }
+            pdfWorkerConfigured = true;
+        }
+
+        const parser = new pdfParseModule.PDFParse({ data: buffer });
+        try {
+            const parsed = await parser.getText();
+            return typeof parsed.text === 'string' ? parsed.text : '';
+        } finally {
+            await parser.destroy().catch(() => undefined);
+        }
+    }
+
+    throw new Error('Failed to load PDF parser.');
 }
 
 function buildFrankSourceIntakeFallback(selectedCase: FrankCaseCandidate | null): SourceIntake {

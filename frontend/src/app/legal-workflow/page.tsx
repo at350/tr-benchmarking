@@ -206,8 +206,8 @@ function buildFrankExplainerItems(state: FrankEditorState): StepExplainerItem<Fr
     return [
         {
             id: 'domain',
-            title: '1. Domain',
-            summary: 'Define the area of law that constrains the rest of the evaluative and rubric-generation process.',
+            title: '1. Topic',
+            summary: 'Define the area of law (topic) that constrains the rest of the evaluative and rubric-generation process.',
             detail: [
                 'Choose which legal domain to evaluate the model.',
                 'This can be broad or specific - anything from \'contract law\' to \'legal standards for establishing intent in homicides\'. ',
@@ -218,8 +218,8 @@ function buildFrankExplainerItems(state: FrankEditorState): StepExplainerItem<Fr
             title: '2. Case Search',
             summary: 'Pick an anchor case with a clear holding and enough doctrinal structure to support a teaching-quality packet.',
             detail: [
-                'Frank uses OpenAI\'s web_search, surfacing cases that function as doctrinal anchors for analysis.',
-                'Extracts title/context, generates case summary and relevance (why this case matters).',
+                'Frank can either use OpenAI\'s web_search or extract an uploaded case PDF to identify the doctrinal anchor.',
+                'It surfaces the title/context plus a concise summary and relevance note explaining why the case matters.',
             ],
             promptText: state.legalDomain.trim() ? buildFrankCaseSearchPrompt(state.legalDomain) : null,
             promptEmptyState: 'Enter a legal domain to preview the exact case-search prompt.',
@@ -421,6 +421,9 @@ export default function LegalWorkflowPage() {
     const [frankEditor, setFrankEditor] = useState<FrankEditorState>(DEFAULT_FRANK_STATE);
     const [frankStep, setFrankStep] = useState<FrankWizardStep>('domain');
     const [frankSearchingCases, setFrankSearchingCases] = useState(false);
+    const [frankUploadingCasePdf, setFrankUploadingCasePdf] = useState(false);
+    const [frankCaseUpload, setFrankCaseUpload] = useState<File | null>(null);
+    const [frankCaseUploadInputKey, setFrankCaseUploadInputKey] = useState(0);
     const [frankDraftingDomains, setFrankDraftingDomains] = useState(false);
     const [frankRunningFitCheck, setFrankRunningFitCheck] = useState(false);
     const [frankGeneratingGolden, setFrankGeneratingGolden] = useState(false);
@@ -468,6 +471,14 @@ export default function LegalWorkflowPage() {
     const selectedDashaRun = useMemo(
         () => dashaRuns.find((item) => item.id === selectedDashaRunId) ?? dashaRuns[0] ?? null,
         [dashaRuns, selectedDashaRunId],
+    );
+    const visibleFrankCaseCandidates = useMemo(
+        () => frankEditor.caseCandidates.length > 0
+            ? frankEditor.caseCandidates
+            : frankEditor.selectedCase
+                ? [frankEditor.selectedCase]
+                : [],
+        [frankEditor.caseCandidates, frankEditor.selectedCase],
     );
     const frankExplainerItems = useMemo(() => buildFrankExplainerItems(frankEditor), [frankEditor]);
     const karthicExplainerItems = useMemo(
@@ -804,6 +815,50 @@ export default function LegalWorkflowPage() {
             setStatusMessage(null);
         } finally {
             setFrankSearchingCases(false);
+        }
+    }
+
+    async function uploadFrankAnchorCasePdf() {
+        if (!frankEditor.legalDomain.trim()) {
+            setErrorMessage('Enter a legal domain first.');
+            return;
+        }
+        if (!frankCaseUpload) {
+            setErrorMessage('Choose a PDF first.');
+            return;
+        }
+
+        setFrankUploadingCasePdf(true);
+        setErrorMessage(null);
+        setStatusMessage('Uploading and extracting the anchor case PDF...');
+        try {
+            const formData = new FormData();
+            formData.set('legalDomain', frankEditor.legalDomain);
+            formData.set('domainScope', frankEditor.domainScope || frankEditor.legalDomain);
+            formData.set('sourceFamily', 'uploaded_anchor_case_pdf');
+            formData.append('files', frankCaseUpload);
+            formData.set('role_0', 'anchor_case');
+
+            const response = await fetch('/api/frank-packets/draft', {
+                method: 'POST',
+                body: formData,
+            });
+            const json = await readJsonResponse(response, 'Anchor-case upload failed before the server returned JSON.');
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to upload the anchor case PDF.');
+            }
+
+            const item = json.item as FrankPacket;
+            applyFrankPacket(item, { step: 'case', preserveSettings: true });
+            setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
+            setFrankCaseUpload(null);
+            setFrankCaseUploadInputKey((current) => current + 1);
+            setStatusMessage('Anchor case PDF processed. Review the inferred case details, then continue to analysis domains.');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to upload the anchor case PDF.');
+            setStatusMessage(null);
+        } finally {
+            setFrankUploadingCasePdf(false);
         }
     }
 
@@ -1408,17 +1463,22 @@ export default function LegalWorkflowPage() {
                                     <LabeledInput
                                         label="Legal Domain Of Analysis"
                                         value={frankEditor.legalDomain}
-                                        onChange={(value) => setFrankEditor((current) => ({
-                                            ...current,
-                                            legalDomain: value,
-                                            domainScope: value.trim() || current.domainScope,
-                                            selectedCase: null,
-                                            caseCandidates: [],
-                                            analysisDomains: [],
-                                            fitCheck: buildNeedsReviewFrankFitCheckState(null, []),
-                                            benchmarkAnswer: '',
-                                            benchmarkQuestion: '',
-                                        }))}
+                                        onChange={(value) => {
+                                            setFrankCaseUpload(null);
+                                            setFrankCaseUploadInputKey((current) => current + 1);
+                                            setFrankEditor((current) => ({
+                                                ...current,
+                                                legalDomain: value,
+                                                domainScope: value.trim() || current.domainScope,
+                                                selectedCase: null,
+                                                caseCandidates: [],
+                                                analysisDomains: [],
+                                                fitCheck: buildNeedsReviewFrankFitCheckState(null, []),
+                                                benchmarkAnswer: '',
+                                                benchmarkQuestion: '',
+                                                sourceArtifacts: [],
+                                            }));
+                                        }}
                                     />
                                     <div className="flex flex-wrap gap-3">
                                         <button
@@ -1438,20 +1498,63 @@ export default function LegalWorkflowPage() {
                                     <FrankSummaryRow label="Legal Domain" value={frankEditor.legalDomain || 'Not set yet'} />
                                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 2 · Anchor Case Search</p>
-                                        <p className="mt-1 text-sm text-slate-500">Frank searches online for a teaching-friendly case instead of asking you to upload a packet first.</p>
-                                        <button
-                                            type="button"
-                                            onClick={() => void searchFrankCases()}
-                                            disabled={frankSearchingCases || !frankEditor.legalDomain.trim()}
-                                            className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
-                                        >
-                                            {frankSearchingCases ? 'Searching...' : 'Search Online For Anchor Cases'}
-                                        </button>
+                                        <p className="mt-1 text-sm text-slate-500">Search the open web for a teaching-friendly case, or upload the case PDF directly if you already have the opinion.</p>
+                                        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                                            <div className="rounded-xl border border-slate-200 bg-white p-4">
+                                                <p className="text-sm font-semibold text-slate-900">Search Online</p>
+                                                <p className="mt-1 text-sm text-slate-500">Frank uses web search to propose anchor cases and lets you pick one.</p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void searchFrankCases()}
+                                                    disabled={frankSearchingCases || frankUploadingCasePdf || !frankEditor.legalDomain.trim()}
+                                                    className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                >
+                                                    {frankSearchingCases ? 'Searching...' : 'Search Online For Anchor Cases'}
+                                                </button>
+                                            </div>
+                                            <div className="rounded-xl border border-slate-200 bg-white p-4">
+                                                <p className="text-sm font-semibold text-slate-900">Upload PDF</p>
+                                                <p className="mt-1 text-sm text-slate-500">Frank will extract the uploaded opinion, infer the case metadata, and use it as the selected anchor case.</p>
+                                                <input
+                                                    key={frankCaseUploadInputKey}
+                                                    type="file"
+                                                    accept="application/pdf,.pdf"
+                                                    onChange={(event) => {
+                                                        const file = event.target.files?.[0] ?? null;
+                                                        setFrankCaseUpload(file);
+                                                    }}
+                                                    className="mt-3 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:font-semibold file:text-slate-700"
+                                                />
+                                                <p className="mt-2 text-xs text-slate-500">{frankCaseUpload ? `Selected: ${frankCaseUpload.name}` : 'PDF only.'}</p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void uploadFrankAnchorCasePdf()}
+                                                    disabled={frankSearchingCases || frankUploadingCasePdf || !frankEditor.legalDomain.trim() || !frankCaseUpload}
+                                                    className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                >
+                                                    {frankUploadingCasePdf ? 'Uploading...' : 'Upload PDF As Anchor Case'}
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    {frankEditor.caseCandidates.length > 0 ? (
+                                    {frankEditor.sourceArtifacts.length > 0 ? (
+                                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Uploaded Source Artifacts</p>
+                                            <div className="mt-3 space-y-2 text-sm text-slate-600">
+                                                {frankEditor.sourceArtifacts.map((artifact) => (
+                                                    <div key={artifact.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2">
+                                                        <span className="truncate">{artifact.fileName}</span>
+                                                        <span className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">{artifact.role.replace('_', ' ')}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
+
+                                    {visibleFrankCaseCandidates.length > 0 ? (
                                         <div className="space-y-3">
-                                            {frankEditor.caseCandidates.map((candidate) => (
+                                            {visibleFrankCaseCandidates.map((candidate) => (
                                                 <button
                                                     key={candidate.id}
                                                     type="button"
@@ -1459,8 +1562,8 @@ export default function LegalWorkflowPage() {
                                                         applyFrankCaseDomainEdit((current) => ({
                                                             selectedCase: candidate,
                                                             domainScope: candidate.title,
-                                                            sourceFamily: 'web_searched_anchor_case',
-                                                            caseCandidates: current.caseCandidates,
+                                                            sourceFamily: current.sourceFamily || 'web_searched_anchor_case',
+                                                            caseCandidates: current.caseCandidates.length > 0 ? current.caseCandidates : [candidate],
                                                         }));
                                                     }}
                                                     className={`w-full rounded-2xl border p-4 text-left ${frankEditor.selectedCase?.id === candidate.id ? 'border-teal-300 bg-teal-50/60' : 'border-slate-200 bg-white hover:border-teal-200'}`}
@@ -2651,6 +2754,18 @@ export default function LegalWorkflowPage() {
     }
 }
 
+async function readJsonResponse(response: Response, fallbackMessage: string) {
+    const text = await response.text();
+    if (!text.trim()) {
+        throw new Error(fallbackMessage);
+    }
+    try {
+        return JSON.parse(text) as { error?: string; [key: string]: unknown };
+    } catch {
+        throw new Error(fallbackMessage);
+    }
+}
+
 function inferFrankStep(state: FrankEditorState): FrankWizardStep {
     if (!state.legalDomain.trim()) {
         return 'domain';
@@ -2821,7 +2936,7 @@ function FrankStepRail({
     onChange: (step: FrankWizardStep) => void;
 }) {
     const steps: Array<{ id: FrankWizardStep; label: string; ready: boolean }> = [
-        { id: 'domain', label: '1. Domain', ready: legalDomainSet },
+        { id: 'domain', label: '1. Topic', ready: legalDomainSet },
         { id: 'case', label: '2. Case', ready: caseSelected },
         { id: 'domains', label: '3. Domains', ready: domainsReady },
         { id: 'fit', label: '4. Fit', ready: fitReady },
