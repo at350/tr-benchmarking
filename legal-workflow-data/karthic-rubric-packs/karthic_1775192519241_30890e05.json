@@ -1,0 +1,567 @@
+{
+  "id": "karthic_1775192519241_30890e05",
+  "frankPacketId": "frank_1775190290052_139a14c0",
+  "status": "approved",
+  "domains": [
+    {
+      "id": "analysis_domain_1",
+      "name": "Jurisdiction Assumption",
+      "description": "State the legal framework and jurisdictional lens being assumed (e.g., U.S. common law equitable doctrine, specific state rule, or District of Columbia practice) that governs the Statute of Frauds and part‑performance analysis.",
+      "weight": 3,
+      "naGuidance": "If jurisdiction is truly irrelevant (e.g., purely hypothetical doctrinal question), state that the analysis is jurisdiction‑neutral and note any major doctrinal variants instead of specifying a jurisdiction."
+    },
+    {
+      "id": "analysis_domain_2",
+      "name": "Bottom-line Outcome",
+      "description": "Give the clearest, concise conclusion about whether the oral promise is enforceable (e.g., enforceable in equity via specific performance, unenforceable under the Statute of Frauds, or only recoverable in damages).",
+      "weight": 5,
+      "naGuidance": "If no firm outcome can be reached, provide the most likely result and label it as tentative, explaining what pivotal fact would change the conclusion."
+    },
+    {
+      "id": "analysis_domain_3",
+      "name": "Controlling Doctrine",
+      "description": "Identify the primary legal rule or category that will decide the case (e.g., Statute of Frauds for transfers of land, and the equitable part‑performance/estoppel exception), including citation to the governing principle where appropriate.",
+      "weight": 5,
+      "naGuidance": "If multiple doctrines tie for control, list them in order of likely dispositive effect and explain briefly why."
+    },
+    {
+      "id": "analysis_domain_4",
+      "name": "Formation/Consideration",
+      "description": "Assess whether the facts show a genuine bargain or merely a conditional/gift promise — i.e., whether there is consideration, reliance, or a qualifying condition supporting enforcement.",
+      "weight": 3,
+      "naGuidance": "If formation issues are irrelevant (e.g., statute/exception outcome does not turn on consideration), note that and summarize any residual relevance of formation facts to equitable relief."
+    },
+    {
+      "id": "analysis_domain_5",
+      "name": "Statute of Frauds Gates",
+      "description": "Analyze which statute‑of‑frauds writing requirements are triggered (e.g., transfer of land) and identify which specific SoF gate is dispositive absent an exception.",
+      "weight": 5,
+      "naGuidance": "If no SoF category applies, explain why the transaction falls outside the Statute of Frauds rather than leaving this blank."
+    },
+    {
+      "id": "analysis_domain_6",
+      "name": "Exceptions / Promissory Estoppel",
+      "description": "Address equitable exceptions (part‑performance, estoppel, reliance) that might avoid nonenforcement; explain how classic part‑performance elements map to the facts and note modern estoppel analogues if relevant.",
+      "weight": 4,
+      "naGuidance": "If no exception is pleaded or available under the assumed jurisdiction, state that explicitly and explain the consequence."
+    },
+    {
+      "id": "analysis_domain_7",
+      "name": "Defenses / Mistake",
+      "description": "Consider defenses or excuses that could defeat enforcement (e.g., alleged breach of a condition precedent, mistake about terms, acts not induced by the promise) and evaluate the strength of those defenses given the facts.",
+      "weight": 3,
+      "naGuidance": "If there are no apparent defenses in the fact pattern, note that but suggest common defenses the opposing party might plausibly raise."
+    },
+    {
+      "id": "analysis_domain_8",
+      "name": "Strongest Counterargument",
+      "description": "State the best doctrinal argument for the opposing side (e.g., strict Statute of Frauds application, acts referable to license or permissive occupancy) without creating a straw man, and explain why it could prevail.",
+      "weight": 3,
+      "naGuidance": "If the other side has no credible counterargument under the assumed law, say so and briefly explain why."
+    },
+    {
+      "id": "analysis_domain_9",
+      "name": "Bounded Uncertainty / Jurisdictional Limits",
+      "description": "Identify the specific doctrinal or jurisdictional uncertainties that affect the analysis (e.g., how much improvement is 'substantial', whether receipt of rents is required, how modern promissory‑estoppel doctrines interact with classical part‑performance) and state what factual or legal developments would resolve them.",
+      "weight": 4,
+      "naGuidance": "If the law is uniform on the point, state that; otherwise name the particular elements or jurisdictional splits that create uncertainty."
+    }
+  ],
+  "goldenTargets": [
+    {
+      "id": "golden_target_1",
+      "domainId": "analysis_domain_1",
+      "domainName": "Jurisdiction Assumption",
+      "summary": "Assume U.S. common‑law equitable doctrine (illustrated by District of Columbia practice) applying the classic part‑performance exception to the Statute of Frauds.",
+      "goldenContains": [
+        "Analysis framed under U.S. common‑law equitable doctrine.",
+        "D.C. practice/Neale treated as controlling illustration of the classic part‑performance rule.",
+        "Recognize that some states may vary in elements or modern estoppel labeling."
+      ],
+      "allowedOmissions": [
+        "Specific state statutes or code citations."
+      ],
+      "contradictionFlags": [
+        "Asserting a non‑U.S. or purely civil‑law jurisdictional framework.",
+        "Treating a particular state statute as overriding the equitable doctrine without noting local variation."
+      ],
+      "comparisonGuidance": "Accept answers that assume U.S. common‑law equity and cite Neale/D.C. practice or that state the analysis is jurisdiction‑neutral while noting major state variants."
+    },
+    {
+      "id": "golden_target_2",
+      "domainId": "analysis_domain_2",
+      "domainName": "Bottom-line Outcome",
+      "summary": "The oral promise was enforceable in equity; the court ordered specific performance because possession plus substantial improvements (and rents/use) with promisor knowledge and assent were held to be part performance.",
+      "goldenContains": [
+        "Oral promise enforced in equity (specific performance ordered).",
+        "Enforcement based on possession + substantial improvements and promisor's knowledge/assent.",
+        "Acts were induced by the promise and thus removed the case from the Statute of Frauds."
+      ],
+      "allowedOmissions": [
+        "Precise form of the equitable remedy (e.g., trust/technical conveyance language)."
+      ],
+      "contradictionFlags": [
+        "Concluding the oral promise is unenforceable or only recoverable in damages without acknowledging part‑performance.",
+        "Saying the court denied relief despite the possession/improvements facts."
+      ],
+      "comparisonGuidance": "Mark as matching if the answer reaches enforcement via equitable part‑performance given similar facts; mark divergent if it concludes nonenforceability."
+    },
+    {
+      "id": "golden_target_3",
+      "domainId": "analysis_domain_3",
+      "domainName": "Controlling Doctrine",
+      "summary": "The Statute of Frauds governs transfers of land (writing required), but equity's part‑performance/estoppel exception controls where acts are unequivocally referable to the oral promise.",
+      "goldenContains": [
+        "Primary rule: Statute of Frauds requires a writing for land transfers.",
+        "Equitable part‑performance/estoppel is the controlling exception in this context.",
+        "Key threshold: acts must be 'unequivocally referable' to the oral promise."
+      ],
+      "allowedOmissions": [
+        "Full case citation beyond Neale or other supporting cases."
+      ],
+      "contradictionFlags": [
+        "Claiming a different doctrine (e.g., SOF irrelevant) controls without explaining how.",
+        "Failing to identify part‑performance/estoppel as the operative exception."
+      ],
+      "comparisonGuidance": "Accept analyses identifying SoF + part‑performance/estoppel as controlling; penalize answers that omit the writing requirement or the equitable exception."
+    },
+    {
+      "id": "golden_target_4",
+      "domainId": "analysis_domain_4",
+      "domainName": "Formation/Consideration",
+      "summary": "The facts were treated as more than a bare gift: the promise induced marriage and building, and reliance/expenditure functioned as consideration or reliance supporting enforcement; formation issues do not override the SoF analysis but are relevant to equitable relief.",
+      "goldenContains": [
+        "Transaction treated as more than a gratuitous promise—inducing marriage and construction.",
+        "Reliance/expenditure (and marriage) constituted sufficient consideration/reliance for equity.",
+        "Note that SoF/part‑performance outcome does not hinge solely on traditional consideration formalities."
+      ],
+      "allowedOmissions": [
+        "Detailed analysis of bargain theory vs. conditional gift doctrines."
+      ],
+      "contradictionFlags": [
+        "Stating definitively there was no consideration and that reliance cannot substitute under equity without addressing part‑performance.",
+        "Treating formation as entirely irrelevant to equitable relief."
+      ],
+      "comparisonGuidance": "Credit answers that identify reliance/inducement as the basis for enforcement and note formation is of limited separate importance once part‑performance is shown."
+    },
+    {
+      "id": "golden_target_5",
+      "domainId": "analysis_domain_5",
+      "domainName": "Statute of Frauds Gates",
+      "summary": "The SoF category triggered is contracts/transfers of land (writing required); absent an equitable exception, the writing requirement bars enforcement—Neale applied the part‑performance exception to remove the case from the SoF.",
+      "goldenContains": [
+        "Triggered SoF category: transfer/interest in land (writing required).",
+        "That statutory gate is dispositive unless an equitable exception applies.",
+        "Neale applies the part‑performance exception to overcome the SoF writing requirement."
+      ],
+      "allowedOmissions": [
+        "Citation to the exact statutory provision number."
+      ],
+      "contradictionFlags": [
+        "Saying the SoF does not apply to this type of promise without explanation.",
+        "Ignoring that land‑transfer SoF is the relevant gate."
+      ],
+      "comparisonGuidance": "Match when the answer identifies the land‑transfer SoF as the dispositive gate and recognizes part‑performance as the exception."
+    },
+    {
+      "id": "golden_target_6",
+      "domainId": "analysis_domain_6",
+      "domainName": "Exceptions / Promissory Estoppel",
+      "summary": "Neale is an equity part‑performance/estoppel decision: possession plus improvements with promisor assent and inducement will avoid the SoF; modern promissory estoppel doctrines may reach the same result in some jurisdictions.",
+      "goldenContains": [
+        "Part‑performance (possession + improvements + promisor acquiescence) is the operative equitable exception.",
+        "Acts must be referable to the promise; promissory estoppel is a modern analogue in some courts.",
+        "Neale is cited as an example of the classic rule rather than a modern estoppel formulation."
+      ],
+      "allowedOmissions": [
+        "Full surveys of how every state labels the doctrine."
+      ],
+      "contradictionFlags": [
+        "Asserting no equitable or estoppel exception exists under the assumed law.",
+        "Confusing part‑performance elements or reversing which acts are required."
+      ],
+      "comparisonGuidance": "Accept if the answer maps classic part‑performance elements to the facts and notes modern estoppel analogues where relevant."
+    },
+    {
+      "id": "golden_target_7",
+      "domainId": "analysis_domain_7",
+      "domainName": "Defenses / Mistake",
+      "summary": "Potential defenses include that the acts were not induced by the promise, a condition precedent was breached, or improvements were funded by the promisor; Neale rejected the father's defenses on the facts, but such defenses can defeat enforcement if proven.",
+      "goldenContains": [
+        "Typical defenses: breach of a condition precedent, mistake about terms, or that acts were not induced by the promise.",
+        "Claim that improvements were paid by the promisor may undercut reliance; Neale found such defenses insufficient on its record.",
+        "A convincing showing that acts are referable to other causes can defeat part‑performance."
+      ],
+      "allowedOmissions": [
+        "Exhaustive listing of every possible factual defense."
+      ],
+      "contradictionFlags": [
+        "Stating there are no plausible defenses.",
+        "Treating the father's factual defenses as dispositive without evidentiary analysis."
+      ],
+      "comparisonGuidance": "Credit answers identifying the usual evidentiary defenses and noting that their success depends on the factual showing."
+    },
+    {
+      "id": "golden_target_8",
+      "domainId": "analysis_domain_8",
+      "domainName": "Strongest Counterargument",
+      "summary": "The best opposing argument is strict enforcement of the Statute of Frauds: without a writing, equity should not enforce, because possession or improvements may be ambiguous (license/permissive occupancy) and not 'unequivocally referable' to the promise.",
+      "goldenContains": [
+        "Principal counter: strict SoF application—no written memorandum, so no enforcement.",
+        "Argue acts may be ambiguous (license, permissive occupancy, or referable to other arrangements).",
+        "Equity should not override statutory policy absent unequivocal acts."
+      ],
+      "allowedOmissions": [
+        "Minor rhetorical amplification of the policy argument."
+      ],
+      "contradictionFlags": [
+        "Saying there is no credible counterargument under the assumed law.",
+        "Misstating the statutory policy against oral land transfers."
+      ],
+      "comparisonGuidance": "Mark as matching if the answer presents the strict SoF enforcement argument and explains the ambiguity/licensing risk for possession/improvements."
+    },
+    {
+      "id": "golden_target_9",
+      "domainId": "analysis_domain_9",
+      "domainName": "Bounded Uncertainty / Jurisdictional Limits",
+      "summary": "Neale leaves unresolved thresholds: how substantial improvements must be, whether receipt/use of rents is required, and how modern promissory‑estoppel doctrines interact with classical part‑performance; these vary by jurisdiction and require specific factual proof to resolve.",
+      "goldenContains": [
+        "Uncertainty about the quantitative/qualitative threshold for 'substantial' improvements.",
+        "Open question whether receipt/use of rents is necessary or merely persuasive.",
+        "Modern interaction with promissory estoppel varies by jurisdiction."
+      ],
+      "allowedOmissions": [
+        "Listing every jurisdictional split or case law example."
+      ],
+      "contradictionFlags": [
+        "Claiming the law is uniform on the precise element definitions.",
+        "Asserting definitive thresholds without citing controlling local authority."
+      ],
+      "comparisonGuidance": "Accept answers that identify these specific uncertainties and state what factual or legal developments (e.g., proofs of unequivocal referability, local precedent) would resolve them."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "criterion_546fc082",
+      "domainId": "analysis_domain_1",
+      "text": "Analysis framed under U.S. common‑law equitable doctrine.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_8dd9d302",
+      "domainId": "analysis_domain_1",
+      "text": "D.C. practice/Neale treated as controlling illustration of the classic part‑performance rule.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_fb5c001d",
+      "domainId": "analysis_domain_1",
+      "text": "Recognize that some states may vary in elements or modern estoppel labeling.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_4de9ebf2",
+      "domainId": "analysis_domain_2",
+      "text": "Oral promise enforced in equity (specific performance ordered).",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_11b3153e",
+      "domainId": "analysis_domain_2",
+      "text": "Enforcement based on possession + substantial improvements and promisor's knowledge/assent.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_0ab2bc02",
+      "domainId": "analysis_domain_2",
+      "text": "Acts were induced by the promise and thus removed the case from the Statute of Frauds.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_0b1489e8",
+      "domainId": "analysis_domain_3",
+      "text": "Primary rule: Statute of Frauds requires a writing for land transfers.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_8d827894",
+      "domainId": "analysis_domain_3",
+      "text": "Equitable part‑performance/estoppel is the controlling exception in this context.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_b064bc38",
+      "domainId": "analysis_domain_3",
+      "text": "Key threshold: acts must be 'unequivocally referable' to the oral promise.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_86159e4b",
+      "domainId": "analysis_domain_4",
+      "text": "Transaction treated as more than a gratuitous promise—inducing marriage and construction.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_f890aaf0",
+      "domainId": "analysis_domain_4",
+      "text": "Reliance/expenditure (and marriage) constituted sufficient consideration/reliance for equity.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_6bb426a3",
+      "domainId": "analysis_domain_4",
+      "text": "Note that SoF/part‑performance outcome does not hinge solely on traditional consideration formalities.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_0d9d224e",
+      "domainId": "analysis_domain_5",
+      "text": "Triggered SoF category: transfer/interest in land (writing required).",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_03ab7c00",
+      "domainId": "analysis_domain_5",
+      "text": "That statutory gate is dispositive unless an equitable exception applies.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_c10fd915",
+      "domainId": "analysis_domain_5",
+      "text": "Neale applies the part‑performance exception to overcome the SoF writing requirement.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_a27d3213",
+      "domainId": "analysis_domain_6",
+      "text": "Part‑performance (possession + improvements + promisor acquiescence) is the operative equitable exception.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_11451ffc",
+      "domainId": "analysis_domain_6",
+      "text": "Acts must be referable to the promise; promissory estoppel is a modern analogue in some courts.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_62a3d5ad",
+      "domainId": "analysis_domain_6",
+      "text": "Neale is cited as an example of the classic rule rather than a modern estoppel formulation.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_e9f8266b",
+      "domainId": "analysis_domain_7",
+      "text": "Typical defenses: breach of a condition precedent, mistake about terms, or that acts were not induced by the promise.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_1d319eea",
+      "domainId": "analysis_domain_7",
+      "text": "Claim that improvements were paid by the promisor may undercut reliance; Neale found such defenses insufficient on its record.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_62bd6452",
+      "domainId": "analysis_domain_7",
+      "text": "A convincing showing that acts are referable to other causes can defeat part‑performance.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_4a4cbb4a",
+      "domainId": "analysis_domain_8",
+      "text": "Principal counter: strict SoF application—no written memorandum, so no enforcement.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_302c6b3a",
+      "domainId": "analysis_domain_8",
+      "text": "Argue acts may be ambiguous (license, permissive occupancy, or referable to other arrangements).",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_9527410e",
+      "domainId": "analysis_domain_8",
+      "text": "Equity should not override statutory policy absent unequivocal acts.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_95ed4228",
+      "domainId": "analysis_domain_9",
+      "text": "Uncertainty about the quantitative/qualitative threshold for 'substantial' improvements.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_e48ceeed",
+      "domainId": "analysis_domain_9",
+      "text": "Open question whether receipt/use of rents is necessary or merely persuasive.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_c1ce5509",
+      "domainId": "analysis_domain_9",
+      "text": "Modern interaction with promissory estoppel varies by jurisdiction.",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    }
+  ],
+  "refinementLog": [
+    {
+      "id": "log_590b54e4",
+      "timestamp": "2026-04-03T05:01:59.239Z",
+      "domainId": "analysis_domain_1",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_218d2a87",
+      "timestamp": "2026-04-03T05:01:59.239Z",
+      "domainId": "analysis_domain_2",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_32606d2a",
+      "timestamp": "2026-04-03T05:01:59.239Z",
+      "domainId": "analysis_domain_3",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_52bbcb8a",
+      "timestamp": "2026-04-03T05:01:59.239Z",
+      "domainId": "analysis_domain_4",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_cec16af5",
+      "timestamp": "2026-04-03T05:01:59.239Z",
+      "domainId": "analysis_domain_5",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_e4c3754f",
+      "timestamp": "2026-04-03T05:01:59.239Z",
+      "domainId": "analysis_domain_6",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_486dc226",
+      "timestamp": "2026-04-03T05:01:59.239Z",
+      "domainId": "analysis_domain_7",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_b697a0f6",
+      "timestamp": "2026-04-03T05:01:59.239Z",
+      "domainId": "analysis_domain_8",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_34b324c1",
+      "timestamp": "2026-04-03T05:01:59.239Z",
+      "domainId": "analysis_domain_9",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    }
+  ],
+  "smeNotes": "",
+  "comparisonMethodNote": "I extracted the controlling points from the provided Frank golden answer about Neale v. Neales and mapped them to each Karthic domain. The targets reflect the holding treated as a statement of classic U.S. equitable part‑performance doctrine (D.C. practice used as the controlling example) and emphasize the factual predicates courts require to invoke the exception to the Statute of Frauds.",
+  "approvedAt": "2026-04-03T05:03:11.115Z",
+  "createdAt": "2026-04-03T05:01:59.241Z",
+  "updatedAt": "2026-04-03T05:03:12.729Z"
+}

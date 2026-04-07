@@ -1,0 +1,20 @@
+{
+  "responses": [
+    {
+      "id": "r1",
+      "response": "Promissory estoppel applies because there was a clear promise and detrimental reliance."
+    },
+    {
+      "id": "r2",
+      "response": "There was a promise, reliance, and injustice without enforcement, so promissory estoppel likely applies."
+    },
+    {
+      "id": "r3",
+      "response": "The statute of frauds bars enforcement because the contract was not in writing."
+    },
+    {
+      "id": "r4",
+      "response": "Without a signed writing and without an exception, the statute of frauds likely defeats the claim."
+    }
+  ]
+}

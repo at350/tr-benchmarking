@@ -21,6 +21,7 @@ type PdfParseClassLike = {
         getText: () => Promise<{ text?: string }>;
         destroy: () => Promise<void>;
     };
+    setWorker?: (workerSrc?: string) => string;
 };
 type ParsedPdfModule = {
     default?: LegacyPdfParser;
@@ -95,14 +96,14 @@ async function getPdfTextFromBuffer(buffer: Buffer) {
                 path.resolve(process.cwd(), '../frontend/node_modules/pdf-parse/dist/pdf-parse/cjs/pdf.worker.mjs'),
                 path.resolve(process.cwd(), '../frontend/node_modules/pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs'),
             ];
-            const workerPath = workerCandidates.find((candidate) => fs.existsSync(candidate));
-            if (workerPath) {
-                try {
-                    pdfParseModule.PDFParse.setWorker(workerPath);
-                } catch (error) {
-                    console.error('Failed to configure pdf-parse worker path.', error);
+                const workerPath = workerCandidates.find((candidate) => fs.existsSync(candidate));
+                if (workerPath) {
+                    try {
+                        pdfParseModule.PDFParse.setWorker?.(workerPath);
+                    } catch (error) {
+                        console.error('Failed to configure pdf-parse worker path.', error);
+                    }
                 }
-            }
             pdfWorkerConfigured = true;
         }
         const parser = new pdfParseModule.PDFParse({ data: buffer });

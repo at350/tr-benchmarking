@@ -1,0 +1,375 @@
+{
+  "id": "karthic_1775238748735_ae1cb3d0",
+  "frankPacketId": "frank_1775238129183_a750b846",
+  "status": "approved",
+  "domains": [
+    {
+      "id": "analysis_domain_1",
+      "name": "Jurisdiction assumption",
+      "description": "State the legal framework and jurisdictional baseline assumed for the analysis (e.g., U.S. common law; specific state law or appellate precedent such as New York Court of Appeals/Hamer v. Sidway).",
+      "weight": 5,
+      "naGuidance": "If no jurisdiction is specified, mark as N/A and explain that U.S. common-law formation doctrine is assumed and identify which controlling state precedent (if any) would change the analysis."
+    },
+    {
+      "id": "analysis_domain_2",
+      "name": "Bottom-line outcome",
+      "description": "Give a clear, succinct conclusion about enforceability — whether the oral promise is enforceable under the assumed framework (yes/no) and a one-sentence rationale.",
+      "weight": 5,
+      "naGuidance": "If outcome is indeterminate, mark N/A and provide the key open factual or legal issues preventing a clear conclusion (e.g., jurisdictional conflict, missing facts about performance)."
+    },
+    {
+      "id": "analysis_domain_3",
+      "name": "Controlling doctrine",
+      "description": "Identify the primary legal rule(s) or Statute-of-Frauds category likely to decide the case (e.g., common-law consideration doctrine—forbearance as consideration; note whether SoF applies).",
+      "weight": 5,
+      "naGuidance": "If no single controlling doctrine applies, mark N/A and list the competing doctrines and why none is dispositive for the facts provided."
+    },
+    {
+      "id": "analysis_domain_4",
+      "name": "Formation (bargain vs. gift)",
+      "description": "Assess whether the facts show a bargained-for exchange (consideration/forbearance) or only a conditional gift — include elements that support detriment/benefit or lack thereof.",
+      "weight": 4,
+      "naGuidance": "If formation is not at issue, mark N/A and state that formation need not be analyzed (e.g., where enforcement is sought under estoppel or statute)."
+    },
+    {
+      "id": "analysis_domain_5",
+      "name": "Statute-of-Frauds gates",
+      "description": "Analyze whether any writing-requirement categories are triggered and, if so, which one is dispositive; note relevant statutory thresholds (e.g., >1 year, land, surety, UCC $500).",
+      "weight": 7,
+      "naGuidance": "If SoF is not triggered by the facts, mark N/A and briefly state which SoF categories were considered and why none apply."
+    },
+    {
+      "id": "analysis_domain_6",
+      "name": "Exceptions / Promissory estoppel",
+      "description": "Address fallback theories (promissory estoppel, part performance, detrimental reliance) that could enforce the promise despite lack of consideration or a required writing.",
+      "weight": 3,
+      "naGuidance": "If no reliance-based theory is plausible, mark N/A and explain why (e.g., adequate consideration exists or reliance is absent/insufficient)."
+    },
+    {
+      "id": "analysis_domain_7",
+      "name": "Defenses / Mistake / Other excuses",
+      "description": "Consider defenses or excuses that could defeat enforcement (failure of condition, mistake, fraud, illegality, lack of capacity, failure to perform the forbearance).",
+      "weight": 3,
+      "naGuidance": "If no defenses are apparent or relevant, mark N/A and note that none were raised by the facts; if partially relevant, list the defense(s) and what additional facts would be needed to evaluate them."
+    }
+  ],
+  "goldenTargets": [
+    {
+      "id": "golden_target_1",
+      "domainId": "analysis_domain_1",
+      "domainName": "Jurisdiction assumption",
+      "summary": "Assume U.S. common-law formation doctrine with New York Court of Appeals precedent (Hamer v. Sidway) as the controlling anchor for the consideration issue; if no jurisdiction specified, state that assumption and note that some states/statutes may modify the rule.",
+      "goldenContains": [
+        "Assumes U.S. common-law baseline and cites Hamer v. Sidway as controlling for the consideration question",
+        "If unspecified, explicitly states the assumption (U.S. common law / NY precedent) and flags that state law could vary"
+      ],
+      "allowedOmissions": [
+        "Detailed survey of each state's variations or statutory modifications"
+      ],
+      "contradictionFlags": [
+        "Claims a non-U.S. jurisdiction (e.g., English law) is the baseline without justification",
+        "Says Hamer is irrelevant or not authoritative for the assumed jurisdiction without stating an alternative controlling authority"
+      ],
+      "comparisonGuidance": "Score a response high if it states the U.S. common-law baseline and Hamer anchoring (or if it explicitly identifies and justifies another controlling jurisdiction); penalize if jurisdiction is unstated or incorrectly attributed."
+    },
+    {
+      "id": "golden_target_2",
+      "domainId": "analysis_domain_2",
+      "domainName": "Bottom-line outcome",
+      "summary": "Under Hamer the oral promise is enforceable — forbearance of legal rights (abstaining from drinking, smoking, gambling) constitutes sufficient consideration to enforce the promise.",
+      "goldenContains": [
+        "Clear yes: the promise is enforceable under Hamer",
+        "One-sentence rationale: forbearance of a legal right is a sufficient legal detriment/consideration"
+      ],
+      "allowedOmissions": [
+        "Extensive caveats about alternative fact patterns unless they change the outcome"
+      ],
+      "contradictionFlags": [
+        "Concludes the promise is not enforceable without identifying a disqualifying fact",
+        "Gives an indeterminate outcome without citing specific missing facts or legal conflicts"
+      ],
+      "comparisonGuidance": "Look for an explicit yes/no and a concise rationale tying enforceability to forbearance-as-consideration; accept conditional 'no' only if supported by clear countervailing facts/legal rules."
+    },
+    {
+      "id": "golden_target_3",
+      "domainId": "analysis_domain_3",
+      "domainName": "Controlling doctrine",
+      "summary": "The primary controlling doctrine is common-law consideration doctrine: a bargained-for legal detriment or forbearance supports enforcement; Hamer is not a Statute-of-Frauds decision and treats the issue as formation/consideration.",
+      "goldenContains": [
+        "Identifies common-law consideration / forbearance-as-detriment as the dispositive rule",
+        "States that Statute-of-Frauds was not implicated in Hamer and is a separate gate if raised"
+      ],
+      "allowedOmissions": [
+        "Exhaustive doctrinal history or alternative theoretical perspectives"
+      ],
+      "contradictionFlags": [
+        "Claims the UCC, Statute-of-Frauds, or another unrelated doctrine is dispositive for Hamer's facts",
+        "Says consideration requires a benefit to the promisor (contradicting Hamer's focus on detriment)"
+      ],
+      "comparisonGuidance": "Verify the answer names consideration/forbearance as the governing rule and explains that SoF is separate; downgrade if it misidentifies the controlling doctrine."
+    },
+    {
+      "id": "golden_target_4",
+      "domainId": "analysis_domain_4",
+      "domainName": "Formation (bargain vs. gift)",
+      "summary": "Hamer treats the nephew's abstention as a bargained-for exchange (consideration): promise, requested forbearance (legal detriment), and performance of that forbearance — benefit to promisor not required.",
+      "goldenContains": [
+        "Characterizes the transaction as a bargained-for exchange rather than a mere conditional gift",
+        "Lists the key elements: promisor's promise, promisee's forbearance of legal rights requested by the promisor, and actual performance of that forbearance"
+      ],
+      "allowedOmissions": [
+        "In-depth policy argument about why benefit-to-promisor is unnecessary"
+      ],
+      "contradictionFlags": [
+        "Labels the arrangement as merely a moral obligation or gratuitous gift without addressing the forbearance element",
+        "Requires proof of benefit to the promisor as necessary consideration"
+      ],
+      "comparisonGuidance": "Confirm the response treats the facts as a bargained-for exchange relying on forbearance and lists the three core elements; penalize answers that call it merely a gift or insist on promisor benefit."
+    },
+    {
+      "id": "golden_target_5",
+      "domainId": "analysis_domain_5",
+      "domainName": "Statute-of-Frauds gates",
+      "summary": "Hamer's facts do not trigger classic SoF categories (land, marriage, >1 year, surety, UCC $500), so the Statute of Frauds was not dispositive; if SoF applies in other facts, standard defenses (signed memo, part performance, reliance) are relevant.",
+      "goldenContains": [
+        "States that Hamer did not implicate Statute-of-Frauds categories and SoF was not dispositive",
+        "Notes which SoF categories were considered and that partial performance/reliance/writing can satisfy SoF if it is triggered"
+      ],
+      "allowedOmissions": [
+        "Citations to specific modern statutory text for each jurisdiction"
+      ],
+      "contradictionFlags": [
+        "Asserts SoF applied and barred enforcement in Hamer's facts",
+        "Fails to consider SoF at all when the hypothetical facts would obviously trigger it"
+      ],
+      "comparisonGuidance": "Check that the response assesses SoF and correctly concludes it is not implicated for Hamer; if the respondent's facts differ, ensure they identify the relevant SoF category and applicable exception."
+    },
+    {
+      "id": "golden_target_6",
+      "domainId": "analysis_domain_6",
+      "domainName": "Exceptions / Promissory estoppel",
+      "summary": "Promissory estoppel/detrimental reliance is a viable fallback if consideration is lacking or SoF issues arise; in Hamer it is unnecessary because consideration exists, but courts can enforce promises on reliance grounds where appropriate.",
+      "goldenContains": [
+        "Identifies promissory estoppel/detrimental reliance as an available fallback theory",
+        "Notes that Hamer did not need estoppel because consideration was present but estoppel can help where consideration or SoF issues exist"
+      ],
+      "allowedOmissions": [
+        "Full element-by-element test of promissory estoppel for every jurisdiction"
+      ],
+      "contradictionFlags": [
+        "Says promissory estoppel is never available to enforce oral promises in this context",
+        "Claims estoppel was the basis of the Hamer decision"
+      ],
+      "comparisonGuidance": "Accept answers that recognize estoppel as a fallback and correctly place it as unnecessary in Hamer's facts; downgrade those that deny estoppel's availability or misattribute Hamer's holding to estoppel."
+    },
+    {
+      "id": "golden_target_7",
+      "domainId": "analysis_domain_7",
+      "domainName": "Defenses / Mistake / Other excuses",
+      "summary": "Typical defenses include lack of capacity, illegality, fraud/duress, failure of condition (e.g., promisee violated the forbearance), or mistake; moral obligation alone is insufficient. Hamer assumes the forbearance occurred; if it did not, enforcement may fail.",
+      "goldenContains": [
+        "Lists standard defenses: incapacity, illegality, fraud/duress, mistake, and failure to meet the condition (breach of forbearance)",
+        "States that moral obligation alone is insufficient and that the court assumes actual forbearance occurred"
+      ],
+      "allowedOmissions": [
+        "Exhaustive evidentiary rules or fact-specific analyses"
+      ],
+      "contradictionFlags": [
+        "Asserts there are no plausible defenses or excuses in this scenario",
+        "Claims moral obligation alone suffices as consideration"
+      ],
+      "comparisonGuidance": "Ensure the answer names plausible defenses and notes the necessity of actual performance of the forbearance; penalize answers that ignore these defenses or misstate moral obligation as sufficient consideration."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "criterion_1fc66c42",
+      "domainId": "analysis_domain_1",
+      "text": "Assumes U.S. common-law baseline and cites Hamer v. Sidway as controlling for the consideration question",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_c7dd314e",
+      "domainId": "analysis_domain_1",
+      "text": "If unspecified, explicitly states the assumption (U.S. common law / NY precedent) and flags that state law could vary",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_82bd4043",
+      "domainId": "analysis_domain_2",
+      "text": "Clear yes: the promise is enforceable under Hamer",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_fd959e6c",
+      "domainId": "analysis_domain_2",
+      "text": "One-sentence rationale: forbearance of a legal right is a sufficient legal detriment/consideration",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_6e7f782c",
+      "domainId": "analysis_domain_3",
+      "text": "Identifies common-law consideration / forbearance-as-detriment as the dispositive rule",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_bab05e4a",
+      "domainId": "analysis_domain_3",
+      "text": "States that Statute-of-Frauds was not implicated in Hamer and is a separate gate if raised",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_9aa99083",
+      "domainId": "analysis_domain_4",
+      "text": "Characterizes the transaction as a bargained-for exchange rather than a mere conditional gift",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_86895aa0",
+      "domainId": "analysis_domain_4",
+      "text": "Lists the key elements: promisor's promise, promisee's forbearance of legal rights requested by the promisor, and actual performance of that forbearance",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_77af4e3f",
+      "domainId": "analysis_domain_5",
+      "text": "States that Hamer did not implicate Statute-of-Frauds categories and SoF was not dispositive",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_5fff9e97",
+      "domainId": "analysis_domain_5",
+      "text": "Notes which SoF categories were considered and that partial performance/reliance/writing can satisfy SoF if it is triggered",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_e6ce9868",
+      "domainId": "analysis_domain_6",
+      "text": "Identifies promissory estoppel/detrimental reliance as an available fallback theory",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_ad687e07",
+      "domainId": "analysis_domain_6",
+      "text": "Notes that Hamer did not need estoppel because consideration was present but estoppel can help where consideration or SoF issues exist",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_3c03535d",
+      "domainId": "analysis_domain_7",
+      "text": "Lists standard defenses: incapacity, illegality, fraud/duress, mistake, and failure to meet the condition (breach of forbearance)",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    },
+    {
+      "id": "criterion_65dbcb4d",
+      "domainId": "analysis_domain_7",
+      "text": "States that moral obligation alone is insufficient and that the court assumes actual forbearance occurred",
+      "parentId": null,
+      "depth": 0,
+      "status": "active",
+      "source": "seed"
+    }
+  ],
+  "refinementLog": [
+    {
+      "id": "log_2f3f3e2e",
+      "timestamp": "2026-04-03T17:52:28.732Z",
+      "domainId": "analysis_domain_1",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_b55fdb89",
+      "timestamp": "2026-04-03T17:52:28.732Z",
+      "domainId": "analysis_domain_2",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_0eaf45cf",
+      "timestamp": "2026-04-03T17:52:28.732Z",
+      "domainId": "analysis_domain_3",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_0bab956a",
+      "timestamp": "2026-04-03T17:52:28.732Z",
+      "domainId": "analysis_domain_4",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_7efd2c96",
+      "timestamp": "2026-04-03T17:52:28.732Z",
+      "domainId": "analysis_domain_5",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_ee6385b4",
+      "timestamp": "2026-04-03T17:52:28.732Z",
+      "domainId": "analysis_domain_6",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    },
+    {
+      "id": "log_012e9406",
+      "timestamp": "2026-04-03T17:52:28.732Z",
+      "domainId": "analysis_domain_7",
+      "criterionId": null,
+      "action": "created_seed",
+      "note": "Generated structured golden target from the approved Frank answer."
+    }
+  ],
+  "smeNotes": "",
+  "comparisonMethodNote": "Compare candidate analyses against the gold targets by (1) checking that the response adopts the assumed jurisdictional baseline (U.S. common-law / NY Court of Appeals · Hamer) or explains a different controlling jurisdiction; (2) verifying a clear bottom-line (yes/no) with a one-sentence rationale; and (3) confirming coverage of the primary doctrinal issues listed below. Mark as deficient if any contradiction-flag item appears. Allow minor omissions listed under allowedOmissions. Weight coverage of items according to domain weights supplied by the user (higher-weight domains should be present and precise).",
+  "approvedAt": "2026-04-03T17:54:19.573Z",
+  "createdAt": "2026-04-03T17:52:28.735Z",
+  "updatedAt": "2026-04-03T17:54:19.573Z"
+}

@@ -1,0 +1,143 @@
+{
+  "id": "frank_1775350169845_63022b98",
+  "status": "draft",
+  "legalDomain": "Torts",
+  "domainScope": "Palsgraf v. Long Island R.R. Co.",
+  "sourceFamily": "web_searched_anchor_case",
+  "selectedCase": {
+    "id": "case_1",
+    "title": "Palsgraf v. Long Island R.R. Co.",
+    "citation": "248 N.Y. 339, 162 N.E. 99 (1928)",
+    "court": "New York Court of Appeals",
+    "year": "1928",
+    "url": "https://nycourts.gov/reporter/archives/palsgraf_lirr.htm",
+    "summary": "Holding: A defendant owes a duty of care only to those plaintiffs who are within the foreseeable zone of risk — Cardozo’s opinion rejecting liability to an unforeseeable plaintiff (proximate cause/foreseeability). ([nycourts.gov](https://nycourts.gov/reporter/archives/palsgraf_lirr.htm?utm_source=openai))",
+    "relevance": "Classic anchor for proximate cause/foreseeability issues; highly teachable fact pattern and a clear, often-debated holding."
+  },
+  "analysisDomains": [
+    {
+      "id": "analysis_domain_1",
+      "name": "Facts & Procedural Posture",
+      "description": "Concise restatement of the operative facts, parties, lower-court rulings, and the question presented to the Court of Appeals — editable for alternate fact patterns."
+    },
+    {
+      "id": "analysis_domain_2",
+      "name": "Legal Issue(s)",
+      "description": "Clear articulation of the legal questions the case addresses (e.g., existence and scope of duty, proximate cause, foreseeability) framed so users can adapt or split issues."
+    },
+    {
+      "id": "analysis_domain_3",
+      "name": "Holding & Governing Rule",
+      "description": "Summary of the Court's holding and the controlling rule(s) announced (Cardozo’s foreseeability/duty formulation), written for easy revision into different rule-statement styles."
+    },
+    {
+      "id": "analysis_domain_4",
+      "name": "Foreseeability & Duty Analysis",
+      "description": "Focused analysis of how foreseeability determines the scope of duty in the opinion, including application steps and markers for identifying ‘zone of risk.’"
+    },
+    {
+      "id": "analysis_domain_5",
+      "name": "Causation, Proximate Cause & Dissenting Views",
+      "description": "Examination of cause-in-fact versus proximate cause questions, intervening causes, and contrasting Andrews’ dissent (or other critiques) to show alternate proximate-cause frameworks."
+    },
+    {
+      "id": "analysis_domain_6",
+      "name": "Policy, Analogies & Hypothetical Application",
+      "description": "Policy rationales, broader consequences of the rule, and space for testing the holding against varied hypotheticals or modern scenarios (e.g., emergent technologies, third-party acts)."
+    }
+  ],
+  "sourceArtifacts": [],
+  "sourceIntake": {
+    "sourceQualityRating": "high (authoritative primary opinion hosted on official NY Court archives)",
+    "benchmarkPosture": "narrow_source_grounded_benchmark_only",
+    "recommendation": "Use this opinion as the primary doctrinal anchor for teaching foreseeability/proximate-cause. Complement with Andrews’ dissent and at least one modern controlling case in the relevant jurisdiction to show doctrinal development and application to contemporary facts.",
+    "jdReviewBurden": [
+      "Confirm whether the target jurisdiction follows Cardozo’s duty-limiting foreseeability test, Andrews’ broader proximate-cause test, or a hybrid.",
+      "Check subsequent appellate decisions that interpret, limit, or expand Palsgraf’s foreseeability/duty framework in the jurisdiction(s) you care about.",
+      "If applying to modern scenarios (autonomous systems, mass-tort chains), verify how courts allocate responsibility for complex causal chains and intervening third-party acts.",
+      "Locate any statutory or regulatory schemes that create duties independent of common-law foreseeability analysis."
+    ],
+    "reverseEngineeringSuitability": "strong"
+  },
+  "sourceExtraction": {
+    "legalIssue": "Whether foreseeability of the plaintiff (being within a foreseeable zone of risk) is a prerequisite to imposing liability for negligence — i.e., whether duty is limited to foreseeable plaintiffs such that an unforeseeable plaintiff cannot recover despite factual causation.",
+    "blackLetterRule": "A defendant owes a duty of reasonable care only to those plaintiffs who are within the foreseeable zone of risk created by the defendant’s conduct; absent foreseeability of the plaintiff, there is no duty and hence no liability even if the defendant’s conduct factually caused the injury.",
+    "triggerFacts": [
+      "An attempt by railroad employees to help a man board a moving train dislodged a package he carried.",
+      "The package contained explosive material (not visible to the employees), which fell and exploded.",
+      "The explosion caused scales at a distance on the platform to fall, injuring Helen Palsgraf (a bystander).",
+      "Jury found for plaintiff; appellate review questioned whether defendant owed a duty to Palsgraf."
+    ],
+    "holding": "Cardozo: Because the plaintiff was not within the foreseeable zone of danger from the railroad employees’ conduct, the railroad owed no duty to her and hence was not liable for her injury.",
+    "limits": [
+      "The rule is framed as a limit on duty — foreseeability of the plaintiff is required before reaching breach and proximate-cause questions.",
+      "Palsgraf does not resolve how foreseeability should be measured in all contexts (spatial proximity, class-based foreseeability, visible risk), leaving room for fact-based application.",
+      "The Court does not provide a mechanistic formula for complex multi-step causal chains; it signals that remote or highly unforeseen consequences cut off legal liability."
+    ],
+    "uncertainty": [
+      "How courts in other jurisdictions apply Palsgraf’s duty-limiting foreseeability (many jurisdictions adopt variations or alternative proximate-cause approaches).",
+      "Treatment of intentional, criminal, or highly unusual intervening acts (when they are treated as superseding).",
+      "Application to modern complex-risk contexts (autonomous systems, distributed networks) where foreseeability of remote harms is contested."
+    ]
+  },
+  "fitCheck": {
+    "status": "passed",
+    "overrideAccepted": false,
+    "stale": false,
+    "lastRunAt": "2026-04-05T01:08:31.266Z",
+    "caseFingerprint": "{\"id\":\"case_1\",\"title\":\"Palsgraf v. Long Island R.R. Co.\",\"citation\":\"248 N.Y. 339, 162 N.E. 99 (1928)\",\"court\":\"New York Court of Appeals\",\"year\":\"1928\",\"summary\":\"Holding: A defendant owes a duty of care only to those plaintiffs who are within the foreseeable zone of risk — Cardozo’s opinion rejecting liability to an unforeseeable plaintiff (proximate cause/foreseeability). ([nycourts.gov](https://nycourts.gov/reporter/archives/palsgraf_lirr.htm?utm_source=openai))\",\"relevance\":\"Classic anchor for proximate cause/foreseeability issues; highly teachable fact pattern and a clear, often-debated holding.\"}",
+    "domainFingerprint": "[{\"id\":\"analysis_domain_1\",\"name\":\"Facts & Procedural Posture\",\"description\":\"Concise restatement of the operative facts, parties, lower-court rulings, and the question presented to the Court of Appeals — editable for alternate fact patterns.\"},{\"id\":\"analysis_domain_2\",\"name\":\"Legal Issue(s)\",\"description\":\"Clear articulation of the legal questions the case addresses (e.g., existence and scope of duty, proximate cause, foreseeability) framed so users can adapt or split issues.\"},{\"id\":\"analysis_domain_3\",\"name\":\"Holding & Governing Rule\",\"description\":\"Summary of the Court's holding and the controlling rule(s) announced (Cardozo’s foreseeability/duty formulation), written for easy revision into different rule-statement styles.\"},{\"id\":\"analysis_domain_4\",\"name\":\"Foreseeability & Duty Analysis\",\"description\":\"Focused analysis of how foreseeability determines the scope of duty in the opinion, including application steps and markers for identifying ‘zone of risk.’\"},{\"id\":\"analysis_domain_5\",\"name\":\"Causation, Proximate Cause & Dissenting Views\",\"description\":\"Examination of cause-in-fact versus proximate cause questions, intervening causes, and contrasting Andrews’ dissent (or other critiques) to show alternate proximate-cause frameworks.\"},{\"id\":\"analysis_domain_6\",\"name\":\"Policy, Analogies & Hypothetical Application\",\"description\":\"Policy rationales, broader consequences of the rule, and space for testing the holding against varied hypotheticals or modern scenarios (e.g., emergent technologies, third-party acts).\"}]",
+    "results": [
+      {
+        "domainId": "analysis_domain_1",
+        "domainName": "Facts & Procedural Posture",
+        "label": "Direct fit",
+        "explanation": "Palsgraf’s operative facts, parties, lower-court rulings, and the question presented are core to any packet; the case is commonly taught by restating its fact pattern and procedural history."
+      },
+      {
+        "domainId": "analysis_domain_2",
+        "domainName": "Legal Issue(s)",
+        "label": "Direct fit",
+        "explanation": "The case squarely addresses the existence and scope of duty, proximate cause, and foreseeability—the exact legal issues listed for this domain."
+      },
+      {
+        "domainId": "analysis_domain_3",
+        "domainName": "Holding & Governing Rule",
+        "label": "Direct fit",
+        "explanation": "Cardozo’s holding and the governing foreseeability/duty formulation are the central rule announced by the Court and are directly teachable and adaptable into rule statements."
+      },
+      {
+        "domainId": "analysis_domain_4",
+        "domainName": "Foreseeability & Duty Analysis",
+        "label": "Direct fit",
+        "explanation": "The opinion’s analysis turns on foreseeability as the limiter of duty and supplies application markers for identifying the ‘zone of risk,’ matching this domain exactly."
+      },
+      {
+        "domainId": "analysis_domain_5",
+        "domainName": "Causation, Proximate Cause & Dissenting Views",
+        "label": "Direct fit",
+        "explanation": "Palsgraf showcases proximate-cause analysis and includes Andrews’ dissent offering an alternate proximate-cause framework, making this domain directly supported."
+      },
+      {
+        "domainId": "analysis_domain_6",
+        "domainName": "Policy, Analogies & Hypothetical Application",
+        "label": "Direct fit",
+        "explanation": "Palsgraf is routinely used to motivate policy discussion, analogies, and hypotheticals testing the foreseeability rule in varied modern contexts, so this domain fits directly."
+      }
+    ]
+  },
+  "benchmarkAnswer": "Frank-stage Golden Packet — Palsgraf v. Long Island R.R. Co., 248 N.Y. 339, 162 N.E. 99 (1928)\n\n1. Facts & Procedural Posture (concise, editable)\n- Operative facts (editable for hypotheticals): Two railroad employees attempted to help a man board a moving train by pushing him onto the car. While doing so they dislodged a package he carried; the package contained fireworks (not visible to the employees) and it fell, exploded, and caused a set of scales at the distant end of the platform to fall, striking Helen Palsgraf. Palsgraf sued the railroad for negligence. \n- Lower courts: Jury found for Palsgraf; Appellate Division reversed; New York Court of Appeals (Cardozo majority) considered whether the railroad owed a duty to Palsgraf and whether defendant’s negligence proximately caused her injury.\n- Question presented: Whether the railroad’s negligence (in attempting to assist the passenger) created liability to Palsgraf, who was injured by an unforeseeable chain reaction initiated by the railroad employees’ conduct.\n\n(Notes for alternate facts: change visibility of package contents; location/proximity of plaintiff; intervening actor; foreseeability of class of victims — all change analysis.)\n\n2. Legal Issue(s)\n- Primary issue: What determines the scope of the defendant’s duty — must the plaintiff be a foreseeable victim within a zone of risk created by the defendant’s conduct for duty (and thus liability) to exist? \n- Secondary issues that the opinion treats: the relation between duty and proximate cause; whether cause-in-fact suffices absent foreseeability; whether an intervening event (the explosion) severs liability; whether foreseeability is evaluated with respect to the general character of the risk or to the specific plaintiff.\n\n3. Holding & Governing Rule (portable rule statements)\n- Holding (Cardozo majority): A defendant owes a duty of reasonable care only to those persons who are within the foreseeable zone of danger created by the defendant’s conduct; because Palsgraf was not within the foreseeable zone of risk produced by the employees’ acts, there was no duty and hence no liability. 248 N.Y. at 341–347.\n- Rule formulations (pick style as needed):\n  - Black-letter: Liability for negligence requires both breach and that the plaintiff be within the class of persons to whom a duty of care was owed — i.e., the harm must have been a reasonably foreseeable consequence of the defendant’s conduct for those plaintiffs within the zone of risk.\n  - Elemental: Duty element = foreseeability of harm to the plaintiff (zone of risk); breach and causation follow only if duty exists.\n\n4. Foreseeability & Duty Analysis (application steps; markers for zone of risk)\n- Analytical steps (practical checklist):\n  1) Identify the defendant’s act/omission and the risks a reasonable actor should have anticipated at the time of the conduct.\n  2) Ask whether the injured plaintiff was among the class of persons who would reasonably be exposed to those risks (i.e., within the ‘zone of risk’).\n  3) If the plaintiff is within that zone, proceed to breach, cause-in-fact, and proximate cause analysis; if not, duty is absent and inquiry ends.\n- Markers/indicia that a plaintiff is within the zone of risk:\n  - Spatial/temporal proximity to the risking event (on or adjacent to platform vs. remote); \n  - Relationship or class membership that makes harm foreseeable (e.g., other passengers on platform);\n  - Type of harm reasonably foreseeable from the negligent act (e.g., collision, fall, fire/explosion if package visibly hazardous);\n  - Knowledge or obviousness of the hazardous condition to the defendant’s agents (if they saw or should have seen the hazard).\n- Application to Palsgraf: The contents of the package were not visible; guards could not reasonably foresee that their efforts would cause an explosion injuring a distant bystander. Thus Palsgraf was outside the zone of risk.\n\n5. Causation, Proximate Cause & Dissenting Views\n- Cause-in-fact vs proximate cause in Palsgraf:\n  - Cause-in-fact: The guards’ conduct was a but-for cause of the explosion that set off the scales; factual causation could be supported.\n  - Proximate cause / duty (Cardozo): Even if factual causation exists, there is no liability absent duty — and duty is limited by foreseeability of the plaintiff. Cardozo treats foreseeability as a limit on duty (and therefore on proximate cause). \n- Andrews’ dissent (contrast/conceptual alternative): Justice Andrews argued for a broader standard of responsibility tied to directness of the causal sequence and that liability should not be cut off merely because the particular plaintiff was not foreseen; he favored a more permissive proximate-cause inquiry focusing on whether the defendant’s negligence was a substantial factor in bringing about the harm and whether the harm was not too remote. (Use this to teach alternative proximate-cause frameworks.)\n- Intervening acts & superseding causes: Palsgraf signals that unforeseeable intervening consequences (or unforeseeable plaintiffs) can break the chain of legal causation; but jurisdictions vary: some treat unforeseeable intervening acts as superseding, others ask whether the intervening act was reasonably foreseeable.\n\n6. Policy, Analogies & Hypothetical Application (teachable hypotheticals and modern contexts)\n- Policy rationales for Cardozo’s approach:\n  - Limits liability to avoid indeterminate / unlimited exposure to defendants; promotes fair notice of who is protected; ties negligence law to reasonable foresight.\n  - Emphasizes juries assessing breach only when duty exists — prevents sprawling recovery for low-probability harms to remote plaintiffs.\n- Countervailing policy in Andrews’ view:\n  - Encourages compensation to injured parties and places loss on negligent actor whose conduct set the chain in motion; avoids too-narrow protection for victims.\n- Hypothetical tests (classroom-ready, editable):\n  1) Package visible to employee labeled “explosives”: would Palsgraf have been in the zone? (Likely yes.)\n  2) Plaintiff standing immediately next to the man whose package exploded: contrasts proximity effects.\n  3) Remote third-party acts — e.g., third party intentionally throws a lit match at a negligently placed fuel drum: is the intentional act foreseeable or superseding? (Use to discuss foreseeability of intervening criminal acts.)\n  4) Modern technology: autonomous vehicle negligently swerves, causing remote pedestrian-injury through a complex chain (sensor fail → car hits mailbox → mailbox hits utility control → power failure causes elevator entrapment injuring remote plaintiff): apply zone-of-risk and foreseeability markers; discuss policy tradeoffs about imposing liability for complex, low-probability chains.\n- Teaching tips: present Cardozo and Andrews side-by-side; vary facts to flip whether plaintiff is a foreseeable victim; use special-issue questions (duty first vs. proximate-cause-first) to surface different doctrinal approaches.\n\nBrief note where anchor is silent: Palsgraf does not meaningfully develop rules for statutory duties, indemnity/insurance allocation, or damages measure beyond the proximate-cause/duty discussion — say so rather than forcing coverage.\n\nSummary takeaways (one-paragraph): Palsgraf’s core lesson is that foreseeability of the particular plaintiff (being within the zone of risk) is essential to establishing a duty of care under Cardozo’s formulation; factual causation alone does not suffice. Justice Andrews’ dissent supplies the main contrasting framework (broader proximate-cause/substantial-factor approach), which is valuable for testing the limits and policy implications of Cardozo’s rule. Use proximate hypotheticals to reveal which approach a jurisdiction follows and to test when intervening acts break legal causation.",
+  "benchmarkQuestion": "Prepare a Frank-stage benchmark case packet for Palsgraf v. Long Island R.R. Co., 248 N.Y. 339, 162 N.E. 99 (1928). Your packet should enable a law-student or practitioner to teach, test, or apply the case across doctrinal and policy questions. Address each of the six analysis domains below. Be concise and explicit so items can be edited into alternate facts or used as prompts on an exam. Cite the anchor case and indicate where the opinion is silent and further research might be required. Deliver each domain as a discrete deliverable (short paragraph or bullet list) and include the practical tools requested. Do not write a full essay — produce a compact, modular packet that can be adapted for classroom hypotheticals, exams, or memorandum use. Domains and required contents: 1) Facts & Procedural Posture — concise, editable restatement of operative facts, parties, lower-court rulings, and the question presented to the Court of Appeals. Include explicit notes on which facts to change to create common variants (e.g., package contents visible; plaintiff proximity; intervening actor; intentional act). 2) Legal Issue(s) — list primary and secondary legal questions the case addresses; frame them so they can be split or adapted (duty vs proximate cause; foreseeability of class of victims; intervening cause; relation of duty to proximate cause). 3) Holding & Governing Rule — provide (a) a one-sentence holding, and (b) three portable rule formulations usable in different drafting styles (black-letter, element-based, policy-neutral). Mark the controlling language from Cardozo’s opinion to be quoted or paraphrased. 4) Foreseeability & Duty Analysis — produce a step-by-step practical checklist for applying Cardozo’s foreseeability-as-duty limit, plus a compact list of markers/indicia that identify whether a plaintiff is within the ‘zone of risk.’ Apply these steps briefly to the Palsgraf facts. 5) Causation, Proximate Cause & Dissenting Views — contrast cause-in-fact vs proximate cause in Palsgraf; explain Cardozo’s proximate-cause/duty approach and Andrews’ dissenting framework (substantial-factor/directness). Provide at least three pointed questions a student should answer when evaluating whether legal causation exists and whether an intervening act is superseding. 6) Policy, Analogies & Hypothetical Application — summarize policy rationales for Cardozo’s rule and for Andrews’ approach (one sentence each), then supply five editable hypotheticals to test the rule (include at least one modern-technology scenario and one involving an intentional intervening act). For each hypothetical, add a one-sentence prompt indicating which doctrinal question to focus on (foreseeability/duty, proximate cause, intervening act, or policy). Final short summary takeaway (1–2 sentences) stating the core lesson from Palsgraf and how Andrews’ dissent functions pedagogically. Note briefly (one line) any doctrinal areas the opinion does not address (e.g., statutory duties, insurance allocation, damages measure).",
+  "failureModeSeeds": [
+    "Treats foreseeability as only about the general type of harm rather than foreseeability of the injured plaintiff/class",
+    "Confuses cause-in-fact (but-for) with proximate cause and claims factual causation must always produce liability",
+    "Overgeneralizes Palsgraf as universally binding authority for all jurisdictions without noting jurisdictional variation",
+    "Applies Cardozo’s duty-first framing mechanically to statutory or product-liability regimes where different duty principles may govern",
+    "Fails to distinguish Andrews’ dissent as a competing proximate-cause framework rather than a minor factual disagreement",
+    "Assumes visibility of risk is required in every foreseeability inquiry (ignores other indicia like spatial proximity and class membership)"
+  ],
+  "masterIssueStatement": "Does a defendant owe a duty of care to a plaintiff injured by the defendant’s negligent act when the plaintiff was not within the foreseeable ‘zone of risk’ created by that act — i.e., is foreseeability of the particular plaintiff a prerequisite for liability (proximate cause/duty)?",
+  "approvedAt": null,
+  "createdAt": "2026-04-05T00:49:29.845Z",
+  "updatedAt": "2026-04-05T01:47:58.664Z"
+}

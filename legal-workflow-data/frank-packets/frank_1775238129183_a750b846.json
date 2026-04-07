@@ -1,0 +1,101 @@
+{
+  "id": "frank_1775238129183_a750b846",
+  "status": "approved",
+  "legalDomain": "Contracts",
+  "domainScope": "Hamer v. Sidway",
+  "sourceFamily": "web_searched_anchor_case",
+  "selectedCase": {
+    "id": "case_2",
+    "title": "Hamer v. Sidway",
+    "citation": "124 N.Y. 538, 27 N.E. 256 (N.Y. Ct. App. 1891)",
+    "court": "New York Court of Appeals",
+    "year": "1891",
+    "url": "https://www.law.cornell.edu/wex/illusory_promise (discussion of Hamer v. Sidway)",
+    "summary": "Consideration by forbearance: uncle’s promise enforceable where nephew gave up legal rights (drinking, smoking, gambling); establishes that forbearance of a legal right can constitute valid consideration for a promise. Straightforward rule on consideration/unilateral promises.",
+    "relevance": "Core authority for consideration and unilateral-contract/promissory doctrines; highly teachable."
+  },
+  "analysisDomains": [
+    {
+      "id": "analysis_domain_1",
+      "name": "Jurisdiction assumption",
+      "description": "State the legal framework the answer assumes, such as U.S. common law or a specific state rule if the source supports it."
+    },
+    {
+      "id": "analysis_domain_2",
+      "name": "Bottom-line outcome",
+      "description": "Give the clearest conclusion about whether the oral promise is enforceable."
+    },
+    {
+      "id": "analysis_domain_3",
+      "name": "Controlling doctrine",
+      "description": "Identify the main rule or Statute of Frauds category that most likely decides the case."
+    },
+    {
+      "id": "analysis_domain_4",
+      "name": "Formation",
+      "description": "Briefly assess whether the facts show a real bargain, consideration, or only a condition on a gift."
+    },
+    {
+      "id": "analysis_domain_5",
+      "name": "Statute of Frauds Gates",
+      "description": "Analyze which writing-requirement categories are triggered and which one is dispositive."
+    },
+    {
+      "id": "analysis_domain_6",
+      "name": "Exceptions/Promissory Estoppel",
+      "description": "Address any fallback theory that might avoid nonenforcement despite the lack of a writing."
+    },
+    {
+      "id": "analysis_domain_7",
+      "name": "Defenses/Mistake",
+      "description": "Consider any separate defense or excuse, such as mistake or failure of a claimed condition."
+    }
+  ],
+  "sourceArtifacts": [],
+  "sourceIntake": {
+    "sourceQualityRating": "high — primary, widely-cited appellate opinion and standard law-school/common-law authority (Cornell Wex summary is a reputable secondary source for context).",
+    "benchmarkPosture": "portable_common_law_benchmark",
+    "recommendation": "Use Hamer as the canonical authority to justify that forbearance of a legal right constitutes consideration. When drafting or arguing, cite Hamer for the black-letter rule but confirm modern jurisdictional treatment and separately analyze any Statute-of-Frauds or statutory changes. If the case facts implicate reliance or SoF, prepare promissory-estoppel and part-performance arguments as fallback positions.",
+    "jdReviewBurden": [
+      "Read the full Hamer opinion to capture nuances (e.g., whether forbearance was induced by promise and how the court framed detriment vs. benefit).",
+      "Confirm whether the forum jurisdiction follows Hamer or has modern modifications.",
+      "Check whether the facts trigger a Statute-of-Frauds category or the UCC; if so, collect documentary evidence, signatures, or part-performance facts.",
+      "If relying on estoppel as backup, compile evidence of reasonably foreseeable reliance and detriment."
+    ],
+    "reverseEngineeringSuitability": "strong"
+  },
+  "sourceExtraction": {
+    "legalIssue": "Whether abstaining from activities one has a legal right to do (forbearance) can operate as consideration to support an enforceable promise.",
+    "blackLetterRule": "Forbearance of a legal right (the surrender of a legal privilege or refraining from a lawful activity) constitutes sufficient consideration to make a promise enforceable under common-law contract doctrine.",
+    "triggerFacts": [
+      "An uncle orally promised money to his nephew conditioned on the nephew refraining from drinking, smoking, swearing, and gambling until a specified time.",
+      "The nephew refrained from those activities until the agreed time (i.e., performed the forbearance).",
+      "The uncle later refused to pay, and the enforcement question concerned whether the nephew’s forbearance was valid consideration."
+    ],
+    "holding": "The New York Court of Appeals held the uncle's promise enforceable because the nephew's forbearance of legal rights constituted sufficient consideration to support the promise.",
+    "limits": [
+      "Hamer addresses the consideration issue and does not decide Statute-of-Frauds/writing-requirement questions; applicability to SoF categories must be analyzed separately.",
+      "The decision presumes the forbearance was a legal right and was given in exchange for (induced by) the promise — mere moral obligation or unrelated acts are not sufficient.",
+      "Hamer does not resolve modern statutory modifications to contract formation (e.g., UCC thresholds, state estoppel/SoF statutes)."
+    ],
+    "uncertainty": [
+      "Whether a particular modern jurisdiction has altered the classical rule (some jurisdictions have refined consideration doctrines or place greater emphasis on reliance doctrines).",
+      "Whether evidence adequately proves requested forbearance and performance of the condition (disputed factual questions outside Hamer’s summary holding).",
+      "Whether subsequent cases have limited Hamer’s reach in contexts involving public-policy constraints, illegal-forbearance issues, or statutory requirements."
+    ]
+  },
+  "benchmarkAnswer": "Assumed jurisdictional framework: U.S. common-law formation doctrine, with New York Court of Appeals precedent (Hamer v. Sidway) as the controlling anchor for the consideration issue; where state law differs the analyst should check whether the jurisdiction has modified the classical doctrine by statute or subsequent case law.\n\nBottom-line outcome (clear conclusion): Under Hamer the oral promise is enforceable because the nephew's forbearance — relinquishing legal rights to drink, smoke, and gamble until a specified time — constituted valid consideration for the uncle's promise. Hamer holds that forbearance of a legal right is a sufficient detriment to support a promise.\n\nControlling doctrine: The dispositive doctrine is the common-law rule on consideration: a bargained-for legal detriment or forbearance (abstaining from a legal right) can support an enforceable promise. Hamer is not a Statute-of-Frauds case and the opinion treats the question as one of consideration/contract formation, not writing requirements. (If a writing requirement were triggered by other facts, the Statute of Frauds would be a separate gate — see below.)\n\nFormation (real bargain vs. conditional gift): Hamer treats the facts as a real bargain: the nephew’s abstention was the promisor’s requested performance (a condition) and not merely a gratuitous act. The elements the opinion requires: (1) a promise by the uncle, (2) the nephew’s forbearance of legal rights in exchange for that promise, and (3) performance of the forbearance. Courts following Hamer emphasize that the promise need not confer an identifiable benefit on the promisor so long as the promisee suffers a legal detriment or gives up a legal right.\n\nStatute-of-Frauds gates: The Hamer facts (an oral promise to pay money conditioned on forbearance) do not implicate classic Statute-of-Frauds categories (sale of land, marriage, >1-year performance, suretyship, sale of goods over UCC $500 threshold). Therefore SoF is not dispositive in Hamer. If different facts raised a SoF category, the usual devices would be relevant: (a) whether the contract is within a statutory writing requirement; (b) whether partial performance, reliance, or a signed memorandum satisfies the SoF. Hamer itself does not meaningfully analyze or decide writing-requirement issues.\n\nExceptions / promissory estoppel: If a promise lacked consideration in a given case, modern courts may still enforce it under promissory estoppel (reliance to the promisee’s detriment). In the Hamer fact pattern promissory estoppel is unnecessary because consideration exists, but it is an available fallback where forbearance is not clearly bargained-for or where SoF blocks enforcement but fairness and reliance justify relief (e.g., part performance, detrimental reliance doctrines). Analysts should cite state law for the elements and availability of estoppel and SoF-relief doctrines.\n\nDefenses / mistake / other excuses: Typical defenses to enforcement that should be considered include: lack of capacity, illegality, fraud/duress, failure to satisfy a condition precedent (e.g., if the promise required absolute abstention and the promisee secretly violated the condition), or mistake about material facts. Hamer assumes the forbearance occurred; a court could refuse enforcement if the promisor proves the condition was not met or that the alleged forbearance was not a legal right (e.g., if the activities were already illegal or the promisee never had the right to engage in them). Also note that moral obligation (alone) is insufficient absent accompanying legal detriment; Hamer distinguishes legal forbearance from mere moral consideration.\n\nPractical notes for application: (1) Use Hamer when the core dispute is whether relinquishing a legal right can be consideration; (2) confirm whether the jurisdiction still follows Hamer’s formulation or has narrowed/expanded consideration doctrines; (3) separately check whether any Statute-of-Frauds category or statutory modification (including the UCC for goods) alters enforceability; (4) where evidence of the bargain or performance is weak, consider promissory estoppel or part-performance doctrines.\n\nConcise answer to a practitioner’s question: Under the Hamer rule, an oral promise tied to the promisee’s forbearance of legal rights is enforceable as a contract because the forbearance supplies consideration. The statute-of-frauds was not triggered in Hamer’s facts — but if your facts implicate SoF, analyze that gate separately and preserve promissory-estoppel and part-performance alternatives.",
+  "benchmarkQuestion": "You are given the following fact pattern and asked to prepare a bench memo that answers a judge’s likely question about enforceability. Address each of the numbered analysis domains below and conclude with a clear bottom-line holding and practical advice for counsel on pleadings/relief. Cite the governing doctrinal rules (and statutes where applicable) that you rely on and identify any factual disputes a court would need resolved by evidence or credibility findings. No extended history of Hamer is required beyond its holding that forbearance of a legal right may constitute consideration. Facts: In 2016, Uncle (U) orally told his adult niece (N): “If you refrain from drinking alcohol, smoking tobacco, and gambling until your 30th birthday, I will give you $50,000.” N is 18 at the time. N gives up those activities and does not engage in them until she turns 30 in 2028. Within weeks after N’s 30th birthday she contacts U for payment. U (now elderly) denies any enforceable obligation and dies in 2029. U’s executor (E) refuses to pay, asserting: (a) the oral promise is unenforceable for lack of consideration (merely a moral gift), (b) the promise falls within the Statute of Frauds or other writing requirements (it was not signed/written), (c) if it is enforceable it is a testamentary promise not binding on the estate, and (d) N breached the condition by secretly taking a single cigarette when she was 19 (N denies this). N sues E in state court to compel payment from U’s estate, alleging she gave up legal rights in reliance on U’s promise and seeking contract damages or specific relief against the estate. Tasks — address the following domains in your memo and be explicit about each: 1. Jurisdictional assumption: State the legal framework and any caveats (e.g., U.S. common law; treat New York law/Hamer as controlling for consideration; note whether any modern statutory changes or UCC rules could alter the analysis). 2. Bottom-line outcome: Give the single clearest conclusion the judge should reach on enforceability (yes/no), and the principal reason. 3. Controlling doctrine: Identify the dispositive legal rule(s) (e.g., Hamer’s forbearance-as-consideration rule; applicable Statute of Frauds provision(s); whether the promise is contract vs. testamentary disposition). 4. Formation analysis: Analyze whether the facts show a bargained-for exchange (consideration), or instead merely a conditional gift or moral obligation; include the significance (if any) of the fact that U did not receive any economic benefit and whether N’s forbearance is a legal detriment. 5. Statute-of-Frauds gates: Identify which SoF (or similar writing-requirement) categories might be implicated (one-year rule, executor/administrator promise-to-pay-decedent’s-debts or testamentary issues, marriage, land sale, suretyship, sale of goods under UCC, etc.), say which, if any, is dispositive, and analyze whether any writing, part performance, or other exception would satisfy the SoF. 6. Exceptions / promissory estoppel: Analyze whether promissory estoppel, part-performance, detrimental reliance, or equitable estoppel could operate to enforce the promise if a formal writing is required or if consideration is challenged. Specify the elements and whether the facts plausibly satisfy them. 7. Defenses / mistake / failure of condition: Discuss other defenses E can raise (e.g., failure to satisfy condition precedent, fraud, duress, lack of capacity, illegality, mistake, secret violation of the condition), evaluate their factual plausibility given the record, and explain how they would be proven or rebutted. Additional deliverables: - List the key factual issues that should be tried (credibility, whether N smoked once, whether U intended a contract vs. a gift/testamentary intent, timing of payment, whether U died intestate or left a will purporting to dispose of the $50,000, etc.). - Recommend the best immediate procedural claims and remedies N should plead (e.g., breach of contract, promissory estoppel, quantum meruit, declaratory relief, turnover from estate), and the relief likely available (money judgment, constructive trust, specific performance against the estate, priority among creditors). - Provide 2–3 concise practical notes for counsel (e.g., evidence to gather, witness list, affidavit strategy, preservation of estoppel/SoF arguments, or statutory nuances to research). Your answer should be organized by the numbered domains above and end with the concise bottom-line holding and suggested pleadings/relief. Keep the overall memo to a single page (concise and focused).",
+  "failureModeSeeds": [
+    "Treating mere moral obligation or benevolence as sufficient consideration without proof of legal detriment (confusing moral motive with legal consideration).",
+    "Applying Hamer’s forbearance rule to situations where the supposed ‘forbearance’ was not a legal right (e.g., where the act was already illegal or the promisee lacked the right).",
+    "Assuming Hamer resolves Statute-of-Frauds questions — Hamer addresses consideration, not writing requirements.",
+    "Failing to verify that the promisee’s abstention was requested or induced by the promisor (bargained-for exchange requirement).",
+    "Overlooking promissory estoppel and part-performance doctrines when a writing would otherwise be required.",
+    "Misapplying the holding to commercial transactions governed by the UCC without checking $500 goods threshold and relevant statutory text."
+  ],
+  "masterIssueStatement": "Whether a promisor’s oral promise is enforceable where the promisee refrained from exercising legal rights (drinking, smoking, gambling) in reliance on that promise — i.e., can forbearance of a legal right constitute consideration? (Anchor: Hamer v. Sidway, 124 N.Y. 538, 27 N.E. 256 (N.Y. Ct. App. 1891)).",
+  "approvedAt": "2026-04-03T17:49:12.939Z",
+  "createdAt": "2026-04-03T17:42:09.183Z",
+  "updatedAt": "2026-04-03T17:49:12.939Z"
+}

@@ -1,0 +1,7 @@
+{
+  "responses": [
+    {"id": "r1", "response": "Promissory estoppel applies because there was a clear promise and detrimental reliance by the plaintiff."},
+    {"id": "r2", "response": "The promise was clear, the plaintiff relied on it, and promissory estoppel likely applies."},
+    {"id": "r3", "response": "The statute of frauds bars enforcement because the contract was not in writing and no exception applies."}
+  ]
+}
