@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { CheckCircle2, FlaskConical, Network, Scale, ScrollText, Trash2 } from 'lucide-react';
+import { CheckCircle2, FlaskConical, LoaderCircle, Network, Scale, ScrollText, Trash2 } from 'lucide-react';
 
 import { AppShell } from '@/components/ui/AppShell';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -190,6 +190,34 @@ const MODEL_PALETTE = ['#22c55e', '#ef4444', '#94a3b8', '#3b82f6', '#f97316', '#
 
 const DASHA_ROLES: ArtifactRole[] = ['question_packet', 'issue_statement', 'evidence_packet', 'supplemental'];
 
+type WorkflowButtonVariant = 'neutral' | 'teal' | 'success' | 'warning' | 'danger' | 'ghost';
+type WorkflowButtonSize = 'md' | 'sm' | 'xs' | 'chip' | 'icon';
+
+function workflowButtonClass(
+    variant: WorkflowButtonVariant,
+    size: WorkflowButtonSize = 'md',
+    extraClassName?: string,
+) {
+    const baseClassName = 'inline-flex items-center justify-center gap-2 rounded-lg border font-semibold shadow-sm transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-md active:translate-y-0 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-sm';
+    const sizeClassName = {
+        md: 'px-3 py-2 text-sm',
+        sm: 'px-3 py-1.5 text-xs',
+        xs: 'px-2 py-0.5 text-[11px]',
+        chip: 'rounded-full px-3 py-1.5 text-xs shadow-none hover:shadow-sm',
+        icon: 'p-2',
+    } satisfies Record<WorkflowButtonSize, string>;
+    const variantClassName = {
+        neutral: 'border-slate-300 bg-white text-slate-700 focus-visible:ring-slate-300',
+        teal: 'border-teal-300 bg-teal-50 text-teal-800 focus-visible:ring-teal-300',
+        success: 'border-emerald-300 bg-emerald-50 text-emerald-800 focus-visible:ring-emerald-300',
+        warning: 'border-amber-300 bg-white text-amber-800 focus-visible:ring-amber-300',
+        danger: 'border-rose-300 bg-white text-rose-700 focus-visible:ring-rose-300',
+        ghost: 'border-slate-300 bg-slate-100 text-slate-600 focus-visible:ring-slate-300',
+    } satisfies Record<WorkflowButtonVariant, string>;
+
+    return [baseClassName, sizeClassName[size], variantClassName[variant], extraClassName].filter(Boolean).join(' ');
+}
+
 const DEFAULT_KARTHIC_STATE: KarthicEditorState = {
     frankPacketId: '',
     status: 'draft',
@@ -319,9 +347,11 @@ function buildKarthicExplainerItems(
             title: '2. Weighted Domains',
             summary: 'Turn Frank’s analysis domains into the weighted evaluation dimensions Dasha will later score against.',
             detail: [
-                'This stage takes Frank’s coverage buckets and makes them operational for evaluation.',
-                'Each domain gets editable names, descriptions, relative weights, and NA guidance.',
-                'That lets later comparison logic distinguish core doctrinal failures from lower-importance misses or genuinely inapplicable categories.',
+                'Takes Frank’s coverage buckets and makes them \'operational\' for evaluation, such as defining in/exclusive content, how each domain is distinct, etc. This defines the STRUCTURE that is later to be operationalized pertaining to the golden answer and the domains.',
+                'This is achieved through editable names, descriptions, relative weights, and NA guidance, to shape and operationalize domain evaluation.',
+                'Essentially, this step answers: what are we scoring? where are the boundaries between buckets? how much should each bucket matter?',
+                'Step 2 says: Duty / Breach / Causation / Damages Step 3 says: for Causation, the gold answer should discuss X, may omit Y, and statements like Z count against the answer.',
+                'This allows the later comparison logic (comparing golden response to AI answers to surface errors) to distinguish essential failures from trivial misses or inapplicable categories.',
             ],
             promptText: frankPacket ? buildKarthicDomainDraftPrompt({ frankPacket }) : null,
             promptEmptyState: 'Select an approved Frank packet to preview the exact Karthic domain-drafting prompt.',
@@ -331,8 +361,10 @@ function buildKarthicExplainerItems(
             title: '3. Structured Golden Targets',
             summary: 'Decompose the generalized golden response into domain-specific comparison targets.',
             detail: [
-                'Karthic extracts per-domain target structures rather than keeping the generalized golden response as one undifferentiated block of prose.',
+                'Karthic extracts per-domain target structures rather than keeping the generalized golden response as one undifferentiated block of prose. This OPERATIONALIZES the structure of the golden response as pertaining to the domains.',
                 'Those structures include what the generalized golden response affirmatively contains, what omissions can be tolerated, and what contradictions should count against a generated answer.',
+                'Essentially, this step answers: within this bucket, what counts as a match? what counts as a miss? what counts as tolerably absent? what counts as wrong?',
+                'Step 2 says: Duty / Breach / Causation / Damages Step 3 says: for Causation, the gold answer should discuss X, may omit Y, and statements like Z count against the answer.',
                 'This matters technically because Dasha compares centroid representatives against structured target fields, not against a single essay blob.',
             ],
             promptText: frankPacket && editor.domains.length > 0 ? buildKarthicGoldenTargetsPrompt({
@@ -430,12 +462,14 @@ export default function LegalWorkflowPage() {
     const [frankRefiningGolden, setFrankRefiningGolden] = useState(false);
     const [frankRecheckingGolden, setFrankRecheckingGolden] = useState(false);
     const [frankGeneratingQuestion, setFrankGeneratingQuestion] = useState(false);
+    const [frankSavingStatus, setFrankSavingStatus] = useState<FrankPacket['status'] | null>(null);
     const [frankDeletingId, setFrankDeletingId] = useState<string | null>(null);
 
     const [karthicEditor, setKarthicEditor] = useState<KarthicEditorState>(DEFAULT_KARTHIC_STATE);
     const [karthicStep, setKarthicStep] = useState<KarthicWizardStep>('packet');
     const [karthicDraftingDomains, setKarthicDraftingDomains] = useState(false);
     const [karthicGeneratingTargets, setKarthicGeneratingTargets] = useState(false);
+    const [karthicSavingStatus, setKarthicSavingStatus] = useState<KarthicRubricPack['status'] | null>(null);
     const [dashaUploads, setDashaUploads] = useState<UploadRow[]>([]);
     const [dashaStep, setDashaStep] = useState<DashaWizardStep>('rubric');
     const [dashaForm, setDashaForm] = useState<DashaFormState>({
@@ -1105,6 +1139,7 @@ export default function LegalWorkflowPage() {
     }
 
     async function saveFrank(status: FrankPacket['status']) {
+        setFrankSavingStatus(status);
         setErrorMessage(null);
         setStatusMessage(status === 'approved' ? 'Approving Frank packet...' : 'Saving Frank packet...');
         try {
@@ -1155,6 +1190,8 @@ export default function LegalWorkflowPage() {
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to save Frank packet.');
             setStatusMessage(null);
+        } finally {
+            setFrankSavingStatus(null);
         }
     }
 
@@ -1293,6 +1330,7 @@ export default function LegalWorkflowPage() {
     }
 
     async function saveKarthic(status: KarthicRubricPack['status']) {
+        setKarthicSavingStatus(status);
         setErrorMessage(null);
         setStatusMessage(status === 'approved' ? 'Approving Karthic rubric pack...' : 'Saving Karthic rubric pack...');
         try {
@@ -1322,6 +1360,8 @@ export default function LegalWorkflowPage() {
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to save Karthic rubric pack.');
             setStatusMessage(null);
+        } finally {
+            setKarthicSavingStatus(null);
         }
     }
 
@@ -1485,7 +1525,7 @@ export default function LegalWorkflowPage() {
                                             type="button"
                                             onClick={() => setFrankStep('case')}
                                             disabled={!frankEditor.legalDomain.trim()}
-                                            className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                            className={workflowButtonClass('teal')}
                                         >
                                             Continue to Case Search
                                         </button>
@@ -1507,7 +1547,7 @@ export default function LegalWorkflowPage() {
                                                     type="button"
                                                     onClick={() => void searchFrankCases()}
                                                     disabled={frankSearchingCases || frankUploadingCasePdf || !frankEditor.legalDomain.trim()}
-                                                    className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                    className={workflowButtonClass('teal', 'md', 'mt-3')}
                                                 >
                                                     {frankSearchingCases ? 'Searching...' : 'Search Online For Anchor Cases'}
                                                 </button>
@@ -1530,7 +1570,7 @@ export default function LegalWorkflowPage() {
                                                     type="button"
                                                     onClick={() => void uploadFrankAnchorCasePdf()}
                                                     disabled={frankSearchingCases || frankUploadingCasePdf || !frankEditor.legalDomain.trim() || !frankCaseUpload}
-                                                    className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                    className={workflowButtonClass('teal', 'md', 'mt-3')}
                                                 >
                                                     {frankUploadingCasePdf ? 'Uploading...' : 'Upload PDF As Anchor Case'}
                                                 </button>
@@ -1598,7 +1638,7 @@ export default function LegalWorkflowPage() {
                                         <button
                                             type="button"
                                             onClick={() => setFrankStep('domain')}
-                                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                            className={workflowButtonClass('neutral')}
                                         >
                                             Back
                                         </button>
@@ -1606,7 +1646,7 @@ export default function LegalWorkflowPage() {
                                             type="button"
                                             onClick={() => setFrankStep('domains')}
                                             disabled={!frankEditor.selectedCase}
-                                            className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                            className={workflowButtonClass('teal')}
                                         >
                                             Continue to Analysis Domains
                                         </button>
@@ -1627,7 +1667,7 @@ export default function LegalWorkflowPage() {
                                                 type="button"
                                                 onClick={() => void draftFrankDomains()}
                                                 disabled={!frankEditor.selectedCase || frankDraftingDomains}
-                                                className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                className={workflowButtonClass('teal')}
                                             >
                                                 {frankDraftingDomains ? 'Drafting...' : 'Draft Analysis Domains'}
                                             </button>
@@ -1644,7 +1684,7 @@ export default function LegalWorkflowPage() {
                                                     { id: `analysis_domain_${current.analysisDomains.length + 1}`, name: '', description: '' },
                                                 ],
                                             }))}
-                                            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
+                                            className={workflowButtonClass('neutral', 'sm')}
                                         >
                                             Add Domain
                                         </button>
@@ -1662,7 +1702,7 @@ export default function LegalWorkflowPage() {
                                                         onClick={() => applyFrankCaseDomainEdit((current) => ({
                                                             analysisDomains: current.analysisDomains.filter((_, domainIndex) => domainIndex !== index),
                                                         }))}
-                                                        className="text-xs font-semibold text-rose-600"
+                                                        className={workflowButtonClass('danger', 'sm', 'border-transparent bg-transparent p-0 text-rose-600 shadow-none hover:bg-rose-50/70')}
                                                     >
                                                         Delete
                                                     </button>
@@ -1696,7 +1736,7 @@ export default function LegalWorkflowPage() {
                                         <button
                                             type="button"
                                             onClick={() => setFrankStep('case')}
-                                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                            className={workflowButtonClass('neutral')}
                                         >
                                             Back
                                         </button>
@@ -1704,7 +1744,7 @@ export default function LegalWorkflowPage() {
                                             type="button"
                                             onClick={() => setFrankStep('fit')}
                                             disabled={!frankDomainCountValid}
-                                            className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                            className={workflowButtonClass('teal')}
                                         >
                                             Continue to Fit Check
                                         </button>
@@ -1750,7 +1790,7 @@ export default function LegalWorkflowPage() {
                                             type="button"
                                             onClick={() => void runFrankFitCheck()}
                                             disabled={frankRunningFitCheck || !frankDomainCountValid || !frankEditor.selectedCase}
-                                            className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                            className={workflowButtonClass('teal', 'md', 'mt-3')}
                                         >
                                             {frankRunningFitCheck ? 'Running...' : frankEditor.fitCheck.lastRunAt ? 'Re-Run Fit Check' : 'Run Fit Check'}
                                         </button>
@@ -1786,7 +1826,7 @@ export default function LegalWorkflowPage() {
                                             <button
                                                 type="button"
                                                 onClick={() => void saveFrankFitOverride()}
-                                                className="mt-3 rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm font-semibold text-rose-700"
+                                                className={workflowButtonClass('danger', 'md', 'mt-3')}
                                             >
                                                 Save Manual Override And Unlock Golden Step
                                             </button>
@@ -1797,7 +1837,7 @@ export default function LegalWorkflowPage() {
                                         <button
                                             type="button"
                                             onClick={() => setFrankStep('domains')}
-                                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                            className={workflowButtonClass('neutral')}
                                         >
                                             Back
                                         </button>
@@ -1805,7 +1845,7 @@ export default function LegalWorkflowPage() {
                                             type="button"
                                             onClick={() => setFrankStep('golden')}
                                             disabled={!frankCanGenerateGolden}
-                                            className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                            className={workflowButtonClass('teal')}
                                         >
                                             Continue to Golden Response
                                         </button>
@@ -1851,7 +1891,7 @@ export default function LegalWorkflowPage() {
                                             type="button"
                                             onClick={() => void generateFrankGoldenResponse()}
                                             disabled={frankGeneratingGolden || frankRefiningGolden || frankRecheckingGolden || !frankCanGenerateGolden}
-                                            className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                            className={workflowButtonClass('teal', 'md', 'mt-3')}
                                         >
                                             {frankGeneratingGolden ? 'Generating...' : 'Generate And Save Golden Response'}
                                         </button>
@@ -1859,7 +1899,7 @@ export default function LegalWorkflowPage() {
                                             type="button"
                                             onClick={() => void recheckFrankGoldenResponse()}
                                             disabled={frankGeneratingGolden || frankRefiningGolden || frankRecheckingGolden || !frankEditor.benchmarkAnswer.trim() || !frankCanGenerateGolden}
-                                            className="mt-3 ml-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
+                                            className={workflowButtonClass('neutral', 'md', 'mt-3 ml-3')}
                                         >
                                             {frankRecheckingGolden ? 'Re-Checking...' : 'Re-Check Current Draft'}
                                         </button>
@@ -1878,7 +1918,7 @@ export default function LegalWorkflowPage() {
                                                 type="button"
                                                 onClick={() => void refineFrankGoldenResponseFromWarnings()}
                                                 disabled={frankGeneratingGolden || frankRefiningGolden || frankRecheckingGolden}
-                                                className="mt-3 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-800 disabled:opacity-60"
+                                                className={workflowButtonClass('warning', 'md', 'mt-3')}
                                             >
                                                 {frankRefiningGolden ? 'Refining...' : 'Refine With This Feedback'}
                                             </button>
@@ -1908,7 +1948,7 @@ export default function LegalWorkflowPage() {
                                         <button
                                             type="button"
                                             onClick={() => setFrankStep('fit')}
-                                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                            className={workflowButtonClass('neutral')}
                                         >
                                             Back
                                         </button>
@@ -1916,7 +1956,7 @@ export default function LegalWorkflowPage() {
                                             type="button"
                                             onClick={() => setFrankStep('question')}
                                             disabled={!frankEditor.benchmarkAnswer.trim()}
-                                            className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                            className={workflowButtonClass('teal')}
                                         >
                                             Continue to Question Packet
                                         </button>
@@ -1961,7 +2001,7 @@ export default function LegalWorkflowPage() {
                                             type="button"
                                             onClick={() => void generateFrankQuestionPacket()}
                                             disabled={frankGeneratingQuestion || !frankEditor.benchmarkAnswer.trim() || !frankCanGenerateGolden}
-                                            className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                            className={workflowButtonClass('teal', 'md', 'mt-3')}
                                         >
                                             {frankGeneratingQuestion ? 'Generating...' : 'Generate And Save Question Packet'}
                                         </button>
@@ -1988,24 +2028,25 @@ export default function LegalWorkflowPage() {
                                         <button
                                             type="button"
                                             onClick={() => setFrankStep('golden')}
-                                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                            className={workflowButtonClass('neutral')}
                                         >
                                             Back
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => void saveFrank('draft')}
-                                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                            disabled={frankSavingStatus !== null}
+                                            className={workflowButtonClass('neutral')}
                                         >
-                                            Save Draft
+                                            {frankSavingStatus === 'draft' ? <><LoaderCircle className="h-4 w-4 animate-spin" />Saving Draft...</> : 'Save Draft'}
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => void saveFrank('approved')}
-                                            disabled={!frankReady}
-                                            className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 disabled:opacity-60"
+                                            disabled={!frankReady || frankSavingStatus !== null}
+                                            className={workflowButtonClass('success')}
                                         >
-                                            Approve for Karthic
+                                            {frankSavingStatus === 'approved' ? <><LoaderCircle className="h-4 w-4 animate-spin" />Approving...</> : 'Approve for Karthic'}
                                         </button>
                                     </div>
                                 </div>
@@ -2120,7 +2161,7 @@ export default function LegalWorkflowPage() {
                                                     type="button"
                                                     onClick={() => setKarthicStep('domains')}
                                                     disabled={!karthicEditor.frankPacketId}
-                                                    className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                    className={workflowButtonClass('teal')}
                                                 >
                                                     Continue to Domains
                                                 </button>
@@ -2149,7 +2190,7 @@ export default function LegalWorkflowPage() {
                                                         type="button"
                                                         onClick={() => void draftKarthicDomains()}
                                                         disabled={!karthicEditor.frankPacketId || karthicDraftingDomains}
-                                                        className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                        className={workflowButtonClass('teal')}
                                                     >
                                                         {karthicDraftingDomains ? 'Drafting...' : 'Draft Domains From Frank'}
                                                     </button>
@@ -2163,7 +2204,7 @@ export default function LegalWorkflowPage() {
                                                         ...current,
                                                         domains: [...current.domains, createEmptyDomainRow(current.domains.length)],
                                                     }))}
-                                                    className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
+                                                    className={workflowButtonClass('neutral', 'sm')}
                                                 >
                                                     Add Domain
                                                 </button>
@@ -2182,7 +2223,7 @@ export default function LegalWorkflowPage() {
                                                                     domains: current.domains.filter((_, domainIndex) => domainIndex !== index),
                                                                     goldenTargets: current.goldenTargets.filter((target) => target.domainId !== domain.id),
                                                                 }))}
-                                                                className="text-xs font-semibold text-rose-600"
+                                                                className={workflowButtonClass('danger', 'sm', 'border-transparent bg-transparent p-0 text-rose-600 shadow-none hover:bg-rose-50/70')}
                                                             >
                                                                 Delete
                                                             </button>
@@ -2205,7 +2246,7 @@ export default function LegalWorkflowPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => setKarthicStep('packet')}
-                                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                                    className={workflowButtonClass('neutral')}
                                                 >
                                                     Back
                                                 </button>
@@ -2213,7 +2254,7 @@ export default function LegalWorkflowPage() {
                                                     type="button"
                                                     onClick={() => setKarthicStep('targets')}
                                                     disabled={!karthicDomainCountValid}
-                                                    className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                    className={workflowButtonClass('teal')}
                                                 >
                                                     Continue to Golden Targets
                                                 </button>
@@ -2247,7 +2288,7 @@ export default function LegalWorkflowPage() {
                                                     type="button"
                                                     onClick={() => void generateKarthicTargets()}
                                                     disabled={karthicGeneratingTargets || !karthicDomainCountValid}
-                                                    className="mt-3 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                    className={workflowButtonClass('teal', 'md', 'mt-3')}
                                                 >
                                                     {karthicGeneratingTargets ? 'Generating...' : 'Generate And Save Golden Targets'}
                                                 </button>
@@ -2314,7 +2355,7 @@ export default function LegalWorkflowPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => setKarthicStep('domains')}
-                                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                                    className={workflowButtonClass('neutral')}
                                                 >
                                                     Back
                                                 </button>
@@ -2322,7 +2363,7 @@ export default function LegalWorkflowPage() {
                                                     type="button"
                                                     onClick={() => setKarthicStep('approve')}
                                                     disabled={!karthicTargetsReady}
-                                                    className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                    className={workflowButtonClass('teal')}
                                                 >
                                                     Continue to Approval
                                                 </button>
@@ -2363,24 +2404,25 @@ export default function LegalWorkflowPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => setKarthicStep('targets')}
-                                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                                    className={workflowButtonClass('neutral')}
                                                 >
                                                     Back
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => void saveKarthic('draft')}
-                                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                                    disabled={karthicSavingStatus !== null}
+                                                    className={workflowButtonClass('neutral')}
                                                 >
-                                                    Save Draft
+                                                    {karthicSavingStatus === 'draft' ? <><LoaderCircle className="h-4 w-4 animate-spin" />Saving Draft...</> : 'Save Draft'}
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => void saveKarthic('approved')}
-                                                    disabled={!karthicPackReady}
-                                                    className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 disabled:opacity-60"
+                                                    disabled={!karthicPackReady || karthicSavingStatus !== null}
+                                                    className={workflowButtonClass('success')}
                                                 >
-                                                    Approve for Dasha
+                                                    {karthicSavingStatus === 'approved' ? <><LoaderCircle className="h-4 w-4 animate-spin" />Approving...</> : 'Approve for Dasha'}
                                                 </button>
                                             </div>
                                         </div>
@@ -2464,7 +2506,7 @@ export default function LegalWorkflowPage() {
                                                     type="button"
                                                     onClick={() => setDashaStep('question')}
                                                     disabled={!dashaRubricReady}
-                                                    className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                    className={workflowButtonClass('teal')}
                                                 >
                                                     Continue to Question Packet
                                                 </button>
@@ -2496,7 +2538,7 @@ export default function LegalWorkflowPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => setDashaStep('rubric')}
-                                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                                    className={workflowButtonClass('neutral')}
                                                 >
                                                     Back
                                                 </button>
@@ -2504,7 +2546,7 @@ export default function LegalWorkflowPage() {
                                                     type="button"
                                                     onClick={() => setDashaStep('models')}
                                                     disabled={!dashaQuestionReady}
-                                                    className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                    className={workflowButtonClass('teal')}
                                                 >
                                                     Continue to Models
                                                 </button>
@@ -2570,7 +2612,7 @@ export default function LegalWorkflowPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => setDashaStep('question')}
-                                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                                    className={workflowButtonClass('neutral')}
                                                 >
                                                     Back
                                                 </button>
@@ -2578,7 +2620,7 @@ export default function LegalWorkflowPage() {
                                                     type="button"
                                                     onClick={() => setDashaStep('run')}
                                                     disabled={!dashaModelsReady}
-                                                    className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                    className={workflowButtonClass('teal')}
                                                 >
                                                     Continue to Run
                                                 </button>
@@ -2610,7 +2652,7 @@ export default function LegalWorkflowPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => setDashaStep('models')}
-                                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                                    className={workflowButtonClass('neutral')}
                                                 >
                                                     Back
                                                 </button>
@@ -2618,9 +2660,9 @@ export default function LegalWorkflowPage() {
                                                     type="button"
                                                     onClick={() => void runDasha()}
                                                     disabled={!dashaRunReady || dashaRunning}
-                                                    className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 disabled:opacity-60"
+                                                    className={workflowButtonClass('teal')}
                                                 >
-                                                    {dashaRunning ? 'Running...' : 'Run Dasha Evaluation'}
+                                                    {dashaRunning ? <><LoaderCircle className="h-4 w-4 animate-spin" />Running...</> : 'Run Dasha Evaluation'}
                                                 </button>
                                             </div>
                                         </div>
@@ -2951,7 +2993,11 @@ function FrankStepRail({
                     key={item.id}
                     type="button"
                     onClick={() => onChange(item.id)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${step === item.id ? 'border-teal-300 bg-teal-50 text-teal-800' : item.ready ? 'border-slate-300 bg-white text-slate-700' : 'border-slate-200 bg-slate-50 text-slate-400'}`}
+                    className={workflowButtonClass(
+                        step === item.id ? 'teal' : item.ready ? 'neutral' : 'ghost',
+                        'chip',
+                        !item.ready && step !== item.id ? 'border-slate-200 bg-slate-50 text-slate-400' : undefined,
+                    )}
                 >
                     {item.label}
                 </button>
@@ -3006,7 +3052,11 @@ function KarthicStepRail({
                     key={item.id}
                     type="button"
                     onClick={() => onChange(item.id)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${step === item.id ? 'border-teal-300 bg-teal-50 text-teal-800' : item.ready ? 'border-slate-300 bg-white text-slate-700' : 'border-slate-200 bg-slate-50 text-slate-400'}`}
+                    className={workflowButtonClass(
+                        step === item.id ? 'teal' : item.ready ? 'neutral' : 'ghost',
+                        'chip',
+                        !item.ready && step !== item.id ? 'border-slate-200 bg-slate-50 text-slate-400' : undefined,
+                    )}
                 >
                     {item.label}
                 </button>
@@ -3044,7 +3094,11 @@ function DashaStepRail({
                     key={item.id}
                     type="button"
                     onClick={() => onChange(item.id)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${step === item.id ? 'border-teal-300 bg-teal-50 text-teal-800' : item.ready ? 'border-slate-300 bg-white text-slate-700' : 'border-slate-200 bg-slate-50 text-slate-400'}`}
+                    className={workflowButtonClass(
+                        step === item.id ? 'teal' : item.ready ? 'neutral' : 'ghost',
+                        'chip',
+                        !item.ready && step !== item.id ? 'border-slate-200 bg-slate-50 text-slate-400' : undefined,
+                    )}
                 >
                     {item.label}
                 </button>
@@ -3073,7 +3127,7 @@ function StageCard(props: {
         <button
             type="button"
             onClick={props.onClick}
-            className={`rounded-2xl border p-5 text-left shadow-sm transition ${props.active ? 'border-teal-300 bg-teal-50/70 shadow-[0_14px_32px_rgba(13,148,136,0.12)]' : 'border-slate-200 bg-white hover:border-teal-200'}`}
+            className={`rounded-2xl border p-5 text-left shadow-sm transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2 ${props.active ? 'border-teal-300 bg-teal-50/70 shadow-[0_14px_32px_rgba(13,148,136,0.12)]' : 'border-slate-200 bg-white hover:border-teal-200'}`}
         >
             <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-teal-200 bg-white text-teal-700">
                 {props.icon}
@@ -3224,7 +3278,7 @@ function ArtifactListCard({
                                             onClick={() => onDelete(item.id)}
                                             disabled={Boolean(deletingId)}
                                             aria-label={`Delete ${item.legalDomain ? `${item.legalDomain} ${item.domainScope ?? ''}` : item.id}`}
-                                            className="rounded-lg border border-rose-200 bg-white p-2 text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                            className={workflowButtonClass('danger', 'icon', 'border-rose-200 text-rose-600')}
                                         >
                                             <Trash2 className="h-3.5 w-3.5" />
                                         </button>
@@ -3293,16 +3347,11 @@ function ClusterViewCard({
         () => new Map(entries.map((entry) => [entry.cluster.id, entry])),
         [entries],
     );
+    const safeHoveredClusterId = hoveredClusterId && filteredLookup.has(hoveredClusterId) ? hoveredClusterId : null;
     const selectedEntry = selectedClusterId ? filteredLookup.get(selectedClusterId) ?? null : null;
-    const hoveredEntry = hoveredClusterId ? filteredLookup.get(hoveredClusterId) ?? null : null;
+    const hoveredEntry = safeHoveredClusterId ? filteredLookup.get(safeHoveredClusterId) ?? null : null;
     const focusEntry = selectedEntry ?? hoveredEntry;
-    const activeClusterId = selectedClusterId ?? hoveredClusterId;
-
-    useEffect(() => {
-        if (hoveredClusterId && !entries.some((entry) => entry.cluster.id === hoveredClusterId)) {
-            setHoveredClusterId(null);
-        }
-    }, [entries, hoveredClusterId]);
+    const activeClusterId = selectedClusterId ?? safeHoveredClusterId;
 
     return (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -3522,7 +3571,7 @@ function ClusterViewCard({
                                         <button
                                             type="button"
                                             onClick={() => onSelectCluster(null)}
-                                            className="rounded border border-slate-300 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-200"
+                                            className={workflowButtonClass('ghost', 'xs')}
                                         >
                                             Clear focus
                                         </button>
@@ -3613,7 +3662,7 @@ function ClusterViewCard({
                                                             onClick={() => onSelectCluster(entry.cluster.id)}
                                                             onMouseEnter={() => setHoveredClusterId(entry.cluster.id)}
                                                             onMouseLeave={() => setHoveredClusterId((current) => (current === entry.cluster.id ? null : current))}
-                                                            className={`flex w-full items-center justify-between rounded-md border px-2 py-1.5 text-left text-xs transition ${selected ? 'border-blue-300 bg-blue-50' : hovered ? 'border-slate-300 bg-slate-100' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
+                                                            className={`flex w-full items-center justify-between rounded-md border px-2 py-1.5 text-left text-xs shadow-sm transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 ${selected ? 'border-blue-300 bg-blue-50' : hovered ? 'border-slate-300 bg-slate-100' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
                                                         >
                                                             <div>
                                                                 <span className="inline-flex items-center gap-2 font-semibold text-slate-700">
