@@ -27,6 +27,7 @@ import {
 import type {
     ArtifactRecord,
     ArtifactRole,
+    DashaRunMode,
     DashaClusterRecord,
     DashaResponseRecord,
     DashaRun,
@@ -44,6 +45,7 @@ import type {
     KarthicCriterion,
     KarthicDomain,
     KarthicGoldenDomainTarget,
+    KarthicSourceMode,
     KarthicRubricPack,
     ModelProvider,
     ReasoningEffort,
@@ -143,13 +145,17 @@ type GenerateFrankQuestionPacketInput = {
 
 type SaveKarthicInput = {
     id?: string;
-    frankPacketId: string;
+    sourceMode?: KarthicSourceMode;
+    frankPacketId?: string | null;
+    questionText?: string;
+    manualHeadingSeeds?: string;
     domains: KarthicDomain[];
     goldenTargets?: KarthicGoldenDomainTarget[];
     criteria?: KarthicCriterion[];
     refinementLog?: RefinementLogEntry[];
     smeNotes?: string;
     comparisonMethodNote?: string;
+    approvedRunMode?: KarthicRubricPack['approvedRunMode'];
     status?: KarthicRubricPack['status'];
 };
 
@@ -159,7 +165,7 @@ type DraftKarthicDomainsInput = {
 
 type GenerateKarthicGoldenTargetsInput = {
     id?: string;
-    frankPacketId: string;
+    frankPacketId?: string;
     domains: KarthicDomain[];
     smeNotes?: string;
 };
@@ -173,6 +179,7 @@ type RefineKarthicInput = {
 
 type DashaRunInput = {
     rubricPackId: string;
+    runMode: DashaRunMode;
     files: Array<{ role: ArtifactRole; fileName: string; bytes: Uint8Array }>;
     selectedModels: DashaSelectedModel[];
     sampleCount: number;
@@ -235,6 +242,28 @@ function normalizeFrankGenerationReasoningEffort(reasoningEffort?: ReasoningEffo
         return reasoningEffort;
     }
     return 'medium';
+}
+
+function normalizeKarthicSourceMode(value: unknown): KarthicSourceMode {
+    return value === 'manual' ? 'manual' : 'frank';
+}
+
+function normalizeApprovedRunMode(
+    value: unknown,
+    sourceMode: KarthicSourceMode,
+    hasGoldenTargets: boolean,
+): KarthicRubricPack['approvedRunMode'] {
+    if (value === 'score_and_cluster' || value === 'cluster_only' || value === 'both') {
+        return value;
+    }
+    if (sourceMode === 'manual' && !hasGoldenTargets) {
+        return 'cluster_only';
+    }
+    return 'both';
+}
+
+function normalizeDashaRunMode(value: unknown): DashaRunMode {
+    return value === 'cluster_only' ? 'cluster_only' : 'score_and_cluster';
 }
 
 const execFileAsync = promisify(execFile);
@@ -1062,10 +1091,10 @@ export async function generateFrankQuestionPacket(input: GenerateFrankQuestionPa
         if (!rawBenchmarkQuestion) {
             throw new Error('Model returned an empty question packet.');
         }
-        const normalizedQuestion = normalizeFrankQuestionPacket(rawBenchmarkQuestion, analysisDomains);
+        const normalizedQuestion = normalizeFrankQuestionPacket(rawBenchmarkQuestion);
         benchmarkQuestion = normalizedQuestion.text;
         benchmarkQuestion = sanitizeFrankQuestionPacket(benchmarkQuestion, selectedCase);
-        benchmarkQuestion = normalizeFrankQuestionPacket(benchmarkQuestion, analysisDomains).text;
+        benchmarkQuestion = normalizeFrankQuestionPacket(benchmarkQuestion).text;
         questionWarnings = collectFrankQuestionPacketWarnings(benchmarkQuestion, analysisDomains, selectedCase);
     } catch (error) {
         throw new Error(`Frank question packet generation failed: ${describeError(error, 'OpenAI request failed.')}`);
@@ -1165,6 +1194,9 @@ export async function draftKarthicDomains(input: DraftKarthicDomainsInput): Prom
 }
 
 export async function generateKarthicGoldenTargets(input: GenerateKarthicGoldenTargetsInput): Promise<KarthicRubricPack> {
+    if (!input.frankPacketId?.trim()) {
+        throw new Error('Frank packet not found.');
+    }
     const frankPacket = await getFrankPacket(input.frankPacketId);
     if (!frankPacket) {
         throw new Error('Frank packet not found.');
@@ -1267,23 +1299,55 @@ export async function generateKarthicGoldenTargets(input: GenerateKarthicGoldenT
 }
 
 export async function saveKarthicRubricPack(input: SaveKarthicInput): Promise<KarthicRubricPack> {
-    const frankPacket = await getFrankPacket(input.frankPacketId);
-    if (!frankPacket) {
-        throw new Error('Frank packet not found.');
-    }
-    if (frankPacket.status !== 'approved') {
-        throw new Error('Frank packet must be approved before Karthic can start.');
+    const existing = input.id ? await getKarthicRubricPack(input.id) : null;
+    const sourceMode = input.sourceMode ?? existing?.sourceMode ?? 'frank';
+    const frankPacketId = sourceMode === 'frank'
+        ? normalizeOptionalString(input.frankPacketId, existing?.frankPacketId ?? '').trim()
+        : null;
+    const frankPacket = sourceMode === 'frank' && frankPacketId
+        ? await getFrankPacket(frankPacketId)
+        : null;
+    if (sourceMode === 'frank') {
+        if (!frankPacket) {
+            throw new Error('Frank packet not found.');
+        }
+        if (frankPacket.status !== 'approved') {
+            throw new Error('Frank packet must be approved before Karthic can start.');
+        }
     }
 
-    const existing = input.id ? await getKarthicRubricPack(input.id) : null;
     const now = new Date().toISOString();
     const domains = normalizeDomains(input.domains);
-    const fallbackGoldenTargets = existing?.goldenTargets && existing.goldenTargets.length > 0
-        ? existing.goldenTargets
-        : buildFallbackKarthicGoldenTargets({ frankPacket, domains });
-    const goldenTargets = input.goldenTargets && input.goldenTargets.length > 0
-        ? normalizeGoldenTargets(input.goldenTargets, domains, fallbackGoldenTargets)
-        : fallbackGoldenTargets;
+    const rawQuestionText = normalizeOptionalString(input.questionText, existing?.questionText ?? '').trim();
+    let questionText = sourceMode === 'manual'
+        ? rawQuestionText
+        : normalizeOptionalString(input.questionText, existing?.questionText ?? '');
+    if (sourceMode === 'manual' && rawQuestionText) {
+        try {
+            questionText = normalizeFrankQuestionPacket(rawQuestionText).text;
+        } catch (error) {
+            if (input.status === 'approved') {
+                throw error;
+            }
+        }
+    }
+    const manualHeadingSeeds = sourceMode === 'manual'
+        ? normalizeOptionalString(input.manualHeadingSeeds, existing?.manualHeadingSeeds ?? '')
+        : '';
+    const fallbackGoldenTargets = sourceMode === 'frank'
+        ? (
+            existing?.goldenTargets && existing.goldenTargets.length > 0
+                ? existing.goldenTargets
+                : buildFallbackKarthicGoldenTargets({ frankPacket: frankPacket as FrankPacket, domains })
+        )
+        : [];
+    const goldenTargets = sourceMode === 'manual'
+        ? normalizeStrictManualGoldenTargets(input.goldenTargets, domains, existing?.goldenTargets ?? [])
+        : (
+            input.goldenTargets && input.goldenTargets.length > 0
+                ? normalizeGoldenTargets(input.goldenTargets, domains, fallbackGoldenTargets)
+                : fallbackGoldenTargets
+        );
     const criteria = input.criteria && input.criteria.length > 0
         ? normalizeCriteria(input.criteria)
         : goldenTargets.length > 0
@@ -1298,11 +1362,16 @@ export async function saveKarthicRubricPack(input: SaveKarthicInput): Promise<Ka
         input.comparisonMethodNote,
         existing?.comparisonMethodNote ?? 'Compare each centroid against structured golden-answer targets rather than against the raw answer prose alone.',
     );
+    const approvedRunMode = normalizeApprovedRunMode(input.approvedRunMode, sourceMode, goldenTargets.length > 0);
 
     const pack: KarthicRubricPack = {
         id: existing?.id ?? `karthic_${Date.now()}_${randomUUID().slice(0, 8)}`,
-        frankPacketId: input.frankPacketId,
+        sourceMode,
+        frankPacketId,
+        questionText,
+        manualHeadingSeeds,
         status: input.status ?? existing?.status ?? 'draft',
+        approvedRunMode,
         domains,
         goldenTargets,
         criteria,
@@ -1318,8 +1387,14 @@ export async function saveKarthicRubricPack(input: SaveKarthicInput): Promise<Ka
         if (pack.domains.length === 0) {
             throw new Error('Add at least one Karthic domain before approval.');
         }
-        if (pack.goldenTargets.length === 0) {
+        if (pack.sourceMode === 'manual' && !pack.questionText.trim()) {
+            throw new Error('Add a manual question packet before approval.');
+        }
+        if ((pack.approvedRunMode === 'score_and_cluster' || pack.approvedRunMode === 'both') && pack.goldenTargets.length === 0) {
             throw new Error('Generate the structured golden targets before approval.');
+        }
+        if (pack.sourceMode === 'manual' && (pack.approvedRunMode === 'score_and_cluster' || pack.approvedRunMode === 'both')) {
+            assertManualGoldenTargetsComplete(pack.goldenTargets, pack.domains);
         }
     }
 
@@ -1331,6 +1406,12 @@ export async function refineKarthicRubricPack(input: RefineKarthicInput): Promis
     const pack = await getKarthicRubricPack(input.packId);
     if (!pack) {
         throw new Error('Karthic rubric pack not found.');
+    }
+    if (pack.sourceMode === 'manual') {
+        throw new Error('Manual Karthic packs do not support benchmark-answer refinement.');
+    }
+    if (!pack.frankPacketId) {
+        throw new Error('Linked Frank packet not found.');
     }
     const frankPacket = await getFrankPacket(pack.frankPacketId);
     if (!frankPacket) {
@@ -1407,11 +1488,15 @@ export async function refineKarthicRubricPack(input: RefineKarthicInput): Promis
 }
 
 export async function listDashaRuns() {
-    return await listArtifacts<DashaRun>(DATA_DIRECTORIES.dasha);
+    const items = await listArtifacts<Record<string, unknown>>(DATA_DIRECTORIES.dasha);
+    return items
+        .map((item) => normalizeDashaRun(item))
+        .filter((item): item is DashaRun => Boolean(item));
 }
 
 export async function getDashaRun(id: string) {
-    return await readArtifact<DashaRun>(DATA_DIRECTORIES.dasha, id);
+    const item = await readArtifact<Record<string, unknown>>(DATA_DIRECTORIES.dasha, id);
+    return item ? normalizeDashaRun(item) : null;
 }
 
 export async function runDashaEvaluation(input: DashaRunInput): Promise<DashaRun> {
@@ -1422,9 +1507,11 @@ export async function runDashaEvaluation(input: DashaRunInput): Promise<DashaRun
     if (pack.status !== 'approved') {
         throw new Error('Karthic rubric pack must be approved before Dasha can start.');
     }
-    const frankPacket = await getFrankPacket(pack.frankPacketId);
-    if (!frankPacket) {
-        throw new Error('Linked Frank packet not found.');
+    if (pack.approvedRunMode === 'cluster_only' && input.runMode === 'score_and_cluster') {
+        throw new Error('This manual pack was approved for clustering only. Add complete golden targets and re-approve it for scoring.');
+    }
+    if (input.runMode === 'score_and_cluster' && pack.sourceMode === 'manual') {
+        assertManualGoldenTargetsComplete(pack.goldenTargets, pack.domains);
     }
 
     const id = `dasha_${Date.now()}_${randomUUID().slice(0, 8)}`;
@@ -1432,15 +1519,19 @@ export async function runDashaEvaluation(input: DashaRunInput): Promise<DashaRun
     const inputArtifacts = input.files.length > 0
         ? await saveUploadedArtifacts(id, input.files)
         : [];
-    const questionText = frankPacket.benchmarkQuestion.trim();
+    const questionText = pack.sourceMode === 'manual'
+        ? pack.questionText.trim()
+        : (await getRequiredFrankQuestionText(pack.frankPacketId));
     if (!questionText) {
-        throw new Error('Linked Frank packet does not contain a question packet yet.');
+        throw new Error('Question packet is missing.');
     }
     const sampleCount = clampNumber(Math.floor(toNumber(input.sampleCount, 200)), 1, 400);
 
     const draftRun: DashaRun = {
         id,
         rubricPackId: pack.id,
+        sourceMode: pack.sourceMode,
+        runMode: input.runMode,
         status: 'draft',
         inputArtifacts,
         questionText,
@@ -1485,6 +1576,8 @@ export async function executeDashaRun(id: string): Promise<DashaRun> {
         runId: run.id,
         createdAt: run.createdAt,
         rubricPackId: run.rubricPackId,
+        sourceMode: run.sourceMode,
+        runMode: run.runMode,
         questionText: run.questionText,
         inputArtifacts: run.inputArtifacts,
         selectedModels: run.selectedModels,
@@ -1493,10 +1586,27 @@ export async function executeDashaRun(id: string): Promise<DashaRun> {
     });
 }
 
+async function getRequiredFrankQuestionText(frankPacketId: string | null) {
+    if (!frankPacketId) {
+        throw new Error('Linked Frank packet not found.');
+    }
+    const frankPacket = await getFrankPacket(frankPacketId);
+    if (!frankPacket) {
+        throw new Error('Linked Frank packet not found.');
+    }
+    const questionText = frankPacket.benchmarkQuestion.trim();
+    if (!questionText) {
+        throw new Error('Linked Frank packet does not contain a question packet yet.');
+    }
+    return questionText;
+}
+
 async function finalizeDashaRun(input: {
     runId: string;
     createdAt: string;
     rubricPackId: string;
+    sourceMode: KarthicSourceMode;
+    runMode: DashaRunMode;
     questionText: string;
     inputArtifacts: ArtifactRecord[];
     selectedModels: DashaSelectedModel[];
@@ -1510,6 +1620,8 @@ async function finalizeDashaRun(input: {
             const failedRun: DashaRun = {
                 id: input.runId,
                 rubricPackId: input.rubricPackId,
+                sourceMode: input.sourceMode,
+                runMode: input.runMode,
                 status: 'failed',
                 inputArtifacts: input.inputArtifacts,
                 questionText: input.questionText,
@@ -1536,17 +1648,27 @@ async function finalizeDashaRun(input: {
 
         const clusteringResult = await clusterResponses(validResponses);
         const clusters = clusteringResult.clusters;
-        const domainResults = await evaluateClustersAgainstDomains({
-            questionText: input.questionText,
-            pack: input.pack,
-            clusters,
-            responses: validResponses,
-        });
-        const weightedSummary = summarizeDomainResults(domainResults);
+        const domainResults = input.runMode === 'score_and_cluster'
+            ? await evaluateClustersAgainstDomains({
+                questionText: input.questionText,
+                pack: input.pack,
+                clusters,
+                responses: validResponses,
+            })
+            : [];
+        const weightedSummary = input.runMode === 'score_and_cluster'
+            ? summarizeDomainResults(domainResults)
+            : {
+                applicableWeightTotal: 0,
+                weightedScore: null,
+                notApplicableDomainIds: [],
+            };
 
         const completedRun: DashaRun = {
             id: input.runId,
             rubricPackId: input.rubricPackId,
+            sourceMode: input.sourceMode,
+            runMode: input.runMode,
             status: 'completed',
             inputArtifacts: input.inputArtifacts,
             questionText: input.questionText,
@@ -1558,7 +1680,9 @@ async function finalizeDashaRun(input: {
             domainResults,
             weightedSummary,
             clusteringMethod: clusteringResult.method,
-            clusteringNotes: clusteringResult.notes,
+            clusteringNotes: input.runMode === 'cluster_only'
+                ? `${clusteringResult.notes} Domain scoring was skipped because this run was started in clustering-only mode.`
+                : clusteringResult.notes,
             createdAt: input.createdAt,
             completedAt: new Date().toISOString(),
         };
@@ -1568,6 +1692,8 @@ async function finalizeDashaRun(input: {
         const failedRun: DashaRun = {
             id: input.runId,
             rubricPackId: input.rubricPackId,
+            sourceMode: input.sourceMode,
+            runMode: input.runMode,
             status: 'failed',
             inputArtifacts: input.inputArtifacts,
             questionText: input.questionText,
@@ -1644,8 +1770,10 @@ async function evaluateClustersAgainstDomains(input: {
 }) {
     const responseById = new Map(input.responses.map((response) => [response.id, response]));
     return await Promise.all(input.pack.domains.map(async (domain) => {
-        const goldenTarget = input.pack.goldenTargets.find((target) => target.domainId === domain.id)
-            ?? buildFallbackGoldenTargetForDomain(domain);
+        const goldenTarget = input.pack.goldenTargets.find((target) => target.domainId === domain.id);
+        if (!goldenTarget && input.pack.sourceMode === 'manual') {
+            throw new Error(`Manual scoring requires a structured golden target for ${domain.name}.`);
+        }
         const criteria = input.pack.criteria
             .filter((criterion) => criterion.domainId === domain.id && criterion.status === 'active')
             .map((criterion) => criterion.text);
@@ -1658,9 +1786,10 @@ async function evaluateClustersAgainstDomains(input: {
             const evaluation = await evaluateDomainAgainstResponse({
                 questionText: input.questionText,
                 domain,
-                goldenTarget,
+                goldenTarget: goldenTarget ?? buildFallbackGoldenTargetForDomain(domain),
                 criteria,
                 responseText: representative.responseText,
+                strict: input.pack.sourceMode === 'manual',
             });
 
             return {
@@ -1698,6 +1827,7 @@ async function evaluateDomainAgainstResponse(input: {
     goldenTarget: KarthicGoldenDomainTarget;
     criteria: string[];
     responseText: string;
+    strict: boolean;
 }): Promise<{
     applicabilityStatus: 'applicable' | 'not_applicable';
     applicabilityExplanation: string;
@@ -1706,7 +1836,7 @@ async function evaluateDomainAgainstResponse(input: {
     rationale: string;
     difference: DomainCentroidDifference;
 }> {
-    const fallback = heuristicDomainEvaluation(input);
+    const fallback = input.strict ? null : heuristicDomainEvaluation(input);
     requireOpenAiApiKey('Dasha domain evaluation');
 
     const systemPrompt = [
@@ -1755,23 +1885,59 @@ async function evaluateDomainAgainstResponse(input: {
 
     const parsed = await tryOpenAiJson('Dasha domain evaluation', systemPrompt, userPrompt);
 
-    const applicabilityStatus = parsed.applicabilityStatus === 'applicable' ? 'applicable' : 'not_applicable';
+    const applicabilityStatus = parsed.applicabilityStatus === 'applicable'
+        ? 'applicable'
+        : parsed.applicabilityStatus === 'not_applicable'
+            ? 'not_applicable'
+            : null;
+    if (input.strict && !applicabilityStatus) {
+        throw new Error(`Dasha domain evaluation returned an invalid applicability status for ${input.domain.name}.`);
+    }
+
+    const parsedScore = typeof parsed.score === 'number' && Number.isFinite(parsed.score) ? parsed.score : null;
     const score = applicabilityStatus === 'applicable'
-        ? clampNumber(toNumber(parsed.score, fallback.score ?? 0), 0, 100)
+        ? (
+            input.strict
+                ? (parsedScore === null ? null : clampNumber(parsedScore, 0, 100))
+                : clampNumber(toNumber(parsed.score, fallback?.score ?? 0), 0, 100)
+        )
         : null;
+    if (input.strict && applicabilityStatus === 'applicable' && score === null) {
+        throw new Error(`Dasha domain evaluation returned no usable score for ${input.domain.name}.`);
+    }
+
+    const applicabilityExplanation = normalizeOptionalString(parsed.applicabilityExplanation, '').trim();
+    const rationale = normalizeOptionalString(parsed.rationale, '').trim();
+    const differenceSummary = normalizeOptionalString(parsed.differenceSummary, '').trim();
+    if (input.strict && (!applicabilityExplanation || !rationale || !differenceSummary)) {
+        throw new Error(`Dasha domain evaluation returned incomplete reasoning fields for ${input.domain.name}.`);
+    }
+
+    const confidence = typeof parsed.confidence === 'number' && Number.isFinite(parsed.confidence)
+        ? clampNumber(parsed.confidence, 0, 1)
+        : (input.strict ? null : clampNumber(toNumber(parsed.confidence, fallback?.confidence ?? 0.5), 0, 1));
+    if (input.strict && confidence === null) {
+        throw new Error(`Dasha domain evaluation returned no usable confidence for ${input.domain.name}.`);
+    }
 
     return {
-        applicabilityStatus,
-        applicabilityExplanation: normalizeNonEmptyString(parsed.applicabilityExplanation, fallback.applicabilityExplanation),
+        applicabilityStatus: applicabilityStatus ?? 'not_applicable',
+        applicabilityExplanation: input.strict
+            ? applicabilityExplanation
+            : normalizeNonEmptyString(parsed.applicabilityExplanation, fallback?.applicabilityExplanation ?? input.domain.naGuidance),
         score,
-        confidence: clampNumber(toNumber(parsed.confidence, fallback.confidence ?? 0.5), 0, 1),
-        rationale: normalizeNonEmptyString(parsed.rationale, fallback.rationale),
+        confidence: confidence ?? 0.5,
+        rationale: input.strict
+            ? rationale
+            : normalizeNonEmptyString(parsed.rationale, fallback?.rationale ?? 'No rationale returned.'),
         difference: {
             matchedGoldenPoints: normalizeStringArray(parsed.matchedGoldenPoints),
             missingGoldenPoints: normalizeStringArray(parsed.missingGoldenPoints),
             extraCentroidPoints: normalizeStringArray(parsed.extraCentroidPoints),
             contradictionPoints: normalizeStringArray(parsed.contradictionPoints),
-            differenceSummary: normalizeNonEmptyString(parsed.differenceSummary, fallback.difference.differenceSummary),
+            differenceSummary: input.strict
+                ? differenceSummary
+                : normalizeNonEmptyString(parsed.differenceSummary, fallback?.difference.differenceSummary ?? 'No difference summary returned.'),
         },
     };
 }
@@ -2261,24 +2427,6 @@ function buildFallbackFrankGoldenDraft(input: {
     };
 }
 
-function buildFallbackFrankQuestionPacket(input: {
-    legalDomain: string;
-    selectedCase: FrankCaseCandidate;
-    analysisDomains: FrankAnalysisDomain[];
-}) {
-    return [
-        `${input.legalDomain} Hypothetical`,
-        '',
-        'A dispute should be framed broadly enough to apply across similar cases in this topic area while still pointing toward a likely legal result.',
-        'The packet should stay anonymous, avoid named authorities, and give enough facts to trigger the listed domains.',
-        '',
-        'Draft a legal analysis that addresses the following domains:',
-        ...input.analysisDomains.map((domain, index) => `${index + 1}. ${domain.name}: ${domain.description}`),
-        '',
-        'Explain which domains are clearly triggered, which are only weakly implicated, and what facts matter most to the likely result.',
-    ].join('\n');
-}
-
 const FRANK_CASE_TITLE_STOP_WORDS = new Set([
     'v',
     'vs',
@@ -2400,10 +2548,7 @@ function collectFrankTextGeneralizationWarnings(label: string, text: string, sel
     return [];
 }
 
-function normalizeFrankQuestionPacket(
-    text: string,
-    analysisDomains: FrankAnalysisDomain[],
-) {
+function normalizeFrankQuestionPacket(text: string) {
     const cleaned = text
         .replace(/^```[a-zA-Z0-9_-]*\s*/i, '')
         .replace(/\s*```$/, '')
@@ -2548,71 +2693,6 @@ function collectGeneralizedFrankGoldenDraftWarnings(
         warnings.push(...collectFrankTextGeneralizationWarnings(label, text, selectedCase));
     }
     return Array.from(new Set(warnings));
-}
-
-function buildFallbackFrankDraft(input: {
-    legalDomain: string;
-    domainScope: string;
-    sourceFamily: string;
-    combinedText: string;
-}) {
-    const excerpt = firstSentence(input.combinedText) || 'The uploaded source materials require closer legal review.';
-    const issue = excerpt.length > 180 ? `${excerpt.slice(0, 177)}...` : excerpt;
-    return {
-        sourceIntake: {
-            sourceQualityRating: 'Moderate; usable with supporting authority',
-            benchmarkPosture: 'generalizable_only_with_supporting_authority' as const,
-            recommendation: 'Use as a lead source only with JD review and supporting authority.',
-            jdReviewBurden: [
-                'Confirm the extracted black-letter rule against the uploaded authority.',
-                'Confirm whether the source is narrow, portable, or jurisdiction-sensitive.',
-            ],
-            reverseEngineeringSuitability: 'moderate' as const,
-        },
-        sourceExtraction: {
-            legalIssue: issue,
-            blackLetterRule: `The controlling rule should be stated narrowly within ${input.domainScope}.`,
-            triggerFacts: splitSentences(input.combinedText).slice(0, 3),
-            holding: 'A source-grounded holding should be confirmed by SME review.',
-            limits: ['Source portability and doctrinal boundaries require confirmation.'],
-            uncertainty: ['Jurisdiction sensitivity and source completeness need review.'],
-        },
-        benchmarkAnswer: [
-            'Jurisdiction assumption:',
-            'Treat the uploaded source as controlling until a JD narrows portability.',
-            '',
-            'Bottom-line outcome:',
-            'The benchmark answer should track the source-grounded rule once validated.',
-            '',
-            'Controlling doctrine:',
-            `Frame the answer around ${input.domainScope}.`,
-            '',
-            'Formation:',
-            'Address formation only if the uploaded materials make it genuinely relevant.',
-            '',
-            'Statute of Frauds Gates:',
-            'Analyze the controlling gate before any fallback theory.',
-            '',
-            'Exceptions/Promissory Estoppel:',
-            'Keep fallback doctrines secondary and bounded by the source.',
-            '',
-            'Defenses/Mistake:',
-            'Discuss only if the uploaded materials make them material.',
-            '',
-            'Strongest counterargument:',
-            'The strongest counterargument should remain source-grounded.',
-            '',
-            'Bounded uncertainty:',
-            'Flag any jurisdiction-specific or source-specific uncertainty explicitly.',
-        ].join('\n'),
-        benchmarkQuestion: 'Is the promise enforceable? Analyze.',
-        failureModeSeeds: [
-            'Fails to identify the controlling doctrine.',
-            'Collapses the main enforceability gate with a fallback theory.',
-            'Overstates portability beyond the uploaded source.',
-        ],
-        masterIssueStatement: issue,
-    };
 }
 
 function buildFallbackKarthicGoldenTargets(input: {
@@ -3132,6 +3212,51 @@ function normalizeGeneratedGoldenTargets(value: unknown, domains: KarthicDomain[
     return domains.map((domain) => targetsByDomainId.get(domain.id) as KarthicGoldenDomainTarget);
 }
 
+function normalizeStrictManualGoldenTargets(
+    value: unknown,
+    domains: KarthicDomain[],
+    existingTargets: KarthicGoldenDomainTarget[],
+) {
+    if (!Array.isArray(value)) {
+        return existingTargets;
+    }
+    const domainById = new Map(domains.map((domain) => [domain.id, domain]));
+    return value
+        .map((item, index) => {
+            const record = isRecord(item) ? item : {};
+            const domainId = normalizeOptionalString(record.domainId, '').trim();
+            const domain = domainById.get(domainId);
+            if (!domain) {
+                return null;
+            }
+            return {
+                id: normalizeOptionalString(record.id, `golden_target_${index + 1}`),
+                domainId: domain.id,
+                domainName: domain.name,
+                summary: normalizeOptionalString(record.summary, '').trim(),
+                goldenContains: normalizeStringArray(record.goldenContains),
+                allowedOmissions: normalizeStringArray(record.allowedOmissions),
+                contradictionFlags: normalizeStringArray(record.contradictionFlags),
+                comparisonGuidance: normalizeOptionalString(record.comparisonGuidance, '').trim(),
+            } satisfies KarthicGoldenDomainTarget;
+        })
+        .filter((item): item is KarthicGoldenDomainTarget => Boolean(item));
+}
+
+function assertManualGoldenTargetsComplete(targets: KarthicGoldenDomainTarget[], domains: KarthicDomain[]) {
+    const targetByDomainId = new Map(targets.map((target) => [target.domainId, target]));
+    const missingDomains = domains.filter((domain) => {
+        const target = targetByDomainId.get(domain.id);
+        return !target
+            || !target.summary.trim()
+            || !target.comparisonGuidance.trim()
+            || target.goldenContains.length === 0;
+    });
+    if (missingDomains.length > 0) {
+        throw new Error(`Manual scoring requires complete structured golden targets for: ${missingDomains.map((domain) => domain.name).join(', ')}.`);
+    }
+}
+
 function normalizeCriteria(criteria: KarthicCriterion[]): KarthicCriterion[] {
     return criteria.map((criterion, index) => ({
         id: criterion.id?.trim() || `criterion_${index + 1}`,
@@ -3207,53 +3332,66 @@ function normalizeKarthicRubricPack(value: unknown): KarthicRubricPack | null {
         return null;
     }
 
+    const sourceMode = normalizeKarthicSourceMode(value.sourceMode);
     const domains = Array.isArray(value.domains) ? normalizeDomains(value.domains as KarthicDomain[]) : [];
     if (!domains.length) {
         return null;
     }
-    const fallbackTargets = buildFallbackKarthicGoldenTargets({
-        frankPacket: {
-            id: normalizeOptionalString(value.frankPacketId, 'frank_unknown'),
-            status: 'approved',
-            legalDomain: 'Unknown legal domain',
-            domainScope: 'Unknown domain scope',
-            sourceFamily: 'unknown',
-            selectedCase: null,
-            analysisDomains: domains.map((domain) => ({ id: domain.id, name: domain.name, description: domain.description })),
-            sourceArtifacts: [],
-            sourceIntake: buildFrankSourceIntakeFallback(null),
-            sourceExtraction: buildFrankSourceExtractionFallback({
+    const fallbackTargets = sourceMode === 'frank'
+        ? buildFallbackKarthicGoldenTargets({
+            frankPacket: {
+                id: normalizeOptionalString(value.frankPacketId, 'frank_unknown'),
+                status: 'approved',
                 legalDomain: 'Unknown legal domain',
+                domainScope: 'Unknown domain scope',
+                sourceFamily: 'unknown',
                 selectedCase: null,
                 analysisDomains: domains.map((domain) => ({ id: domain.id, name: domain.name, description: domain.description })),
-            }),
-            fitCheck: buildNeedsReviewFrankFitCheck(null, domains.map((domain) => ({ id: domain.id, name: domain.name, description: domain.description }))),
-            benchmarkAnswer: '',
-            benchmarkQuestion: '',
-            goldenWarnings: [],
-            questionWarnings: [],
-            savedPrompts: [],
-            failureModeSeeds: [],
-            masterIssueStatement: '',
-            approvedAt: null,
-            createdAt: normalizeOptionalString(value.createdAt, new Date().toISOString()),
-            updatedAt: normalizeOptionalString(value.updatedAt, new Date().toISOString()),
-        },
-        domains,
-    });
+                sourceArtifacts: [],
+                sourceIntake: buildFrankSourceIntakeFallback(null),
+                sourceExtraction: buildFrankSourceExtractionFallback({
+                    legalDomain: 'Unknown legal domain',
+                    selectedCase: null,
+                    analysisDomains: domains.map((domain) => ({ id: domain.id, name: domain.name, description: domain.description })),
+                }),
+                fitCheck: buildNeedsReviewFrankFitCheck(null, domains.map((domain) => ({ id: domain.id, name: domain.name, description: domain.description }))),
+                benchmarkAnswer: '',
+                benchmarkQuestion: '',
+                goldenWarnings: [],
+                questionWarnings: [],
+                savedPrompts: [],
+                failureModeSeeds: [],
+                masterIssueStatement: '',
+                approvedAt: null,
+                createdAt: normalizeOptionalString(value.createdAt, new Date().toISOString()),
+                updatedAt: normalizeOptionalString(value.updatedAt, new Date().toISOString()),
+            },
+            domains,
+        })
+        : [];
 
-    const goldenTargets = normalizeGoldenTargets(value.goldenTargets, domains, fallbackTargets);
+    const goldenTargets = sourceMode === 'manual'
+        ? normalizeStrictManualGoldenTargets(value.goldenTargets, domains, [])
+        : normalizeGoldenTargets(value.goldenTargets, domains, fallbackTargets);
     const criteria = Array.isArray(value.criteria) && value.criteria.length > 0
         ? normalizeCriteria(value.criteria as KarthicCriterion[])
-        : buildCriteriaFromGoldenTargets(goldenTargets);
+        : goldenTargets.length > 0
+            ? buildCriteriaFromGoldenTargets(goldenTargets)
+            : buildInitialCriteria(domains);
     const refinementLog = Array.isArray(value.refinementLog) && value.refinementLog.length > 0
         ? normalizeRefinementLog(value.refinementLog as RefinementLogEntry[])
-        : buildGoldenTargetRefinementLog(goldenTargets);
+        : goldenTargets.length > 0
+            ? buildGoldenTargetRefinementLog(goldenTargets)
+            : buildSeedRefinementLog(criteria);
 
     return {
         id: normalizeNonEmptyString(value.id, `karthic_${randomUUID().slice(0, 8)}`),
-        frankPacketId: normalizeNonEmptyString(value.frankPacketId, 'frank_unknown'),
+        sourceMode,
+        frankPacketId: sourceMode === 'frank' ? normalizeNonEmptyString(value.frankPacketId, 'frank_unknown') : null,
+        questionText: sourceMode === 'manual' ? normalizeOptionalString(value.questionText, '') : '',
+        manualHeadingSeeds: sourceMode === 'manual' ? normalizeOptionalString(value.manualHeadingSeeds, '') : '',
         status: value.status === 'approved' ? 'approved' : 'draft',
+        approvedRunMode: normalizeApprovedRunMode(value.approvedRunMode, sourceMode, goldenTargets.length > 0),
         domains,
         goldenTargets,
         criteria,
@@ -3266,6 +3404,48 @@ function normalizeKarthicRubricPack(value: unknown): KarthicRubricPack | null {
         approvedAt: typeof value.approvedAt === 'string' ? value.approvedAt : null,
         createdAt: normalizeOptionalString(value.createdAt, new Date().toISOString()),
         updatedAt: normalizeOptionalString(value.updatedAt, new Date().toISOString()),
+    };
+}
+
+function normalizeDashaRun(value: unknown): DashaRun | null {
+    if (!isRecord(value)) {
+        return null;
+    }
+    const rubricPackId = normalizeOptionalString(value.rubricPackId, '').trim();
+    if (!rubricPackId) {
+        return null;
+    }
+    const sourceMode = normalizeKarthicSourceMode(value.sourceMode);
+    return {
+        id: normalizeNonEmptyString(value.id, `dasha_${randomUUID().slice(0, 8)}`),
+        rubricPackId,
+        sourceMode,
+        runMode: normalizeDashaRunMode(value.runMode),
+        status: value.status === 'completed' || value.status === 'failed' ? value.status : 'draft',
+        inputArtifacts: Array.isArray(value.inputArtifacts) ? value.inputArtifacts as ArtifactRecord[] : [],
+        questionText: normalizeOptionalString(value.questionText, ''),
+        selectedModels: Array.isArray(value.selectedModels) ? value.selectedModels as DashaSelectedModel[] : [],
+        requestedResponseCount: typeof value.requestedResponseCount === 'number' ? value.requestedResponseCount : undefined,
+        validResponseCount: typeof value.validResponseCount === 'number' ? value.validResponseCount : undefined,
+        responses: Array.isArray(value.responses) ? value.responses as DashaResponseRecord[] : [],
+        clusters: Array.isArray(value.clusters) ? value.clusters as DashaClusterRecord[] : [],
+        domainResults: Array.isArray(value.domainResults) ? value.domainResults as DomainResult[] : [],
+        weightedSummary: isRecord(value.weightedSummary)
+            ? {
+                applicableWeightTotal: toNumber(value.weightedSummary.applicableWeightTotal, 0),
+                weightedScore: typeof value.weightedSummary.weightedScore === 'number' ? value.weightedSummary.weightedScore : null,
+                notApplicableDomainIds: normalizeStringArray(value.weightedSummary.notApplicableDomainIds),
+            }
+            : {
+                applicableWeightTotal: 0,
+                weightedScore: null,
+                notApplicableDomainIds: [],
+            },
+        clusteringMethod: normalizeOptionalString(value.clusteringMethod, 'unknown'),
+        clusteringNotes: typeof value.clusteringNotes === 'string' ? value.clusteringNotes : null,
+        errorMessage: typeof value.errorMessage === 'string' ? value.errorMessage : undefined,
+        createdAt: normalizeOptionalString(value.createdAt, new Date().toISOString()),
+        completedAt: typeof value.completedAt === 'string' ? value.completedAt : null,
     };
 }
 
@@ -3661,17 +3841,6 @@ function normalizeStringArray(value: unknown) {
     return value
         .map((item) => String(item).trim())
         .filter((item) => item.length > 0);
-}
-
-function splitSentences(value: string) {
-    return value
-        .split(/(?<=[.!?])\s+/)
-        .map((sentence) => sentence.trim())
-        .filter(Boolean);
-}
-
-function firstSentence(value: string) {
-    return splitSentences(value)[0] ?? '';
 }
 
 function safeJsonParse<T = Record<string, unknown>>(value: string) {

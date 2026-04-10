@@ -4,7 +4,7 @@ import { spawn } from 'child_process';
 import { NextResponse } from 'next/server';
 
 import { listDashaRuns, runDashaEvaluation } from '@/lib/legal-workflow-server';
-import type { ArtifactRole, DashaSelectedModel } from '@/lib/legal-workflow-types';
+import type { ArtifactRole, DashaRunMode, DashaSelectedModel } from '@/lib/legal-workflow-types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -28,6 +28,7 @@ export async function POST(req: Request) {
     try {
         const formData = await req.formData();
         const rubricPackId = String(formData.get('rubricPackId') || '').trim();
+        const runMode = String(formData.get('runMode') || 'score_and_cluster').trim() as DashaRunMode;
         const selectedModelsRaw = String(formData.get('selectedModels') || '').trim();
         const sampleCountRaw = String(formData.get('sampleCount') || '').trim();
         const files = formData.getAll('files');
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
 
         const item = await runDashaEvaluation({
             rubricPackId,
+            runMode,
             files: normalizedFiles,
             selectedModels,
             sampleCount,

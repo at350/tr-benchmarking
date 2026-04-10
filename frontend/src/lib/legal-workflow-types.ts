@@ -155,10 +155,18 @@ export type KarthicGoldenDomainTarget = {
     comparisonGuidance: string;
 };
 
+export type KarthicSourceMode = 'frank' | 'manual';
+export type DashaRunMode = 'score_and_cluster' | 'cluster_only';
+export type KarthicApprovedRunMode = 'both' | DashaRunMode;
+
 export type KarthicRubricPack = {
     id: string;
-    frankPacketId: string;
+    sourceMode: KarthicSourceMode;
+    frankPacketId: string | null;
+    questionText: string;
+    manualHeadingSeeds: string;
     status: Extract<WorkflowStatus, 'draft' | 'approved'>;
+    approvedRunMode: KarthicApprovedRunMode;
     domains: KarthicDomain[];
     goldenTargets: KarthicGoldenDomainTarget[];
     criteria: KarthicCriterion[];
@@ -251,6 +259,8 @@ export type WeightedSummary = {
 export type DashaRun = {
     id: string;
     rubricPackId: string;
+    sourceMode: KarthicSourceMode;
+    runMode: DashaRunMode;
     status: Extract<WorkflowStatus, 'draft' | 'completed' | 'failed'>;
     inputArtifacts: ArtifactRecord[];
     questionText: string;

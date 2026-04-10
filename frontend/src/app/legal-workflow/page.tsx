@@ -20,6 +20,7 @@ import {
 } from '@/lib/legal-workflow-prompts';
 import type {
     ArtifactRole,
+    DashaRunMode,
     DashaRun,
     DashaSelectedModel,
     FrankAnalysisDomain,
@@ -33,12 +34,13 @@ import type {
     KarthicDomain,
     KarthicGoldenDomainTarget,
     KarthicRubricPack,
+    KarthicSourceMode,
     ReasoningEffort,
 } from '@/lib/legal-workflow-types';
 
 type WorkflowTab = 'frank' | 'karthic' | 'dasha';
 type FrankWizardStep = 'domain' | 'case' | 'domains' | 'fit' | 'golden' | 'question';
-type KarthicWizardStep = 'packet' | 'domains' | 'targets' | 'approve';
+type KarthicWizardStep = 'manual' | 'packet' | 'domains' | 'targets' | 'approve';
 type DashaWizardStep = 'rubric' | 'question' | 'models' | 'run';
 type StepExplainerItem<TStep extends string> = {
     id: TStep;
@@ -120,8 +122,12 @@ type FrankEditorState = {
 
 type KarthicEditorState = {
     id?: string;
+    sourceMode: KarthicSourceMode;
     frankPacketId: string;
+    questionText: string;
+    manualHeadingSeeds: string;
     status: KarthicRubricPack['status'];
+    approvedRunMode: KarthicRubricPack['approvedRunMode'];
     domains: KarthicDomain[];
     goldenTargets: KarthicGoldenDomainTarget[];
     criteria: KarthicCriterion[];
@@ -132,6 +138,7 @@ type KarthicEditorState = {
 
 type DashaFormState = {
     rubricPackId: string;
+    runMode: DashaRunMode;
     selectedModelKeys: string[];
     sampleCount: string;
 };
@@ -188,8 +195,6 @@ const DASHA_MAP_HEIGHT = 640;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const MODEL_PALETTE = ['#22c55e', '#ef4444', '#94a3b8', '#3b82f6', '#f97316', '#14b8a6', '#eab308', '#a855f7', '#06b6d4', '#f43f5e'];
 
-const DASHA_ROLES: ArtifactRole[] = ['question_packet', 'issue_statement', 'evidence_packet', 'supplemental'];
-
 type WorkflowButtonVariant = 'neutral' | 'teal' | 'success' | 'warning' | 'danger' | 'ghost';
 type WorkflowButtonSize = 'md' | 'sm' | 'xs' | 'chip' | 'icon';
 
@@ -219,8 +224,12 @@ function workflowButtonClass(
 }
 
 const DEFAULT_KARTHIC_STATE: KarthicEditorState = {
+    sourceMode: 'frank',
     frankPacketId: '',
+    questionText: '',
+    manualHeadingSeeds: '',
     status: 'draft',
+    approvedRunMode: 'both',
     domains: [],
     goldenTargets: [],
     criteria: [],
@@ -333,9 +342,19 @@ function buildKarthicExplainerItems(
 ): StepExplainerItem<KarthicWizardStep>[] {
     return [
         {
+            id: 'manual',
+            title: '0. Manual Input',
+            summary: 'Either continue from an approved Frank packet or create a manual non-source-grounded pack for a standalone benchmark question.',
+            detail: [
+                'Manual mode is for standalone prompts that do not have an anchor case or Frank golden answer.',
+                'It collects the minimum benchmarking inputs directly: question packet, heading seeds, domains, and structured golden targets.',
+                'Manual packs remain explicitly labeled as non-source-grounded so they do not masquerade as validated Frank outputs.',
+            ],
+        },
+        {
             id: 'packet',
             title: '1. Approved Frank Packet',
-            summary: 'Load only a Frank packet that has already been approved as source-grounded and complete.',
+            summary: 'Load an approved Frank packet when using the normal source-grounded path.',
             detail: [
                 'Karthic is intentionally downstream-only.',
                 'It does not revisit open-web search or rewrite Frank’s source-intake logic; it consumes an approved Frank packet as fixed input.',
@@ -367,12 +386,14 @@ function buildKarthicExplainerItems(
                 'Step 2 says: Duty / Breach / Causation / Damages Step 3 says: for Causation, the gold answer should discuss X, may omit Y, and statements like Z count against the answer.',
                 'This matters technically because Dasha compares centroid representatives against structured target fields, not against a single essay blob.',
             ],
-            promptText: frankPacket && editor.domains.length > 0 ? buildKarthicGoldenTargetsPrompt({
+            promptText: editor.sourceMode === 'frank' && frankPacket && editor.domains.length > 0 ? buildKarthicGoldenTargetsPrompt({
                 frankPacket,
                 domains: editor.domains,
                 smeNotes: editor.smeNotes,
             }) : null,
-            promptEmptyState: 'Load a Frank packet and define Karthic domains to preview the exact golden-target prompt.',
+            promptEmptyState: editor.sourceMode === 'manual'
+                ? 'Manual packs require manual golden targets. Enter them directly in the editor below.'
+                : 'Load a Frank packet and define Karthic domains to preview the exact golden-target prompt.',
         },
         {
             id: 'approve',
@@ -387,8 +408,13 @@ function buildKarthicExplainerItems(
     ];
 }
 
-function buildDashaExplainerItems(frankPacket: FrankPacket | null): StepExplainerItem<DashaWizardStep>[] {
-    const questionText = frankPacket?.benchmarkQuestion?.trim() ?? '';
+function buildDashaExplainerItems(pack: KarthicRubricPack | null, frankPacket: FrankPacket | null): StepExplainerItem<DashaWizardStep>[] {
+    const questionText = pack?.sourceMode === 'manual'
+        ? pack.questionText.trim()
+        : (frankPacket?.benchmarkQuestion?.trim() ?? '');
+    const promptSource = pack?.sourceMode === 'manual'
+        ? 'manual Karthic packet'
+        : 'Frank packet';
     return [
         {
             id: 'rubric',
@@ -403,15 +429,15 @@ function buildDashaExplainerItems(frankPacket: FrankPacket | null): StepExplaine
         {
             id: 'question',
             title: '2. Canonical Question Packet',
-            summary: 'Reuse Frank’s exact benchmark prompt instead of introducing a new evaluation prompt.',
+            summary: 'Reuse the stored benchmark prompt instead of introducing a new evaluation prompt.',
             detail: [
                 'This step enforces prompt continuity across the pipeline.',
-                'The same question packet that Frank reverse-engineered and Karthic implicitly relied on is what Dasha sends to the frontier models.',
+                'The same question packet that the approved rubric pack was built around is what Dasha sends to the frontier models.',
                 'That prevents accidental prompt drift and keeps downstream result differences attributable to model behavior and clustering, not to a changed task formulation.',
             ],
             promptText: questionText || null,
             promptLabel: 'View Exact Question Packet',
-            promptEmptyState: 'Generate a Frank question packet to preview the exact prompt Dasha reuses.',
+            promptEmptyState: `Save a ${promptSource} question packet to preview the exact prompt Dasha reuses.`,
         },
         {
             id: 'models',
@@ -426,17 +452,17 @@ function buildDashaExplainerItems(frankPacket: FrankPacket | null): StepExplaine
         {
             id: 'run',
             title: '4. Run Dasha',
-            summary: 'Generate the raw pool, cluster it, pick representatives, and compare those representatives against the structured golden targets.',
+            summary: 'Generate the raw pool, cluster it, pick representatives, and optionally compare those representatives against the structured golden targets.',
             detail: [
                 'Operationally, this is the evaluation engine: Dasha collects responses, embeds them, reduces dimensionality with UMAP, and groups them with HDBSCAN.',
                 'It then selects one medoid-style representative per cluster rather than scoring every raw answer independently.',
-                'Those representatives are compared against Karthic’s structured targets so the stored results capture matched points, omissions, extras, contradictions, and weighted domain outcomes instead of a single opaque score.',
+                'When scoring is enabled, those representatives are compared against Karthic’s structured targets so the stored results capture matched points, omissions, extras, contradictions, and weighted domain outcomes instead of a single opaque score.',
             ],
             promptText: questionText
                 ? `System prompt:\n${DASHA_GENERATION_SYSTEM_PROMPT}\n\nUser prompt:\n${buildDashaGenerationUserPrompt(questionText)}`
                 : null,
             promptLabel: 'View Exact Model Prompt',
-            promptEmptyState: 'Generate a Frank question packet to preview the exact prompt Dasha sends to the selected models.',
+            promptEmptyState: `Save a ${promptSource} question packet to preview the exact prompt Dasha sends to the selected models.`,
         },
     ];
 }
@@ -470,10 +496,11 @@ export default function LegalWorkflowPage() {
     const [karthicDraftingDomains, setKarthicDraftingDomains] = useState(false);
     const [karthicGeneratingTargets, setKarthicGeneratingTargets] = useState(false);
     const [karthicSavingStatus, setKarthicSavingStatus] = useState<KarthicRubricPack['status'] | null>(null);
-    const [dashaUploads, setDashaUploads] = useState<UploadRow[]>([]);
+    const [dashaUploads] = useState<UploadRow[]>([]);
     const [dashaStep, setDashaStep] = useState<DashaWizardStep>('rubric');
     const [dashaForm, setDashaForm] = useState<DashaFormState>({
         rubricPackId: '',
+        runMode: 'score_and_cluster',
         selectedModelKeys: DEFAULT_MODEL_KEYS,
         sampleCount: '200',
     });
@@ -498,6 +525,12 @@ export default function LegalWorkflowPage() {
         () => frankPackets.find((item) => item.id === selectedDashaPack?.frankPacketId) ?? null,
         [frankPackets, selectedDashaPack],
     );
+    const selectedDashaQuestionText = useMemo(
+        () => selectedDashaPack?.sourceMode === 'manual'
+            ? selectedDashaPack.questionText.trim()
+            : (selectedDashaFrankPacket?.benchmarkQuestion?.trim() ?? ''),
+        [selectedDashaFrankPacket, selectedDashaPack],
+    );
     const selectedKarthicFrankPacket = useMemo(
         () => frankPackets.find((item) => item.id === karthicEditor.frankPacketId) ?? null,
         [frankPackets, karthicEditor.frankPacketId],
@@ -520,8 +553,8 @@ export default function LegalWorkflowPage() {
         [selectedKarthicFrankPacket, karthicEditor],
     );
     const dashaExplainerItems = useMemo(
-        () => buildDashaExplainerItems(selectedDashaFrankPacket),
-        [selectedDashaFrankPacket],
+        () => buildDashaExplainerItems(selectedDashaPack, selectedDashaFrankPacket),
+        [selectedDashaFrankPacket, selectedDashaPack],
     );
 
     useEffect(() => {
@@ -610,6 +643,15 @@ export default function LegalWorkflowPage() {
         };
     }, [selectedDashaRun?.status, selectedDashaRunId]);
 
+    useEffect(() => {
+        if (!selectedDashaPack) {
+            return;
+        }
+        if (selectedDashaPack.approvedRunMode === 'cluster_only' && dashaForm.runMode !== 'cluster_only') {
+            setDashaForm((current) => ({ ...current, runMode: 'cluster_only' }));
+        }
+    }, [dashaForm.runMode, selectedDashaPack]);
+
     async function loadAll() {
         setIsLoading(true);
         setErrorMessage(null);
@@ -674,8 +716,12 @@ export default function LegalWorkflowPage() {
     function applyKarthicPack(pack: KarthicRubricPack) {
         const nextState: KarthicEditorState = {
             id: pack.id,
-            frankPacketId: pack.frankPacketId,
+            sourceMode: pack.sourceMode,
+            frankPacketId: pack.frankPacketId ?? '',
+            questionText: pack.questionText,
+            manualHeadingSeeds: pack.manualHeadingSeeds,
             status: pack.status,
+            approvedRunMode: pack.approvedRunMode,
             domains: pack.domains,
             goldenTargets: pack.goldenTargets ?? [],
             criteria: pack.criteria,
@@ -685,6 +731,49 @@ export default function LegalWorkflowPage() {
         };
         setKarthicEditor(nextState);
         setKarthicStep(inferKarthicStep(nextState));
+    }
+
+    function seedKarthicDomainsFromHeadings() {
+        const lines = karthicEditor.manualHeadingSeeds
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean);
+        const seededDomains = lines.map((line, index) => {
+            const cleaned = line
+                .replace(/^[-*]\s*/, '')
+                .replace(/^\d+[.)]\s+/, '')
+                .replace(/^\*\*(.*?)\*\*$/, '$1')
+                .trim();
+            const [rawName, ...rawDescriptionParts] = cleaned.split(/\s+[—-]\s+|:\s+/);
+            const name = rawName?.replace(/^\*+|\*+$/g, '').trim() ?? '';
+            const description = rawDescriptionParts.join(' ').replace(/^\*+|\*+$/g, '').trim();
+            if (!name) {
+                return null;
+            }
+            return {
+                id: `domain_${index + 1}`,
+                name,
+                description: description || `Evaluate whether the answer adequately covers ${name}.`,
+                weight: 1,
+                naGuidance: `Mark ${name} as not applicable only if the question packet does not materially trigger this issue.`,
+            } satisfies KarthicDomain;
+        }).filter((domain): domain is KarthicDomain => Boolean(domain));
+
+        if (seededDomains.length === 0) {
+            setErrorMessage('No usable heading seeds were found. Paste one heading per line.');
+            setStatusMessage(null);
+            return;
+        }
+
+        setKarthicEditor((current) => ({
+            ...current,
+            domains: seededDomains,
+            goldenTargets: [],
+            criteria: [],
+            refinementLog: [],
+        }));
+        setErrorMessage(null);
+        setStatusMessage(`Seeded ${seededDomains.length} editable domain${seededDomains.length === 1 ? '' : 's'} from the manual headings.`);
     }
 
     function invalidateFrankCaseDomainCheckpoint(
@@ -1254,6 +1343,10 @@ export default function LegalWorkflowPage() {
     }
 
     async function draftKarthicDomains() {
+        if (karthicEditor.sourceMode === 'manual') {
+            setErrorMessage('Manual packs use the heading-seed helper or direct editing instead of Frank-based domain drafting.');
+            return;
+        }
         if (!karthicEditor.frankPacketId) {
             setErrorMessage('Pick an approved Frank packet first.');
             return;
@@ -1291,6 +1384,10 @@ export default function LegalWorkflowPage() {
     }
 
     async function generateKarthicTargets() {
+        if (karthicEditor.sourceMode === 'manual') {
+            setErrorMessage('Manual packs require manual golden targets. Enter them directly in the target editor.');
+            return;
+        }
         if (!karthicEditor.frankPacketId) {
             setErrorMessage('Pick an approved Frank packet first.');
             return;
@@ -1339,11 +1436,15 @@ export default function LegalWorkflowPage() {
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
                     id: karthicEditor.id,
-                    frankPacketId: karthicEditor.frankPacketId,
+                    sourceMode: karthicEditor.sourceMode,
+                    frankPacketId: karthicEditor.sourceMode === 'frank' ? karthicEditor.frankPacketId : null,
+                    questionText: karthicEditor.questionText,
+                    manualHeadingSeeds: karthicEditor.manualHeadingSeeds,
+                    approvedRunMode: karthicEditor.approvedRunMode,
                     domains: karthicEditor.domains,
                     goldenTargets: karthicEditor.goldenTargets,
-                    criteria: karthicEditor.criteria,
-                    refinementLog: karthicEditor.refinementLog,
+                    criteria: karthicEditor.sourceMode === 'manual' ? [] : karthicEditor.criteria,
+                    refinementLog: karthicEditor.sourceMode === 'manual' ? [] : karthicEditor.refinementLog,
                     smeNotes: karthicEditor.smeNotes,
                     comparisonMethodNote: karthicEditor.comparisonMethodNote,
                     status,
@@ -1366,16 +1467,21 @@ export default function LegalWorkflowPage() {
     }
 
     async function runDasha() {
-        if (!selectedDashaFrankPacket?.benchmarkQuestion.trim()) {
-            setErrorMessage('The linked Frank packet does not have a saved question packet yet.');
+        if (!selectedDashaQuestionText) {
+            setErrorMessage('The selected rubric pack does not have a saved question packet yet.');
             return;
         }
         setDashaRunning(true);
         setErrorMessage(null);
-        setStatusMessage('Running Dasha evaluation using Frank’s canonical question packet: large-sample model generation, raw clustering, and per-domain centroid scoring...');
+        setStatusMessage(
+            dashaForm.runMode === 'cluster_only'
+                ? 'Running Dasha clustering-only evaluation using the saved canonical question packet...'
+                : 'Running Dasha evaluation using the saved canonical question packet: large-sample model generation, raw clustering, and per-domain centroid scoring...',
+        );
         try {
             const formData = new FormData();
             formData.set('rubricPackId', dashaForm.rubricPackId);
+            formData.set('runMode', dashaForm.runMode);
             formData.set('selectedModels', JSON.stringify(buildSelectedModels(dashaForm.selectedModelKeys)));
             formData.set('sampleCount', dashaForm.sampleCount || '200');
             dashaUploads.forEach((upload, index) => {
@@ -1422,17 +1528,23 @@ export default function LegalWorkflowPage() {
     const frankCanGenerateGolden = frankDomainCountValid && canProceedFromFrankFitCheckState(frankEditor.fitCheck);
     const karthicDomainCountValid = hasEditableKarthicDomains(karthicEditor.domains);
     const karthicTargetsReady = hasKarthicGoldenTargets(karthicEditor.goldenTargets, karthicEditor.domains);
+    const manualQuestionWarnings = karthicEditor.sourceMode === 'manual' ? buildManualQuestionWarnings(karthicEditor.questionText) : [];
+    const manualDomainWarnings = karthicEditor.sourceMode === 'manual' ? buildManualDomainWarnings(karthicEditor.domains) : [];
+    const manualTargetWarnings = karthicEditor.sourceMode === 'manual' ? buildManualTargetWarnings(karthicEditor.goldenTargets, karthicEditor.domains) : [];
+    const karthicQuestionReady = karthicEditor.sourceMode === 'manual'
+        ? Boolean(karthicEditor.questionText.trim())
+        : Boolean(karthicEditor.frankPacketId);
     const karthicPackReady = Boolean(
-        karthicEditor.frankPacketId
+        karthicQuestionReady
         && karthicDomainCountValid
-        && karthicTargetsReady,
+        && (karthicEditor.approvedRunMode === 'cluster_only' || karthicTargetsReady),
     );
     const dashaRubricReady = Boolean(dashaForm.rubricPackId);
-    const dashaQuestionReady = Boolean(selectedDashaFrankPacket?.benchmarkQuestion.trim());
+    const dashaQuestionReady = Boolean(selectedDashaQuestionText);
     const dashaSampleCountReady = Math.max(1, parseInt(dashaForm.sampleCount || '0', 10) || 0) > 0;
     const dashaModelsReady = dashaForm.selectedModelKeys.length > 0 && dashaSampleCountReady;
-    const dashaRunReady = dashaRubricReady && dashaQuestionReady && dashaModelsReady;
-    const karthicReady = approvedFrankPackets.length > 0;
+    const dashaRunReady = dashaRubricReady && dashaQuestionReady && dashaModelsReady
+        && !(dashaForm.runMode === 'score_and_cluster' && selectedDashaPack?.approvedRunMode === 'cluster_only');
     const dashaReady = approvedKarthicPacks.length > 0;
 
     return (
@@ -2086,106 +2198,208 @@ export default function LegalWorkflowPage() {
                         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                             <SectionHeader
                                 title="Karthic Wizard"
-                                description="One step at a time: pick an approved Frank packet, draft weighted domains, generate structured golden targets, then approve for Dasha."
+                                description="One step at a time: either load an approved Frank packet or build a manual standalone pack, then define weighted domains, complete structured targets, and approve for Dasha."
                                 actions={karthicPackReady ? <ApprovalBadge approved={karthicEditor.status === 'approved'} /> : null}
                             />
                             <KarthicStepRail
                                 step={karthicStep}
-                                packetReady={Boolean(karthicEditor.frankPacketId)}
+                                manualReady={karthicEditor.sourceMode === 'manual' ? Boolean(karthicEditor.questionText.trim()) : true}
+                                packetReady={karthicEditor.sourceMode === 'manual' ? Boolean(karthicEditor.questionText.trim()) : Boolean(karthicEditor.frankPacketId)}
                                 domainsReady={karthicDomainCountValid}
                                 targetsReady={karthicTargetsReady}
                                 approveReady={karthicPackReady}
                                 onChange={setKarthicStep}
                             />
-                            {!karthicReady ? (
-                                <div className="mt-4">
-                                    <EmptyState
-                                        title="No Approved Frank Packet"
-                                        description="Approve a Frank packet first. Karthic only starts from approved Frank outputs."
-                                        icon={<Scale className="h-5 w-5" />}
-                                    />
-                                </div>
-                            ) : (
-                                <>
-                                    {karthicStep === 'packet' && (
-                                        <div className="mt-6 space-y-4">
-                                            <LabeledSelect
-                                                label="Approved Frank Packet"
-                                                value={karthicEditor.frankPacketId}
-                                                onChange={(value) => {
-                                                    const packet = approvedFrankPackets.find((item) => item.id === value);
-                                                    setKarthicEditor({
-                                                        ...DEFAULT_KARTHIC_STATE,
-                                                        frankPacketId: value,
-                                                        smeNotes: karthicEditor.smeNotes,
-                                                        status: 'draft',
-                                                        domains: packet
-                                                            ? packet.analysisDomains.map((domain, index) => ({
-                                                                id: domain.id,
-                                                                name: domain.name,
-                                                                description: domain.description,
-                                                                weight: 1,
-                                                                naGuidance: `Mark ${domain.name} as not applicable only if the question packet does not materially trigger this domain.`,
-                                                            }))
-                                                            : [],
-                                                    });
-                                                }}
-                                                options={[
-                                                    { value: '', label: 'Select an approved Frank packet' },
-                                                    ...approvedFrankPackets.map((packet) => ({
-                                                        value: packet.id,
-                                                        label: `${packet.legalDomain} · ${packet.domainScope}`,
-                                                    })),
-                                                ]}
-                                            />
-                                            <LabeledTextarea
-                                                label="SME Notes"
-                                                value={karthicEditor.smeNotes}
-                                                onChange={(value) => setKarthicEditor((current) => ({ ...current, smeNotes: value }))}
-                                                rows={5}
-                                                hint="Optional notes that will shape the structured golden targets."
-                                            />
-                                            {karthicEditor.frankPacketId ? (
-                                                <FrankSummaryRow
-                                                    label="Selected Frank Packet"
-                                                    value={(() => {
-                                                        const packet = approvedFrankPackets.find((item) => item.id === karthicEditor.frankPacketId);
-                                                        return packet
-                                                            ? `${packet.legalDomain} · ${packet.domainScope}`
-                                                            : 'Packet not found';
-                                                    })()}
+                            <>
+                                {karthicStep === 'manual' && (
+                                    <div className="mt-6 space-y-4">
+                                        <LabeledSelect
+                                            label="Benchmark Source"
+                                            value={karthicEditor.sourceMode}
+                                            onChange={(value) => setKarthicEditor((current) => ({
+                                                ...DEFAULT_KARTHIC_STATE,
+                                                sourceMode: value === 'manual' ? 'manual' : 'frank',
+                                                smeNotes: current.smeNotes,
+                                                comparisonMethodNote: current.comparisonMethodNote,
+                                            }))}
+                                            options={[
+                                                { value: 'frank', label: 'Approved Frank packet' },
+                                                { value: 'manual', label: 'Manual / non-source-grounded' },
+                                            ]}
+                                        />
+                                        {karthicEditor.sourceMode === 'manual' ? (
+                                            <>
+                                                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                                                    <p className="text-sm font-semibold">Manual packs skip Frank’s case-grounding and fit-check stages.</p>
+                                                    <p className="mt-1 text-sm">Use this only for standalone prompts that cannot cleanly enter the source-grounded Frank flow.</p>
+                                                </div>
+                                                <LabeledTextarea
+                                                    label="Manual Question Packet"
+                                                    value={karthicEditor.questionText}
+                                                    onChange={(value) => setKarthicEditor((current) => ({ ...current, questionText: value }))}
+                                                    rows={14}
+                                                    hint="Use the Frank-style packet shape: Title, Facts, Tasks, Answer Format."
                                                 />
-                                            ) : null}
+                                                <LabeledTextarea
+                                                    label="Heading Seeds"
+                                                    value={karthicEditor.manualHeadingSeeds}
+                                                    onChange={(value) => setKarthicEditor((current) => ({ ...current, manualHeadingSeeds: value }))}
+                                                    rows={10}
+                                                    hint="Paste one heading or heading-description line per row. These seed editable Karthic domains."
+                                                />
+                                                {manualQuestionWarnings.length > 0 ? (
+                                                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                                                        <p className="text-sm font-semibold">Manual packet warning(s)</p>
+                                                        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                                                            {manualQuestionWarnings.map((warning) => (
+                                                                <li key={warning}>{warning}</li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                ) : null}
+                                                <div className="flex flex-wrap gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => seedKarthicDomainsFromHeadings()}
+                                                        disabled={!karthicEditor.manualHeadingSeeds.trim()}
+                                                        className={workflowButtonClass('teal')}
+                                                    >
+                                                        Seed Domains From Headings
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setKarthicStep('domains')}
+                                                        disabled={!karthicEditor.questionText.trim()}
+                                                        className={workflowButtonClass('neutral')}
+                                                    >
+                                                        Continue to Domains
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : (
                                             <div className="flex flex-wrap gap-3">
                                                 <button
                                                     type="button"
-                                                    onClick={() => setKarthicStep('domains')}
-                                                    disabled={!karthicEditor.frankPacketId}
+                                                    onClick={() => setKarthicStep('packet')}
                                                     className={workflowButtonClass('teal')}
                                                 >
-                                                    Continue to Domains
+                                                    Continue to Approved Packet
                                                 </button>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
+                                )}
 
-                                    {karthicStep === 'domains' && (
-                                        <div className="mt-6 space-y-4">
-                                            <FrankSummaryRow
-                                                label="Approved Frank Packet"
-                                                value={(() => {
+                                {karthicStep === 'packet' && (
+                                    <div className="mt-6 space-y-4">
+                                        {karthicEditor.sourceMode === 'frank' ? (
+                                            <>
+                                                <LabeledSelect
+                                                    label="Approved Frank Packet"
+                                                    value={karthicEditor.frankPacketId}
+                                                    onChange={(value) => {
+                                                        const packet = approvedFrankPackets.find((item) => item.id === value);
+                                                        setKarthicEditor({
+                                                            ...DEFAULT_KARTHIC_STATE,
+                                                            sourceMode: 'frank',
+                                                            frankPacketId: value,
+                                                            smeNotes: karthicEditor.smeNotes,
+                                                            status: 'draft',
+                                                            domains: packet
+                                                                ? packet.analysisDomains.map((domain) => ({
+                                                                    id: domain.id,
+                                                                    name: domain.name,
+                                                                    description: domain.description,
+                                                                    weight: 1,
+                                                                    naGuidance: `Mark ${domain.name} as not applicable only if the question packet does not materially trigger this domain.`,
+                                                                }))
+                                                                : [],
+                                                        });
+                                                    }}
+                                                    options={[
+                                                        { value: '', label: 'Select an approved Frank packet' },
+                                                        ...approvedFrankPackets.map((packet) => ({
+                                                            value: packet.id,
+                                                            label: `${packet.legalDomain} · ${packet.domainScope}`,
+                                                        })),
+                                                    ]}
+                                                />
+                                                <LabeledTextarea
+                                                    label="SME Notes"
+                                                    value={karthicEditor.smeNotes}
+                                                    onChange={(value) => setKarthicEditor((current) => ({ ...current, smeNotes: value }))}
+                                                    rows={5}
+                                                    hint="Optional notes that will shape the structured golden targets."
+                                                />
+                                                {karthicEditor.frankPacketId ? (
+                                                    <FrankSummaryRow
+                                                        label="Selected Frank Packet"
+                                                        value={(() => {
+                                                            const packet = approvedFrankPackets.find((item) => item.id === karthicEditor.frankPacketId);
+                                                            return packet
+                                                                ? `${packet.legalDomain} · ${packet.domainScope}`
+                                                                : 'Packet not found';
+                                                        })()}
+                                                    />
+                                                ) : null}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <FrankSummaryRow label="Pack Source" value="Manual / non-source-grounded" />
+                                                <FrankSummaryRow label="Question Packet" value={karthicEditor.questionText.trim() ? 'Saved manual packet text is ready.' : 'No manual packet text entered yet.'} />
+                                                <LabeledTextarea
+                                                    label="SME Notes"
+                                                    value={karthicEditor.smeNotes}
+                                                    onChange={(value) => setKarthicEditor((current) => ({ ...current, smeNotes: value }))}
+                                                    rows={5}
+                                                    hint="Optional notes for your own rubric drafting."
+                                                />
+                                            </>
+                                        )}
+                                        <div className="flex flex-wrap gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setKarthicStep('manual')}
+                                                className={workflowButtonClass('neutral')}
+                                            >
+                                                Back
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setKarthicStep('domains')}
+                                                disabled={karthicEditor.sourceMode === 'frank' ? !karthicEditor.frankPacketId : !karthicEditor.questionText.trim()}
+                                                className={workflowButtonClass('teal')}
+                                            >
+                                                Continue to Domains
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {karthicStep === 'domains' && (
+                                    <div className="mt-6 space-y-4">
+                                        <FrankSummaryRow
+                                            label="Packet Source"
+                                            value={karthicEditor.sourceMode === 'manual'
+                                                ? 'Manual / non-source-grounded'
+                                                : (() => {
                                                     const packet = approvedFrankPackets.find((item) => item.id === karthicEditor.frankPacketId);
                                                     return packet
                                                         ? `${packet.legalDomain} · ${packet.domainScope}`
                                                         : 'No Frank packet selected yet';
                                                 })()}
-                                            />
-                                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                                    <div>
-                                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 2 · Karthic Domains</p>
-                                                        <p className="mt-1 text-sm text-slate-500">Start from Frank’s analysis domains, then edit the names, weights, and NA guidance before Dasha ever sees them.</p>
-                                                    </div>
+                                        />
+                                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 2 · Karthic Domains</p>
+                                                    <p className="mt-1 text-sm text-slate-500">
+                                                        {karthicEditor.sourceMode === 'manual'
+                                                            ? 'Use the seeded headings or direct edits to define the scoring domains for this standalone benchmark question.'
+                                                            : 'Start from Frank’s analysis domains, then edit the names, weights, and NA guidance before Dasha ever sees them.'}
+                                                    </p>
+                                                </div>
+                                                {karthicEditor.sourceMode === 'frank' ? (
                                                     <button
                                                         type="button"
                                                         onClick={() => void draftKarthicDomains()}
@@ -2194,96 +2408,129 @@ export default function LegalWorkflowPage() {
                                                     >
                                                         {karthicDraftingDomains ? 'Drafting...' : 'Draft Domains From Frank'}
                                                     </button>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center justify-between gap-3 text-sm text-slate-500">
-                                                <span>{karthicEditor.domains.length} domains in the pack.</span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setKarthicEditor((current) => ({
-                                                        ...current,
-                                                        domains: [...current.domains, createEmptyDomainRow(current.domains.length)],
-                                                    }))}
-                                                    className={workflowButtonClass('neutral', 'sm')}
-                                                >
-                                                    Add Domain
-                                                </button>
-                                            </div>
-                                            <div className="space-y-3">
-                                                {karthicEditor.domains.length === 0 ? (
-                                                    <p className="text-sm text-slate-500">No domains yet. Draft them from Frank first, then edit as needed.</p>
-                                                ) : karthicEditor.domains.map((domain, index) => (
-                                                    <div key={domain.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                                                        <div className="flex items-center justify-between gap-3">
-                                                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Domain {index + 1}</p>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setKarthicEditor((current) => ({
-                                                                    ...current,
-                                                                    domains: current.domains.filter((_, domainIndex) => domainIndex !== index),
-                                                                    goldenTargets: current.goldenTargets.filter((target) => target.domainId !== domain.id),
-                                                                }))}
-                                                                className={workflowButtonClass('danger', 'sm', 'border-transparent bg-transparent p-0 text-rose-600 shadow-none hover:bg-rose-50/70')}
-                                                            >
-                                                                Delete
-                                                            </button>
-                                                        </div>
-                                                        <div className="mt-3 grid gap-3 md:grid-cols-[1.2fr_0.45fr]">
-                                                            <LabeledInput label="Domain Name" value={domain.name} onChange={(value) => updateDomain(index, { name: value })} />
-                                                            <LabeledInput label="Weight" value={String(domain.weight)} onChange={(value) => updateDomain(index, { weight: Number(value) || 1 })} />
-                                                        </div>
-                                                        <div className="mt-3 grid gap-3 md:grid-cols-2">
-                                                            <LabeledTextarea label="Description" value={domain.description} onChange={(value) => updateDomain(index, { description: value })} rows={4} />
-                                                            <LabeledTextarea label="NA Guidance" value={domain.naGuidance} onChange={(value) => updateDomain(index, { naGuidance: value })} rows={4} />
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            {!karthicDomainCountValid ? (
-                                                <p className="text-sm text-amber-700">Karthic needs at least one complete domain before moving on.</p>
-                                            ) : null}
-                                            <div className="flex flex-wrap gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setKarthicStep('packet')}
-                                                    className={workflowButtonClass('neutral')}
-                                                >
-                                                    Back
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setKarthicStep('targets')}
-                                                    disabled={!karthicDomainCountValid}
-                                                    className={workflowButtonClass('teal')}
-                                                >
-                                                    Continue to Golden Targets
-                                                </button>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => seedKarthicDomainsFromHeadings()}
+                                                        disabled={!karthicEditor.manualHeadingSeeds.trim()}
+                                                        className={workflowButtonClass('teal')}
+                                                    >
+                                                        Re-Seed From Headings
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
-                                    )}
+                                        <div className="flex items-center justify-between gap-3 text-sm text-slate-500">
+                                            <span>{karthicEditor.domains.length} domains in the pack.</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setKarthicEditor((current) => ({
+                                                    ...current,
+                                                    domains: [...current.domains, createEmptyDomainRow(current.domains.length)],
+                                                }))}
+                                                className={workflowButtonClass('neutral', 'sm')}
+                                            >
+                                                Add Domain
+                                            </button>
+                                        </div>
+                                        <div className="space-y-3">
+                                            {karthicEditor.domains.length === 0 ? (
+                                                <p className="text-sm text-slate-500">
+                                                    {karthicEditor.sourceMode === 'manual'
+                                                        ? 'No domains yet. Seed them from headings or add them manually.'
+                                                        : 'No domains yet. Draft them from Frank first, then edit as needed.'}
+                                                </p>
+                                            ) : karthicEditor.domains.map((domain, index) => (
+                                                <div key={domain.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Domain {index + 1}</p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setKarthicEditor((current) => ({
+                                                                ...current,
+                                                                domains: current.domains.filter((_, domainIndex) => domainIndex !== index),
+                                                                goldenTargets: current.goldenTargets.filter((target) => target.domainId !== domain.id),
+                                                            }))}
+                                                            className={workflowButtonClass('danger', 'sm', 'border-transparent bg-transparent p-0 text-rose-600 shadow-none hover:bg-rose-50/70')}
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                    <div className="mt-3 grid gap-3 md:grid-cols-[1.2fr_0.45fr]">
+                                                        <LabeledInput label="Domain Name" value={domain.name} onChange={(value) => updateDomain(index, { name: value })} />
+                                                        <LabeledInput label="Weight" value={String(domain.weight)} onChange={(value) => updateDomain(index, { weight: Number(value) || 1 })} />
+                                                    </div>
+                                                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                                        <LabeledTextarea label="Description" value={domain.description} onChange={(value) => updateDomain(index, { description: value })} rows={4} />
+                                                        <LabeledTextarea label="NA Guidance" value={domain.naGuidance} onChange={(value) => updateDomain(index, { naGuidance: value })} rows={4} />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {!karthicDomainCountValid ? (
+                                            <p className="text-sm text-amber-700">Karthic needs at least one complete domain before moving on.</p>
+                                        ) : null}
+                                        {manualDomainWarnings.length > 0 ? (
+                                            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                                                <p className="text-sm font-semibold">Manual domain warning(s)</p>
+                                                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                                                    {manualDomainWarnings.map((warning) => (
+                                                        <li key={warning}>{warning}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        ) : null}
+                                        <div className="flex flex-wrap gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setKarthicStep(karthicEditor.sourceMode === 'manual' ? 'manual' : 'packet')}
+                                                className={workflowButtonClass('neutral')}
+                                            >
+                                                Back
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setKarthicStep('targets')}
+                                                disabled={!karthicDomainCountValid}
+                                                className={workflowButtonClass('teal')}
+                                            >
+                                                Continue to Golden Targets
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
 
-                                    {karthicStep === 'targets' && (
-                                        <div className="mt-6 space-y-4">
-                                            <FrankSummaryRow
-                                                label="Approved Frank Packet"
-                                                value={(() => {
+                                {karthicStep === 'targets' && (
+                                    <div className="mt-6 space-y-4">
+                                        <FrankSummaryRow
+                                            label="Packet Source"
+                                            value={karthicEditor.sourceMode === 'manual'
+                                                ? 'Manual / non-source-grounded'
+                                                : (() => {
                                                     const packet = approvedFrankPackets.find((item) => item.id === karthicEditor.frankPacketId);
                                                     return packet
                                                         ? `${packet.legalDomain} · ${packet.domainScope}`
                                                         : 'No Frank packet selected yet';
                                                 })()}
-                                            />
-                                            <FrankSummaryRow label="Karthic Domains" value={`${karthicEditor.domains.length} domain(s)`} />
-                                            <LabeledTextarea
-                                                label="SME Notes"
-                                                value={karthicEditor.smeNotes}
-                                                onChange={(value) => setKarthicEditor((current) => ({ ...current, smeNotes: value }))}
-                                                rows={5}
-                                                hint="These notes are sent when generating the structured golden targets."
-                                            />
-                                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 3 · Structured Golden Targets</p>
-                                                <p className="mt-1 text-sm text-slate-500">Karthic now turns Frank’s generalized golden response into separate comparison targets per domain: what the golden response contains, what can be omitted, and what would count as a contradiction.</p>
+                                        />
+                                        <FrankSummaryRow label="Karthic Domains" value={`${karthicEditor.domains.length} domain(s)`} />
+                                        <LabeledTextarea
+                                            label="SME Notes"
+                                            value={karthicEditor.smeNotes}
+                                            onChange={(value) => setKarthicEditor((current) => ({ ...current, smeNotes: value }))}
+                                            rows={5}
+                                            hint={karthicEditor.sourceMode === 'manual'
+                                                ? 'Optional notes for your own manual target drafting.'
+                                                : 'These notes are sent when generating the structured golden targets.'}
+                                        />
+                                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 3 · Structured Golden Targets</p>
+                                            <p className="mt-1 text-sm text-slate-500">
+                                                {karthicEditor.sourceMode === 'manual'
+                                                    ? 'Manual packs require manual golden targets. Enter the required points, tolerated omissions, contradictions, and comparison guidance for each domain.'
+                                                    : 'Karthic now turns Frank’s generalized golden response into separate comparison targets per domain: what the golden response contains, what can be omitted, and what would count as a contradiction.'}
+                                            </p>
+                                            {karthicEditor.sourceMode === 'frank' ? (
                                                 <button
                                                     type="button"
                                                     onClick={() => void generateKarthicTargets()}
@@ -2292,143 +2539,170 @@ export default function LegalWorkflowPage() {
                                                 >
                                                     {karthicGeneratingTargets ? 'Generating...' : 'Generate And Save Golden Targets'}
                                                 </button>
-                                            </div>
-                                            <div className="space-y-4">
-                                                {karthicEditor.goldenTargets.length === 0 ? (
-                                                    <p className="text-sm text-slate-500">No structured targets yet. Generate them first, then edit as needed.</p>
-                                                ) : karthicEditor.goldenTargets.map((target, index) => (
-                                                    <div key={target.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Target {index + 1} · {target.domainName}</p>
+                                            ) : null}
+                                        </div>
+                                        <div className="space-y-4">
+                                            {karthicEditor.goldenTargets.length === 0 ? (
+                                                <p className="text-sm text-slate-500">
+                                                    {karthicEditor.sourceMode === 'manual'
+                                                        ? 'No structured targets yet. Add them manually below.'
+                                                        : 'No structured targets yet. Generate them first, then edit as needed.'}
+                                                </p>
+                                            ) : null}
+                                            {karthicEditor.domains.map((domain, index) => {
+                                                const target = karthicEditor.goldenTargets.find((item) => item.domainId === domain.id) ?? {
+                                                    id: `golden_target_${index + 1}`,
+                                                    domainId: domain.id,
+                                                    domainName: domain.name,
+                                                    summary: '',
+                                                    goldenContains: [],
+                                                    allowedOmissions: [],
+                                                    contradictionFlags: [],
+                                                    comparisonGuidance: '',
+                                                };
+                                                return (
+                                                    <div key={domain.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Target {index + 1} · {domain.name}</p>
                                                         <div className="mt-3 space-y-3">
                                                             <LabeledTextarea
                                                                 label="Golden Target Summary"
                                                                 value={target.summary}
-                                                                onChange={(value) => setKarthicEditor((current) => ({
-                                                                    ...current,
-                                                                    goldenTargets: current.goldenTargets.map((item, itemIndex) => itemIndex === index ? { ...item, summary: value } : item),
-                                                                }))}
+                                                                onChange={(value) => updateGoldenTarget(domain, { summary: value })}
                                                                 rows={3}
                                                             />
                                                             <div className="grid gap-3 md:grid-cols-3">
                                                                 <LabeledTextarea
                                                                     label="Golden Contains"
                                                                     value={target.goldenContains.join('\n')}
-                                                                    onChange={(value) => setKarthicEditor((current) => ({
-                                                                        ...current,
-                                                                        goldenTargets: current.goldenTargets.map((item, itemIndex) => itemIndex === index ? { ...item, goldenContains: splitTextarea(value) } : item),
-                                                                    }))}
+                                                                    onChange={(value) => updateGoldenTarget(domain, { goldenContains: splitTextarea(value) })}
                                                                     rows={6}
                                                                 />
                                                                 <LabeledTextarea
                                                                     label="Allowed Omissions"
                                                                     value={target.allowedOmissions.join('\n')}
-                                                                    onChange={(value) => setKarthicEditor((current) => ({
-                                                                        ...current,
-                                                                        goldenTargets: current.goldenTargets.map((item, itemIndex) => itemIndex === index ? { ...item, allowedOmissions: splitTextarea(value) } : item),
-                                                                    }))}
+                                                                    onChange={(value) => updateGoldenTarget(domain, { allowedOmissions: splitTextarea(value) })}
                                                                     rows={6}
                                                                 />
                                                                 <LabeledTextarea
                                                                     label="Contradiction Flags"
                                                                     value={target.contradictionFlags.join('\n')}
-                                                                    onChange={(value) => setKarthicEditor((current) => ({
-                                                                        ...current,
-                                                                        goldenTargets: current.goldenTargets.map((item, itemIndex) => itemIndex === index ? { ...item, contradictionFlags: splitTextarea(value) } : item),
-                                                                    }))}
+                                                                    onChange={(value) => updateGoldenTarget(domain, { contradictionFlags: splitTextarea(value) })}
                                                                     rows={6}
                                                                 />
                                                             </div>
                                                             <LabeledTextarea
                                                                 label="Comparison Guidance"
                                                                 value={target.comparisonGuidance}
-                                                                onChange={(value) => setKarthicEditor((current) => ({
-                                                                    ...current,
-                                                                    goldenTargets: current.goldenTargets.map((item, itemIndex) => itemIndex === index ? { ...item, comparisonGuidance: value } : item),
-                                                                }))}
+                                                                onChange={(value) => updateGoldenTarget(domain, { comparisonGuidance: value })}
                                                                 rows={3}
                                                             />
                                                         </div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                            <div className="flex flex-wrap gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setKarthicStep('domains')}
-                                                    className={workflowButtonClass('neutral')}
-                                                >
-                                                    Back
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setKarthicStep('approve')}
-                                                    disabled={!karthicTargetsReady}
-                                                    className={workflowButtonClass('teal')}
-                                                >
-                                                    Continue to Approval
-                                                </button>
-                                            </div>
+                                                );
+                                            })}
                                         </div>
-                                    )}
+                                        {manualTargetWarnings.length > 0 ? (
+                                            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                                                <p className="text-sm font-semibold">Manual target warning(s)</p>
+                                                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                                                    {manualTargetWarnings.map((warning) => (
+                                                        <li key={warning}>{warning}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        ) : null}
+                                        <div className="flex flex-wrap gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setKarthicStep('domains')}
+                                                className={workflowButtonClass('neutral')}
+                                            >
+                                                Back
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setKarthicStep('approve')}
+                                                disabled={karthicEditor.sourceMode === 'frank' ? !karthicTargetsReady : !karthicDomainCountValid}
+                                                className={workflowButtonClass('teal')}
+                                            >
+                                                Continue to Approval
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
 
-                                    {karthicStep === 'approve' && (
-                                        <div className="mt-6 space-y-4">
-                                            <FrankSummaryRow
-                                                label="Approved Frank Packet"
-                                                value={(() => {
+                                {karthicStep === 'approve' && (
+                                    <div className="mt-6 space-y-4">
+                                        <FrankSummaryRow
+                                            label="Packet Source"
+                                            value={karthicEditor.sourceMode === 'manual'
+                                                ? 'Manual / non-source-grounded'
+                                                : (() => {
                                                     const packet = approvedFrankPackets.find((item) => item.id === karthicEditor.frankPacketId);
                                                     return packet
                                                         ? `${packet.legalDomain} · ${packet.domainScope}`
                                                         : 'No Frank packet selected yet';
                                                 })()}
+                                        />
+                                        <FrankSummaryRow label="Domains" value={`${karthicEditor.domains.length} domain(s)`} />
+                                        <FrankSummaryRow label="Golden Targets" value={`${karthicEditor.goldenTargets.length} target(s)`} />
+                                        {karthicEditor.sourceMode === 'manual' ? (
+                                            <LabeledSelect
+                                                label="Approved Run Mode"
+                                                value={karthicEditor.approvedRunMode}
+                                                onChange={(value) => setKarthicEditor((current) => ({ ...current, approvedRunMode: value as KarthicRubricPack['approvedRunMode'] }))}
+                                                options={[
+                                                    { value: 'cluster_only', label: 'Cluster only' },
+                                                    ...(karthicTargetsReady ? [
+                                                        { value: 'both', label: 'Score + cluster' },
+                                                    ] : []),
+                                                ]}
                                             />
-                                            <FrankSummaryRow label="Domains" value={`${karthicEditor.domains.length} domain(s)`} />
-                                            <FrankSummaryRow label="Golden Targets" value={`${karthicEditor.goldenTargets.length} target(s)`} />
-                                            <LabeledTextarea
-                                                label="Comparison Method Note"
-                                                value={karthicEditor.comparisonMethodNote}
-                                                onChange={(value) => setKarthicEditor((current) => ({ ...current, comparisonMethodNote: value }))}
-                                                rows={4}
-                                                hint="This explains how Dasha should compare centroids against the structured golden targets."
-                                            />
-                                            <ReadOnlyListCard
-                                                title="Seed Criteria Snapshot"
-                                                emptyMessage="Generate golden targets first."
-                                                items={karthicEditor.criteria.filter((criterion) => criterion.status === 'active').map((criterion) => ({
-                                                    id: criterion.id,
-                                                    label: criterion.text,
-                                                    meta: criterion.domainId,
-                                                }))}
-                                            />
-                                            <div className="flex flex-wrap gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setKarthicStep('targets')}
-                                                    className={workflowButtonClass('neutral')}
-                                                >
-                                                    Back
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => void saveKarthic('draft')}
-                                                    disabled={karthicSavingStatus !== null}
-                                                    className={workflowButtonClass('neutral')}
-                                                >
-                                                    {karthicSavingStatus === 'draft' ? <><LoaderCircle className="h-4 w-4 animate-spin" />Saving Draft...</> : 'Save Draft'}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => void saveKarthic('approved')}
-                                                    disabled={!karthicPackReady || karthicSavingStatus !== null}
-                                                    className={workflowButtonClass('success')}
-                                                >
-                                                    {karthicSavingStatus === 'approved' ? <><LoaderCircle className="h-4 w-4 animate-spin" />Approving...</> : 'Approve for Dasha'}
-                                                </button>
-                                            </div>
+                                        ) : null}
+                                        <LabeledTextarea
+                                            label="Comparison Method Note"
+                                            value={karthicEditor.comparisonMethodNote}
+                                            onChange={(value) => setKarthicEditor((current) => ({ ...current, comparisonMethodNote: value }))}
+                                            rows={4}
+                                            hint="This explains how Dasha should compare centroids against the structured golden targets."
+                                        />
+                                        <ReadOnlyListCard
+                                            title="Seed Criteria Snapshot"
+                                            emptyMessage="Generate or complete golden targets first."
+                                            items={karthicEditor.criteria.filter((criterion) => criterion.status === 'active').map((criterion) => ({
+                                                id: criterion.id,
+                                                label: criterion.text,
+                                                meta: criterion.domainId,
+                                            }))}
+                                        />
+                                        <div className="flex flex-wrap gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setKarthicStep('targets')}
+                                                className={workflowButtonClass('neutral')}
+                                            >
+                                                Back
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => void saveKarthic('draft')}
+                                                disabled={karthicSavingStatus !== null}
+                                                className={workflowButtonClass('neutral')}
+                                            >
+                                                {karthicSavingStatus === 'draft' ? <><LoaderCircle className="h-4 w-4 animate-spin" />Saving Draft...</> : 'Save Draft'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => void saveKarthic('approved')}
+                                                disabled={!karthicPackReady || karthicSavingStatus !== null}
+                                                className={workflowButtonClass('success')}
+                                            >
+                                                {karthicSavingStatus === 'approved' ? <><LoaderCircle className="h-4 w-4 animate-spin" />Approving...</> : 'Approve for Dasha'}
+                                            </button>
                                         </div>
-                                    )}
-                                </>
-                            )}
+                                    </div>
+                                )}
+                            </>
                         </div>
                     </div>
 
@@ -2439,7 +2713,13 @@ export default function LegalWorkflowPage() {
                             items={karthicExplainerItems}
                             activeStep={karthicStep}
                         />
-                        <ArtifactListCard title="Karthic Rubric Packs" items={karthicPacks} onSelect={(id) => {
+                        <ArtifactListCard title="Karthic Rubric Packs" items={karthicPacks.map((pack) => ({
+                            ...pack,
+                            legalDomain: pack.sourceMode === 'manual' ? 'Manual / non-source-grounded' : 'Frank-backed rubric pack',
+                            domainScope: pack.sourceMode === 'manual'
+                                ? (pack.questionText.split('\n')[0]?.replace(/^Title:\s*/i, '').trim() || pack.id)
+                                : (pack.frankPacketId ?? pack.id),
+                        }))} onSelect={(id) => {
                             const item = karthicPacks.find((pack) => pack.id === id);
                             if (item) {
                                 applyKarthicPack(item);
@@ -2455,7 +2735,7 @@ export default function LegalWorkflowPage() {
                         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                             <SectionHeader
                                 title="Dasha Wizard"
-                                description="One step at a time: pick the approved Karthic pack, load Frank’s canonical question packet automatically, choose the frontier models, then run clustering and centroid-vs-golden comparison."
+                                description="One step at a time: pick the approved Karthic pack, load its canonical question packet automatically, choose the frontier models, then run clustering with optional centroid-vs-golden scoring."
                                 actions={selectedDashaRun ? <ApprovalBadge approved={selectedDashaRun?.status === 'completed'} label={selectedDashaRun ? selectedDashaRun.status : 'idle'} /> : null}
                             />
                             <DashaStepRail
@@ -2481,12 +2761,19 @@ export default function LegalWorkflowPage() {
                                             <LabeledSelect
                                                 label="Approved Karthic Rubric Pack"
                                                 value={dashaForm.rubricPackId}
-                                                onChange={(value) => setDashaForm((current) => ({ ...current, rubricPackId: value }))}
+                                                onChange={(value) => {
+                                                    const pack = approvedKarthicPacks.find((item) => item.id === value) ?? null;
+                                                    setDashaForm((current) => ({
+                                                        ...current,
+                                                        rubricPackId: value,
+                                                        runMode: pack?.approvedRunMode === 'cluster_only' ? 'cluster_only' : current.runMode,
+                                                    }));
+                                                }}
                                                 options={[
                                                     { value: '', label: 'Select an approved Karthic rubric pack' },
                                                     ...approvedKarthicPacks.map((pack) => ({
                                                         value: pack.id,
-                                                        label: `${pack.id} · ${pack.domains.length} domains`,
+                                                        label: `${pack.id} · ${pack.sourceMode === 'manual' ? 'manual' : 'Frank-backed'} · ${pack.domains.length} domains`,
                                                     })),
                                                 ]}
                                             />
@@ -2496,7 +2783,7 @@ export default function LegalWorkflowPage() {
                                                     value={(() => {
                                                         const pack = approvedKarthicPacks.find((item) => item.id === dashaForm.rubricPackId);
                                                         return pack
-                                                            ? `${pack.domains.length} domains · ${pack.goldenTargets.length} structured targets`
+                                                            ? `${pack.domains.length} domains · ${pack.goldenTargets.length} structured targets · ${pack.sourceMode === 'manual' ? 'manual / non-source-grounded' : 'Frank-backed'}`
                                                             : 'Pack not found';
                                                     })()}
                                                 />
@@ -2522,16 +2809,18 @@ export default function LegalWorkflowPage() {
                                             />
                                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 2 · Canonical Question Packet</p>
-                                                <p className="mt-1 text-sm text-slate-500">Dasha automatically uses the exact same question packet Frank generated and Karthic inherited. You do not upload a new question here.</p>
+                                                <p className="mt-1 text-sm text-slate-500">Dasha automatically uses the exact same stored question packet the approved rubric pack was built around. You do not upload a new question here.</p>
                                             </div>
                                             <LabeledTextarea
-                                                label="Question Packet From Frank"
-                                                value={selectedDashaFrankPacket?.benchmarkQuestion ?? ''}
+                                                label={selectedDashaPack?.sourceMode === 'manual' ? 'Question Packet From Manual Karthic Pack' : 'Question Packet From Frank'}
+                                                value={selectedDashaQuestionText}
                                                 onChange={() => undefined}
                                                 rows={14}
-                                                hint={selectedDashaFrankPacket
-                                                    ? `Loaded automatically from Frank packet ${selectedDashaFrankPacket.id}.`
-                                                    : 'Select an approved rubric pack to load the linked Frank question packet.'}
+                                                hint={selectedDashaPack?.sourceMode === 'manual'
+                                                    ? 'Loaded automatically from the selected manual Karthic pack.'
+                                                    : selectedDashaFrankPacket
+                                                        ? `Loaded automatically from Frank packet ${selectedDashaFrankPacket.id}.`
+                                                        : 'Select an approved rubric pack to load the linked Frank question packet.'}
                                                 readOnly
                                             />
                                             <div className="flex flex-wrap gap-3">
@@ -2558,13 +2847,30 @@ export default function LegalWorkflowPage() {
                                         <div className="mt-6 space-y-4">
                                             <FrankSummaryRow
                                                 label="Canonical Question Packet"
-                                                value={selectedDashaFrankPacket
-                                                    ? `Loaded from Frank packet ${selectedDashaFrankPacket.id}`
-                                                    : 'No linked Frank question packet loaded yet'}
+                                                value={selectedDashaPack?.sourceMode === 'manual'
+                                                    ? 'Loaded from the selected manual Karthic pack'
+                                                    : selectedDashaFrankPacket
+                                                        ? `Loaded from Frank packet ${selectedDashaFrankPacket.id}`
+                                                        : 'No linked Frank question packet loaded yet'}
+                                            />
+                                            <LabeledSelect
+                                                label="Run Mode"
+                                                value={dashaForm.runMode}
+                                                onChange={(value) => setDashaForm((current) => ({ ...current, runMode: value as DashaRunMode }))}
+                                                options={[
+                                                    ...(selectedDashaPack?.approvedRunMode !== 'cluster_only'
+                                                        ? [{ value: 'score_and_cluster', label: 'Score + cluster' }]
+                                                        : []),
+                                                    { value: 'cluster_only', label: 'Cluster only' },
+                                                ]}
                                             />
                                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 3 · Frontier Models</p>
-                                                <p className="mt-1 text-sm text-slate-500">Choose the frontier models and the size of the raw answer pool. Dasha will generate a large response set, cluster that full set, then score cluster centroids against Karthic’s structured golden targets.</p>
+                                                <p className="mt-1 text-sm text-slate-500">
+                                                    {dashaForm.runMode === 'cluster_only'
+                                                        ? 'Choose the frontier models and the size of the raw answer pool. Dasha will generate a large response set and cluster that full set without running rubric scoring.'
+                                                        : 'Choose the frontier models and the size of the raw answer pool. Dasha will generate a large response set, cluster that full set, then score cluster centroids against Karthic’s structured golden targets.'}
+                                                </p>
                                             </div>
                                             <div className="grid gap-4 md:grid-cols-2">
                                                 <LabeledInput
@@ -2633,19 +2939,24 @@ export default function LegalWorkflowPage() {
                                             <FrankSummaryRow label="Rubric Pack" value={dashaForm.rubricPackId || 'No rubric pack selected yet'} />
                                             <FrankSummaryRow
                                                 label="Question Packet"
-                                                value={selectedDashaFrankPacket
-                                                    ? `Using Frank packet ${selectedDashaFrankPacket.id}`
-                                                    : 'No linked Frank question packet loaded yet'}
+                                                value={selectedDashaPack?.sourceMode === 'manual'
+                                                    ? 'Using the manual Karthic question packet'
+                                                    : selectedDashaFrankPacket
+                                                        ? `Using Frank packet ${selectedDashaFrankPacket.id}`
+                                                        : 'No linked Frank question packet loaded yet'}
                                             />
+                                            <FrankSummaryRow label="Run Mode" value={dashaForm.runMode === 'cluster_only' ? 'Cluster only' : 'Score + cluster'} />
                                             <FrankSummaryRow label="Selected Models" value={`${dashaForm.selectedModelKeys.length} model(s)`} />
                                             <FrankSummaryRow label="Requested Raw Responses" value={`${Math.max(1, parseInt(dashaForm.sampleCount || '200', 10) || 200)}`} />
                                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 4 · Run Dasha</p>
                                                 <div className="mt-2 space-y-2 text-sm text-slate-600">
                                                     <p>Dasha generates a large raw pool of answers across the selected models, targeting the response count shown above.</p>
-                                                    <p>Every model gets the exact same canonical question packet that Frank generated.</p>
+                                                    <p>Every model gets the exact same canonical question packet stored on the selected rubric pack.</p>
                                                     <p>Dasha then clusters the full raw pool using the same density methodology used in the LSH-runs workflow: instructor embeddings, UMAP reduction, HDBSCAN clustering, then one medoid-style representative per cluster.</p>
-                                                    <p>Each cluster representative is compared against Karthic’s structured golden targets and stored as matched points, missing points, extra points, and contradiction points.</p>
+                                                    {dashaForm.runMode === 'cluster_only'
+                                                        ? <p>This run will stop after clustering and representative selection. No rubric scoring will be performed.</p>
+                                                        : <p>Each cluster representative is compared against Karthic’s structured golden targets and stored as matched points, missing points, extra points, and contradiction points.</p>}
                                                 </div>
                                             </div>
                                             <div className="flex flex-wrap gap-3">
@@ -2675,17 +2986,22 @@ export default function LegalWorkflowPage() {
                             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                                 <SectionHeader
                                     title="Latest Dasha Run"
-                                    description="Large-sample centroid-first results. Dasha clusters the raw answer pool first, then compares winning cluster representatives against the structured golden targets."
+                                    description="Large-sample centroid-first results. Dasha clusters the raw answer pool first, then optionally compares winning cluster representatives against the structured golden targets."
                                 />
                                 <div className="mt-4 grid gap-4 md:grid-cols-3">
                                     <MetricCard label="Status" value={selectedDashaRun.status} />
+                                    <MetricCard label="Run Mode" value={selectedDashaRun.runMode === 'cluster_only' ? 'Cluster only' : 'Score + cluster'} />
+                                    <MetricCard label="Source" value={selectedDashaRun.sourceMode === 'manual' ? 'Manual' : 'Frank-backed'} />
+                                </div>
+                                <div className="mt-4 grid gap-4 md:grid-cols-3">
                                     <MetricCard label="Requested Responses" value={String(selectedDashaRun.requestedResponseCount ?? selectedDashaRun.responses.length)} />
                                     <MetricCard label="Valid Responses" value={String(selectedDashaRun.validResponseCount ?? selectedDashaRun.responses.filter((response) => !response.error && response.responseText.trim().length > 0).length)} />
+                                    <MetricCard label="Selected Models" value={String(selectedDashaRun.selectedModels.length)} />
                                 </div>
                                 <div className="mt-4 grid gap-4 md:grid-cols-3">
                                     <MetricCard label="Clusters" value={String(selectedDashaRun.clusters.length)} />
                                     <MetricCard label="Clustering" value={selectedDashaRun.clusteringMethod || 'unknown'} />
-                                    <MetricCard label="Selected Models" value={String(selectedDashaRun.selectedModels.length)} />
+                                    <MetricCard label="Winning Domains" value={String(selectedDashaRun.domainResults.filter((result) => result.winningCentroidId).length)} />
                                 </div>
                                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                                     <MetricCard label="Weighted Score" value={selectedDashaRun.weightedSummary.weightedScore === null ? 'N/A' : selectedDashaRun.weightedSummary.weightedScore.toFixed(1)} />
@@ -2742,7 +3058,11 @@ export default function LegalWorkflowPage() {
                         />
                         <ArtifactListCard
                             title="Dasha Runs"
-                            items={dashaRuns}
+                            items={dashaRuns.map((run) => ({
+                                ...run,
+                                legalDomain: `${run.runMode === 'cluster_only' ? 'Cluster only' : 'Score + cluster'} · ${run.sourceMode === 'manual' ? 'Manual' : 'Frank-backed'}`,
+                                domainScope: run.rubricPackId,
+                            }))}
                             onSelect={(id) => {
                                 const run = dashaRuns.find((item) => item.id === id) ?? null;
                                 setSelectedDashaRunId(id);
@@ -2793,6 +3113,27 @@ export default function LegalWorkflowPage() {
                 };
             }),
         }));
+    }
+
+    function updateGoldenTarget(domain: KarthicDomain, patch: Partial<KarthicGoldenDomainTarget>) {
+        setKarthicEditor((current) => {
+            const existing = current.goldenTargets.find((target) => target.domainId === domain.id);
+            const nextTarget: KarthicGoldenDomainTarget = {
+                id: existing?.id ?? `golden_target_${domain.id}`,
+                domainId: domain.id,
+                domainName: patch.domainName ?? existing?.domainName ?? domain.name,
+                summary: patch.summary ?? existing?.summary ?? '',
+                goldenContains: patch.goldenContains ?? existing?.goldenContains ?? [],
+                allowedOmissions: patch.allowedOmissions ?? existing?.allowedOmissions ?? [],
+                contradictionFlags: patch.contradictionFlags ?? existing?.contradictionFlags ?? [],
+                comparisonGuidance: patch.comparisonGuidance ?? existing?.comparisonGuidance ?? '',
+            };
+            const remaining = current.goldenTargets.filter((target) => target.domainId !== domain.id);
+            return {
+                ...current,
+                goldenTargets: [...remaining, nextTarget],
+            };
+        });
     }
 }
 
@@ -2934,7 +3275,10 @@ function frankFitCardMessage(fitCheck: FrankCaseDomainFitCheck) {
 }
 
 function inferKarthicStep(state: KarthicEditorState): KarthicWizardStep {
-    if (!state.frankPacketId) {
+    if (state.sourceMode === 'manual' && !state.questionText.trim()) {
+        return 'manual';
+    }
+    if (state.sourceMode === 'frank' && !state.frankPacketId) {
         return 'packet';
     }
     if (!hasEditableKarthicDomains(state.domains)) {
@@ -2955,7 +3299,59 @@ function hasKarthicGoldenTargets(targets: KarthicGoldenDomainTarget[], domains: 
     if (targets.length === 0 || filledDomains.length === 0) {
         return false;
     }
-    return filledDomains.every((domain) => targets.some((target) => target.domainId === domain.id && target.goldenContains.length > 0));
+    return filledDomains.every((domain) => targets.some((target) =>
+        target.domainId === domain.id
+        && target.goldenContains.length > 0
+        && target.summary.trim()
+        && target.comparisonGuidance.trim(),
+    ));
+}
+
+function buildManualQuestionWarnings(questionText: string) {
+    const trimmed = questionText.trim();
+    if (!trimmed) {
+        return [] as string[];
+    }
+    const warnings: string[] = [];
+    const requiredSections = ['Title', 'Facts', 'Tasks', 'Answer Format'];
+    for (const section of requiredSections) {
+        if (!new RegExp(`(^|\\n)${section}:`, 'i').test(trimmed)) {
+            warnings.push(`Question packet is missing the ${section} section.`);
+        }
+    }
+    const tasksMatch = trimmed.match(/\nTasks:\n([\s\S]*?)(?:\n\nAnswer Format:|$)/i);
+    const tasks = tasksMatch?.[1]?.trim() ?? '';
+    if (tasks && !/^\s*\d+[.)]\s+/m.test(tasks)) {
+        warnings.push('Question packet tasks should be a numbered list.');
+    }
+    return warnings;
+}
+
+function buildManualDomainWarnings(domains: KarthicDomain[]) {
+    const warnings: string[] = [];
+    const seenNames = new Set<string>();
+    for (const domain of domains) {
+        const name = domain.name.trim().toLowerCase();
+        if (!name) {
+            continue;
+        }
+        if (seenNames.has(name)) {
+            warnings.push(`Duplicate domain name detected: ${domain.name.trim()}.`);
+        }
+        seenNames.add(name);
+    }
+    return warnings;
+}
+
+function buildManualTargetWarnings(targets: KarthicGoldenDomainTarget[], domains: KarthicDomain[]) {
+    const warnings: string[] = [];
+    for (const domain of domains.filter((item) => item.name.trim() && item.description.trim())) {
+        const target = targets.find((item) => item.domainId === domain.id);
+        if (!target || target.goldenContains.length === 0 || !target.summary.trim() || !target.comparisonGuidance.trim()) {
+            warnings.push(`Structured target coverage is incomplete for ${domain.name}.`);
+        }
+    }
+    return warnings;
 }
 
 function FrankStepRail({
@@ -3025,6 +3421,7 @@ function FrankFitCheckStatusCard({ fitCheck }: { fitCheck: FrankCaseDomainFitChe
 
 function KarthicStepRail({
     step,
+    manualReady,
     packetReady,
     domainsReady,
     targetsReady,
@@ -3032,6 +3429,7 @@ function KarthicStepRail({
     onChange,
 }: {
     step: KarthicWizardStep;
+    manualReady: boolean;
     packetReady: boolean;
     domainsReady: boolean;
     targetsReady: boolean;
@@ -3039,6 +3437,7 @@ function KarthicStepRail({
     onChange: (step: KarthicWizardStep) => void;
 }) {
     const steps: Array<{ id: KarthicWizardStep; label: string; ready: boolean }> = [
+        { id: 'manual', label: '0. Manual', ready: manualReady },
         { id: 'packet', label: '1. Packet', ready: packetReady },
         { id: 'domains', label: '2. Domains', ready: domainsReady },
         { id: 'targets', label: '3. Targets', ready: targetsReady },

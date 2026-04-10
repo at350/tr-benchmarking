@@ -14,7 +14,11 @@ export const revalidate = 0;
 
 type SaveKarthicRequest = {
     id?: string;
-    frankPacketId?: string;
+    sourceMode?: KarthicRubricPack['sourceMode'];
+    frankPacketId?: string | null;
+    questionText?: string;
+    manualHeadingSeeds?: string;
+    approvedRunMode?: KarthicRubricPack['approvedRunMode'];
     domains?: KarthicDomain[];
     goldenTargets?: KarthicGoldenDomainTarget[];
     criteria?: KarthicCriterion[];
@@ -40,13 +44,17 @@ export async function GET() {
 export async function POST(req: Request) {
     try {
         const body = (await req.json()) as SaveKarthicRequest;
-        if (!body.frankPacketId || !Array.isArray(body.domains) || body.domains.length === 0) {
-            return NextResponse.json({ error: 'frankPacketId and at least one domain are required.' }, { status: 400 });
+        if (!Array.isArray(body.domains) || body.domains.length === 0) {
+            return NextResponse.json({ error: 'At least one domain is required.' }, { status: 400 });
         }
 
         const item = await saveKarthicRubricPack({
             id: body.id,
+            sourceMode: body.sourceMode,
             frankPacketId: body.frankPacketId,
+            questionText: body.questionText,
+            manualHeadingSeeds: body.manualHeadingSeeds,
+            approvedRunMode: body.approvedRunMode,
             domains: body.domains,
             goldenTargets: body.goldenTargets,
             criteria: body.criteria,
