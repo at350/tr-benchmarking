@@ -158,12 +158,19 @@ export type KarthicGoldenDomainTarget = {
 export type KarthicSourceMode = 'frank' | 'manual';
 export type DashaRunMode = 'score_and_cluster' | 'cluster_only';
 export type KarthicApprovedRunMode = 'both' | DashaRunMode;
+export type ManualQuestionPacketFields = {
+    title: string;
+    facts: string;
+    tasks: string[];
+    answerFormat: string;
+};
 
 export type KarthicRubricPack = {
     id: string;
     sourceMode: KarthicSourceMode;
     frankPacketId: string | null;
     questionText: string;
+    manualQuestionFields: ManualQuestionPacketFields;
     manualHeadingSeeds: string;
     status: Extract<WorkflowStatus, 'draft' | 'approved'>;
     approvedRunMode: KarthicApprovedRunMode;

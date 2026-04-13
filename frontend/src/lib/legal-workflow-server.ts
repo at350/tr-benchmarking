@@ -47,6 +47,7 @@ import type {
     KarthicGoldenDomainTarget,
     KarthicSourceMode,
     KarthicRubricPack,
+    ManualQuestionPacketFields,
     ModelProvider,
     ReasoningEffort,
     RefinementLogEntry,
@@ -148,6 +149,7 @@ type SaveKarthicInput = {
     sourceMode?: KarthicSourceMode;
     frankPacketId?: string | null;
     questionText?: string;
+    manualQuestionFields?: Partial<ManualQuestionPacketFields>;
     manualHeadingSeeds?: string;
     domains: KarthicDomain[];
     goldenTargets?: KarthicGoldenDomainTarget[];
@@ -158,6 +160,8 @@ type SaveKarthicInput = {
     approvedRunMode?: KarthicRubricPack['approvedRunMode'];
     status?: KarthicRubricPack['status'];
 };
+
+const QUESTION_PACKET_SECTIONS = ['Title', 'Facts', 'Tasks', 'Answer Format'] as const;
 
 type DraftKarthicDomainsInput = {
     frankPacketId: string;
@@ -246,6 +250,15 @@ function normalizeFrankGenerationReasoningEffort(reasoningEffort?: ReasoningEffo
 
 function normalizeKarthicSourceMode(value: unknown): KarthicSourceMode {
     return value === 'manual' ? 'manual' : 'frank';
+}
+
+function emptyManualQuestionFields(): ManualQuestionPacketFields {
+    return {
+        title: '',
+        facts: '',
+        tasks: [],
+        answerFormat: '',
+    };
 }
 
 function normalizeApprovedRunMode(
@@ -1318,7 +1331,24 @@ export async function saveKarthicRubricPack(input: SaveKarthicInput): Promise<Ka
 
     const now = new Date().toISOString();
     const domains = normalizeDomains(input.domains);
-    const rawQuestionText = normalizeOptionalString(input.questionText, existing?.questionText ?? '').trim();
+    const existingManualFields = sourceMode === 'manual'
+        ? (
+            existing?.manualQuestionFields
+            ?? extractQuestionPacketFields(existing?.questionText ?? '')
+        )
+        : emptyManualQuestionFields();
+    const inputManualFields = sourceMode === 'manual'
+        ? (
+            input.manualQuestionFields
+            ?? extractQuestionPacketFields(normalizeOptionalString(input.questionText, ''))
+        )
+        : emptyManualQuestionFields();
+    const manualQuestionFields: ManualQuestionPacketFields = sourceMode === 'manual'
+        ? normalizeManualQuestionFields(inputManualFields, existingManualFields)
+        : emptyManualQuestionFields();
+    const rawQuestionText = sourceMode === 'manual'
+        ? composeQuestionPacketText(manualQuestionFields)
+        : normalizeOptionalString(input.questionText, existing?.questionText ?? '').trim();
     let questionText = sourceMode === 'manual'
         ? rawQuestionText
         : normalizeOptionalString(input.questionText, existing?.questionText ?? '');
@@ -1369,6 +1399,7 @@ export async function saveKarthicRubricPack(input: SaveKarthicInput): Promise<Ka
         sourceMode,
         frankPacketId,
         questionText,
+        manualQuestionFields,
         manualHeadingSeeds,
         status: input.status ?? existing?.status ?? 'draft',
         approvedRunMode,
@@ -2548,21 +2579,20 @@ function collectFrankTextGeneralizationWarnings(label: string, text: string, sel
     return [];
 }
 
-function normalizeFrankQuestionPacket(text: string) {
+function parseQuestionPacketSections(text: string) {
     const cleaned = text
         .replace(/^```[a-zA-Z0-9_-]*\s*/i, '')
         .replace(/\s*```$/, '')
         .replace(/\r/g, '')
         .trim();
-    const sectionOrder = ['Title', 'Facts', 'Tasks', 'Answer Format'] as const;
-    const sections = new Map<typeof sectionOrder[number], string[]>();
-    let currentSection: typeof sectionOrder[number] | null = null;
+    const sections = new Map<typeof QUESTION_PACKET_SECTIONS[number], string[]>();
+    let currentSection: typeof QUESTION_PACKET_SECTIONS[number] | null = null;
 
     for (const rawLine of cleaned.split('\n')) {
         const line = rawLine.trimEnd();
         const match = line.match(/^\s*(?:[-*>]\s*)?(?:#{1,6}\s*)?(?:\*\*|__)?(Title|Facts|Tasks|Answer Format)(?:\*\*|__)?\s*:?\s*(.*)$/i);
         if (match) {
-            currentSection = sectionOrder.find((item) => item.toLowerCase() === match[1].toLowerCase()) ?? null;
+            currentSection = QUESTION_PACKET_SECTIONS.find((item) => item.toLowerCase() === match[1].toLowerCase()) ?? null;
             if (!currentSection) {
                 continue;
             }
@@ -2577,7 +2607,122 @@ function normalizeFrankQuestionPacket(text: string) {
         }
     }
 
-    const missingSections = sectionOrder.filter((section) => !sections.has(section));
+    return sections;
+}
+
+function parseManualTaskItems(value: string): string[] {
+    const cleaned = value.replace(/\r/g, '').trim();
+    if (!cleaned) {
+        return [];
+    }
+
+    const lines = cleaned.split('\n');
+    const hasExplicitMarkers = lines.some((line) => /^\s*(?:\d+[.)]|[-*])\s+/.test(line));
+    if (hasExplicitMarkers) {
+        const tasks: string[] = [];
+        let current = '';
+        for (const rawLine of lines) {
+            const line = rawLine.trim();
+            if (!line) {
+                continue;
+            }
+            const markerMatch = line.match(/^\s*(?:\d+[.)]|[-*])\s+(.*)$/);
+            if (markerMatch) {
+                if (current.trim()) {
+                    tasks.push(current.trim());
+                }
+                current = markerMatch[1].trim();
+                continue;
+            }
+            current = current ? `${current}\n${line}` : line;
+        }
+        if (current.trim()) {
+            tasks.push(current.trim());
+        }
+        return tasks;
+    }
+
+    const paragraphTasks = cleaned
+        .split(/\n\s*\n/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    if (paragraphTasks.length > 1) {
+        return paragraphTasks;
+    }
+
+    return cleaned
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+
+function normalizeManualTaskItems(value: unknown, fallback: string[] = []): string[] {
+    if (Array.isArray(value)) {
+        const tasks = value
+            .map((item) => typeof item === 'string' ? item.trim() : '')
+            .filter(Boolean);
+        if (tasks.length > 0) {
+            return tasks;
+        }
+    }
+    if (typeof value === 'string') {
+        const tasks = parseManualTaskItems(value);
+        if (tasks.length > 0) {
+            return tasks;
+        }
+    }
+    return fallback.map((item) => item.trim()).filter(Boolean);
+}
+
+function composeManualTaskList(tasks: string[]) {
+    return tasks
+        .map((task) => task.trim())
+        .filter(Boolean)
+        .map((task, index) => `${index + 1}. ${task}`)
+        .join('\n');
+}
+
+function normalizeManualQuestionFields(
+    value: Partial<ManualQuestionPacketFields> | null | undefined,
+    fallback: ManualQuestionPacketFields,
+): ManualQuestionPacketFields {
+    return {
+        title: normalizeOptionalString(value?.title, fallback.title),
+        facts: normalizeOptionalString(value?.facts, fallback.facts),
+        tasks: normalizeManualTaskItems(value?.tasks, fallback.tasks),
+        answerFormat: normalizeOptionalString(value?.answerFormat, fallback.answerFormat),
+    };
+}
+
+function extractQuestionPacketFields(text: string): ManualQuestionPacketFields {
+    const sections = parseQuestionPacketSections(text);
+    return {
+        title: (sections.get('Title') ?? []).join('\n').trim(),
+        facts: (sections.get('Facts') ?? []).join('\n').trim(),
+        tasks: parseManualTaskItems((sections.get('Tasks') ?? []).join('\n').trim()),
+        answerFormat: (sections.get('Answer Format') ?? []).join('\n').trim(),
+    };
+}
+
+function composeQuestionPacketText(fields: ManualQuestionPacketFields) {
+    return [
+        `Title: ${fields.title.trim()}`,
+        '',
+        'Facts:',
+        fields.facts.trim(),
+        '',
+        'Tasks:',
+        composeManualTaskList(fields.tasks),
+        '',
+        'Answer Format:',
+        fields.answerFormat.trim(),
+    ].join('\n').trim();
+}
+
+function normalizeFrankQuestionPacket(text: string) {
+    const sections = parseQuestionPacketSections(text);
+
+    const missingSections = QUESTION_PACKET_SECTIONS.filter((section) => !sections.has(section));
     if (missingSections.length > 0) {
         throw new Error(`Question packet is missing required section(s): ${missingSections.join(', ')}.`);
     }
@@ -3384,11 +3529,20 @@ function normalizeKarthicRubricPack(value: unknown): KarthicRubricPack | null {
             ? buildGoldenTargetRefinementLog(goldenTargets)
             : buildSeedRefinementLog(criteria);
 
+    const manualQuestionFields = sourceMode === 'manual'
+        ? (
+            isRecord(value.manualQuestionFields)
+                ? normalizeManualQuestionFields(value.manualQuestionFields as Partial<ManualQuestionPacketFields>, emptyManualQuestionFields())
+                : extractQuestionPacketFields(normalizeOptionalString(value.questionText, ''))
+        )
+        : emptyManualQuestionFields();
+
     return {
         id: normalizeNonEmptyString(value.id, `karthic_${randomUUID().slice(0, 8)}`),
         sourceMode,
         frankPacketId: sourceMode === 'frank' ? normalizeNonEmptyString(value.frankPacketId, 'frank_unknown') : null,
         questionText: sourceMode === 'manual' ? normalizeOptionalString(value.questionText, '') : '',
+        manualQuestionFields,
         manualHeadingSeeds: sourceMode === 'manual' ? normalizeOptionalString(value.manualHeadingSeeds, '') : '',
         status: value.status === 'approved' ? 'approved' : 'draft',
         approvedRunMode: normalizeApprovedRunMode(value.approvedRunMode, sourceMode, goldenTargets.length > 0),

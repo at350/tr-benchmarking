@@ -17,6 +17,7 @@ type SaveKarthicRequest = {
     sourceMode?: KarthicRubricPack['sourceMode'];
     frankPacketId?: string | null;
     questionText?: string;
+    manualQuestionFields?: KarthicRubricPack['manualQuestionFields'];
     manualHeadingSeeds?: string;
     approvedRunMode?: KarthicRubricPack['approvedRunMode'];
     domains?: KarthicDomain[];
@@ -53,6 +54,7 @@ export async function POST(req: Request) {
             sourceMode: body.sourceMode,
             frankPacketId: body.frankPacketId,
             questionText: body.questionText,
+            manualQuestionFields: body.manualQuestionFields,
             manualHeadingSeeds: body.manualHeadingSeeds,
             approvedRunMode: body.approvedRunMode,
             domains: body.domains,
