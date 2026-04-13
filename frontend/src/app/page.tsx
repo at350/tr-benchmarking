@@ -50,7 +50,7 @@ export default function HomePage() {
 
                 <PanelCard
                     href="/legal-workflow"
-                    title="Frank-Karthic-Dasha"
+                    title="Frank-Karthic-Dasha SoF"
                     description="Build stage-bounded legal benchmark artifacts: source-grounded Frank packets, approved Karthic rubrics, and Dasha centroid-first evaluations."
                     icon={<Workflow className="h-5 w-5" />}
                     badge="Pipeline"

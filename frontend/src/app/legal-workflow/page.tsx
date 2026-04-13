@@ -1,709 +1,348 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { CheckCircle2, FlaskConical, LoaderCircle, Network, Scale, ScrollText, Trash2 } from 'lucide-react';
+import { startTransition, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { AppShell } from '@/components/ui/AppShell';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { MODEL_OPTIONS_BY_PROVIDER, PROVIDER_LABELS, REASONING_OPTIONS, type ModelProvider } from '@/lib/model-options';
-import {
-    buildDashaGenerationUserPrompt,
-    buildFrankAnalysisDomainsPrompt,
-    buildFrankCaseSearchPrompt,
-    buildFrankFitCheckPrompt,
-    buildFrankGoldenResponsePrompt,
-    buildFrankQuestionPacketPrompt,
-    buildKarthicDomainDraftPrompt,
-    buildKarthicGoldenTargetsPrompt,
-    DASHA_GENERATION_SYSTEM_PROMPT,
-} from '@/lib/legal-workflow-prompts';
+import { FRANK_V2_BENCHMARK_HEADINGS, FRANK_V2_PACK_LABELS, RUBRIC_MODULE_LABELS } from '@/lib/legal-workflow-v2-constants';
 import type {
     ArtifactRole,
     DashaRunMode,
-    DashaRun,
+    DashaRunV2,
     DashaSelectedModel,
-    FrankAnalysisDomain,
-    FrankCaseDomainFitCheck,
-    FrankCaseDomainFitResult,
-    FrankCaseCandidate,
-    FrankGenerationSettings,
-    FrankPacket,
-    FrankSavedPrompt,
-    KarthicCriterion,
-    KarthicDomain,
-    KarthicGoldenDomainTarget,
-    KarthicRubricPack,
-    KarthicSourceMode,
-    ManualQuestionPacketFields,
+    FrankPacketV2,
+    FrankSofPackId,
+    KarthicRubricPackV2,
+    KarthicRubricRow,
     ReasoningEffort,
-} from '@/lib/legal-workflow-types';
-
-type WorkflowTab = 'frank' | 'karthic' | 'dasha';
-type FrankWizardStep = 'domain' | 'case' | 'domains' | 'fit' | 'golden' | 'question';
-type KarthicWizardStep = 'manual' | 'packet' | 'domains' | 'targets' | 'approve';
-type DashaWizardStep = 'rubric' | 'question' | 'models' | 'run';
-type StepExplainerItem<TStep extends string> = {
-    id: TStep;
-    title: string;
-    summary: string;
-    detail: string[];
-    promptText?: string | null;
-    promptLabel?: string;
-    promptEmptyState?: string;
-    extraPromptText?: string | null;
-    extraPromptLabel?: string;
-    extraPromptEmptyState?: string;
-};
-
-type DashaClusterMapPoint = {
-    x: number;
-    y: number;
-    model: string;
-    clusterId: string;
-    memberId?: string;
-    isCentroid?: boolean;
-};
-
-type DashaClusterMapRegion = {
-    clusterId: string;
-    centerX: number;
-    centerY: number;
-    radius: number;
-    visibleMembers: number;
-    totalMembers: number;
-    dominantModel: string;
-    note: string;
-};
-
-type DashaAxisDomain = {
-    minX: number;
-    maxX: number;
-    minY: number;
-    maxY: number;
-};
+} from '@/lib/legal-workflow-v2-types';
+import { MODEL_OPTIONS_BY_PROVIDER, PROVIDER_LABELS, type ModelProvider } from '@/lib/model-options';
 
 type UploadRow = {
-    role: ArtifactRole;
     file: File;
+    role: ArtifactRole;
 };
 
-type FrankEditorState = {
-    id?: string;
-    legalDomain: string;
-    domainScope: string;
-    sourceFamily: string;
-    masterIssueStatement: string;
-    benchmarkAnswer: string;
-    benchmarkQuestion: string;
-    failureModeSeedsText: string;
-    sourceQualityRating: string;
-    benchmarkPosture: FrankPacket['sourceIntake']['benchmarkPosture'];
-    recommendation: string;
-    reverseEngineeringSuitability: FrankPacket['sourceIntake']['reverseEngineeringSuitability'];
-    jdReviewBurdenText: string;
-    legalIssue: string;
-    blackLetterRule: string;
-    triggerFactsText: string;
-    holding: string;
-    limitsText: string;
-    uncertaintyText: string;
-    selectedCase: FrankCaseCandidate | null;
-    caseCandidates: FrankCaseCandidate[];
-    analysisDomains: FrankAnalysisDomain[];
-    fitCheck: FrankCaseDomainFitCheck;
-    goldenWarnings: string[];
-    questionWarnings: string[];
-    savedPrompts: FrankSavedPrompt[];
-    fitSettings: FrankGenerationSettings;
-    goldenSettings: FrankGenerationSettings;
-    questionSettings: FrankGenerationSettings;
-    sourceArtifacts: FrankPacket['sourceArtifacts'];
+type WorkflowStageId =
+    | 'source'
+    | 'routing_intake'
+    | 'extraction_mapping'
+    | 'benchmark'
+    | 'question'
+    | 'rubric'
+    | 'judge';
+
+type WorkflowStageDefinition = {
+    id: WorkflowStageId;
+    title: string;
+    description: string;
+    shortLabel: string;
 };
 
-type KarthicEditorState = {
-    id?: string;
-    sourceMode: KarthicSourceMode;
-    frankPacketId: string;
-    questionText: string;
-    manualQuestionFields: ManualQuestionPacketFields;
-    manualHeadingSeeds: string;
-    status: KarthicRubricPack['status'];
-    approvedRunMode: KarthicRubricPack['approvedRunMode'];
-    domains: KarthicDomain[];
-    goldenTargets: KarthicGoldenDomainTarget[];
-    criteria: KarthicCriterion[];
-    refinementLog: KarthicRubricPack['refinementLog'];
-    smeNotes: string;
-    comparisonMethodNote: string;
+type WorkflowStageView = WorkflowStageDefinition & {
+    complete: boolean;
+    unlocked: boolean;
+    blocked: boolean;
+    statusLabel: string;
 };
 
-type DashaFormState = {
-    rubricPackId: string;
-    runMode: DashaRunMode;
-    selectedModelKeys: string[];
-    sampleCount: string;
+type WorkflowStageGuide = {
+    purpose: string;
+    stopRules?: string[];
+    promptFiles?: string[];
+    promptNote?: string;
 };
 
-const DEFAULT_FRANK_STATE: FrankEditorState = {
-    legalDomain: 'Contracts',
-    domainScope: 'Statute of Frauds within contract law',
-    sourceFamily: 'SoF common-law source packet',
-    masterIssueStatement: '',
-    benchmarkAnswer: '',
-    benchmarkQuestion: '',
-    failureModeSeedsText: '',
-    sourceQualityRating: '',
-    benchmarkPosture: 'generalizable_only_with_supporting_authority',
-    recommendation: '',
-    reverseEngineeringSuitability: 'moderate',
-    jdReviewBurdenText: '',
-    legalIssue: '',
-    blackLetterRule: '',
-    triggerFactsText: '',
-    holding: '',
-    limitsText: '',
-    uncertaintyText: '',
-    selectedCase: null,
-    caseCandidates: [],
-    analysisDomains: [],
-    fitCheck: buildNeedsReviewFrankFitCheckState(null, []),
-    goldenWarnings: [],
-    questionWarnings: [],
-    savedPrompts: [],
-    fitSettings: {
-        model: 'gpt-5.4-mini',
-        reasoningEffort: 'medium',
-    },
-    goldenSettings: {
-        model: 'gpt-5.4-mini',
-        reasoningEffort: 'medium',
-    },
-    questionSettings: {
-        model: 'gpt-5.4-mini',
-        reasoningEffort: 'medium',
-    },
-    sourceArtifacts: [],
+type StagePromptPreview = {
+    title: string;
+    prompt: string;
 };
 
-const DEFAULT_MODEL_KEYS = [
+const DEFAULT_SELECTED_MODEL_KEYS = [
     'openai::gpt-5.4',
     'anthropic::claude-opus-4-6',
     'gemini::gemini-3.1-pro-preview',
 ];
 
-const DASHA_MAP_WIDTH = 980;
-const DASHA_MAP_HEIGHT = 640;
-const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-const MODEL_PALETTE = ['#22c55e', '#ef4444', '#94a3b8', '#3b82f6', '#f97316', '#14b8a6', '#eab308', '#a855f7', '#06b6d4', '#f43f5e'];
+const PACK_OPTIONS: Array<{ value: FrankSofPackId; label: string }> = [
+    { value: 'pack10', label: FRANK_V2_PACK_LABELS.pack10 },
+    { value: 'pack20', label: FRANK_V2_PACK_LABELS.pack20 },
+    { value: 'pack30', label: FRANK_V2_PACK_LABELS.pack30 },
+    { value: 'pack40', label: FRANK_V2_PACK_LABELS.pack40 },
+];
 
-type WorkflowButtonVariant = 'neutral' | 'teal' | 'success' | 'warning' | 'danger' | 'ghost';
-type WorkflowButtonSize = 'md' | 'sm' | 'xs' | 'chip' | 'icon';
-
-function workflowButtonClass(
-    variant: WorkflowButtonVariant,
-    size: WorkflowButtonSize = 'md',
-    extraClassName?: string,
-) {
-    const baseClassName = 'inline-flex items-center justify-center gap-2 rounded-lg border font-semibold shadow-sm transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-md active:translate-y-0 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-sm';
-    const sizeClassName = {
-        md: 'px-3 py-2 text-sm',
-        sm: 'px-3 py-1.5 text-xs',
-        xs: 'px-2 py-0.5 text-[11px]',
-        chip: 'rounded-full px-3 py-1.5 text-xs shadow-none hover:shadow-sm',
-        icon: 'p-2',
-    } satisfies Record<WorkflowButtonSize, string>;
-    const variantClassName = {
-        neutral: 'border-slate-300 bg-white text-slate-700 focus-visible:ring-slate-300',
-        teal: 'border-teal-300 bg-teal-50 text-teal-800 focus-visible:ring-teal-300',
-        success: 'border-emerald-300 bg-emerald-50 text-emerald-800 focus-visible:ring-emerald-300',
-        warning: 'border-amber-300 bg-white text-amber-800 focus-visible:ring-amber-300',
-        danger: 'border-rose-300 bg-white text-rose-700 focus-visible:ring-rose-300',
-        ghost: 'border-slate-300 bg-slate-100 text-slate-600 focus-visible:ring-slate-300',
-    } satisfies Record<WorkflowButtonVariant, string>;
-
-    return [baseClassName, sizeClassName[size], variantClassName[variant], extraClassName].filter(Boolean).join(' ');
-}
-
-const DEFAULT_KARTHIC_STATE: KarthicEditorState = {
-    sourceMode: 'frank',
-    frankPacketId: '',
-    questionText: '',
-    manualQuestionFields: {
-        title: '',
-        facts: '',
-        tasks: [''],
-        answerFormat: '',
+const WORKFLOW_STAGES: WorkflowStageDefinition[] = [
+    {
+        id: 'source',
+        title: 'Source Upload / Packet Selection',
+        shortLabel: 'Source Upload',
+        description: 'Upload authority or select an existing packet before the Frank phases begin.',
     },
-    manualHeadingSeeds: '',
-    status: 'draft',
-    approvedRunMode: 'both',
-    domains: [],
-    goldenTargets: [],
-    criteria: [],
-    refinementLog: [],
-    smeNotes: '',
-    comparisonMethodNote: '',
+    {
+        id: 'routing_intake',
+        title: 'Routing / Intake',
+        shortLabel: 'Routing / Intake',
+        description: 'Frank Phase 1: selected pack, routing confidence, and source-intake screening.',
+    },
+    {
+        id: 'extraction_mapping',
+        title: 'Extraction / Mapping',
+        shortLabel: 'Extraction / Mapping',
+        description: 'Frank Phase 2: source extraction sheet, gold-packet mapping, and likely failure modes.',
+    },
+    {
+        id: 'benchmark',	
+        title: 'Benchmark Answer',
+        shortLabel: 'Benchmark Answer',
+        description: 'Frank Phase 3: clean benchmark answer with the fixed v2 headings.',
+    },
+    {
+        id: 'question',
+        title: 'Reverse-Engineered Question',
+        shortLabel: 'Question',
+        description: 'Frank Phase 4: one neutral reverse-engineered hypo without the old task-packet structure.',
+    },
+    {
+        id: 'rubric',
+        title: 'Karthic Rubric',
+        shortLabel: 'Karthic Rubric',
+        description: 'Karthic stage: generate and edit the row-based rubric pack derived from an approved Frank packet.',
+    },
+    {
+        id: 'judge',
+        title: 'Dasha Judge',
+        shortLabel: 'Dasha Judge',
+        description: 'Dasha stage: run the approved rubric against clustered model responses and inspect row/module scoring.',
+    },
+];
+
+const FRANK_PHASE_ORDER: WorkflowStageId[] = [
+    'routing_intake',
+    'extraction_mapping',
+    'benchmark',
+    'question',
+];
+
+const WORKFLOW_STAGE_GUIDES: Record<WorkflowStageId, WorkflowStageGuide> = {
+    source: {
+        purpose: 'Upload authority to create a new Frank packet, or load an existing packet to continue working through later stages.',
+        promptNote: 'Creating a packet immediately runs Frank Phase 1. The saved Phase 1 prompt appears below after packet creation.',
+    },
+    routing_intake: {
+        purpose: 'Review the Phase 1 routing result: selected pack, routing confidence, intake rating, and any secondary issues before moving deeper into drafting.',
+        stopRules: [
+            'Weak routing confidence should stop the packet for JD review.',
+            'Moderate sources need supporting authority before later generation.',
+        ],
+        promptNote: 'This panel shows the saved Phase 1 prompt and lets you adjust the stored routing notes before Phase 2.',
+    },
+    extraction_mapping: {
+        purpose: 'Run Frank Phase 2 to generate the structured gold materials for this source: extraction sheet, gold-packet mapping, and likely failure modes.',
+        stopRules: [
+            'Blocked when routing confidence is weak.',
+        ],
+        promptFiles: [
+            '00_MAIN_GPT_INSTRUCTIONS.txt',
+            '01_CORE_WORKFLOW_TEMPLATE.txt',
+            '02_CORE_SOURCE_INTAKE_CHECKLIST.txt',
+            '05_SOF_ROUTING_MATRIX.txt',
+            'Pack doctrine file',
+            'Pack failure bank file',
+        ],
+        promptNote: 'Running or re-running Phase 2 refreshes all three structured outputs together from the same prompt bundle.',
+    },
+    benchmark: {
+        purpose: 'Run Frank Phase 3 to generate or edit the clean benchmark answer that becomes the gold reasoning target for this packet.',
+        stopRules: [
+            'Blocked if Phase 2 is incomplete.',
+            'Blocked if intake failed or a moderate source lacks supporting authority.',
+        ],
+        promptFiles: [
+            '00_MAIN_GPT_INSTRUCTIONS.txt',
+            '01_CORE_WORKFLOW_TEMPLATE.txt',
+            '03_CORE_OUTPUT_SHAPE_AND_PROMPT_STRUCTURE.txt',
+            '06_CORE_SELF_AUDIT.txt',
+            'Pack doctrine file',
+        ],
+        promptNote: 'Phase 3 produces prose, not JSON. The saved prompt and the generated benchmark answer are shown separately.',
+    },
+    question: {
+        purpose: 'Run Frank Phase 4 to generate or edit the reverse-engineered neutral question that should trigger the benchmark reasoning without leaking the doctrine.',
+        stopRules: [
+            'The old task-packet format is rejected.',
+            'The final call line must stay neutral and end in Analyze.',
+        ],
+        promptFiles: [
+            '00_MAIN_GPT_INSTRUCTIONS.txt',
+            '01_CORE_WORKFLOW_TEMPLATE.txt',
+            '04_CORE_QUESTION_WRITING_CHECKLIST.txt',
+            'Pack doctrine file',
+        ],
+        promptNote: 'Phase 4 runs only after the benchmark answer exists. The stored prompt below should always correspond to the current question draft.',
+    },
+    rubric: {
+        purpose: 'Generate and edit the row-based Karthic rubric pack that turns the approved Frank packet into scoring criteria.',
+        stopRules: [
+            'Frank must already be approved before rubric generation can start.',
+        ],
+        promptFiles: [
+            '07_SHARED_MODULE_SKELETON.txt',
+            'Pack doctrine file',
+            'Pack failure bank file',
+        ],
+        promptNote: 'Generating the rubric pack creates or refreshes the row set for the selected approved Frank packet.',
+    },
+    judge: {
+        purpose: 'Run Dasha to generate model responses, cluster the reasoning patterns, and score those clustered outputs against the approved rubric.',
+        stopRules: [
+            'Only approved rubric packs can start Dasha.',
+            'Clustering can fall back to heuristic mode if the Python pipeline is unavailable.',
+        ],
+        promptNote: 'Dasha uses the approved question from the rubric-linked Frank packet, then scores clustered outputs row by row.',
+    },
 };
 
-function createEmptyManualTaskRow() {
-    return '';
-}
-
-function createEditorManualQuestionFields(fields?: Partial<ManualQuestionPacketFields>): ManualQuestionPacketFields {
-    return {
-        title: fields?.title ?? '',
-        facts: fields?.facts ?? '',
-        tasks: fields?.tasks && fields.tasks.length > 0 ? fields.tasks : [createEmptyManualTaskRow()],
-        answerFormat: fields?.answerFormat ?? '',
-    };
-}
-
-function buildFrankExplainerItems(state: FrankEditorState): StepExplainerItem<FrankWizardStep>[] {
-    const latestSavedRefinementPrompt = state.savedPrompts.find((item) => item.kind === 'golden_refinement') ?? null;
-    return [
-        {
-            id: 'domain',
-            title: '1. Topic',
-            summary: 'Define the area of law (topic) that constrains the rest of the evaluative and rubric-generation process.',
-            detail: [
-                'Choose which legal domain to evaluate the model.',
-                'This can be broad or specific - anything from \'contract law\' to \'legal standards for establishing intent in homicides\'. ',
-            ],
-        },
-        {
-            id: 'case',
-            title: '2. Case Search',
-            summary: 'Pick an anchor case with a clear holding and enough doctrinal structure to support a teaching-quality packet.',
-            detail: [
-                'Frank can either use OpenAI\'s web_search or extract an uploaded case PDF to identify the doctrinal anchor.',
-                'It surfaces the title/context plus a concise summary and relevance note explaining why the case matters.',
-            ],
-            promptText: state.legalDomain.trim() ? buildFrankCaseSearchPrompt(state.legalDomain) : null,
-            promptEmptyState: 'Enter a legal domain to preview the exact case-search prompt.',
-        },
-        {
-            id: 'domains',
-            title: '3. Analysis Domains',
-            summary: 'Use the selected case and topic context to draft benchmark domains.',
-            detail: [
-                '\'Draft analysis domains\' drafts domains from the grounding case and its context. Domains can also be manually added.',
-                'They form the bridge between source-grounded case understanding and the later structured evaluation logic used by Karthic and Dasha.',
-                'A subsequent validation step prevents miswritten or misfitted domains.',
-            ],
-            promptText: state.selectedCase ? buildFrankAnalysisDomainsPrompt({
-                legalDomain: state.legalDomain,
-                selectedCase: state.selectedCase,
-                desiredCount: 6,
-            }) : null,
-            promptEmptyState: 'Pick an anchor case to preview the exact domain-drafting prompt.',
-        },
-        {
-            id: 'fit',
-            title: '4. Fit Check',
-            summary: 'Verify that each proposed analysis domain is genuinely supported by the anchor case.',
-            detail: [
-                'Checks whether each domain is rationally justified by the selected authority.',
-                'Any subsequent modification, addition, or deletion of domains triggers an invalidation, requiring fit check re-run.',
-            ],
-            promptText: state.selectedCase && state.analysisDomains.length > 0 ? buildFrankFitCheckPrompt({
-                legalDomain: state.legalDomain,
-                selectedCase: state.selectedCase,
-                analysisDomains: state.analysisDomains,
-            }) : null,
-            promptEmptyState: 'Select a case and add analysis domains to preview the exact fit-check prompt.',
-        },
-        {
-            id: 'golden',
-            title: '5. Golden Response',
-            summary: 'Draft the benchmark\'s generalized golden response from the vetted case-domain frame.',
-            detail: [
-                'Frank writes the generalized golden response that later systems will treat as the benchmark answer for the legal topic chosen at step 1 of Frank.',
-                'The selected case still grounds likely outcome direction and doctrinal boundaries, but the saved golden response is no longer a summary or answer tied to that one case.',
-                'This is where the generalized golden response captures generalized issue statements, black-letter rules, trigger facts, likely outcome patterns, limitations, and uncertainty boundaries.',
-                'Technically, this is the last stage where full answer synthesis happens before Karthic decomposes that answer into structured comparison targets.',
-            ],
-            promptText: state.selectedCase && state.analysisDomains.length > 0 ? buildFrankGoldenResponsePrompt({
-                legalDomain: state.legalDomain,
-                selectedCase: state.selectedCase,
-                analysisDomains: state.analysisDomains,
-            }) : null,
-            promptLabel: 'View Exact Golden-Response Prompt',
-            promptEmptyState: 'Select a case and add analysis domains to preview the exact golden-response prompt.',
-            extraPromptText: latestSavedRefinementPrompt?.prompt ?? null,
-            extraPromptLabel: 'View Last Saved Refinement Prompt',
-        },
-        {
-            id: 'question',
-            title: '6. Question Packet',
-            summary: 'Draft an exam-style hypothetical grounded on the case that should elicit analysis across the same topics and domains.',
-            detail: [
-                'Instead of benchmarking models on the original case, Frank builds a benchmark question packet designed to elicit the model to respond with same doctrinal dimensions encoded in the generalized golden respons (grounded upon the case).',
-                'Output is a clean \'fact packet\' plus numbered domain-aligned tasks that produces a structured legal memo.',
-                'This \'golden question\' will be pasesed into Karthic and Dasha, and serves as the grounding for future benchmarking.',
-                'Checking logic: Hard structure checks in legal-workflow-server.ts (fail only if the packet is malformed, like missing sections or missing numbered tasks). Warning-level domain-name checks in legal-workflow-server.ts (the exact-name matching warnings). Warning-level anonymization/meta checks in legal-workflow-server.ts and legal-workflow-server.ts (look for leaked case identifiers or forbidden prompt-style phrases).'
-
-            ],
-            promptText: state.selectedCase && state.analysisDomains.length > 0 && state.benchmarkAnswer.trim()
-                ? buildFrankQuestionPacketPrompt({
-                    legalDomain: state.legalDomain,
-                    selectedCase: state.selectedCase,
-                    analysisDomains: state.analysisDomains,
-                    benchmarkAnswer: state.benchmarkAnswer,
-                })
-                : null,
-            promptEmptyState: 'Generate or enter a golden response to preview the exact question-packet prompt.',
-        },
-    ];
-}
-
-function buildKarthicExplainerItems(
-    frankPacket: FrankPacket | null,
-    editor: KarthicEditorState,
-): StepExplainerItem<KarthicWizardStep>[] {
-    const manualMode = editor.sourceMode === 'manual';
-    const items: StepExplainerItem<KarthicWizardStep>[] = [
-        {
-            id: 'manual',
-            title: manualMode ? '0. Manual Packet' : '0. Source',
-            summary: manualMode
-                ? 'Build a standalone Frank-style question packet directly inside Karthic when no anchor case or Frank golden answer exists.'
-                : 'Choose whether this Karthic pack should come from an approved Frank packet or from a manual non-source-grounded packet.',
-            detail: [
-                manualMode
-                    ? 'Manual mode is for standalone prompts that do not have an anchor case or Frank golden answer.'
-                    : 'Frank-backed mode keeps the normal source-grounded flow, while manual mode bypasses case-grounding for standalone prompts.',
-                manualMode
-                    ? 'The packet builder mirrors Frank where that structure still makes sense: title, facts, tasks, answer format, and a canonical packet preview.'
-                    : 'This first step keeps the source-grounded and non-source-grounded paths explicit before the rest of Karthic begins.',
-                'Manual packs remain explicitly labeled as non-source-grounded so they do not masquerade as validated Frank outputs.',
-            ],
-        },
-        {
-            id: 'packet',
-            title: '1. Approved Frank Packet',
-            summary: 'Load an approved Frank packet when using the normal source-grounded path.',
-            detail: [
-                'Karthic is intentionally downstream-only.',
-                'It does not revisit open-web search or rewrite Frank’s source-intake logic; it consumes an approved Frank packet as fixed input.',
-                'That separation matters because Karthic’s job is to formalize evaluation structure, not to change the benchmark’s underlying legal authority or prompt design.',
-            ],
-        },
-        {
-            id: 'domains',
-            title: manualMode ? '1. Weighted Domains' : '2. Weighted Domains',
-            summary: manualMode
-                ? 'Define the scoring buckets directly, using the same editable domain-card pattern Frank uses for analysis domains.'
-                : 'Turn Frank’s analysis domains into the weighted evaluation dimensions Dasha will later score against.',
-            detail: [
-                manualMode
-                    ? 'This step is separate from packet-writing. Prompt tasks tell the model what to answer; domains tell Dasha what to score.'
-                    : 'Takes Frank’s coverage buckets and makes them \'operational\' for evaluation, such as defining in/exclusive content, how each domain is distinct, etc. This defines the STRUCTURE that is later to be operationalized pertaining to the golden answer and the domains.',
-                'This is achieved through editable names, descriptions, relative weights, and NA guidance, to shape and operationalize domain evaluation.',
-                'Essentially, this step answers: what are we scoring? where are the boundaries between buckets? how much should each bucket matter?',
-                'Step 2 says: Duty / Breach / Causation / Damages Step 3 says: for Causation, the gold answer should discuss X, may omit Y, and statements like Z count against the answer.',
-                'This allows the later comparison logic (comparing golden response to AI answers to surface errors) to distinguish essential failures from trivial misses or inapplicable categories.',
-            ],
-            promptText: !manualMode && frankPacket ? buildKarthicDomainDraftPrompt({ frankPacket }) : null,
-            promptEmptyState: manualMode
-                ? 'Manual mode uses direct domain editing instead of a Frank-derived drafting prompt.'
-                : 'Select an approved Frank packet to preview the exact Karthic domain-drafting prompt.',
-        },
-        {
-            id: 'targets',
-            title: manualMode ? '2. Structured Golden Targets' : '3. Structured Golden Targets',
-            summary: 'Decompose the generalized golden response into domain-specific comparison targets.',
-            detail: [
-                'Karthic extracts per-domain target structures rather than keeping the generalized golden response as one undifferentiated block of prose. This OPERATIONALIZES the structure of the golden response as pertaining to the domains.',
-                'Those structures include what the generalized golden response affirmatively contains, what omissions can be tolerated, and what contradictions should count against a generated answer.',
-                'Essentially, this step answers: within this bucket, what counts as a match? what counts as a miss? what counts as tolerably absent? what counts as wrong?',
-                'Step 2 says: Duty / Breach / Causation / Damages Step 3 says: for Causation, the gold answer should discuss X, may omit Y, and statements like Z count against the answer.',
-                'This matters technically because Dasha compares centroid representatives against structured target fields, not against a single essay blob.',
-            ],
-            promptText: editor.sourceMode === 'frank' && frankPacket && editor.domains.length > 0 ? buildKarthicGoldenTargetsPrompt({
-                frankPacket,
-                domains: editor.domains,
-                smeNotes: editor.smeNotes,
-            }) : null,
-            promptEmptyState: editor.sourceMode === 'manual'
-                ? 'Manual packs require manual golden targets. Enter them directly in the editor below.'
-                : 'Load a Frank packet and define Karthic domains to preview the exact golden-target prompt.',
-        },
-        {
-            id: 'approve',
-            title: manualMode ? '3. Approval For Dasha' : '4. Approval For Dasha',
-            summary: 'Freeze the rubric pack once its domains, targets, and comparison note are stable enough for evaluation.',
-            detail: [
-                'Approval marks the point where the rubric becomes executable input for Dasha rather than an editable draft.',
-                'The comparison-method note and domain-target set now define the terms on which cluster representatives will be judged.',
-                'Approving here is effectively approving the evaluation contract for the run stage.',
-            ],
-        },
-    ];
-    return items.filter((item) => manualMode ? item.id !== 'packet' : true);
-}
-
-function buildDashaExplainerItems(pack: KarthicRubricPack | null, frankPacket: FrankPacket | null): StepExplainerItem<DashaWizardStep>[] {
-    const questionText = pack?.sourceMode === 'manual'
-        ? pack.questionText.trim()
-        : (frankPacket?.benchmarkQuestion?.trim() ?? '');
-    const promptSource = pack?.sourceMode === 'manual'
-        ? 'manual Karthic packet'
-        : 'Frank packet';
-    return [
-        {
-            id: 'rubric',
-            title: '1. Rubric Pack',
-            summary: 'Select the approved Karthic pack that defines the scoring targets and domain weights.',
-            detail: [
-                'Dasha does not invent evaluation criteria.',
-                'It imports the already-approved rubric pack so the later clustering and scoring steps operate against a fixed structured target set.',
-                'This preserves the stage boundary: Dasha generates and compares answers, but the benchmark standard itself is inherited rather than rewritten here.',
-            ],
-        },
-        {
-            id: 'question',
-            title: '2. Canonical Question Packet',
-            summary: 'Reuse the stored benchmark prompt instead of introducing a new evaluation prompt.',
-            detail: [
-                'This step enforces prompt continuity across the pipeline.',
-                'The same question packet that the approved rubric pack was built around is what Dasha sends to the frontier models.',
-                'That prevents accidental prompt drift and keeps downstream result differences attributable to model behavior and clustering, not to a changed task formulation.',
-            ],
-            promptText: questionText || null,
-            promptLabel: 'View Exact Question Packet',
-            promptEmptyState: `Save a ${promptSource} question packet to preview the exact prompt Dasha reuses.`,
-        },
-        {
-            id: 'models',
-            title: '3. Frontier Models',
-            summary: 'Choose the model set and the total raw response budget for the run.',
-            detail: [
-                'Dasha’s input is not one answer per model but a pooled response set.',
-                'The selected models and requested sample count determine how large and how heterogeneous that raw pool will be before clustering.',
-                'Cluster quality, centroid selection, and eventual coverage comparisons all depend on having a sufficiently rich answer distribution rather than a tiny sample.',
-            ],
-        },
-        {
-            id: 'run',
-            title: '4. Run Dasha',
-            summary: 'Generate the raw pool, cluster it, pick representatives, and optionally compare those representatives against the structured golden targets.',
-            detail: [
-                'Operationally, this is the evaluation engine: Dasha collects responses, embeds them, reduces dimensionality with UMAP, and groups them with HDBSCAN.',
-                'It then selects one medoid-style representative per cluster rather than scoring every raw answer independently.',
-                'When scoring is enabled, those representatives are compared against Karthic’s structured targets so the stored results capture matched points, omissions, extras, contradictions, and weighted domain outcomes instead of a single opaque score.',
-            ],
-            promptText: questionText
-                ? `System prompt:\n${DASHA_GENERATION_SYSTEM_PROMPT}\n\nUser prompt:\n${buildDashaGenerationUserPrompt(questionText)}`
-                : null,
-            promptLabel: 'View Exact Model Prompt',
-            promptEmptyState: `Save a ${promptSource} question packet to preview the exact prompt Dasha sends to the selected models.`,
-        },
-    ];
+function clone<T>(value: T): T {
+    return JSON.parse(JSON.stringify(value)) as T;
 }
 
 export default function LegalWorkflowPage() {
-    const [activeTab, setActiveTab] = useState<WorkflowTab>('frank');
-    const [frankPackets, setFrankPackets] = useState<FrankPacket[]>([]);
-    const [karthicPacks, setKarthicPacks] = useState<KarthicRubricPack[]>([]);
-    const [dashaRuns, setDashaRuns] = useState<DashaRun[]>([]);
+    const [hasMounted, setHasMounted] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [visibleStage, setVisibleStage] = useState<WorkflowStageId>('source');
 
-    const [frankEditor, setFrankEditor] = useState<FrankEditorState>(DEFAULT_FRANK_STATE);
-    const [frankStep, setFrankStep] = useState<FrankWizardStep>('domain');
-    const [frankSearchingCases, setFrankSearchingCases] = useState(false);
-    const [frankUploadingCasePdf, setFrankUploadingCasePdf] = useState(false);
-    const [frankCaseUpload, setFrankCaseUpload] = useState<File | null>(null);
-    const [frankCaseUploadInputKey, setFrankCaseUploadInputKey] = useState(0);
-    const [frankDraftingDomains, setFrankDraftingDomains] = useState(false);
-    const [frankRunningFitCheck, setFrankRunningFitCheck] = useState(false);
-    const [frankGeneratingGolden, setFrankGeneratingGolden] = useState(false);
-    const [frankRefiningGolden, setFrankRefiningGolden] = useState(false);
-    const [frankRecheckingGolden, setFrankRecheckingGolden] = useState(false);
-    const [frankGeneratingQuestion, setFrankGeneratingQuestion] = useState(false);
-    const [frankSavingStatus, setFrankSavingStatus] = useState<FrankPacket['status'] | null>(null);
-    const [frankDeletingId, setFrankDeletingId] = useState<string | null>(null);
+    const [frankPackets, setFrankPackets] = useState<FrankPacketV2[]>([]);
+    const [selectedFrankId, setSelectedFrankId] = useState('');
+    const [frankEditor, setFrankEditor] = useState<FrankPacketV2 | null>(null);
+    const [newPacketTitle, setNewPacketTitle] = useState('');
+    const [uploadRows, setUploadRows] = useState<UploadRow[]>([]);
+    const [frankModel] = useState('gpt-5.4-mini');
+    const [frankReasoningEffort] = useState<ReasoningEffort>('medium');
 
-    const [karthicEditor, setKarthicEditor] = useState<KarthicEditorState>(DEFAULT_KARTHIC_STATE);
-    const [karthicStep, setKarthicStep] = useState<KarthicWizardStep>('packet');
-    const [karthicDraftingDomains, setKarthicDraftingDomains] = useState(false);
-    const [karthicGeneratingTargets, setKarthicGeneratingTargets] = useState(false);
-    const [karthicSavingStatus, setKarthicSavingStatus] = useState<KarthicRubricPack['status'] | null>(null);
-    const [dashaUploads] = useState<UploadRow[]>([]);
-    const [dashaStep, setDashaStep] = useState<DashaWizardStep>('rubric');
-    const [dashaForm, setDashaForm] = useState<DashaFormState>({
-        rubricPackId: '',
-        runMode: 'score_and_cluster',
-        selectedModelKeys: DEFAULT_MODEL_KEYS,
-        sampleCount: '200',
-    });
-    const [dashaRunning, setDashaRunning] = useState(false);
-    const [selectedDashaRunId, setSelectedDashaRunId] = useState<string | null>(null);
-    const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
-    const [showClusterView, setShowClusterView] = useState(true);
+    const [rubricPacks, setRubricPacks] = useState<KarthicRubricPackV2[]>([]);
+    const [selectedRubricId, setSelectedRubricId] = useState('');
+    const [rubricEditor, setRubricEditor] = useState<KarthicRubricPackV2 | null>(null);
+
+    const [dashaRuns, setDashaRuns] = useState<DashaRunV2[]>([]);
+    const [selectedRunId, setSelectedRunId] = useState('');
+    const [dashaRubricPackId, setDashaRubricPackId] = useState('');
+    const [dashaRunMode, setDashaRunMode] = useState<DashaRunMode>('score_and_cluster');
+    const [sampleCount, setSampleCount] = useState('120');
+    const [selectedModelKeys, setSelectedModelKeys] = useState<string[]>(DEFAULT_SELECTED_MODEL_KEYS);
 
     const approvedFrankPackets = useMemo(
-        () => frankPackets.filter((item) => item.status === 'approved'),
+        () => frankPackets.filter((packet) => packet.status === 'approved'),
         [frankPackets],
     );
-    const approvedKarthicPacks = useMemo(
-        () => karthicPacks.filter((item) => item.status === 'approved'),
-        [karthicPacks],
+    const approvedRubricPacks = useMemo(
+        () => rubricPacks.filter((pack) => pack.status === 'approved'),
+        [rubricPacks],
     );
-    const selectedDashaPack = useMemo(
-        () => approvedKarthicPacks.find((item) => item.id === dashaForm.rubricPackId) ?? null,
-        [approvedKarthicPacks, dashaForm.rubricPackId],
+    const selectedRun = useMemo(
+        () => dashaRuns.find((run) => run.id === selectedRunId) ?? dashaRuns[0] ?? null,
+        [dashaRuns, selectedRunId],
     );
-    const selectedDashaFrankPacket = useMemo(
-        () => frankPackets.find((item) => item.id === selectedDashaPack?.frankPacketId) ?? null,
-        [frankPackets, selectedDashaPack],
-    );
-    const selectedDashaQuestionText = useMemo(
-        () => selectedDashaPack?.sourceMode === 'manual'
-            ? selectedDashaPack.questionText.trim()
-            : (selectedDashaFrankPacket?.benchmarkQuestion?.trim() ?? ''),
-        [selectedDashaFrankPacket, selectedDashaPack],
-    );
-    const selectedKarthicFrankPacket = useMemo(
-        () => frankPackets.find((item) => item.id === karthicEditor.frankPacketId) ?? null,
-        [frankPackets, karthicEditor.frankPacketId],
-    );
-    const selectedDashaRun = useMemo(
-        () => dashaRuns.find((item) => item.id === selectedDashaRunId) ?? dashaRuns[0] ?? null,
-        [dashaRuns, selectedDashaRunId],
-    );
-    const visibleFrankCaseCandidates = useMemo(
-        () => frankEditor.caseCandidates.length > 0
-            ? frankEditor.caseCandidates
-            : frankEditor.selectedCase
-                ? [frankEditor.selectedCase]
-                : [],
-        [frankEditor.caseCandidates, frankEditor.selectedCase],
-    );
-    const frankExplainerItems = useMemo(() => buildFrankExplainerItems(frankEditor), [frankEditor]);
-    const karthicExplainerItems = useMemo(
-        () => buildKarthicExplainerItems(selectedKarthicFrankPacket, karthicEditor),
-        [selectedKarthicFrankPacket, karthicEditor],
-    );
-    const dashaExplainerItems = useMemo(
-        () => buildDashaExplainerItems(selectedDashaPack, selectedDashaFrankPacket),
-        [selectedDashaFrankPacket, selectedDashaPack],
-    );
+
+    useEffect(() => {
+        setHasMounted(true);
+    }, []);
 
     useEffect(() => {
         void loadAll();
     }, []);
 
     useEffect(() => {
-        if (dashaRuns.length === 0) {
-            if (selectedDashaRunId !== null) {
-                setSelectedDashaRunId(null);
-            }
-            if (selectedClusterId !== null) {
-                setSelectedClusterId(null);
-            }
-            return;
+        if (!selectedFrankId && frankPackets.length > 0) {
+            applyFrankPacket(frankPackets[0]);
         }
-        if (selectedDashaRunId && dashaRuns.some((item) => item.id === selectedDashaRunId)) {
-            return;
-        }
-        const nextRun = dashaRuns[0];
-        setSelectedDashaRunId(nextRun.id);
-        setSelectedClusterId(pickDefaultClusterId(nextRun));
-    }, [dashaRuns, selectedClusterId, selectedDashaRunId]);
+    }, [frankPackets, selectedFrankId]);
 
     useEffect(() => {
-        if (!selectedDashaRun) {
-            if (selectedClusterId !== null) {
-                setSelectedClusterId(null);
+        if (selectedFrankId) {
+            const packet = frankPackets.find((item) => item.id === selectedFrankId);
+            if (packet) {
+                setFrankEditor(clone(packet));
             }
-            return;
         }
-        if (selectedDashaRun.clusters.length === 0) {
-            if (selectedClusterId !== null) {
-                setSelectedClusterId(null);
-            }
-            return;
-        }
-        if (selectedClusterId !== null && selectedDashaRun.clusters.some((cluster) => cluster.id === selectedClusterId)) {
-            return;
-        }
-        setSelectedClusterId(pickDefaultClusterId(selectedDashaRun));
-    }, [selectedClusterId, selectedDashaRun]);
+    }, [frankPackets, selectedFrankId]);
 
     useEffect(() => {
-        if (!selectedDashaRunId || selectedDashaRun?.status !== 'draft') {
+        if (!selectedRubricId && rubricPacks.length > 0) {
+            applyRubricPack(rubricPacks[0]);
+        }
+    }, [rubricPacks, selectedRubricId]);
+
+    useEffect(() => {
+        if (selectedRubricId) {
+            const pack = rubricPacks.find((item) => item.id === selectedRubricId);
+            if (pack) {
+                setRubricEditor(clone(pack));
+            }
+        }
+    }, [rubricPacks, selectedRubricId]);
+
+    useEffect(() => {
+        if (!selectedRunId && dashaRuns.length > 0) {
+            setSelectedRunId(dashaRuns[0].id);
+        }
+    }, [dashaRuns, selectedRunId]);
+
+    useEffect(() => {
+        if (!selectedRunId || selectedRun?.status !== 'draft') {
             return;
         }
 
         let cancelled = false;
-
-        const pollRun = async () => {
+        const intervalId = window.setInterval(async () => {
             try {
-                const response = await fetch(`/api/dasha-runs/${selectedDashaRunId}`, { cache: 'no-store' });
+                const response = await fetch(`/api/dasha-runs/${selectedRunId}`, { cache: 'no-store' });
                 const json = await response.json();
                 if (!response.ok) {
-                    throw new Error(json.error || 'Failed to load Dasha run.');
+                    throw new Error(json.error || 'Failed to refresh Dasha judge run.');
                 }
                 if (cancelled) {
                     return;
                 }
-                const item = json.item as DashaRun;
-                setDashaRuns((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
+                const item = json.item as DashaRunV2;
+                setDashaRuns((current) => sortRuns([item, ...current.filter((run) => run.id !== item.id)]));
                 if (item.status === 'completed') {
-                    setStatusMessage('Dasha evaluation completed.');
-                    setErrorMessage(null);
-                } else if (item.status === 'failed') {
-                    setStatusMessage(null);
-                    setErrorMessage(item.errorMessage || 'Dasha evaluation failed.');
+                    setStatusMessage('Dasha judge run completed.');
+                }
+                if (item.status === 'failed') {
+                    setErrorMessage(item.errorMessage || 'Dasha judge run failed.');
                 }
             } catch (error) {
-                if (cancelled) {
-                    return;
+                if (!cancelled) {
+                    setErrorMessage(error instanceof Error ? error.message : 'Failed to refresh Dasha judge run.');
                 }
-                setErrorMessage(error instanceof Error ? error.message : 'Failed to refresh Dasha run.');
             }
-        };
-
-        void pollRun();
-        const intervalId = window.setInterval(() => {
-            void pollRun();
         }, 4000);
 
         return () => {
             cancelled = true;
             window.clearInterval(intervalId);
         };
-    }, [selectedDashaRun?.status, selectedDashaRunId]);
-
-    useEffect(() => {
-        if (!selectedDashaPack) {
-            return;
-        }
-        if (selectedDashaPack.approvedRunMode === 'cluster_only' && dashaForm.runMode !== 'cluster_only') {
-            setDashaForm((current) => ({ ...current, runMode: 'cluster_only' }));
-        }
-    }, [dashaForm.runMode, selectedDashaPack]);
+    }, [selectedRun?.status, selectedRunId]);
 
     async function loadAll() {
         setIsLoading(true);
         setErrorMessage(null);
         try {
-            const [frankRes, karthicRes, dashaRes] = await Promise.all([
+            const [frankRes, rubricRes, runRes] = await Promise.all([
                 fetch('/api/frank-packets', { cache: 'no-store' }),
                 fetch('/api/karthic-rubric-packs', { cache: 'no-store' }),
                 fetch('/api/dasha-runs', { cache: 'no-store' }),
             ]);
-            const [frankJson, karthicJson, dashaJson] = await Promise.all([
+            const [frankJson, rubricJson, runJson] = await Promise.all([
                 frankRes.json(),
-                karthicRes.json(),
-                dashaRes.json(),
+                rubricRes.json(),
+                runRes.json(),
             ]);
-            setFrankPackets(sortByUpdated(Array.isArray(frankJson.items) ? frankJson.items : []));
-            setKarthicPacks(sortByUpdated(Array.isArray(karthicJson.items) ? karthicJson.items : []));
-            setDashaRuns(sortByUpdated(Array.isArray(dashaJson.items) ? dashaJson.items : []));
+            setFrankPackets(sortByUpdated(Array.isArray(frankJson.items) ? frankJson.items as FrankPacketV2[] : []));
+            setRubricPacks(sortByUpdated(Array.isArray(rubricJson.items) ? rubricJson.items as KarthicRubricPackV2[] : []));
+            setDashaRuns(sortRuns(Array.isArray(runJson.items) ? runJson.items as DashaRunV2[] : []));
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to load workflow data.');
         } finally {
@@ -711,584 +350,128 @@ export default function LegalWorkflowPage() {
         }
     }
 
-    function applyFrankPacket(packet: FrankPacket, options?: { step?: FrankWizardStep; preserveSettings?: boolean }) {
-        const nextState: FrankEditorState = {
-            id: packet.id,
-            legalDomain: packet.legalDomain,
-            domainScope: packet.domainScope,
-            sourceFamily: packet.sourceFamily,
-            masterIssueStatement: packet.masterIssueStatement,
-            benchmarkAnswer: packet.benchmarkAnswer,
-            benchmarkQuestion: packet.benchmarkQuestion,
-            failureModeSeedsText: packet.failureModeSeeds.join('\n'),
-            sourceQualityRating: packet.sourceIntake.sourceQualityRating,
-            benchmarkPosture: packet.sourceIntake.benchmarkPosture,
-            recommendation: packet.sourceIntake.recommendation,
-            reverseEngineeringSuitability: packet.sourceIntake.reverseEngineeringSuitability,
-            jdReviewBurdenText: packet.sourceIntake.jdReviewBurden.join('\n'),
-            legalIssue: packet.sourceExtraction.legalIssue,
-            blackLetterRule: packet.sourceExtraction.blackLetterRule,
-            triggerFactsText: packet.sourceExtraction.triggerFacts.join('\n'),
-            holding: packet.sourceExtraction.holding,
-            limitsText: packet.sourceExtraction.limits.join('\n'),
-            uncertaintyText: packet.sourceExtraction.uncertainty.join('\n'),
-            selectedCase: packet.selectedCase ?? null,
-            caseCandidates: packet.selectedCase ? [packet.selectedCase] : [],
-            analysisDomains: packet.analysisDomains ?? [],
-            fitCheck: packet.fitCheck ?? buildNeedsReviewFrankFitCheckState(packet.selectedCase ?? null, packet.analysisDomains ?? []),
-            goldenWarnings: packet.goldenWarnings ?? [],
-            questionWarnings: packet.questionWarnings ?? [],
-            savedPrompts: packet.savedPrompts ?? [],
-            fitSettings: options?.preserveSettings ? frankEditor.fitSettings : DEFAULT_FRANK_STATE.fitSettings,
-            goldenSettings: options?.preserveSettings ? frankEditor.goldenSettings : DEFAULT_FRANK_STATE.goldenSettings,
-            questionSettings: options?.preserveSettings ? frankEditor.questionSettings : DEFAULT_FRANK_STATE.questionSettings,
-            sourceArtifacts: packet.sourceArtifacts ?? [],
-        };
-        setFrankEditor(nextState);
-        setFrankStep(options?.step ?? inferFrankStep(nextState));
-    }
-
-    function applyKarthicPack(pack: KarthicRubricPack) {
-        const nextState: KarthicEditorState = {
-            id: pack.id,
-            sourceMode: pack.sourceMode,
-            frankPacketId: pack.frankPacketId ?? '',
-            questionText: pack.questionText,
-            manualQuestionFields: createEditorManualQuestionFields(pack.manualQuestionFields),
-            manualHeadingSeeds: pack.manualHeadingSeeds,
-            status: pack.status,
-            approvedRunMode: pack.approvedRunMode,
-            domains: pack.domains,
-            goldenTargets: pack.goldenTargets ?? [],
-            criteria: pack.criteria,
-            refinementLog: pack.refinementLog,
-            smeNotes: pack.smeNotes,
-            comparisonMethodNote: pack.comparisonMethodNote ?? '',
-        };
-        setKarthicEditor(nextState);
-        setKarthicStep(inferKarthicStep(nextState));
-    }
-
-    function invalidateFrankCaseDomainCheckpoint(
-        selectedCase: FrankCaseCandidate | null,
-        analysisDomains: FrankAnalysisDomain[],
-    ): FrankCaseDomainFitCheck {
-        return buildNeedsReviewFrankFitCheckState(selectedCase, analysisDomains);
-    }
-
-    function applyFrankCaseDomainEdit(
-        patch: (current: FrankEditorState) => Partial<FrankEditorState>,
-    ) {
-        setFrankEditor((current) => {
-            const next = { ...current, ...patch(current) };
-            return {
-                ...next,
-                fitCheck: invalidateFrankCaseDomainCheckpoint(next.selectedCase, next.analysisDomains),
-                goldenWarnings: [],
-                questionWarnings: [],
-                savedPrompts: current.savedPrompts,
-                benchmarkAnswer: '',
-                benchmarkQuestion: '',
-            };
+    function goToStage(stageId: WorkflowStageId) {
+        startTransition(() => {
+            setVisibleStage(stageId);
         });
     }
 
-    async function runFrankFitCheck() {
-        if (!frankEditor.selectedCase) {
-            setErrorMessage('Pick an anchor case first.');
-            return;
-        }
-        if (!frankDomainCountValid) {
-            setErrorMessage('Frank needs 5-10 analysis domains before running the fit check.');
-            return;
-        }
-        setFrankRunningFitCheck(true);
-        setErrorMessage(null);
-        setStatusMessage('Running case-domain fit review...');
-        try {
-            const response = await fetch('/api/frank-packets/fit-check', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    id: frankEditor.id,
-                    legalDomain: frankEditor.legalDomain,
-                    selectedCase: frankEditor.selectedCase,
-                    analysisDomains: frankEditor.analysisDomains,
-                    model: frankEditor.fitSettings.model,
-                    reasoningEffort: frankEditor.fitSettings.reasoningEffort,
-                }),
-            });
-            const json = await response.json();
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to run the case-domain fit check.');
-            }
-            const item = json.item as FrankPacket;
-            applyFrankPacket(item, { step: 'fit', preserveSettings: true });
-            setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
-            setStatusMessage('Case-domain fit check saved.');
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to run the case-domain fit check.');
-            setStatusMessage(null);
-        } finally {
-            setFrankRunningFitCheck(false);
+    function applyFrankPacket(packet: FrankPacketV2) {
+        setSelectedFrankId(packet.id);
+        setFrankEditor(clone(packet));
+    }
+
+    function applyRubricPack(pack: KarthicRubricPackV2) {
+        setSelectedRubricId(pack.id);
+        setRubricEditor(clone(pack));
+        if (pack.status === 'approved') {
+            setDashaRubricPackId(pack.id);
         }
     }
 
-    async function saveFrankFitOverride() {
-        if (!frankEditor.selectedCase) {
-            setErrorMessage('Pick an anchor case first.');
-            return;
-        }
-        const overrideFitCheck = {
-            ...frankEditor.fitCheck,
-            status: 'overridden' as const,
-            overrideAccepted: true,
-            stale: false,
-        };
-        setErrorMessage(null);
-        setStatusMessage('Saving manual fit-check override...');
-        try {
-            const response = await fetch('/api/frank-packets', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    id: frankEditor.id,
-                    legalDomain: frankEditor.legalDomain,
-                    domainScope: frankEditor.selectedCase?.title ?? frankEditor.domainScope,
-                    sourceFamily: frankEditor.sourceFamily || 'web_searched_anchor_case',
-                    selectedCase: frankEditor.selectedCase,
-                    analysisDomains: frankEditor.analysisDomains,
-                    fitCheck: overrideFitCheck,
-                    sourceArtifacts: frankEditor.sourceArtifacts,
-                    sourceIntake: {
-                        sourceQualityRating: frankEditor.sourceQualityRating,
-                        benchmarkPosture: frankEditor.benchmarkPosture,
-                        recommendation: frankEditor.recommendation,
-                        jdReviewBurden: splitTextarea(frankEditor.jdReviewBurdenText),
-                        reverseEngineeringSuitability: frankEditor.reverseEngineeringSuitability,
-                    },
-                    sourceExtraction: {
-                        legalIssue: frankEditor.legalIssue,
-                        blackLetterRule: frankEditor.blackLetterRule,
-                        triggerFacts: splitTextarea(frankEditor.triggerFactsText),
-                        holding: frankEditor.holding,
-                        limits: splitTextarea(frankEditor.limitsText),
-                        uncertainty: splitTextarea(frankEditor.uncertaintyText),
-                    },
-                    benchmarkAnswer: frankEditor.benchmarkAnswer,
-                    benchmarkQuestion: frankEditor.benchmarkQuestion,
-                    goldenWarnings: frankEditor.goldenWarnings,
-                    questionWarnings: frankEditor.questionWarnings,
-                    failureModeSeeds: splitTextarea(frankEditor.failureModeSeedsText),
-                    masterIssueStatement: frankEditor.masterIssueStatement,
-                    status: frankPackets.find((item) => item.id === frankEditor.id)?.status ?? 'draft',
-                }),
-            });
-            const json = await response.json();
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to save the fit-check override.');
-            }
-            const item = json.item as FrankPacket;
-            applyFrankPacket(item, { step: 'fit', preserveSettings: true });
-            setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
-            setStatusMessage('Manual override saved. Golden generation is now unlocked for this packet.');
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to save the fit-check override.');
-            setStatusMessage(null);
-        }
+    function onUploadFilesSelected(files: FileList | null) {
+        const nextRows = Array.from(files ?? []).map((file, index) => ({
+            file,
+            role: index === 0 ? 'anchor_case' as const : 'supporting_authority' as const,
+        }));
+        setUploadRows(nextRows);
     }
 
-    async function searchFrankCases() {
-        if (!frankEditor.legalDomain.trim()) {
-            setErrorMessage('Enter a legal domain first.');
+    async function createFrankPacket() {
+        if (uploadRows.length === 0) {
+            setErrorMessage('Upload at least one authority file first.');
             return;
         }
-        setFrankSearchingCases(true);
         setErrorMessage(null);
-        setStatusMessage('Searching online for anchor cases...');
-        try {
-            const response = await fetch('/api/frank-packets/case-search', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    legalDomain: frankEditor.legalDomain,
-                }),
-            });
-            const json = await response.json();
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to search for cases.');
-            }
-            const candidates = Array.isArray(json.candidates) ? json.candidates as FrankCaseCandidate[] : [];
-            applyFrankCaseDomainEdit((current) => ({
-                caseCandidates: candidates,
-                selectedCase: candidates[0] ?? current.selectedCase,
-                domainScope: (candidates[0] ?? current.selectedCase)?.title ?? current.domainScope,
-                sourceFamily: 'web_searched_anchor_case',
-            }));
-            setStatusMessage('Case search complete. Pick the anchor case you want Frank to use.');
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to search for cases.');
-            setStatusMessage(null);
-        } finally {
-            setFrankSearchingCases(false);
-        }
-    }
-
-    async function uploadFrankAnchorCasePdf() {
-        if (!frankEditor.legalDomain.trim()) {
-            setErrorMessage('Enter a legal domain first.');
-            return;
-        }
-        if (!frankCaseUpload) {
-            setErrorMessage('Choose a PDF first.');
-            return;
-        }
-
-        setFrankUploadingCasePdf(true);
-        setErrorMessage(null);
-        setStatusMessage('Uploading and extracting the anchor case PDF...');
+        setStatusMessage('Creating packet and running Frank Phase 1...');
         try {
             const formData = new FormData();
-            formData.set('legalDomain', frankEditor.legalDomain);
-            formData.set('domainScope', frankEditor.domainScope || frankEditor.legalDomain);
-            formData.set('sourceFamily', 'uploaded_anchor_case_pdf');
-            formData.append('files', frankCaseUpload);
-            formData.set('role_0', 'anchor_case');
-
-            const response = await fetch('/api/frank-packets/draft', {
-                method: 'POST',
-                body: formData,
+            formData.set('title', newPacketTitle.trim());
+            uploadRows.forEach((row, index) => {
+                formData.append('files', row.file);
+                formData.set(`role_${index}`, row.role);
             });
-            const json = await readJsonResponse(response, 'Anchor-case upload failed before the server returned JSON.');
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to upload the anchor case PDF.');
-            }
-
-            const item = json.item as FrankPacket;
-            applyFrankPacket(item, { step: 'case', preserveSettings: true });
-            setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
-            setFrankCaseUpload(null);
-            setFrankCaseUploadInputKey((current) => current + 1);
-            setStatusMessage('Anchor case PDF processed. Review the inferred case details, then continue to analysis domains.');
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to upload the anchor case PDF.');
-            setStatusMessage(null);
-        } finally {
-            setFrankUploadingCasePdf(false);
-        }
-    }
-
-    async function draftFrankDomains() {
-        if (!frankEditor.selectedCase) {
-            setErrorMessage('Pick an anchor case first.');
-            return;
-        }
-        setFrankDraftingDomains(true);
-        setErrorMessage(null);
-        setStatusMessage('Drafting editable analysis domains...');
-        try {
-            const response = await fetch('/api/frank-packets/analysis-domains', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    legalDomain: frankEditor.legalDomain,
-                    selectedCase: frankEditor.selectedCase,
-                    desiredCount: 6,
-                }),
-            });
+            const response = await fetch('/api/frank-packets/draft', { method: 'POST', body: formData });
             const json = await response.json();
             if (!response.ok) {
-                throw new Error(json.error || 'Failed to draft analysis domains.');
+                throw new Error(json.error || 'Failed to create Frank packet.');
             }
-            const domains = Array.isArray(json.domains) ? json.domains as FrankAnalysisDomain[] : [];
-            applyFrankCaseDomainEdit(() => ({ analysisDomains: domains }));
-            setStatusMessage('Analysis domains drafted. Edit them before generating the golden response.');
+            const item = json.item as FrankPacketV2;
+            applyFrankPacket(item);
+            setFrankPackets((current) => sortByUpdated([item, ...current.filter((packet) => packet.id !== item.id)]));
+            setUploadRows([]);
+            setNewPacketTitle('');
+            setStatusMessage('Frank Phase 1 completed. Packet created and routed.');
+            goToStage('routing_intake');
         } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to draft analysis domains.');
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to create Frank packet.');
             setStatusMessage(null);
-        } finally {
-            setFrankDraftingDomains(false);
         }
     }
 
-    async function runFrankGoldenResponseGeneration(options?: {
-        refinementFeedback?: string[];
-        statusMessage?: string;
-        successPrefix?: string;
-        mode?: 'generate' | 'refine';
+    async function runFrankPhase(input: {
+        endpoint: '/api/frank-packets/extraction-mapping' | '/api/frank-packets/benchmark' | '/api/frank-packets/question';
+        inProgressLabel: string;
+        successLabel: string;
+        errorLabel: string;
     }) {
-        if (!frankEditor.selectedCase) {
-            setErrorMessage('Pick an anchor case first.');
+        if (!frankEditor?.id) {
+            setErrorMessage('Select a Frank packet first.');
             return;
-        }
-        if (!isValidFrankDomainCount(frankEditor.analysisDomains)) {
-            setErrorMessage('Frank needs 5-10 analysis domains before generating the golden response.');
-            return;
-        }
-        if (options?.mode === 'refine') {
-            setFrankRefiningGolden(true);
-        } else {
-            setFrankGeneratingGolden(true);
         }
         setErrorMessage(null);
-        setStatusMessage(options?.statusMessage ?? 'Generating and saving Frank’s golden response locally...');
+        setStatusMessage(input.inProgressLabel);
         try {
-            const response = await fetch('/api/frank-packets/golden-response', {
+            const response = await fetch(input.endpoint, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
                     id: frankEditor.id,
-                    legalDomain: frankEditor.legalDomain,
-                    selectedCase: frankEditor.selectedCase,
-                    analysisDomains: frankEditor.analysisDomains,
-                    model: frankEditor.goldenSettings.model,
-                    reasoningEffort: frankEditor.goldenSettings.reasoningEffort,
-                    refinementFeedback: options?.refinementFeedback,
-                    currentDraft: {
-                        masterIssueStatement: frankEditor.masterIssueStatement,
-                        benchmarkAnswer: frankEditor.benchmarkAnswer,
-                        failureModeSeeds: splitTextarea(frankEditor.failureModeSeedsText),
-                        sourceIntake: {
-                            sourceQualityRating: frankEditor.sourceQualityRating,
-                            benchmarkPosture: frankEditor.benchmarkPosture,
-                            recommendation: frankEditor.recommendation,
-                            jdReviewBurden: splitTextarea(frankEditor.jdReviewBurdenText),
-                            reverseEngineeringSuitability: frankEditor.reverseEngineeringSuitability,
-                        },
-                        sourceExtraction: {
-                            legalIssue: frankEditor.legalIssue,
-                            blackLetterRule: frankEditor.blackLetterRule,
-                            triggerFacts: splitTextarea(frankEditor.triggerFactsText),
-                            holding: frankEditor.holding,
-                            limits: splitTextarea(frankEditor.limitsText),
-                            uncertainty: splitTextarea(frankEditor.uncertaintyText),
-                        },
-                    },
+                    model: frankModel,
+                    reasoningEffort: frankReasoningEffort,
                 }),
             });
             const json = await response.json();
             if (!response.ok) {
-                throw new Error(json.error || 'Failed to generate the golden response.');
+                throw new Error(json.error || input.errorLabel);
             }
-            const item = json.item as FrankPacket;
-            applyFrankPacket(item, { step: 'golden', preserveSettings: true });
-            setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
-            setStatusMessage(
-                item.goldenWarnings.length > 0
-                    ? `${options?.successPrefix ?? 'Golden response'} saved locally as ${item.id} with ${item.goldenWarnings.length} warning${item.goldenWarnings.length === 1 ? '' : 's'}.`
-                    : `${options?.successPrefix ?? 'Golden response'} saved locally as ${item.id}.`,
-            );
+            const item = json.item as FrankPacketV2;
+            applyFrankPacket(item);
+            setFrankPackets((current) => sortByUpdated([item, ...current.filter((packet) => packet.id !== item.id)]));
+            setStatusMessage(input.successLabel);
         } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to generate the golden response.');
+            setErrorMessage(error instanceof Error ? error.message : input.errorLabel);
             setStatusMessage(null);
-        } finally {
-            if (options?.mode === 'refine') {
-                setFrankRefiningGolden(false);
-            } else {
-                setFrankGeneratingGolden(false);
-            }
         }
     }
 
-    async function generateFrankGoldenResponse() {
-        await runFrankGoldenResponseGeneration();
-    }
-
-    async function refineFrankGoldenResponseFromWarnings() {
-        if (frankEditor.goldenWarnings.length === 0) {
-            setErrorMessage('There are no saved detector warnings to refine against.');
+    async function saveFrank(status: FrankPacketV2['status']) {
+        if (!frankEditor) {
             return;
         }
-        await runFrankGoldenResponseGeneration({
-            mode: 'refine',
-            refinementFeedback: frankEditor.goldenWarnings,
-            statusMessage: 'Refining the saved golden response using detector feedback...',
-            successPrefix: 'Refined golden response',
-        });
-    }
-
-    async function recheckFrankGoldenResponse() {
-        if (!frankEditor.selectedCase) {
-            setErrorMessage('Pick an anchor case first.');
-            return;
-        }
-        if (!isValidFrankDomainCount(frankEditor.analysisDomains)) {
-            setErrorMessage('Frank needs 5-10 analysis domains before re-checking the golden response.');
-            return;
-        }
-        if (!frankEditor.benchmarkAnswer.trim()) {
-            setErrorMessage('Generate or enter a golden response first.');
-            return;
-        }
-        setFrankRecheckingGolden(true);
-        setErrorMessage(null);
-        setStatusMessage('Re-checking the current golden-response draft...');
-        try {
-            const response = await fetch('/api/frank-packets/golden-recheck', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    id: frankEditor.id,
-                    legalDomain: frankEditor.legalDomain,
-                    selectedCase: frankEditor.selectedCase,
-                    analysisDomains: frankEditor.analysisDomains,
-                    currentDraft: {
-                        masterIssueStatement: frankEditor.masterIssueStatement,
-                        benchmarkAnswer: frankEditor.benchmarkAnswer,
-                        failureModeSeeds: splitTextarea(frankEditor.failureModeSeedsText),
-                        sourceIntake: {
-                            sourceQualityRating: frankEditor.sourceQualityRating,
-                            benchmarkPosture: frankEditor.benchmarkPosture,
-                            recommendation: frankEditor.recommendation,
-                            jdReviewBurden: splitTextarea(frankEditor.jdReviewBurdenText),
-                            reverseEngineeringSuitability: frankEditor.reverseEngineeringSuitability,
-                        },
-                        sourceExtraction: {
-                            legalIssue: frankEditor.legalIssue,
-                            blackLetterRule: frankEditor.blackLetterRule,
-                            triggerFacts: splitTextarea(frankEditor.triggerFactsText),
-                            holding: frankEditor.holding,
-                            limits: splitTextarea(frankEditor.limitsText),
-                            uncertainty: splitTextarea(frankEditor.uncertaintyText),
-                        },
-                    },
-                }),
-            });
-            const json = await response.json();
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to re-check the golden response.');
-            }
-            const item = json.item as FrankPacket;
-            applyFrankPacket(item, { step: 'golden', preserveSettings: true });
-            setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
-            setStatusMessage(
-                item.goldenWarnings.length > 0
-                    ? `Golden response re-checked and saved with ${item.goldenWarnings.length} warning${item.goldenWarnings.length === 1 ? '' : 's'}.`
-                    : 'Golden response re-checked and saved with no detector warnings.',
-            );
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to re-check the golden response.');
-            setStatusMessage(null);
-        } finally {
-            setFrankRecheckingGolden(false);
-        }
-    }
-
-    async function generateFrankQuestionPacket() {
-        if (!frankEditor.selectedCase) {
-            setErrorMessage('Pick an anchor case first.');
-            return;
-        }
-        if (!frankEditor.benchmarkAnswer.trim()) {
-            setErrorMessage('Generate the golden response first.');
-            return;
-        }
-        setFrankGeneratingQuestion(true);
-        setErrorMessage(null);
-        setStatusMessage('Generating and saving the legal-case-packet question...');
-        try {
-            const response = await fetch('/api/frank-packets/question-packet', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    id: frankEditor.id,
-                    legalDomain: frankEditor.legalDomain,
-                    selectedCase: frankEditor.selectedCase,
-                    analysisDomains: frankEditor.analysisDomains,
-                    benchmarkAnswer: frankEditor.benchmarkAnswer,
-                    model: frankEditor.questionSettings.model,
-                    reasoningEffort: frankEditor.questionSettings.reasoningEffort,
-                }),
-            });
-            const json = await response.json();
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to generate the question packet.');
-            }
-            const item = json.item as FrankPacket;
-            applyFrankPacket(item, { step: 'question', preserveSettings: true });
-            setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
-            setStatusMessage(
-                item.questionWarnings.length > 0
-                    ? `Question packet saved locally with ${item.questionWarnings.length} warning${item.questionWarnings.length === 1 ? '' : 's'}.`
-                    : 'Question packet generated and saved locally.',
-            );
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to generate the question packet.');
-            setStatusMessage(null);
-        } finally {
-            setFrankGeneratingQuestion(false);
-        }
-    }
-
-    async function saveFrank(status: FrankPacket['status']) {
-        setFrankSavingStatus(status);
         setErrorMessage(null);
         setStatusMessage(status === 'approved' ? 'Approving Frank packet...' : 'Saving Frank packet...');
         try {
             const response = await fetch('/api/frank-packets', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    id: frankEditor.id,
-                    legalDomain: frankEditor.legalDomain,
-                    domainScope: frankEditor.selectedCase?.title ?? frankEditor.domainScope,
-                    sourceFamily: frankEditor.sourceFamily || 'web_searched_anchor_case',
-                    selectedCase: frankEditor.selectedCase,
-                    analysisDomains: frankEditor.analysisDomains,
-                    fitCheck: frankEditor.fitCheck,
-                    sourceArtifacts: frankEditor.sourceArtifacts,
-                    sourceIntake: {
-                        sourceQualityRating: frankEditor.sourceQualityRating,
-                        benchmarkPosture: frankEditor.benchmarkPosture,
-                        recommendation: frankEditor.recommendation,
-                        jdReviewBurden: splitTextarea(frankEditor.jdReviewBurdenText),
-                        reverseEngineeringSuitability: frankEditor.reverseEngineeringSuitability,
-                    },
-                    sourceExtraction: {
-                        legalIssue: frankEditor.legalIssue,
-                        blackLetterRule: frankEditor.blackLetterRule,
-                        triggerFacts: splitTextarea(frankEditor.triggerFactsText),
-                        holding: frankEditor.holding,
-                        limits: splitTextarea(frankEditor.limitsText),
-                        uncertainty: splitTextarea(frankEditor.uncertaintyText),
-                    },
-                    benchmarkAnswer: frankEditor.benchmarkAnswer,
-                    benchmarkQuestion: frankEditor.benchmarkQuestion,
-                    goldenWarnings: frankEditor.goldenWarnings,
-                    questionWarnings: frankEditor.questionWarnings,
-                    failureModeSeeds: splitTextarea(frankEditor.failureModeSeedsText),
-                    masterIssueStatement: frankEditor.masterIssueStatement,
-                    status,
-                }),
+                body: JSON.stringify(frankEditor ? { ...frankEditor, status } : null),
             });
             const json = await response.json();
             if (!response.ok) {
                 throw new Error(json.error || 'Failed to save Frank packet.');
             }
-            const item = json.item as FrankPacket;
-            applyFrankPacket(item, { step: frankStep, preserveSettings: true });
-            setFrankPackets((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
-            setStatusMessage(status === 'approved' ? 'Frank packet approved for Karthic.' : 'Frank packet saved.');
+            const item = json.item as FrankPacketV2;
+            applyFrankPacket(item);
+            setFrankPackets((current) => sortByUpdated([item, ...current.filter((packet) => packet.id !== item.id)]));
+            setStatusMessage(status === 'approved' ? 'Frank packet approved.' : 'Frank packet saved.');
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to save Frank packet.');
             setStatusMessage(null);
-        } finally {
-            setFrankSavingStatus(null);
         }
     }
 
     async function deleteFrank(id: string) {
-        const packet = frankPackets.find((item) => item.id === id);
-        if (!packet) {
-            setErrorMessage('Frank packet not found.');
-            return;
-        }
-        const confirmed = window.confirm(`Delete "${packet.legalDomain} · ${packet.domainScope}"? This cannot be undone.`);
-        if (!confirmed) {
-            return;
-        }
-
-        setFrankDeletingId(id);
         setErrorMessage(null);
         setStatusMessage('Deleting Frank packet...');
         try {
@@ -1301,126 +484,64 @@ export default function LegalWorkflowPage() {
             if (!response.ok) {
                 throw new Error(json.error || 'Failed to delete Frank packet.');
             }
-
-            const remainingPackets = frankPackets.filter((item) => item.id !== id);
-            setFrankPackets(remainingPackets);
-            if (frankEditor.id === id) {
-                const nextPacket = remainingPackets[0] ?? null;
+            const nextPackets = frankPackets.filter((packet) => packet.id !== id);
+            setFrankPackets(nextPackets);
+            if (selectedFrankId === id) {
+                const nextPacket = nextPackets[0] ?? null;
                 if (nextPacket) {
-                    applyFrankPacket(nextPacket, { preserveSettings: true });
+                    applyFrankPacket(nextPacket);
                 } else {
-                    setFrankEditor((current) => ({
-                        ...DEFAULT_FRANK_STATE,
-                        fitSettings: current.fitSettings,
-                        goldenSettings: current.goldenSettings,
-                        questionSettings: current.questionSettings,
-                    }));
-                    setFrankStep('domain');
+                    setSelectedFrankId('');
+                    setFrankEditor(null);
+                    goToStage('source');
                 }
-            }
-            if (karthicEditor.frankPacketId === id) {
-                setKarthicEditor((current) => ({
-                    ...DEFAULT_KARTHIC_STATE,
-                    smeNotes: current.smeNotes,
-                    comparisonMethodNote: current.comparisonMethodNote,
-                }));
-                setKarthicStep('packet');
             }
             setStatusMessage('Frank packet deleted.');
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to delete Frank packet.');
             setStatusMessage(null);
-        } finally {
-            setFrankDeletingId(null);
         }
     }
 
-    async function draftKarthicDomains() {
-        if (karthicEditor.sourceMode === 'manual') {
-            setErrorMessage('Manual packs use the heading-seed helper or direct editing instead of Frank-based domain drafting.');
+    async function generateRubricPack() {
+        if (!frankEditor?.id || frankEditor.status !== 'approved') {
+            setErrorMessage('Select an approved Frank packet first.');
             return;
         }
-        if (!karthicEditor.frankPacketId) {
-            setErrorMessage('Pick an approved Frank packet first.');
-            return;
-        }
-        setKarthicDraftingDomains(true);
         setErrorMessage(null);
-        setStatusMessage('Drafting editable Karthic domains from the approved Frank packet...');
+        setStatusMessage('Generating Karthic rubric pack from the approved Frank packet...');
         try {
-            const response = await fetch('/api/karthic-rubric-packs/domain-draft', {
+            const response = await fetch('/api/karthic-rubric-packs/rows', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
-                    frankPacketId: karthicEditor.frankPacketId,
+                    frankPacketId: frankEditor.id,
+                    id: rubricEditor?.frankPacketId === frankEditor.id ? rubricEditor.id : undefined,
+                    model: frankModel,
+                    reasoningEffort: frankReasoningEffort,
                 }),
             });
             const json = await response.json();
             if (!response.ok) {
-                throw new Error(json.error || 'Failed to draft Karthic domains.');
+                throw new Error(json.error || 'Failed to generate rubric pack.');
             }
-            const domains = Array.isArray(json.domains) ? json.domains as KarthicDomain[] : [];
-            setKarthicEditor((current) => ({
-                ...current,
-                domains,
-                goldenTargets: [],
-                criteria: [],
-                refinementLog: [],
-            }));
-            setStatusMessage('Karthic domains drafted. Edit the names, weights, and NA guidance before generating golden targets.');
+            const item = json.item as KarthicRubricPackV2;
+            applyRubricPack(item);
+            setRubricPacks((current) => sortByUpdated([item, ...current.filter((pack) => pack.id !== item.id)]));
+            setDashaRubricPackId(item.id);
+            setStatusMessage('Karthic rubric pack generated.');
+            goToStage('rubric');
         } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to draft Karthic domains.');
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to generate rubric pack.');
             setStatusMessage(null);
-        } finally {
-            setKarthicDraftingDomains(false);
         }
     }
 
-    async function generateKarthicTargets() {
-        if (karthicEditor.sourceMode === 'manual') {
-            setErrorMessage('Manual packs require manual golden targets. Enter them directly in the target editor.');
+    async function saveRubric(status: KarthicRubricPackV2['status']) {
+        if (!rubricEditor) {
+            setErrorMessage('Select a rubric pack first.');
             return;
         }
-        if (!karthicEditor.frankPacketId) {
-            setErrorMessage('Pick an approved Frank packet first.');
-            return;
-        }
-        if (!hasEditableKarthicDomains(karthicEditor.domains)) {
-            setErrorMessage('Add at least one complete Karthic domain before generating golden targets.');
-            return;
-        }
-        setKarthicGeneratingTargets(true);
-        setErrorMessage(null);
-        setStatusMessage('Generating structured golden targets from Frank’s golden answer...');
-        try {
-            const response = await fetch('/api/karthic-rubric-packs/golden-targets', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    id: karthicEditor.id,
-                    frankPacketId: karthicEditor.frankPacketId,
-                    domains: karthicEditor.domains,
-                    smeNotes: karthicEditor.smeNotes,
-                }),
-            });
-            const json = await response.json();
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to generate Karthic golden targets.');
-            }
-            const item = json.item as KarthicRubricPack;
-            applyKarthicPack(item);
-            setKarthicPacks((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
-            setStatusMessage(`Golden targets saved locally as ${item.id}.`);
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to generate Karthic golden targets.');
-            setStatusMessage(null);
-        } finally {
-            setKarthicGeneratingTargets(false);
-        }
-    }
-
-    async function saveKarthic(status: KarthicRubricPack['status']) {
-        setKarthicSavingStatus(status);
         setErrorMessage(null);
         setStatusMessage(status === 'approved' ? 'Approving Karthic rubric pack...' : 'Saving Karthic rubric pack...');
         try {
@@ -1428,3220 +549,1202 @@ export default function LegalWorkflowPage() {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
-                    id: karthicEditor.id,
-                    sourceMode: karthicEditor.sourceMode,
-                    frankPacketId: karthicEditor.sourceMode === 'frank' ? karthicEditor.frankPacketId : null,
-                    questionText: karthicEditor.sourceMode === 'manual' ? manualQuestionText : karthicEditor.questionText,
-                    manualQuestionFields: karthicEditor.sourceMode === 'manual' ? karthicEditor.manualQuestionFields : undefined,
-                    manualHeadingSeeds: karthicEditor.manualHeadingSeeds,
-                    approvedRunMode: karthicEditor.approvedRunMode,
-                    domains: karthicEditor.domains,
-                    goldenTargets: karthicEditor.goldenTargets,
-                    criteria: karthicEditor.sourceMode === 'manual' ? [] : karthicEditor.criteria,
-                    refinementLog: karthicEditor.sourceMode === 'manual' ? [] : karthicEditor.refinementLog,
-                    smeNotes: karthicEditor.smeNotes,
-                    comparisonMethodNote: karthicEditor.comparisonMethodNote,
+                    ...rubricEditor,
                     status,
                 }),
             });
             const json = await response.json();
             if (!response.ok) {
-                throw new Error(json.error || 'Failed to save Karthic rubric pack.');
+                throw new Error(json.error || 'Failed to save rubric pack.');
             }
-            const item = json.item as KarthicRubricPack;
-            applyKarthicPack(item);
-            setKarthicPacks((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
-            setStatusMessage(status === 'approved' ? 'Karthic rubric pack approved for Dasha.' : 'Karthic rubric pack saved.');
+            const item = json.item as KarthicRubricPackV2;
+            applyRubricPack(item);
+            setRubricPacks((current) => sortByUpdated([item, ...current.filter((pack) => pack.id !== item.id)]));
+            if (item.status === 'approved') {
+                setDashaRubricPackId(item.id);
+            }
+            setStatusMessage(status === 'approved' ? 'Karthic rubric pack approved.' : 'Karthic rubric pack saved.');
         } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to save Karthic rubric pack.');
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to save rubric pack.');
             setStatusMessage(null);
-        } finally {
-            setKarthicSavingStatus(null);
         }
     }
 
     async function runDasha() {
-        if (!selectedDashaQuestionText) {
-            setErrorMessage('The selected rubric pack does not have a saved question packet yet.');
+        if (!dashaRubricPackId) {
+            setErrorMessage('Select an approved rubric pack first.');
             return;
         }
-        setDashaRunning(true);
+        if (selectedModelKeys.length === 0) {
+            setErrorMessage('Select at least one model for Dasha.');
+            return;
+        }
         setErrorMessage(null);
-        setStatusMessage(
-            dashaForm.runMode === 'cluster_only'
-                ? 'Running Dasha clustering-only evaluation using the saved canonical question packet...'
-                : 'Running Dasha evaluation using the saved canonical question packet: large-sample model generation, raw clustering, and per-domain centroid scoring...',
-        );
+        setStatusMessage('Starting Dasha judge run...');
         try {
             const formData = new FormData();
-            formData.set('rubricPackId', dashaForm.rubricPackId);
-            formData.set('runMode', dashaForm.runMode);
-            formData.set('selectedModels', JSON.stringify(buildSelectedModels(dashaForm.selectedModelKeys)));
-            formData.set('sampleCount', dashaForm.sampleCount || '200');
-            dashaUploads.forEach((upload, index) => {
-                formData.append('files', upload.file);
-                formData.set(`role_${index}`, upload.role);
-            });
+            formData.set('rubricPackId', dashaRubricPackId);
+            formData.set('runMode', dashaRunMode);
+            formData.set('sampleCount', sampleCount || '120');
+            formData.set('selectedModels', JSON.stringify(buildSelectedModels(selectedModelKeys)));
             const response = await fetch('/api/dasha-runs', {
                 method: 'POST',
                 body: formData,
             });
             const json = await response.json();
             if (!response.ok) {
-                throw new Error(json.error || 'Failed to run Dasha.');
+                throw new Error(json.error || 'Failed to start Dasha judge run.');
             }
-            const item = json.item as DashaRun;
-            setSelectedDashaRunId(item.id);
-            setSelectedClusterId(null);
-            setDashaRuns((current) => sortByUpdated([item, ...current.filter((existing) => existing.id !== item.id)]));
-            setDashaStep('run');
-            if (item.status === 'draft') {
-                setStatusMessage('Dasha evaluation started. Polling for completion...');
-            } else if (item.status === 'completed') {
-                setStatusMessage('Dasha evaluation completed.');
-            } else {
-                setStatusMessage('Dasha evaluation finished with failures.');
-            }
+            const item = json.item as DashaRunV2;
+            setDashaRuns((current) => sortRuns([item, ...current.filter((run) => run.id !== item.id)]));
+            setSelectedRunId(item.id);
+            setStatusMessage('Dasha judge run started.');
+            goToStage('judge');
         } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to run Dasha.');
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to start Dasha judge run.');
             setStatusMessage(null);
-        } finally {
-            setDashaRunning(false);
         }
     }
 
-    const frankReady = Boolean(
-        frankEditor.selectedCase
-        && isValidFrankDomainCount(frankEditor.analysisDomains)
-        && canProceedFromFrankFitCheckState(frankEditor.fitCheck)
-        && frankEditor.benchmarkAnswer.trim()
-        && frankEditor.benchmarkQuestion.trim(),
-    );
-    const frankDomainCountValid = isValidFrankDomainCount(frankEditor.analysisDomains);
-    const frankFitCheckReviewNeeded = isFrankFitCheckReviewNeededState(frankEditor.fitCheck);
-    const frankCanGenerateGolden = frankDomainCountValid && canProceedFromFrankFitCheckState(frankEditor.fitCheck);
-    const karthicDomainCountValid = hasEditableKarthicDomains(karthicEditor.domains);
-    const karthicTargetsReady = hasKarthicGoldenTargets(karthicEditor.goldenTargets, karthicEditor.domains);
-    const manualQuestionText = karthicEditor.sourceMode === 'manual'
-        ? buildManualQuestionPacketText(karthicEditor.manualQuestionFields)
-        : '';
-    const manualQuestionWarnings = karthicEditor.sourceMode === 'manual' ? buildManualQuestionWarnings(karthicEditor.manualQuestionFields) : [];
-    const manualDomainWarnings = karthicEditor.sourceMode === 'manual' ? buildManualDomainWarnings(karthicEditor.domains) : [];
-    const manualTargetWarnings = karthicEditor.sourceMode === 'manual' ? buildManualTargetWarnings(karthicEditor.goldenTargets, karthicEditor.domains) : [];
-    const karthicQuestionReady = karthicEditor.sourceMode === 'manual'
-        ? isManualQuestionReady(karthicEditor.manualQuestionFields)
-        : Boolean(karthicEditor.frankPacketId);
-    const karthicPackReady = Boolean(
-        karthicQuestionReady
-        && karthicDomainCountValid
-        && (karthicEditor.approvedRunMode === 'cluster_only' || karthicTargetsReady),
-    );
-    const dashaRubricReady = Boolean(dashaForm.rubricPackId);
-    const dashaQuestionReady = Boolean(selectedDashaQuestionText);
-    const dashaSampleCountReady = Math.max(1, parseInt(dashaForm.sampleCount || '0', 10) || 0) > 0;
-    const dashaModelsReady = dashaForm.selectedModelKeys.length > 0 && dashaSampleCountReady;
-    const dashaRunReady = dashaRubricReady && dashaQuestionReady && dashaModelsReady
-        && !(dashaForm.runMode === 'score_and_cluster' && selectedDashaPack?.approvedRunMode === 'cluster_only');
-    const dashaReady = approvedKarthicPacks.length > 0;
+    const benchmarkBlockedReason = frankEditor ? buildClientFrankBlockReason(frankEditor) : null;
+    const frankApprovalBlockedReason = frankEditor ? buildClientFrankApprovalBlockReason(frankEditor) : null;
+    const benchmarkHeadingPreview = FRANK_V2_BENCHMARK_HEADINGS.join('\n');
 
-    return (
-        <AppShell
-            eyebrow="Stage-Separated Workflow"
-            title="Frank → Karthic → Dasha"
-            subtitle="Draft source-grounded Frank packets, turn approved packets into Karthic rubric packs, then run Dasha centroid-first evaluations without stage leakage."
-            maxWidthClassName="max-w-[1600px]"
-        >
-            <section className="grid gap-4 lg:grid-cols-3">
-                <StageCard
-                    title="Frank"
-                    description="Source intake, extraction, benchmark answer, and reverse-engineered question only."
-                    icon={<ScrollText className="h-5 w-5" />}
-                    active={activeTab === 'frank'}
-                    onClick={() => setActiveTab('frank')}
-                />
-                <StageCard
-                    title="Karthic"
-                    description="Approved Frank packet intake, editable domain weighting, and structured golden-target drafting only."
-                    icon={<Scale className="h-5 w-5" />}
-                    active={activeTab === 'karthic'}
-                    onClick={() => setActiveTab('karthic')}
-                />
-                <StageCard
-                    title="Dasha"
-                    description="Free-form answer generation, density clustering, and centroid-vs-golden difference measurement only."
-                    icon={<Network className="h-5 w-5" />}
-                    active={activeTab === 'dasha'}
-                    onClick={() => setActiveTab('dasha')}
-                />
-            </section>
+    const hasFrankPacket = Boolean(frankEditor);
+    const hasRoutingIntake = Boolean(frankEditor?.selectedPack && frankEditor?.intakeChecklist);
+    const hasExtractionMapping = Boolean(frankEditor?.sourceExtractionSheet && frankEditor?.goldPacketMapping && frankEditor?.likelyFailureModes);
+    const hasBenchmark = Boolean(frankEditor?.benchmarkAnswer.trim());
+    const hasQuestion = Boolean(frankEditor?.reverseEngineeredQuestion.trim());
+    const hasApprovedFrank = frankEditor?.status === 'approved';
+    const hasApprovedRubric = rubricEditor?.status === 'approved';
+    const hasCompletedRun = selectedRun?.status === 'completed';
 
-            {(statusMessage || errorMessage) && (
-                <section className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${errorMessage ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
-                    {errorMessage || statusMessage}
-                </section>
-            )}
-
-            {isLoading ? (
-                <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-6 py-10 text-sm text-slate-600 shadow-sm">
-                    Loading workflow state...
-                </div>
-            ) : null}
-
-            {!isLoading && activeTab === 'frank' && (
-                <section className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-                    <div className="space-y-6">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                            <SectionHeader
-                                title="Frank Wizard"
-                                description="One step at a time: pick a legal domain, search for an anchor case, edit the analysis domains, run the case-domain fit check, generate the generalized golden response, then generate the question packet."
-                                actions={frankReady ? <ApprovalBadge approved={frankPackets.find((item) => item.id === frankEditor.id)?.status === 'approved'} /> : null}
-                            />
-                            <FrankStepRail
-                                step={frankStep}
-                                legalDomainSet={Boolean(frankEditor.legalDomain.trim())}
-                                caseSelected={Boolean(frankEditor.selectedCase)}
-                                domainsReady={frankDomainCountValid}
-                                fitReady={!frankFitCheckReviewNeeded}
-                                goldenReady={Boolean(frankEditor.benchmarkAnswer.trim())}
-                                questionReady={Boolean(frankEditor.benchmarkQuestion.trim())}
-                                onChange={setFrankStep}
-                            />
-
-                            {frankStep === 'domain' && (
-                                <div className="mt-6 space-y-4">
-                                    <LabeledInput
-                                        label="Legal Domain Of Analysis"
-                                        value={frankEditor.legalDomain}
-                                        onChange={(value) => {
-                                            setFrankCaseUpload(null);
-                                            setFrankCaseUploadInputKey((current) => current + 1);
-                                            setFrankEditor((current) => ({
-                                                ...current,
-                                                legalDomain: value,
-                                                domainScope: value.trim() || current.domainScope,
-                                                selectedCase: null,
-                                                caseCandidates: [],
-                                                analysisDomains: [],
-                                                fitCheck: buildNeedsReviewFrankFitCheckState(null, []),
-                                                benchmarkAnswer: '',
-                                                benchmarkQuestion: '',
-                                                sourceArtifacts: [],
-                                            }));
-                                        }}
-                                    />
-                                    <div className="flex flex-wrap gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setFrankStep('case')}
-                                            disabled={!frankEditor.legalDomain.trim()}
-                                            className={workflowButtonClass('teal')}
-                                        >
-                                            Continue to Case Search
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {frankStep === 'case' && (
-                                <div className="mt-6 space-y-4">
-                                    <FrankSummaryRow label="Legal Domain" value={frankEditor.legalDomain || 'Not set yet'} />
-                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 2 · Anchor Case Search</p>
-                                        <p className="mt-1 text-sm text-slate-500">Search the open web for a teaching-friendly case, or upload the case PDF directly if you already have the opinion.</p>
-                                        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                                            <div className="rounded-xl border border-slate-200 bg-white p-4">
-                                                <p className="text-sm font-semibold text-slate-900">Search Online</p>
-                                                <p className="mt-1 text-sm text-slate-500">Frank uses web search to propose anchor cases and lets you pick one.</p>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => void searchFrankCases()}
-                                                    disabled={frankSearchingCases || frankUploadingCasePdf || !frankEditor.legalDomain.trim()}
-                                                    className={workflowButtonClass('teal', 'md', 'mt-3')}
-                                                >
-                                                    {frankSearchingCases ? 'Searching...' : 'Search Online For Anchor Cases'}
-                                                </button>
-                                            </div>
-                                            <div className="rounded-xl border border-slate-200 bg-white p-4">
-                                                <p className="text-sm font-semibold text-slate-900">Upload PDF</p>
-                                                <p className="mt-1 text-sm text-slate-500">Frank will extract the uploaded opinion, infer the case metadata, and use it as the selected anchor case.</p>
-                                                <input
-                                                    key={frankCaseUploadInputKey}
-                                                    type="file"
-                                                    accept="application/pdf,.pdf"
-                                                    onChange={(event) => {
-                                                        const file = event.target.files?.[0] ?? null;
-                                                        setFrankCaseUpload(file);
-                                                    }}
-                                                    className="mt-3 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:font-semibold file:text-slate-700"
-                                                />
-                                                <p className="mt-2 text-xs text-slate-500">{frankCaseUpload ? `Selected: ${frankCaseUpload.name}` : 'PDF only.'}</p>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => void uploadFrankAnchorCasePdf()}
-                                                    disabled={frankSearchingCases || frankUploadingCasePdf || !frankEditor.legalDomain.trim() || !frankCaseUpload}
-                                                    className={workflowButtonClass('teal', 'md', 'mt-3')}
-                                                >
-                                                    {frankUploadingCasePdf ? 'Uploading...' : 'Upload PDF As Anchor Case'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {frankEditor.sourceArtifacts.length > 0 ? (
-                                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Uploaded Source Artifacts</p>
-                                            <div className="mt-3 space-y-2 text-sm text-slate-600">
-                                                {frankEditor.sourceArtifacts.map((artifact) => (
-                                                    <div key={artifact.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2">
-                                                        <span className="truncate">{artifact.fileName}</span>
-                                                        <span className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">{artifact.role.replace('_', ' ')}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : null}
-
-                                    {visibleFrankCaseCandidates.length > 0 ? (
-                                        <div className="space-y-3">
-                                            {visibleFrankCaseCandidates.map((candidate) => (
-                                                <button
-                                                    key={candidate.id}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        applyFrankCaseDomainEdit((current) => ({
-                                                            selectedCase: candidate,
-                                                            domainScope: candidate.title,
-                                                            sourceFamily: current.sourceFamily || 'web_searched_anchor_case',
-                                                            caseCandidates: current.caseCandidates.length > 0 ? current.caseCandidates : [candidate],
-                                                        }));
-                                                    }}
-                                                    className={`w-full rounded-2xl border p-4 text-left ${frankEditor.selectedCase?.id === candidate.id ? 'border-teal-300 bg-teal-50/60' : 'border-slate-200 bg-white hover:border-teal-200'}`}
-                                                >
-                                                    <div className="flex flex-wrap items-start justify-between gap-3">
-                                                        <div>
-                                                            <p className="text-sm font-semibold text-slate-900">{candidate.title}</p>
-                                                            <p className="mt-1 text-xs text-slate-500">{candidate.citation} · {candidate.court} · {candidate.year}</p>
-                                                        </div>
-                                                        {candidate.url ? (
-                                                            <a
-                                                                href={candidate.url}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                onClick={(event) => event.stopPropagation()}
-                                                                className="text-xs font-semibold text-teal-700 underline-offset-4 hover:underline"
-                                                            >
-                                                                Open source
-                                                            </a>
-                                                        ) : null}
-                                                    </div>
-                                                    <p className="mt-3 text-sm text-slate-600">{candidate.summary}</p>
-                                                    <p className="mt-2 text-xs text-slate-500">{candidate.relevance}</p>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-slate-500">No case picked yet.</p>
-                                    )}
-
-                                    <div className="flex flex-wrap gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setFrankStep('domain')}
-                                            className={workflowButtonClass('neutral')}
-                                        >
-                                            Back
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setFrankStep('domains')}
-                                            disabled={!frankEditor.selectedCase}
-                                            className={workflowButtonClass('teal')}
-                                        >
-                                            Continue to Analysis Domains
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {frankStep === 'domains' && (
-                                <div className="mt-6 space-y-4">
-                                    <FrankSummaryRow label="Anchor Case" value={frankEditor.selectedCase ? `${frankEditor.selectedCase.title} · ${frankEditor.selectedCase.citation}` : 'No case selected yet'} />
-                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                        <div className="flex flex-wrap items-center justify-between gap-3">
-                                            <div>
-                                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 3 · Analysis Domains</p>
-                                        <p className="mt-1 text-sm text-slate-500">Draft 5-10 human-editable analysis buckets. You can rename, rewrite, add, or delete them before Frank writes the generalized golden response.</p>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => void draftFrankDomains()}
-                                                disabled={!frankEditor.selectedCase || frankDraftingDomains}
-                                                className={workflowButtonClass('teal')}
-                                            >
-                                                {frankDraftingDomains ? 'Drafting...' : 'Draft Analysis Domains'}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center justify-between gap-3 text-sm text-slate-500">
-                                        <span>{frankEditor.analysisDomains.length} domains selected. Aim for 5-10.</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => applyFrankCaseDomainEdit((current) => ({
-                                                analysisDomains: [
-                                                    ...current.analysisDomains,
-                                                    { id: `analysis_domain_${current.analysisDomains.length + 1}`, name: '', description: '' },
-                                                ],
-                                            }))}
-                                            className={workflowButtonClass('neutral', 'sm')}
-                                        >
-                                            Add Domain
-                                        </button>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        {frankEditor.analysisDomains.length === 0 ? (
-                                            <p className="text-sm text-slate-500">No domains yet. Draft them first, then edit as needed.</p>
-                                        ) : frankEditor.analysisDomains.map((domain, index) => (
-                                            <div key={domain.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Domain {index + 1}</p>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => applyFrankCaseDomainEdit((current) => ({
-                                                            analysisDomains: current.analysisDomains.filter((_, domainIndex) => domainIndex !== index),
-                                                        }))}
-                                                        className={workflowButtonClass('danger', 'sm', 'border-transparent bg-transparent p-0 text-rose-600 shadow-none hover:bg-rose-50/70')}
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </div>
-                                                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                                                    <LabeledInput
-                                                        label="Domain Name"
-                                                        value={domain.name}
-                                                        onChange={(value) => applyFrankCaseDomainEdit((current) => ({
-                                                            analysisDomains: current.analysisDomains.map((item, domainIndex) => domainIndex === index ? { ...item, name: value } : item),
-                                                        }))}
-                                                    />
-                                                    <LabeledTextarea
-                                                        label="Brief Description"
-                                                        value={domain.description}
-                                                        onChange={(value) => applyFrankCaseDomainEdit((current) => ({
-                                                            analysisDomains: current.analysisDomains.map((item, domainIndex) => domainIndex === index ? { ...item, description: value } : item),
-                                                        }))}
-                                                        rows={3}
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {!frankDomainCountValid ? (
-                                        <p className="text-sm text-amber-700">Frank needs between 5 and 10 filled-in domains before moving on.</p>
-                                    ) : null}
-
-                                    <div className="flex flex-wrap gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setFrankStep('case')}
-                                            className={workflowButtonClass('neutral')}
-                                        >
-                                            Back
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setFrankStep('fit')}
-                                            disabled={!frankDomainCountValid}
-                                            className={workflowButtonClass('teal')}
-                                        >
-                                            Continue to Fit Check
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {frankStep === 'fit' && (
-                                <div className="mt-6 space-y-4">
-                                    <FrankSummaryRow label="Anchor Case" value={frankEditor.selectedCase ? `${frankEditor.selectedCase.title} · ${frankEditor.selectedCase.citation}` : 'No case selected yet'} />
-                                    <FrankSummaryRow label="Analysis Domains" value={`${frankEditor.analysisDomains.length} domain(s)`} />
-                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 4 · Case-Domain Fit Check</p>
-                                        <p className="mt-1 text-sm text-slate-500">Run a preflight check before Frank writes the generalized golden response. This catches domains that drift away from what the chosen case actually teaches.</p>
-                                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                                            <LabeledSelect
-                                                label="Fit Check Model"
-                                                value={frankEditor.fitSettings.model}
-                                                onChange={(value) => setFrankEditor((current) => ({
-                                                    ...current,
-                                                    fitSettings: {
-                                                        ...current.fitSettings,
-                                                        model: value,
-                                                    },
-                                                }))}
-                                                options={MODEL_OPTIONS_BY_PROVIDER.openai}
-                                            />
-                                            <LabeledSelect
-                                                label="Fit Check Reasoning"
-                                                value={frankEditor.fitSettings.reasoningEffort}
-                                                onChange={(value) => setFrankEditor((current) => ({
-                                                    ...current,
-                                                    fitSettings: {
-                                                        ...current.fitSettings,
-                                                        reasoningEffort: value as ReasoningEffort,
-                                                    },
-                                                }))}
-                                                options={REASONING_OPTIONS}
-                                            />
-                                        </div>
-                                        <p className="mt-3 text-xs text-slate-500">These controls apply only to Frank’s fit check and currently use OpenAI models.</p>
-                                        <button
-                                            type="button"
-                                            onClick={() => void runFrankFitCheck()}
-                                            disabled={frankRunningFitCheck || !frankDomainCountValid || !frankEditor.selectedCase}
-                                            className={workflowButtonClass('teal', 'md', 'mt-3')}
-                                        >
-                                            {frankRunningFitCheck ? 'Running...' : frankEditor.fitCheck.lastRunAt ? 'Re-Run Fit Check' : 'Run Fit Check'}
-                                        </button>
-                                    </div>
-
-                                    <FrankFitCheckStatusCard fitCheck={frankEditor.fitCheck} />
-
-                                    {frankEditor.fitCheck.results.length > 0 ? (
-                                        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                                            <div className="grid grid-cols-[minmax(0,1.2fr)_160px_minmax(0,1.8fr)] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
-                                                <span>Domain</span>
-                                                <span>Fit</span>
-                                                <span>Why</span>
-                                            </div>
-                                            <div className="divide-y divide-slate-200">
-                                                {frankEditor.fitCheck.results.map((result) => (
-                                                    <div key={result.domainId} className="grid grid-cols-[minmax(0,1.2fr)_160px_minmax(0,1.8fr)] gap-3 px-4 py-3 text-sm">
-                                                        <span className="font-semibold text-slate-900">{result.domainName}</span>
-                                                        <span className={fitLabelClassName(result.label)}>{result.label}</span>
-                                                        <span className="text-slate-600">{result.explanation}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-slate-500">No saved fit-check results yet. Run the check to see which domains fit directly, which are peripheral but valid, which are weak fits, and which do not belong.</p>
-                                    )}
-
-                                    {isFrankFitCheckOverrideRequiredState(frankEditor.fitCheck) ? (
-                                        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-                                            <p className="text-sm font-semibold text-rose-800">Golden generation is blocked because at least one domain is marked `Does not fit`.</p>
-                                            <p className="mt-1 text-sm text-rose-700">You can still continue for testing purposes, but that override is saved on the packet and remains visible later.</p>
-                                            <button
-                                                type="button"
-                                                onClick={() => void saveFrankFitOverride()}
-                                                className={workflowButtonClass('danger', 'md', 'mt-3')}
-                                            >
-                                                Save Manual Override And Unlock Golden Step
-                                            </button>
-                                        </div>
-                                    ) : null}
-
-                                    <div className="flex flex-wrap gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setFrankStep('domains')}
-                                            className={workflowButtonClass('neutral')}
-                                        >
-                                            Back
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setFrankStep('golden')}
-                                            disabled={!frankCanGenerateGolden}
-                                            className={workflowButtonClass('teal')}
-                                        >
-                                            Continue to Golden Response
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {frankStep === 'golden' && (
-                                <div className="mt-6 space-y-4">
-                                    <FrankSummaryRow label="Anchor Case" value={frankEditor.selectedCase ? `${frankEditor.selectedCase.title} · ${frankEditor.selectedCase.citation}` : 'No case selected yet'} />
-                                    <FrankSummaryRow label="Analysis Domains" value={`${frankEditor.analysisDomains.length} domain(s)`} />
-                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 5 · Golden Response</p>
-                                        <p className="mt-1 text-sm text-slate-500">Frank now writes the benchmark’s generalized golden response across your chosen domains. The selected case still grounds likely direction and doctrinal fit, but the saved golden response should stay broader than that one dispute.</p>
-                                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                                            <LabeledSelect
-                                                label="Golden Model"
-                                                value={frankEditor.goldenSettings.model}
-                                                onChange={(value) => setFrankEditor((current) => ({
-                                                    ...current,
-                                                    goldenSettings: {
-                                                        ...current.goldenSettings,
-                                                        model: value,
-                                                    },
-                                                }))}
-                                                options={MODEL_OPTIONS_BY_PROVIDER.openai}
-                                            />
-                                            <LabeledSelect
-                                                label="Golden Reasoning"
-                                                value={frankEditor.goldenSettings.reasoningEffort}
-                                                onChange={(value) => setFrankEditor((current) => ({
-                                                    ...current,
-                                                    goldenSettings: {
-                                                        ...current.goldenSettings,
-                                                        reasoningEffort: value as ReasoningEffort,
-                                                    },
-                                                }))}
-                                                options={REASONING_OPTIONS}
-                                            />
-                                        </div>
-                                        <p className="mt-3 text-xs text-slate-500">These controls apply only to Frank’s golden-answer generation and currently use OpenAI models.</p>
-                                        <button
-                                            type="button"
-                                            onClick={() => void generateFrankGoldenResponse()}
-                                            disabled={frankGeneratingGolden || frankRefiningGolden || frankRecheckingGolden || !frankCanGenerateGolden}
-                                            className={workflowButtonClass('teal', 'md', 'mt-3')}
-                                        >
-                                            {frankGeneratingGolden ? 'Generating...' : 'Generate And Save Golden Response'}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => void recheckFrankGoldenResponse()}
-                                            disabled={frankGeneratingGolden || frankRefiningGolden || frankRecheckingGolden || !frankEditor.benchmarkAnswer.trim() || !frankCanGenerateGolden}
-                                            className={workflowButtonClass('neutral', 'md', 'mt-3 ml-3')}
-                                        >
-                                            {frankRecheckingGolden ? 'Re-Checking...' : 'Re-Check Current Draft'}
-                                        </button>
-                                    </div>
-                                    <FrankFitCheckStatusCard fitCheck={frankEditor.fitCheck} />
-                                    {frankEditor.goldenWarnings.length > 0 ? (
-                                        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
-                                            <p className="text-sm font-semibold">Golden response saved with warning(s).</p>
-                                            <p className="mt-1 text-sm">The detector found language that may still point too directly at the grounding case. The draft remains saved and usable, but review these notes before treating it as final.</p>
-                                            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm">
-                                                {frankEditor.goldenWarnings.map((warning) => (
-                                                    <li key={warning}>{warning}</li>
-                                                ))}
-                                            </ul>
-                                            <button
-                                                type="button"
-                                                onClick={() => void refineFrankGoldenResponseFromWarnings()}
-                                                disabled={frankGeneratingGolden || frankRefiningGolden || frankRecheckingGolden}
-                                                className={workflowButtonClass('warning', 'md', 'mt-3')}
-                                            >
-                                                {frankRefiningGolden ? 'Refining...' : 'Refine With This Feedback'}
-                                            </button>
-                                        </div>
-                                    ) : null}
-                                    <LabeledTextarea
-                                        label="Master Issue Statement"
-                                        value={frankEditor.masterIssueStatement}
-                                        onChange={(value) => setFrankEditor((current) => ({ ...current, masterIssueStatement: value, goldenWarnings: [] }))}
-                                        rows={4}
-                                    />
-                                    <LabeledTextarea
-                                        label="Frank Golden Response"
-                                        value={frankEditor.benchmarkAnswer}
-                                        onChange={(value) => setFrankEditor((current) => ({ ...current, benchmarkAnswer: value, goldenWarnings: [] }))}
-                                        rows={16}
-                                        hint={frankEditor.id ? `Saved locally as ${frankEditor.id}.` : 'Frank saves this locally as soon as it is generated.'}
-                                    />
-                                    <LabeledTextarea
-                                        label="Failure-Mode Seeds"
-                                        value={frankEditor.failureModeSeedsText}
-                                        onChange={(value) => setFrankEditor((current) => ({ ...current, failureModeSeedsText: value, goldenWarnings: [] }))}
-                                        rows={4}
-                                        hint="Optional weak-answer notes that can help later refinement."
-                                    />
-                                    <div className="flex flex-wrap gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setFrankStep('fit')}
-                                            className={workflowButtonClass('neutral')}
-                                        >
-                                            Back
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setFrankStep('question')}
-                                            disabled={!frankEditor.benchmarkAnswer.trim()}
-                                            className={workflowButtonClass('teal')}
-                                        >
-                                            Continue to Question Packet
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {frankStep === 'question' && (
-                                <div className="mt-6 space-y-4">
-                                    <FrankSummaryRow label="Anchor Case" value={frankEditor.selectedCase ? `${frankEditor.selectedCase.title} · ${frankEditor.selectedCase.citation}` : 'No case selected yet'} />
-                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 6 · Question Packet</p>
-                                        <p className="mt-1 text-sm text-slate-500">After the generalized golden response is locked in, Frank drafts a fresh hypothetical question packet that should elicit analysis across those same domains without retelling the grounding case.</p>
-                                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                                            <LabeledSelect
-                                                label="Question Model"
-                                                value={frankEditor.questionSettings.model}
-                                                onChange={(value) => setFrankEditor((current) => ({
-                                                    ...current,
-                                                    questionSettings: {
-                                                        ...current.questionSettings,
-                                                        model: value,
-                                                    },
-                                                }))}
-                                                options={MODEL_OPTIONS_BY_PROVIDER.openai}
-                                            />
-                                            <LabeledSelect
-                                                label="Question Reasoning"
-                                                value={frankEditor.questionSettings.reasoningEffort}
-                                                onChange={(value) => setFrankEditor((current) => ({
-                                                    ...current,
-                                                    questionSettings: {
-                                                        ...current.questionSettings,
-                                                        reasoningEffort: value as ReasoningEffort,
-                                                    },
-                                                }))}
-                                                options={REASONING_OPTIONS}
-                                            />
-                                        </div>
-                                        <p className="mt-3 text-xs text-slate-500">These controls apply only to Frank’s question-packet generation and currently use OpenAI models.</p>
-                                        <button
-                                            type="button"
-                                            onClick={() => void generateFrankQuestionPacket()}
-                                            disabled={frankGeneratingQuestion || !frankEditor.benchmarkAnswer.trim() || !frankCanGenerateGolden}
-                                            className={workflowButtonClass('teal', 'md', 'mt-3')}
-                                        >
-                                            {frankGeneratingQuestion ? 'Generating...' : 'Generate And Save Question Packet'}
-                                        </button>
-                                    </div>
-                                    {frankEditor.questionWarnings.length > 0 ? (
-                                        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
-                                            <p className="text-sm font-semibold">Question packet saved with warning(s).</p>
-                                            <p className="mt-1 text-sm">Frank saved the packet, but the detector found places where anonymization or domain alignment may still need review.</p>
-                                            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm">
-                                                {frankEditor.questionWarnings.map((warning) => (
-                                                    <li key={warning}>{warning}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    ) : null}
-                                    <LabeledTextarea
-                                        label="Question Packet"
-                                        value={frankEditor.benchmarkQuestion}
-                                        onChange={(value) => setFrankEditor((current) => ({ ...current, benchmarkQuestion: value, questionWarnings: [] }))}
-                                        rows={14}
-                                        hint="This stays editable after generation."
-                                    />
-                                    <div className="flex flex-wrap gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setFrankStep('golden')}
-                                            className={workflowButtonClass('neutral')}
-                                        >
-                                            Back
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => void saveFrank('draft')}
-                                            disabled={frankSavingStatus !== null}
-                                            className={workflowButtonClass('neutral')}
-                                        >
-                                            {frankSavingStatus === 'draft' ? <><LoaderCircle className="h-4 w-4 animate-spin" />Saving Draft...</> : 'Save Draft'}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => void saveFrank('approved')}
-                                            disabled={!frankReady || frankSavingStatus !== null}
-                                            className={workflowButtonClass('success')}
-                                        >
-                                            {frankSavingStatus === 'approved' ? <><LoaderCircle className="h-4 w-4 animate-spin" />Approving...</> : 'Approve for Karthic'}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        <StepExplainerCard
-                            title="How Frank Works"
-                            description="Every Frank step stays visible; the current step opens into a more substantial explanation."
-                            items={frankExplainerItems}
-                            activeStep={frankStep}
-                        />
-                        <ArtifactListCard
-                            title="Frank Packets"
-                            items={frankPackets}
-                            selectedId={frankEditor.id}
-                            onSelect={(id) => {
-                                const item = frankPackets.find((packet) => packet.id === id);
-                                if (item) {
-                                    applyFrankPacket(item);
-                                }
-                            }}
-                            onDelete={(id) => {
-                                void deleteFrank(id);
-                            }}
-                            deletingId={frankDeletingId}
-                        />
-                    </div>
-                </section>
-            )}
-
-            {!isLoading && activeTab === 'karthic' && (
-                <section className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-                    <div className="space-y-6">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                            <SectionHeader
-                                title="Karthic Wizard"
-                                description="One step at a time: either load an approved Frank packet or build a manual standalone pack, then define weighted domains, complete structured targets, and approve for Dasha."
-                                actions={karthicPackReady ? <ApprovalBadge approved={karthicEditor.status === 'approved'} /> : null}
-                            />
-                            <KarthicStepRail
-                                sourceMode={karthicEditor.sourceMode}
-                                step={karthicStep}
-                                manualReady={karthicEditor.sourceMode === 'manual' ? isManualQuestionReady(karthicEditor.manualQuestionFields) : true}
-                                packetReady={karthicEditor.sourceMode === 'manual' ? isManualQuestionReady(karthicEditor.manualQuestionFields) : Boolean(karthicEditor.frankPacketId)}
-                                domainsReady={karthicDomainCountValid}
-                                targetsReady={karthicTargetsReady}
-                                approveReady={karthicPackReady}
-                                onChange={setKarthicStep}
-                            />
-                            <>
-                                {karthicStep === 'manual' && (
-                                    <div className="mt-6 space-y-4">
-                                        <LabeledSelect
-                                            label="Benchmark Source"
-                                            value={karthicEditor.sourceMode}
-                                            onChange={(value) => {
-                                                const nextSourceMode = value === 'manual' ? 'manual' : 'frank';
-                                                setKarthicEditor((current) => ({
-                                                    ...DEFAULT_KARTHIC_STATE,
-                                                    sourceMode: nextSourceMode,
-                                                    manualQuestionFields: nextSourceMode === 'manual'
-                                                        ? createEditorManualQuestionFields()
-                                                        : DEFAULT_KARTHIC_STATE.manualQuestionFields,
-                                                    smeNotes: current.smeNotes,
-                                                    comparisonMethodNote: current.comparisonMethodNote,
-                                                }));
-                                                setKarthicStep(nextSourceMode === 'manual' ? 'manual' : 'packet');
-                                            }}
-                                            options={[
-                                                { value: 'frank', label: 'Approved Frank packet' },
-                                                { value: 'manual', label: 'Manual / non-source-grounded' },
-                                            ]}
-                                        />
-                                        {karthicEditor.sourceMode === 'manual' ? (
-                                            <>
-                                                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
-                                                    <p className="text-sm font-semibold">Manual packs skip Frank’s case-grounding and fit-check stages.</p>
-                                                    <p className="mt-1 text-sm">Use this only for standalone prompts that cannot cleanly enter the source-grounded Frank flow.</p>
-                                                </div>
-                                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 0 · Manual Packet</p>
-                                                    <p className="mt-1 text-sm text-slate-500">Build the standalone question packet in the same staged style Frank uses: a title, a fact packet, a list of answer tasks, and a required answer format.</p>
-                                                </div>
-                                                <LabeledInput
-                                                    label="Title"
-                                                    value={karthicEditor.manualQuestionFields.title}
-                                                    onChange={(value) => setKarthicEditor((current) => ({
-                                                        ...current,
-                                                        manualQuestionFields: { ...current.manualQuestionFields, title: value },
-                                                    }))}
-                                                    hint="Name the standalone benchmark or dispute in one concise line."
-                                                />
-                                                <LabeledTextarea
-                                                    label="Facts"
-                                                    value={karthicEditor.manualQuestionFields.facts}
-                                                    onChange={(value) => setKarthicEditor((current) => ({
-                                                        ...current,
-                                                        manualQuestionFields: { ...current.manualQuestionFields, facts: value },
-                                                    }))}
-                                                    rows={8}
-                                                    hint="Paste the operative facts and keep only the facts the models should analyze."
-                                                />
-                                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                    <div className="flex items-center justify-between gap-3">
-                                                        <div>
-                                                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Tasks</p>
-                                                            <p className="mt-1 text-sm text-slate-500">List the required issues or headings in the order you want answered. The packet preview below will number them automatically.</p>
-                                                        </div>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setKarthicEditor((current) => ({
-                                                                ...current,
-                                                                manualQuestionFields: {
-                                                                    ...current.manualQuestionFields,
-                                                                    tasks: [...current.manualQuestionFields.tasks, createEmptyManualTaskRow()],
-                                                                },
-                                                            }))}
-                                                            className={workflowButtonClass('neutral', 'sm')}
-                                                        >
-                                                            Add Task
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-3">
-                                                    {karthicEditor.manualQuestionFields.tasks.length === 0 ? (
-                                                        <p className="text-sm text-slate-500">No task cards yet. Add at least one task before moving on.</p>
-                                                    ) : karthicEditor.manualQuestionFields.tasks.map((task, index) => (
-                                                        <div key={`manual_task_${index}`} className="rounded-2xl border border-slate-200 bg-white p-4">
-                                                            <div className="flex items-center justify-between gap-3">
-                                                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Task {index + 1}</p>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setKarthicEditor((current) => ({
-                                                                        ...current,
-                                                                        manualQuestionFields: {
-                                                                            ...current.manualQuestionFields,
-                                                                            tasks: current.manualQuestionFields.tasks.filter((_, taskIndex) => taskIndex !== index),
-                                                                        },
-                                                                    }))}
-                                                                    className={workflowButtonClass('danger', 'sm', 'border-transparent bg-transparent p-0 text-rose-600 shadow-none hover:bg-rose-50/70')}
-                                                                >
-                                                                    Delete
-                                                                </button>
-                                                            </div>
-                                                            <div className="mt-3">
-                                                                <LabeledTextarea
-                                                                    label="Task Text"
-                                                                    value={task}
-                                                                    onChange={(value) => setKarthicEditor((current) => ({
-                                                                        ...current,
-                                                                        manualQuestionFields: {
-                                                                            ...current.manualQuestionFields,
-                                                                            tasks: current.manualQuestionFields.tasks.map((item, taskIndex) => taskIndex === index ? value : item),
-                                                                        },
-                                                                    }))}
-                                                                    rows={3}
-                                                                    hint="Use one task card per required issue or instruction."
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <LabeledTextarea
-                                                    label="Answer Format"
-                                                    value={karthicEditor.manualQuestionFields.answerFormat}
-                                                    onChange={(value) => setKarthicEditor((current) => ({
-                                                        ...current,
-                                                        manualQuestionFields: { ...current.manualQuestionFields, answerFormat: value },
-                                                    }))}
-                                                    rows={5}
-                                                    hint="State the required structure, style, and any format limits the model must follow."
-                                                />
-                                                <LabeledTextarea
-                                                    label="Question Packet Preview"
-                                                    value={manualQuestionText}
-                                                    onChange={() => undefined}
-                                                    rows={12}
-                                                    readOnly
-                                                    hint="Dasha reuses this exact composed packet text. Edit the structured fields above to change it."
-                                                />
-                                                {manualQuestionWarnings.length > 0 ? (
-                                                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
-                                                        <p className="text-sm font-semibold">Manual packet warning(s)</p>
-                                                        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-                                                            {manualQuestionWarnings.map((warning) => (
-                                                                <li key={warning}>{warning}</li>
-                                                            ))}
-                                                        </ul>
-                                                    </div>
-                                                ) : null}
-                                                <div className="flex flex-wrap gap-3">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setKarthicStep('domains')}
-                                                        disabled={!isManualQuestionReady(karthicEditor.manualQuestionFields)}
-                                                        className={workflowButtonClass('teal')}
-                                                    >
-                                                        Continue to Domains
-                                                    </button>
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <div className="flex flex-wrap gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setKarthicStep('packet')}
-                                                    className={workflowButtonClass('teal')}
-                                                >
-                                                    Continue to Approved Packet
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {karthicStep === 'packet' && (
-                                    <div className="mt-6 space-y-4">
-                                        {karthicEditor.sourceMode === 'frank' ? (
-                                            <>
-                                                <LabeledSelect
-                                                    label="Approved Frank Packet"
-                                                    value={karthicEditor.frankPacketId}
-                                                    onChange={(value) => {
-                                                        const packet = approvedFrankPackets.find((item) => item.id === value);
-                                                        setKarthicEditor({
-                                                            ...DEFAULT_KARTHIC_STATE,
-                                                            sourceMode: 'frank',
-                                                            frankPacketId: value,
-                                                            smeNotes: karthicEditor.smeNotes,
-                                                            status: 'draft',
-                                                            domains: packet
-                                                                ? packet.analysisDomains.map((domain) => ({
-                                                                    id: domain.id,
-                                                                    name: domain.name,
-                                                                    description: domain.description,
-                                                                    weight: 1,
-                                                                    naGuidance: `Mark ${domain.name} as not applicable only if the question packet does not materially trigger this domain.`,
-                                                                }))
-                                                                : [],
-                                                        });
-                                                    }}
-                                                    options={[
-                                                        { value: '', label: 'Select an approved Frank packet' },
-                                                        ...approvedFrankPackets.map((packet) => ({
-                                                            value: packet.id,
-                                                            label: `${packet.legalDomain} · ${packet.domainScope}`,
-                                                        })),
-                                                    ]}
-                                                />
-                                                <LabeledTextarea
-                                                    label="SME Notes"
-                                                    value={karthicEditor.smeNotes}
-                                                    onChange={(value) => setKarthicEditor((current) => ({ ...current, smeNotes: value }))}
-                                                    rows={5}
-                                                    hint="Optional notes that will shape the structured golden targets."
-                                                />
-                                                {karthicEditor.frankPacketId ? (
-                                                    <FrankSummaryRow
-                                                        label="Selected Frank Packet"
-                                                        value={(() => {
-                                                            const packet = approvedFrankPackets.find((item) => item.id === karthicEditor.frankPacketId);
-                                                            return packet
-                                                                ? `${packet.legalDomain} · ${packet.domainScope}`
-                                                                : 'Packet not found';
-                                                        })()}
-                                                    />
-                                                ) : null}
-                                            </>
-                                        ) : (
-                                            <>
-                                                <FrankSummaryRow label="Pack Source" value="Manual / non-source-grounded" />
-                                                <FrankSummaryRow label="Question Packet" value={isManualQuestionReady(karthicEditor.manualQuestionFields) ? 'Saved manual packet text is ready.' : 'No manual packet text entered yet.'} />
-                                                <LabeledTextarea
-                                                    label="SME Notes"
-                                                    value={karthicEditor.smeNotes}
-                                                    onChange={(value) => setKarthicEditor((current) => ({ ...current, smeNotes: value }))}
-                                                    rows={5}
-                                                    hint="Optional notes for your own rubric drafting."
-                                                />
-                                            </>
-                                        )}
-                                        <div className="flex flex-wrap gap-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => setKarthicStep('manual')}
-                                                className={workflowButtonClass('neutral')}
-                                            >
-                                                Back
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setKarthicStep('domains')}
-                                                disabled={karthicEditor.sourceMode === 'frank' ? !karthicEditor.frankPacketId : !isManualQuestionReady(karthicEditor.manualQuestionFields)}
-                                                className={workflowButtonClass('teal')}
-                                            >
-                                                Continue to Domains
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {karthicStep === 'domains' && (
-                                    <div className="mt-6 space-y-4">
-                                        <FrankSummaryRow
-                                            label="Packet Source"
-                                            value={karthicEditor.sourceMode === 'manual'
-                                                ? 'Manual / non-source-grounded'
-                                                : (() => {
-                                                    const packet = approvedFrankPackets.find((item) => item.id === karthicEditor.frankPacketId);
-                                                    return packet
-                                                        ? `${packet.legalDomain} · ${packet.domainScope}`
-                                                        : 'No Frank packet selected yet';
-                                                })()}
-                                        />
-                                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                            <div className="flex flex-wrap items-center justify-between gap-3">
-                                                <div>
-                                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">{karthicEditor.sourceMode === 'manual' ? 'Step 1 · Domains' : 'Step 2 · Karthic Domains'}</p>
-                                                    <p className="mt-1 text-sm text-slate-500">
-                                                        {karthicEditor.sourceMode === 'manual'
-                                                            ? 'Define the scoring domains directly. This uses the same editable domain-card pattern Frank uses for analysis domains.'
-                                                            : 'Start from Frank’s analysis domains, then edit the names, weights, and NA guidance before Dasha ever sees them.'}
-                                                    </p>
-                                                </div>
-                                                {karthicEditor.sourceMode === 'frank' ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => void draftKarthicDomains()}
-                                                        disabled={!karthicEditor.frankPacketId || karthicDraftingDomains}
-                                                        className={workflowButtonClass('teal')}
-                                                    >
-                                                        {karthicDraftingDomains ? 'Drafting...' : 'Draft Domains From Frank'}
-                                                    </button>
-                                                ) : null}
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center justify-between gap-3 text-sm text-slate-500">
-                                            <span>{karthicEditor.domains.length} domains in the pack.</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => setKarthicEditor((current) => ({
-                                                    ...current,
-                                                    domains: [...current.domains, createEmptyDomainRow(current.domains.length)],
-                                                }))}
-                                                className={workflowButtonClass('neutral', 'sm')}
-                                            >
-                                                Add Domain
-                                            </button>
-                                        </div>
-                                        <div className="space-y-3">
-                                            {karthicEditor.domains.length === 0 ? (
-                                                <p className="text-sm text-slate-500">
-                                                    {karthicEditor.sourceMode === 'manual'
-                                                        ? 'No domains yet. Add them manually below.'
-                                                        : 'No domains yet. Draft them from Frank first, then edit as needed.'}
-                                                </p>
-                                            ) : karthicEditor.domains.map((domain, index) => (
-                                                <div key={domain.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                                                    <div className="flex items-center justify-between gap-3">
-                                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Domain {index + 1}</p>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setKarthicEditor((current) => ({
-                                                                ...current,
-                                                                domains: current.domains.filter((_, domainIndex) => domainIndex !== index),
-                                                                goldenTargets: current.goldenTargets.filter((target) => target.domainId !== domain.id),
-                                                            }))}
-                                                            className={workflowButtonClass('danger', 'sm', 'border-transparent bg-transparent p-0 text-rose-600 shadow-none hover:bg-rose-50/70')}
-                                                        >
-                                                            Delete
-                                                        </button>
-                                                    </div>
-                                                    <div className="mt-3 grid gap-3 md:grid-cols-[1.2fr_0.45fr]">
-                                                        <LabeledInput label="Domain Name" value={domain.name} onChange={(value) => updateDomain(index, { name: value })} />
-                                                        <LabeledInput label="Weight" value={String(domain.weight)} onChange={(value) => updateDomain(index, { weight: Number(value) || 1 })} />
-                                                    </div>
-                                                    <div className="mt-3 grid gap-3 md:grid-cols-2">
-                                                        <LabeledTextarea label="Description" value={domain.description} onChange={(value) => updateDomain(index, { description: value })} rows={4} />
-                                                        <LabeledTextarea label="NA Guidance" value={domain.naGuidance} onChange={(value) => updateDomain(index, { naGuidance: value })} rows={4} />
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        {!karthicDomainCountValid ? (
-                                            <p className="text-sm text-amber-700">Karthic needs at least one complete domain before moving on.</p>
-                                        ) : null}
-                                        {manualDomainWarnings.length > 0 ? (
-                                            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
-                                                <p className="text-sm font-semibold">Manual domain warning(s)</p>
-                                                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-                                                    {manualDomainWarnings.map((warning) => (
-                                                        <li key={warning}>{warning}</li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        ) : null}
-                                        <div className="flex flex-wrap gap-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => setKarthicStep(karthicEditor.sourceMode === 'manual' ? 'manual' : 'packet')}
-                                                className={workflowButtonClass('neutral')}
-                                            >
-                                                Back
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setKarthicStep('targets')}
-                                                disabled={!karthicDomainCountValid}
-                                                className={workflowButtonClass('teal')}
-                                            >
-                                                Continue to Golden Targets
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {karthicStep === 'targets' && (
-                                    <div className="mt-6 space-y-4">
-                                        <FrankSummaryRow
-                                            label="Packet Source"
-                                            value={karthicEditor.sourceMode === 'manual'
-                                                ? 'Manual / non-source-grounded'
-                                                : (() => {
-                                                    const packet = approvedFrankPackets.find((item) => item.id === karthicEditor.frankPacketId);
-                                                    return packet
-                                                        ? `${packet.legalDomain} · ${packet.domainScope}`
-                                                        : 'No Frank packet selected yet';
-                                                })()}
-                                        />
-                                        <FrankSummaryRow label="Karthic Domains" value={`${karthicEditor.domains.length} domain(s)`} />
-                                        <LabeledTextarea
-                                            label="SME Notes"
-                                            value={karthicEditor.smeNotes}
-                                            onChange={(value) => setKarthicEditor((current) => ({ ...current, smeNotes: value }))}
-                                            rows={5}
-                                            hint={karthicEditor.sourceMode === 'manual'
-                                                ? 'Optional notes for your own manual target drafting.'
-                                                : 'These notes are sent when generating the structured golden targets.'}
-                                        />
-                                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">{karthicEditor.sourceMode === 'manual' ? 'Step 2 · Structured Golden Targets' : 'Step 3 · Structured Golden Targets'}</p>
-                                            <p className="mt-1 text-sm text-slate-500">
-                                                {karthicEditor.sourceMode === 'manual'
-                                                    ? 'Manual packs require manual golden targets. Enter the required points, tolerated omissions, contradictions, and comparison guidance for each domain.'
-                                                    : 'Karthic now turns Frank’s generalized golden response into separate comparison targets per domain: what the golden response contains, what can be omitted, and what would count as a contradiction.'}
-                                            </p>
-                                            {karthicEditor.sourceMode === 'frank' ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => void generateKarthicTargets()}
-                                                    disabled={karthicGeneratingTargets || !karthicDomainCountValid}
-                                                    className={workflowButtonClass('teal', 'md', 'mt-3')}
-                                                >
-                                                    {karthicGeneratingTargets ? 'Generating...' : 'Generate And Save Golden Targets'}
-                                                </button>
-                                            ) : null}
-                                        </div>
-                                        <div className="space-y-4">
-                                            {karthicEditor.goldenTargets.length === 0 ? (
-                                                <p className="text-sm text-slate-500">
-                                                    {karthicEditor.sourceMode === 'manual'
-                                                        ? 'No structured targets yet. Add them manually below.'
-                                                        : 'No structured targets yet. Generate them first, then edit as needed.'}
-                                                </p>
-                                            ) : null}
-                                            {karthicEditor.domains.map((domain, index) => {
-                                                const target = karthicEditor.goldenTargets.find((item) => item.domainId === domain.id) ?? {
-                                                    id: `golden_target_${index + 1}`,
-                                                    domainId: domain.id,
-                                                    domainName: domain.name,
-                                                    summary: '',
-                                                    goldenContains: [],
-                                                    allowedOmissions: [],
-                                                    contradictionFlags: [],
-                                                    comparisonGuidance: '',
-                                                };
-                                                return (
-                                                    <div key={domain.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Target {index + 1} · {domain.name}</p>
-                                                        <div className="mt-3 space-y-3">
-                                                            <LabeledTextarea
-                                                                label="Golden Target Summary"
-                                                                value={target.summary}
-                                                                onChange={(value) => updateGoldenTarget(domain, { summary: value })}
-                                                                rows={3}
-                                                            />
-                                                            <div className="grid gap-3 md:grid-cols-3">
-                                                                <LabeledTextarea
-                                                                    label="Golden Contains"
-                                                                    value={target.goldenContains.join('\n')}
-                                                                    onChange={(value) => updateGoldenTarget(domain, { goldenContains: splitTextarea(value) })}
-                                                                    rows={6}
-                                                                />
-                                                                <LabeledTextarea
-                                                                    label="Allowed Omissions"
-                                                                    value={target.allowedOmissions.join('\n')}
-                                                                    onChange={(value) => updateGoldenTarget(domain, { allowedOmissions: splitTextarea(value) })}
-                                                                    rows={6}
-                                                                />
-                                                                <LabeledTextarea
-                                                                    label="Contradiction Flags"
-                                                                    value={target.contradictionFlags.join('\n')}
-                                                                    onChange={(value) => updateGoldenTarget(domain, { contradictionFlags: splitTextarea(value) })}
-                                                                    rows={6}
-                                                                />
-                                                            </div>
-                                                            <LabeledTextarea
-                                                                label="Comparison Guidance"
-                                                                value={target.comparisonGuidance}
-                                                                onChange={(value) => updateGoldenTarget(domain, { comparisonGuidance: value })}
-                                                                rows={3}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        {manualTargetWarnings.length > 0 ? (
-                                            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
-                                                <p className="text-sm font-semibold">Manual target warning(s)</p>
-                                                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-                                                    {manualTargetWarnings.map((warning) => (
-                                                        <li key={warning}>{warning}</li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        ) : null}
-                                        <div className="flex flex-wrap gap-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => setKarthicStep('domains')}
-                                                className={workflowButtonClass('neutral')}
-                                            >
-                                                Back
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setKarthicStep('approve')}
-                                                disabled={karthicEditor.sourceMode === 'frank' ? !karthicTargetsReady : !karthicDomainCountValid}
-                                                className={workflowButtonClass('teal')}
-                                            >
-                                                Continue to Approval
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {karthicStep === 'approve' && (
-                                    <div className="mt-6 space-y-4">
-                                        <FrankSummaryRow
-                                            label="Packet Source"
-                                            value={karthicEditor.sourceMode === 'manual'
-                                                ? 'Manual / non-source-grounded'
-                                                : (() => {
-                                                    const packet = approvedFrankPackets.find((item) => item.id === karthicEditor.frankPacketId);
-                                                    return packet
-                                                        ? `${packet.legalDomain} · ${packet.domainScope}`
-                                                        : 'No Frank packet selected yet';
-                                                })()}
-                                        />
-                                        <FrankSummaryRow label="Domains" value={`${karthicEditor.domains.length} domain(s)`} />
-                                        <FrankSummaryRow label="Golden Targets" value={`${karthicEditor.goldenTargets.length} target(s)`} />
-                                        {karthicEditor.sourceMode === 'manual' ? (
-                                            <LabeledSelect
-                                                label="Approved Run Mode"
-                                                value={karthicEditor.approvedRunMode}
-                                                onChange={(value) => setKarthicEditor((current) => ({ ...current, approvedRunMode: value as KarthicRubricPack['approvedRunMode'] }))}
-                                                options={[
-                                                    { value: 'cluster_only', label: 'Cluster only' },
-                                                    ...(karthicTargetsReady ? [
-                                                        { value: 'both', label: 'Score + cluster' },
-                                                    ] : []),
-                                                ]}
-                                            />
-                                        ) : null}
-                                        <LabeledTextarea
-                                            label="Comparison Method Note"
-                                            value={karthicEditor.comparisonMethodNote}
-                                            onChange={(value) => setKarthicEditor((current) => ({ ...current, comparisonMethodNote: value }))}
-                                            rows={4}
-                                            hint="This explains how Dasha should compare centroids against the structured golden targets."
-                                        />
-                                        <ReadOnlyListCard
-                                            title="Seed Criteria Snapshot"
-                                            emptyMessage="Generate or complete golden targets first."
-                                            items={karthicEditor.criteria.filter((criterion) => criterion.status === 'active').map((criterion) => ({
-                                                id: criterion.id,
-                                                label: criterion.text,
-                                                meta: criterion.domainId,
-                                            }))}
-                                        />
-                                        <div className="flex flex-wrap gap-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => setKarthicStep('targets')}
-                                                className={workflowButtonClass('neutral')}
-                                            >
-                                                Back
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => void saveKarthic('draft')}
-                                                disabled={karthicSavingStatus !== null}
-                                                className={workflowButtonClass('neutral')}
-                                            >
-                                                {karthicSavingStatus === 'draft' ? <><LoaderCircle className="h-4 w-4 animate-spin" />Saving Draft...</> : 'Save Draft'}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => void saveKarthic('approved')}
-                                                disabled={!karthicPackReady || karthicSavingStatus !== null}
-                                                className={workflowButtonClass('success')}
-                                            >
-                                                {karthicSavingStatus === 'approved' ? <><LoaderCircle className="h-4 w-4 animate-spin" />Approving...</> : 'Approve for Dasha'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </>
-                        </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        <StepExplainerCard
-                            title="How Karthic Works"
-                            description="The active Karthic step expands so the evaluation-role of that stage is legible while the full pipeline remains visible."
-                            items={karthicExplainerItems}
-                            activeStep={karthicStep}
-                        />
-                        <ArtifactListCard title="Karthic Rubric Packs" items={karthicPacks.map((pack) => ({
-                            ...pack,
-                            legalDomain: pack.sourceMode === 'manual' ? 'Manual / non-source-grounded' : 'Frank-backed rubric pack',
-                            domainScope: pack.sourceMode === 'manual'
-                                ? (pack.manualQuestionFields.title.trim() || pack.id)
-                                : (pack.frankPacketId ?? pack.id),
-                        }))} onSelect={(id) => {
-                            const item = karthicPacks.find((pack) => pack.id === id);
-                            if (item) {
-                                applyKarthicPack(item);
-                            }
-                        }} />
-                    </div>
-                </section>
-            )}
-
-            {!isLoading && activeTab === 'dasha' && (
-                <section className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                    <div className="space-y-6">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                            <SectionHeader
-                                title="Dasha Wizard"
-                                description="One step at a time: pick the approved Karthic pack, load its canonical question packet automatically, choose the frontier models, then run clustering with optional centroid-vs-golden scoring."
-                                actions={selectedDashaRun ? <ApprovalBadge approved={selectedDashaRun?.status === 'completed'} label={selectedDashaRun ? selectedDashaRun.status : 'idle'} /> : null}
-                            />
-                            <DashaStepRail
-                                step={dashaStep}
-                                rubricReady={dashaRubricReady}
-                                questionReady={dashaQuestionReady}
-                                modelsReady={dashaModelsReady}
-                                runReady={dashaRunReady}
-                                onChange={setDashaStep}
-                            />
-                            {!dashaReady ? (
-                                <div className="mt-4">
-                                    <EmptyState
-                                        title="No Approved Karthic Rubric Pack"
-                                        description="Approve a Karthic rubric pack first. Dasha only consumes approved rubric outputs."
-                                        icon={<Network className="h-5 w-5" />}
-                                    />
-                                </div>
-                            ) : (
-                                <>
-                                    {dashaStep === 'rubric' && (
-                                        <div className="mt-6 space-y-4">
-                                            <LabeledSelect
-                                                label="Approved Karthic Rubric Pack"
-                                                value={dashaForm.rubricPackId}
-                                                onChange={(value) => {
-                                                    const pack = approvedKarthicPacks.find((item) => item.id === value) ?? null;
-                                                    setDashaForm((current) => ({
-                                                        ...current,
-                                                        rubricPackId: value,
-                                                        runMode: pack?.approvedRunMode === 'cluster_only' ? 'cluster_only' : current.runMode,
-                                                    }));
-                                                }}
-                                                options={[
-                                                    { value: '', label: 'Select an approved Karthic rubric pack' },
-                                                    ...approvedKarthicPacks.map((pack) => ({
-                                                        value: pack.id,
-                                                        label: `${pack.id} · ${pack.sourceMode === 'manual' ? 'manual' : 'Frank-backed'} · ${pack.domains.length} domains`,
-                                                    })),
-                                                ]}
-                                            />
-                                            {dashaForm.rubricPackId ? (
-                                                <FrankSummaryRow
-                                                    label="Selected Rubric Pack"
-                                                    value={(() => {
-                                                        const pack = approvedKarthicPacks.find((item) => item.id === dashaForm.rubricPackId);
-                                                        return pack
-                                                            ? `${pack.domains.length} domains · ${pack.goldenTargets.length} structured targets · ${pack.sourceMode === 'manual' ? 'manual / non-source-grounded' : 'Frank-backed'}`
-                                                            : 'Pack not found';
-                                                    })()}
-                                                />
-                                            ) : null}
-                                            <div className="flex flex-wrap gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setDashaStep('question')}
-                                                    disabled={!dashaRubricReady}
-                                                    className={workflowButtonClass('teal')}
-                                                >
-                                                    Continue to Question Packet
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {dashaStep === 'question' && (
-                                        <div className="mt-6 space-y-4">
-                                            <FrankSummaryRow
-                                                label="Approved Rubric Pack"
-                                                value={dashaForm.rubricPackId || 'No rubric pack selected yet'}
-                                            />
-                                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 2 · Canonical Question Packet</p>
-                                                <p className="mt-1 text-sm text-slate-500">Dasha automatically uses the exact same stored question packet the approved rubric pack was built around. You do not upload a new question here.</p>
-                                            </div>
-                                            <LabeledTextarea
-                                                label={selectedDashaPack?.sourceMode === 'manual' ? 'Question Packet From Manual Karthic Pack' : 'Question Packet From Frank'}
-                                                value={selectedDashaQuestionText}
-                                                onChange={() => undefined}
-                                                rows={14}
-                                                hint={selectedDashaPack?.sourceMode === 'manual'
-                                                    ? 'Loaded automatically from the selected manual Karthic pack.'
-                                                    : selectedDashaFrankPacket
-                                                        ? `Loaded automatically from Frank packet ${selectedDashaFrankPacket.id}.`
-                                                        : 'Select an approved rubric pack to load the linked Frank question packet.'}
-                                                readOnly
-                                            />
-                                            <div className="flex flex-wrap gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setDashaStep('rubric')}
-                                                    className={workflowButtonClass('neutral')}
-                                                >
-                                                    Back
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setDashaStep('models')}
-                                                    disabled={!dashaQuestionReady}
-                                                    className={workflowButtonClass('teal')}
-                                                >
-                                                    Continue to Models
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {dashaStep === 'models' && (
-                                        <div className="mt-6 space-y-4">
-                                            <FrankSummaryRow
-                                                label="Canonical Question Packet"
-                                                value={selectedDashaPack?.sourceMode === 'manual'
-                                                    ? 'Loaded from the selected manual Karthic pack'
-                                                    : selectedDashaFrankPacket
-                                                        ? `Loaded from Frank packet ${selectedDashaFrankPacket.id}`
-                                                        : 'No linked Frank question packet loaded yet'}
-                                            />
-                                            <LabeledSelect
-                                                label="Run Mode"
-                                                value={dashaForm.runMode}
-                                                onChange={(value) => setDashaForm((current) => ({ ...current, runMode: value as DashaRunMode }))}
-                                                options={[
-                                                    ...(selectedDashaPack?.approvedRunMode !== 'cluster_only'
-                                                        ? [{ value: 'score_and_cluster', label: 'Score + cluster' }]
-                                                        : []),
-                                                    { value: 'cluster_only', label: 'Cluster only' },
-                                                ]}
-                                            />
-                                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 3 · Frontier Models</p>
-                                                <p className="mt-1 text-sm text-slate-500">
-                                                    {dashaForm.runMode === 'cluster_only'
-                                                        ? 'Choose the frontier models and the size of the raw answer pool. Dasha will generate a large response set and cluster that full set without running rubric scoring.'
-                                                        : 'Choose the frontier models and the size of the raw answer pool. Dasha will generate a large response set, cluster that full set, then score cluster centroids against Karthic’s structured golden targets.'}
-                                                </p>
-                                            </div>
-                                            <div className="grid gap-4 md:grid-cols-2">
-                                                <LabeledInput
-                                                    label="Total Raw Responses"
-                                                    value={dashaForm.sampleCount}
-                                                    onChange={(value) => setDashaForm((current) => ({ ...current, sampleCount: value.replace(/[^\d]/g, '') }))}
-                                                />
-                                                <FrankSummaryRow
-                                                    label="Approximate Responses Per Model"
-                                                    value={dashaForm.selectedModelKeys.length > 0
-                                                        ? `${Math.floor(Math.max(1, parseInt(dashaForm.sampleCount || '200', 10) || 200) / dashaForm.selectedModelKeys.length)}-${Math.ceil(Math.max(1, parseInt(dashaForm.sampleCount || '200', 10) || 200) / dashaForm.selectedModelKeys.length)} each`
-                                                        : 'Select at least one model'}
-                                                />
-                                            </div>
-                                            <div className="grid gap-4 lg:grid-cols-3">
-                                                {(Object.keys(MODEL_OPTIONS_BY_PROVIDER) as ModelProvider[]).map((provider) => (
-                                                    <div key={provider} className="rounded-xl border border-slate-200 bg-white p-4">
-                                                        <p className="text-sm font-semibold text-slate-800">{PROVIDER_LABELS[provider]}</p>
-                                                        <div className="mt-2 space-y-2">
-                                                            {MODEL_OPTIONS_BY_PROVIDER[provider].slice(0, 4).map((option) => {
-                                                                const key = `${provider}::${option.value}`;
-                                                                const checked = dashaForm.selectedModelKeys.includes(key);
-                                                                return (
-                                                                    <label key={key} className="flex items-start gap-2 text-sm text-slate-700">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={checked}
-                                                                            onChange={() => setDashaForm((current) => ({
-                                                                                ...current,
-                                                                                selectedModelKeys: checked
-                                                                                    ? current.selectedModelKeys.filter((item) => item !== key)
-                                                                                    : [...current.selectedModelKeys, key],
-                                                                            }))}
-                                                                            className="mt-1"
-                                                                        />
-                                                                        <span>{option.label}</span>
-                                                                    </label>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <div className="flex flex-wrap gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setDashaStep('question')}
-                                                    className={workflowButtonClass('neutral')}
-                                                >
-                                                    Back
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setDashaStep('run')}
-                                                    disabled={!dashaModelsReady}
-                                                    className={workflowButtonClass('teal')}
-                                                >
-                                                    Continue to Run
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {dashaStep === 'run' && (
-                                        <div className="mt-6 space-y-4">
-                                            <FrankSummaryRow label="Rubric Pack" value={dashaForm.rubricPackId || 'No rubric pack selected yet'} />
-                                            <FrankSummaryRow
-                                                label="Question Packet"
-                                                value={selectedDashaPack?.sourceMode === 'manual'
-                                                    ? 'Using the manual Karthic question packet'
-                                                    : selectedDashaFrankPacket
-                                                        ? `Using Frank packet ${selectedDashaFrankPacket.id}`
-                                                        : 'No linked Frank question packet loaded yet'}
-                                            />
-                                            <FrankSummaryRow label="Run Mode" value={dashaForm.runMode === 'cluster_only' ? 'Cluster only' : 'Score + cluster'} />
-                                            <FrankSummaryRow label="Selected Models" value={`${dashaForm.selectedModelKeys.length} model(s)`} />
-                                            <FrankSummaryRow label="Requested Raw Responses" value={`${Math.max(1, parseInt(dashaForm.sampleCount || '200', 10) || 200)}`} />
-                                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Step 4 · Run Dasha</p>
-                                                <div className="mt-2 space-y-2 text-sm text-slate-600">
-                                                    <p>Dasha generates a large raw pool of answers across the selected models, targeting the response count shown above.</p>
-                                                    <p>Every model gets the exact same canonical question packet stored on the selected rubric pack.</p>
-                                                    <p>Dasha then clusters the full raw pool using the same density methodology used in the LSH-runs workflow: instructor embeddings, UMAP reduction, HDBSCAN clustering, then one medoid-style representative per cluster.</p>
-                                                    {dashaForm.runMode === 'cluster_only'
-                                                        ? <p>This run will stop after clustering and representative selection. No rubric scoring will be performed.</p>
-                                                        : <p>Each cluster representative is compared against Karthic’s structured golden targets and stored as matched points, missing points, extra points, and contradiction points.</p>}
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-wrap gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setDashaStep('models')}
-                                                    className={workflowButtonClass('neutral')}
-                                                >
-                                                    Back
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => void runDasha()}
-                                                    disabled={!dashaRunReady || dashaRunning}
-                                                    className={workflowButtonClass('teal')}
-                                                >
-                                                    {dashaRunning ? <><LoaderCircle className="h-4 w-4 animate-spin" />Running...</> : 'Run Dasha Evaluation'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-
-                        {selectedDashaRun ? (
-                            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                                <SectionHeader
-                                    title="Latest Dasha Run"
-                                    description="Large-sample centroid-first results. Dasha clusters the raw answer pool first, then optionally compares winning cluster representatives against the structured golden targets."
-                                />
-                                <div className="mt-4 grid gap-4 md:grid-cols-3">
-                                    <MetricCard label="Status" value={selectedDashaRun.status} />
-                                    <MetricCard label="Run Mode" value={selectedDashaRun.runMode === 'cluster_only' ? 'Cluster only' : 'Score + cluster'} />
-                                    <MetricCard label="Source" value={selectedDashaRun.sourceMode === 'manual' ? 'Manual' : 'Frank-backed'} />
-                                </div>
-                                <div className="mt-4 grid gap-4 md:grid-cols-3">
-                                    <MetricCard label="Requested Responses" value={String(selectedDashaRun.requestedResponseCount ?? selectedDashaRun.responses.length)} />
-                                    <MetricCard label="Valid Responses" value={String(selectedDashaRun.validResponseCount ?? selectedDashaRun.responses.filter((response) => !response.error && response.responseText.trim().length > 0).length)} />
-                                    <MetricCard label="Selected Models" value={String(selectedDashaRun.selectedModels.length)} />
-                                </div>
-                                <div className="mt-4 grid gap-4 md:grid-cols-3">
-                                    <MetricCard label="Clusters" value={String(selectedDashaRun.clusters.length)} />
-                                    <MetricCard label="Clustering" value={selectedDashaRun.clusteringMethod || 'unknown'} />
-                                    <MetricCard label="Winning Domains" value={String(selectedDashaRun.domainResults.filter((result) => result.winningCentroidId).length)} />
-                                </div>
-                                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                                    <MetricCard label="Weighted Score" value={selectedDashaRun.weightedSummary.weightedScore === null ? 'N/A' : selectedDashaRun.weightedSummary.weightedScore.toFixed(1)} />
-                                    <MetricCard label="Not Applicable Domains" value={String(selectedDashaRun.weightedSummary.notApplicableDomainIds.length)} />
-                                </div>
-                                {selectedDashaRun.clusteringNotes ? (
-                                    <p className="mt-4 text-sm text-slate-500">{selectedDashaRun.clusteringNotes}</p>
-                                ) : null}
-
-                                <div className="mt-5 grid gap-4 xl:grid-cols-2">
-                                    <ReadOnlyListCard
-                                        title="Winning Domains"
-                                        emptyMessage="No domain results yet."
-                                        items={selectedDashaRun.domainResults.map((result) => {
-                                            const winningEvaluation = result.centroidEvaluations.find((evaluation) => evaluation.clusterId === result.winningCentroidId);
-                                            return {
-                                                id: result.domainId,
-                                                label: `${result.domainName}: ${result.winningCentroidId ?? 'N/A'} (${result.winningScore ?? 'N/A'})`,
-                                                meta: result.applicabilityStatus === 'applicable'
-                                                    ? [
-                                                        result.winningModelMix.map((entry) => `${entry.model} x${entry.count}`).join(', '),
-                                                        winningEvaluation?.difference?.differenceSummary ?? null,
-                                                        winningEvaluation
-                                                            ? `Matched ${winningEvaluation.difference?.matchedGoldenPoints.length ?? 0}, missing ${winningEvaluation.difference?.missingGoldenPoints.length ?? 0}, extra ${winningEvaluation.difference?.extraCentroidPoints.length ?? 0}, contradictions ${winningEvaluation.difference?.contradictionPoints.length ?? 0}`
-                                                            : null,
-                                                    ].filter(Boolean).join(' · ')
-                                                    : result.applicabilityExplanation,
-                                            };
-                                        })}
-                                    />
-                                    <ReadOnlyListCard
-                                        title="Clusters"
-                                        emptyMessage="No clusters generated yet."
-                                        items={selectedDashaRun.clusters.map((cluster) => ({
-                                            id: cluster.id,
-                                            label: `${cluster.id} · ${cluster.size} responses`,
-                                            meta: [
-                                                cluster.modelBreakdown.map((entry) => `${entry.model} x${entry.count}`).join(', '),
-                                                `${selectedDashaRun.domainResults.filter((result) => result.winningCentroidId === cluster.id).length} winning domain(s)`,
-                                            ].filter(Boolean).join(' · '),
-                                        }))}
-                                    />
-                                </div>
-                            </div>
-                        ) : null}
-                    </div>
-
-                    <div className="space-y-6">
-                        <StepExplainerCard
-                            title="How Dasha Works"
-                            description="The current Dasha step expands to show the evaluation mechanics without hiding the rest of the run flow."
-                            items={dashaExplainerItems}
-                            activeStep={dashaStep}
-                        />
-                        <ArtifactListCard
-                            title="Dasha Runs"
-                            items={dashaRuns.map((run) => ({
-                                ...run,
-                                legalDomain: `${run.runMode === 'cluster_only' ? 'Cluster only' : 'Score + cluster'} · ${run.sourceMode === 'manual' ? 'Manual' : 'Frank-backed'}`,
-                                domainScope: run.rubricPackId,
-                            }))}
-                            onSelect={(id) => {
-                                const run = dashaRuns.find((item) => item.id === id) ?? null;
-                                setSelectedDashaRunId(id);
-                                setSelectedClusterId(pickDefaultClusterId(run));
-                            }}
-                            selectedId={selectedDashaRun?.id ?? selectedDashaRunId ?? undefined}
-                        />
-                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                            <div className="flex items-center justify-between gap-3">
-                                <div>
-                                    <p className="text-sm font-bold text-slate-900">Cluster View</p>
-                                    <p className="mt-1 text-xs text-slate-500">Toggle the global answer-cluster map on or off.</p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowClusterView((current) => !current)}
-                                    className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${showClusterView ? 'border-teal-300 bg-teal-50 text-teal-800' : 'border-slate-300 bg-white text-slate-700'}`}
-                                >
-                                    {showClusterView ? 'Hide Cluster View' : 'Show Cluster View'}
-                                </button>
-                            </div>
-                        </div>
-                        {showClusterView ? (
-                            <ClusterViewCard
-                                run={selectedDashaRun}
-                                selectedClusterId={selectedClusterId}
-                                onSelectCluster={setSelectedClusterId}
-                            />
-                        ) : null}
-                    </div>
-                </section>
-            )}
-        </AppShell>
-    );
-
-    function updateDomain(index: number, patch: Partial<KarthicDomain>) {
-        setKarthicEditor((current) => ({
-            ...current,
-            domains: current.domains.map((domain, domainIndex) => domainIndex === index ? { ...domain, ...patch } : domain),
-            goldenTargets: current.goldenTargets.map((target) => {
-                const domain = current.domains[index];
-                if (!domain || target.domainId !== domain.id) {
-                    return target;
-                }
-                return {
-                    ...target,
-                    domainName: patch.name ?? target.domainName,
-                };
-            }),
-        }));
-    }
-
-    function updateGoldenTarget(domain: KarthicDomain, patch: Partial<KarthicGoldenDomainTarget>) {
-        setKarthicEditor((current) => {
-            const existing = current.goldenTargets.find((target) => target.domainId === domain.id);
-            const nextTarget: KarthicGoldenDomainTarget = {
-                id: existing?.id ?? `golden_target_${domain.id}`,
-                domainId: domain.id,
-                domainName: patch.domainName ?? existing?.domainName ?? domain.name,
-                summary: patch.summary ?? existing?.summary ?? '',
-                goldenContains: patch.goldenContains ?? existing?.goldenContains ?? [],
-                allowedOmissions: patch.allowedOmissions ?? existing?.allowedOmissions ?? [],
-                contradictionFlags: patch.contradictionFlags ?? existing?.contradictionFlags ?? [],
-                comparisonGuidance: patch.comparisonGuidance ?? existing?.comparisonGuidance ?? '',
-            };
-            const remaining = current.goldenTargets.filter((target) => target.domainId !== domain.id);
-            return {
-                ...current,
-                goldenTargets: [...remaining, nextTarget],
-            };
+    const stageViews = useMemo<WorkflowStageView[]>(() => {
+        return WORKFLOW_STAGES.map((stage) => {
+            switch (stage.id) {
+                case 'source':
+                    return {
+                        ...stage,
+                        complete: hasFrankPacket,
+                        unlocked: true,
+                        blocked: false,
+                        statusLabel: hasFrankPacket ? 'Ready' : 'Start here',
+                    };
+                case 'routing_intake':
+                    return {
+                        ...stage,
+                        complete: hasRoutingIntake,
+                        unlocked: hasFrankPacket,
+                        blocked: false,
+                        statusLabel: hasRoutingIntake ? 'Complete' : hasFrankPacket ? 'Open' : 'Locked',
+                    };
+                case 'extraction_mapping':
+                    return {
+                        ...stage,
+                        complete: hasExtractionMapping,
+                        unlocked: hasRoutingIntake,
+                        blocked: false,
+                        statusLabel: hasExtractionMapping ? 'Complete' : hasRoutingIntake ? 'Open' : 'Locked',
+                    };
+                case 'benchmark':
+                    return {
+                        ...stage,
+                        complete: hasBenchmark,
+                        unlocked: hasExtractionMapping,
+                        blocked: Boolean(!hasBenchmark && benchmarkBlockedReason),
+                        statusLabel: hasBenchmark
+                            ? 'Complete'
+                            : !hasExtractionMapping
+                                ? 'Locked'
+                                : benchmarkBlockedReason
+                                    ? 'Blocked'
+                                    : 'Open',
+                    };
+                case 'question':
+                    return {
+                        ...stage,
+                        complete: hasQuestion,
+                        unlocked: hasBenchmark,
+                        blocked: false,
+                        statusLabel: hasQuestion ? 'Complete' : hasBenchmark ? 'Open' : 'Locked',
+                    };
+                case 'rubric':
+                    return {
+                        ...stage,
+                        complete: hasApprovedRubric,
+                        unlocked: hasApprovedFrank,
+                        blocked: false,
+                        statusLabel: hasApprovedRubric ? 'Approved' : hasApprovedFrank ? 'Open' : 'Locked',
+                    };
+                case 'judge':
+                    return {
+                        ...stage,
+                        complete: Boolean(hasCompletedRun),
+                        unlocked: approvedRubricPacks.length > 0,
+                        blocked: false,
+                        statusLabel: hasCompletedRun
+                            ? 'Results'
+                            : selectedRun?.status === 'draft'
+                                ? 'Running'
+                                : selectedRun?.status === 'failed'
+                                    ? 'Needs review'
+                                    : approvedRubricPacks.length > 0
+                                        ? 'Open'
+                                        : 'Locked',
+                    };
+                default:
+                    return {
+                        ...stage,
+                        complete: false,
+                        unlocked: false,
+                        blocked: false,
+                        statusLabel: 'Locked',
+                    };
+            }
         });
-    }
-}
+    }, [
+        approvedRubricPacks.length,
+        benchmarkBlockedReason,
+        hasApprovedFrank,
+        hasApprovedRubric,
+        hasBenchmark,
+        hasCompletedRun,
+        hasExtractionMapping,
+        hasFrankPacket,
+        hasQuestion,
+        hasRoutingIntake,
+        selectedRun?.status,
+    ]);
 
-async function readJsonResponse(response: Response, fallbackMessage: string) {
-    const text = await response.text();
-    if (!text.trim()) {
-        throw new Error(fallbackMessage);
-    }
-    try {
-        return JSON.parse(text) as { error?: string; [key: string]: unknown };
-    } catch {
-        throw new Error(fallbackMessage);
-    }
-}
-
-function inferFrankStep(state: FrankEditorState): FrankWizardStep {
-    if (!state.legalDomain.trim()) {
-        return 'domain';
-    }
-    if (!state.selectedCase) {
-        return 'case';
-    }
-    if (!isValidFrankDomainCount(state.analysisDomains)) {
-        return 'domains';
-    }
-    if (isFrankFitCheckReviewNeededState(state.fitCheck)) {
-        return 'fit';
-    }
-    if (!state.benchmarkAnswer.trim()) {
-        return 'golden';
-    }
-    if (!state.benchmarkQuestion.trim()) {
-        return 'question';
-    }
-    return 'question';
-}
-
-function isValidFrankDomainCount(domains: FrankAnalysisDomain[]) {
-    const filled = domains.filter((domain) => domain.name.trim() && domain.description.trim());
-    return filled.length >= 5 && filled.length <= 10;
-}
-
-function buildFrankCaseFingerprintState(selectedCase: FrankCaseCandidate | null) {
-    if (!selectedCase) {
-        return 'no_case';
-    }
-    return JSON.stringify({
-        id: selectedCase.id,
-        title: selectedCase.title,
-        citation: selectedCase.citation,
-        court: selectedCase.court,
-        year: selectedCase.year,
-        summary: selectedCase.summary,
-        relevance: selectedCase.relevance,
-    });
-}
-
-function buildFrankDomainFingerprintState(analysisDomains: FrankAnalysisDomain[]) {
-    return JSON.stringify(analysisDomains.map((domain) => ({
-        id: domain.id,
-        name: domain.name,
-        description: domain.description,
-    })));
-}
-
-function buildNeedsReviewFrankFitCheckState(
-    selectedCase: FrankCaseCandidate | null,
-    analysisDomains: FrankAnalysisDomain[],
-): FrankCaseDomainFitCheck {
-    return {
-        status: 'needs_review',
-        overrideAccepted: false,
-        stale: Boolean(selectedCase || analysisDomains.length > 0),
-        lastRunAt: null,
-        caseFingerprint: buildFrankCaseFingerprintState(selectedCase),
-        domainFingerprint: buildFrankDomainFingerprintState(analysisDomains),
-        results: [],
-    };
-}
-
-function isFrankFitCheckReviewNeededState(fitCheck: FrankCaseDomainFitCheck) {
-    return fitCheck.stale || fitCheck.status === 'needs_review';
-}
-
-function canProceedFromFrankFitCheckState(fitCheck: FrankCaseDomainFitCheck) {
-    if (fitCheck.stale) {
-        return false;
-    }
-    return fitCheck.status === 'passed' || fitCheck.status === 'warning' || fitCheck.status === 'overridden';
-}
-
-function isFrankFitCheckOverrideRequiredState(fitCheck: FrankCaseDomainFitCheck) {
-    return !fitCheck.stale && fitCheck.status === 'failed' && fitCheck.results.length > 0;
-}
-
-function fitLabelClassName(label: FrankCaseDomainFitResult['label']) {
-    if (label === 'Direct fit') {
-        return 'text-emerald-700 font-semibold';
-    }
-    if (label === 'Peripheral but valid') {
-        return 'text-sky-700 font-semibold';
-    }
-    if (label === 'Weak fit') {
-        return 'text-amber-700 font-semibold';
-    }
-    return 'text-rose-700 font-semibold';
-}
-
-function frankFitCardTone(fitCheck: FrankCaseDomainFitCheck) {
-    if (fitCheck.stale || fitCheck.status === 'needs_review') {
-        return 'border-slate-200 bg-slate-50 text-slate-700';
-    }
-    if (fitCheck.status === 'passed') {
-        return 'border-emerald-200 bg-emerald-50 text-emerald-800';
-    }
-    if (fitCheck.status === 'warning') {
-        return 'border-amber-200 bg-amber-50 text-amber-800';
-    }
-    if (fitCheck.status === 'overridden') {
-        return 'border-amber-200 bg-amber-50 text-amber-800';
-    }
-    return 'border-rose-200 bg-rose-50 text-rose-800';
-}
-
-function frankFitCardMessage(fitCheck: FrankCaseDomainFitCheck) {
-    if (fitCheck.stale || fitCheck.status === 'needs_review') {
-        return 'This packet needs a fresh case-domain fit review before normal progress continues.';
-    }
-    if (fitCheck.status === 'passed') {
-        return 'Every saved domain is a direct fit for the selected anchor case.';
-    }
-    if (fitCheck.status === 'warning') {
-        return 'The fit check passed with caution: at least one domain is peripheral but valid or only a weak fit.';
-    }
-    if (fitCheck.status === 'overridden') {
-        return 'A blocking mismatch was manually overridden. The warning remains attached to this packet.';
-    }
-    return 'At least one domain does not fit the selected anchor case, so normal golden generation is blocked.';
-}
-
-function inferKarthicStep(state: KarthicEditorState): KarthicWizardStep {
-    if (state.sourceMode === 'manual' && !isManualQuestionReady(state.manualQuestionFields)) {
-        return 'manual';
-    }
-    if (state.sourceMode === 'frank' && !state.frankPacketId) {
-        return 'packet';
-    }
-    if (!hasEditableKarthicDomains(state.domains)) {
-        return 'domains';
-    }
-    if (!hasKarthicGoldenTargets(state.goldenTargets, state.domains)) {
-        return 'targets';
-    }
-    return 'approve';
-}
-
-function hasEditableKarthicDomains(domains: KarthicDomain[]) {
-    return domains.some((domain) => domain.name.trim() && domain.description.trim());
-}
-
-function hasKarthicGoldenTargets(targets: KarthicGoldenDomainTarget[], domains: KarthicDomain[]) {
-    const filledDomains = domains.filter((domain) => domain.name.trim() && domain.description.trim());
-    if (targets.length === 0 || filledDomains.length === 0) {
-        return false;
-    }
-    return filledDomains.every((domain) => targets.some((target) =>
-        target.domainId === domain.id
-        && target.goldenContains.length > 0
-        && target.summary.trim()
-        && target.comparisonGuidance.trim(),
-    ));
-}
-
-function getFilledManualTasks(tasks: string[]) {
-    return tasks.map((task) => task.trim()).filter(Boolean);
-}
-
-function buildManualQuestionPacketText(fields: ManualQuestionPacketFields) {
-    const title = fields.title.trim();
-    const facts = fields.facts.trim();
-    const tasks = getFilledManualTasks(fields.tasks);
-    const answerFormat = fields.answerFormat.trim();
-    return [
-        title ? `Title: ${title}` : '',
-        facts ? `Facts:\n${facts}` : '',
-        tasks.length > 0 ? `Tasks:\n${tasks.map((task, index) => `${index + 1}. ${task}`).join('\n')}` : '',
-        answerFormat ? `Answer Format:\n${answerFormat}` : '',
-    ].filter(Boolean).join('\n\n');
-}
-
-function isManualQuestionReady(fields: ManualQuestionPacketFields) {
-    return Boolean(
-        fields.title.trim()
-        && fields.facts.trim()
-        && getFilledManualTasks(fields.tasks).length > 0
-        && fields.answerFormat.trim(),
+    const currentStageIndex = stageViews.findIndex((stage) => stage.id === visibleStage);
+    const currentStage = stageViews[currentStageIndex] ?? stageViews[0];
+    const previousStage = currentStageIndex > 0 ? stageViews[currentStageIndex - 1] : null;
+    const nextStage = currentStageIndex >= 0 && currentStageIndex < stageViews.length - 1 ? stageViews[currentStageIndex + 1] : null;
+    const selectedDashaPack = useMemo(
+        () => approvedRubricPacks.find((pack) => pack.id === dashaRubricPackId) ?? null,
+        [approvedRubricPacks, dashaRubricPackId],
     );
-}
+    const activeStagePrompt = useMemo(
+        () => buildStagePromptPreview({
+            stageId: visibleStage,
+            frankPacket: frankEditor,
+            rubricPack: rubricEditor,
+            dashaPack: selectedDashaPack,
+            selectedRun,
+        }),
+        [frankEditor, rubricEditor, selectedDashaPack, selectedRun, visibleStage],
+    );
 
-function buildManualQuestionWarnings(fields: ManualQuestionPacketFields) {
-    const warnings: string[] = [];
-    const filledTasks = getFilledManualTasks(fields.tasks);
-    if (!fields.title.trim()) {
-        warnings.push('Question packet is missing the Title section.');
-    }
-    if (!fields.facts.trim()) {
-        warnings.push('Question packet is missing the Facts section.');
-    }
-    if (filledTasks.length === 0) {
-        warnings.push('Question packet is missing the Tasks section.');
-    }
-    if (!fields.answerFormat.trim()) {
-        warnings.push('Question packet is missing the Answer Format section.');
-    }
-    if (filledTasks.length > 0 && fields.tasks.some((task) => !task.trim())) {
-        warnings.push('Empty task cards will be ignored in the packet preview and on save.');
-    }
-    return warnings;
-}
-
-function buildManualDomainWarnings(domains: KarthicDomain[]) {
-    const warnings: string[] = [];
-    const seenNames = new Set<string>();
-    for (const domain of domains) {
-        const name = domain.name.trim().toLowerCase();
-        if (!name) {
-            continue;
+    useEffect(() => {
+        if (currentStage?.unlocked) {
+            return;
         }
-        if (seenNames.has(name)) {
-            warnings.push(`Duplicate domain name detected: ${domain.name.trim()}.`);
+        const fallback = findLastUnlockedStage(stageViews);
+        if (fallback && fallback.id !== visibleStage) {
+            goToStage(fallback.id);
         }
-        seenNames.add(name);
-    }
-    return warnings;
-}
+    }, [currentStage?.unlocked, stageViews, visibleStage]);
 
-function buildManualTargetWarnings(targets: KarthicGoldenDomainTarget[], domains: KarthicDomain[]) {
-    const warnings: string[] = [];
-    for (const domain of domains.filter((item) => item.name.trim() && item.description.trim())) {
-        const target = targets.find((item) => item.domainId === domain.id);
-        if (!target || target.goldenContains.length === 0 || !target.summary.trim() || !target.comparisonGuidance.trim()) {
-            warnings.push(`Structured target coverage is incomplete for ${domain.name}.`);
+    const nextStageBlockedReason = useMemo(() => {
+        switch (visibleStage) {
+            case 'source':
+                return hasFrankPacket ? null : 'Create or select a Frank packet to continue.';
+            case 'routing_intake':
+                return hasRoutingIntake ? null : 'Finish routing and intake before continuing.';
+            case 'extraction_mapping':
+                if (!hasExtractionMapping) {
+                    return 'Run Phase 2 before continuing.';
+                }
+                if (benchmarkBlockedReason && !hasBenchmark) {
+                    return benchmarkBlockedReason;
+                }
+                return null;
+            case 'benchmark':
+                if (benchmarkBlockedReason && !hasBenchmark) {
+                    return benchmarkBlockedReason;
+                }
+                return hasBenchmark ? null : 'Generate or enter the benchmark answer before continuing.';
+            case 'question':
+                if (!hasQuestion) {
+                    return 'Generate or enter the reverse-engineered question before continuing.';
+                }
+                return hasApprovedFrank ? null : 'Approve the Frank packet before continuing to rubric generation.';
+            case 'rubric':
+                return hasApprovedRubric ? null : 'Approve a rubric pack before continuing to Dasha.';
+            case 'judge':
+                return null;
+            default:
+                return 'This stage is not ready yet.';
         }
-    }
-    return warnings;
-}
+    }, [
+        benchmarkBlockedReason,
+        hasApprovedFrank,
+        hasApprovedRubric,
+        hasBenchmark,
+        hasExtractionMapping,
+        hasFrankPacket,
+        hasQuestion,
+        hasRoutingIntake,
+        visibleStage,
+    ]);
 
-function FrankStepRail({
-    step,
-    legalDomainSet,
-    caseSelected,
-    domainsReady,
-    fitReady,
-    goldenReady,
-    questionReady,
-    onChange,
-}: {
-    step: FrankWizardStep;
-    legalDomainSet: boolean;
-    caseSelected: boolean;
-    domainsReady: boolean;
-    fitReady: boolean;
-    goldenReady: boolean;
-    questionReady: boolean;
-    onChange: (step: FrankWizardStep) => void;
-}) {
-    const steps: Array<{ id: FrankWizardStep; label: string; ready: boolean }> = [
-        { id: 'domain', label: '1. Topic', ready: legalDomainSet },
-        { id: 'case', label: '2. Case', ready: caseSelected },
-        { id: 'domains', label: '3. Domains', ready: domainsReady },
-        { id: 'fit', label: '4. Fit', ready: fitReady },
-        { id: 'golden', label: '5. Golden', ready: goldenReady },
-        { id: 'question', label: '6. Question', ready: questionReady },
-    ];
-
-    return (
-        <div className="mt-5 flex flex-wrap gap-2">
-            {steps.map((item) => (
-                <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onChange(item.id)}
-                    className={workflowButtonClass(
-                        step === item.id ? 'teal' : item.ready ? 'neutral' : 'ghost',
-                        'chip',
-                        !item.ready && step !== item.id ? 'border-slate-200 bg-slate-50 text-slate-400' : undefined,
-                    )}
-                >
-                    {item.label}
-                </button>
-            ))}
-        </div>
-    );
-}
-
-function FrankFitCheckStatusCard({ fitCheck }: { fitCheck: FrankCaseDomainFitCheck }) {
-    return (
-        <div className={`rounded-2xl border p-4 ${frankFitCardTone(fitCheck)}`}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em]">Saved Fit Status</p>
-                    <p className="mt-1 text-sm font-semibold">{frankFitCardMessage(fitCheck)}</p>
-                </div>
-                <div className="text-right text-xs">
-                    <p>Status: <span className="font-semibold">{fitCheck.status.replace('_', ' ')}</span></p>
-                    <p>Last run: <span className="font-semibold">{fitCheck.lastRunAt ? new Date(fitCheck.lastRunAt).toLocaleString() : 'Not run yet'}</span></p>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function KarthicStepRail({
-    sourceMode,
-    step,
-    manualReady,
-    packetReady,
-    domainsReady,
-    targetsReady,
-    approveReady,
-    onChange,
-}: {
-    sourceMode: KarthicSourceMode;
-    step: KarthicWizardStep;
-    manualReady: boolean;
-    packetReady: boolean;
-    domainsReady: boolean;
-    targetsReady: boolean;
-    approveReady: boolean;
-    onChange: (step: KarthicWizardStep) => void;
-}) {
-    const steps: Array<{ id: KarthicWizardStep; label: string; ready: boolean }> = sourceMode === 'manual'
-        ? [
-            { id: 'manual', label: '0. Manual Packet', ready: manualReady },
-            { id: 'domains', label: '1. Domains', ready: domainsReady },
-            { id: 'targets', label: '2. Targets', ready: targetsReady },
-            { id: 'approve', label: '3. Approve', ready: approveReady },
-        ]
-        : [
-            { id: 'manual', label: '0. Source', ready: manualReady },
-            { id: 'packet', label: '1. Packet', ready: packetReady },
-            { id: 'domains', label: '2. Domains', ready: domainsReady },
-            { id: 'targets', label: '3. Targets', ready: targetsReady },
-            { id: 'approve', label: '4. Approve', ready: approveReady },
-        ];
-
-    return (
-        <div className="mt-5 flex flex-wrap gap-2">
-            {steps.map((item) => (
-                <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onChange(item.id)}
-                    className={workflowButtonClass(
-                        step === item.id ? 'teal' : item.ready ? 'neutral' : 'ghost',
-                        'chip',
-                        !item.ready && step !== item.id ? 'border-slate-200 bg-slate-50 text-slate-400' : undefined,
-                    )}
-                >
-                    {item.label}
-                </button>
-            ))}
-        </div>
-    );
-}
-
-function DashaStepRail({
-    step,
-    rubricReady,
-    questionReady,
-    modelsReady,
-    runReady,
-    onChange,
-}: {
-    step: DashaWizardStep;
-    rubricReady: boolean;
-    questionReady: boolean;
-    modelsReady: boolean;
-    runReady: boolean;
-    onChange: (step: DashaWizardStep) => void;
-}) {
-    const steps: Array<{ id: DashaWizardStep; label: string; ready: boolean }> = [
-        { id: 'rubric', label: '1. Rubric', ready: rubricReady },
-        { id: 'question', label: '2. Question', ready: questionReady },
-        { id: 'models', label: '3. Models', ready: modelsReady },
-        { id: 'run', label: '4. Run', ready: runReady },
-    ];
-
-    return (
-        <div className="mt-5 flex flex-wrap gap-2">
-            {steps.map((item) => (
-                <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onChange(item.id)}
-                    className={workflowButtonClass(
-                        step === item.id ? 'teal' : item.ready ? 'neutral' : 'ghost',
-                        'chip',
-                        !item.ready && step !== item.id ? 'border-slate-200 bg-slate-50 text-slate-400' : undefined,
-                    )}
-                >
-                    {item.label}
-                </button>
-            ))}
-        </div>
-    );
-}
-
-function FrankSummaryRow({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
-            <p className="mt-1 text-sm text-slate-700">{value}</p>
-        </div>
-    );
-}
-
-function StageCard(props: {
-    title: string;
-    description: string;
-    icon: ReactNode;
-    active: boolean;
-    onClick: () => void;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={props.onClick}
-            className={`rounded-2xl border p-5 text-left shadow-sm transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2 ${props.active ? 'border-teal-300 bg-teal-50/70 shadow-[0_14px_32px_rgba(13,148,136,0.12)]' : 'border-slate-200 bg-white hover:border-teal-200'}`}
-        >
-            <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-teal-200 bg-white text-teal-700">
-                {props.icon}
-            </div>
-            <h2 className="mt-4 text-lg font-bold text-slate-900">{props.title}</h2>
-            <p className="mt-2 text-sm text-slate-600">{props.description}</p>
-        </button>
-    );
-}
-
-function StepExplainerCard<TStep extends string>({
-    title,
-    description,
-    items,
-    activeStep,
-}: {
-    title: string;
-    description: string;
-    items: StepExplainerItem<TStep>[];
-    activeStep: TStep;
-}) {
-    return (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <SectionHeader title={title} description={description} />
-            <div className="mt-4 space-y-3">
-                {items.map((item) => {
-                    const expanded = item.id === activeStep;
-                    return (
-                        <div
-                            key={item.id}
-                            className={`rounded-2xl border px-4 py-4 transition ${expanded ? 'border-teal-200 bg-teal-50/70' : 'border-slate-200 bg-slate-50'}`}
+    function renderFrankSummaryCard() {
+        if (!frankEditor) {
+            return <EmptyPanelCopy text="No Frank packet selected." />;
+        }
+        return (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="space-y-1">
+                        <p className="text-base font-semibold text-slate-900">{frankEditor.title}</p>
+                        <p><span className="font-semibold">Frank progress:</span> {formatFrankPacketPhase(frankEditor.phase)}</p>
+                        <p><span className="font-semibold">Status:</span> {frankEditor.status}</p>
+                        <p><span className="font-semibold">Pack:</span> {frankEditor.selectedPack ? FRANK_V2_PACK_LABELS[frankEditor.selectedPack] : 'Unrouted'}</p>
+                        <p><span className="font-semibold">Routing confidence:</span> {frankEditor.routingConfidence ?? 'Unstated'}</p>
+                        <p><span className="font-semibold">Intake rating:</span> {frankEditor.intakeChecklist?.finalIntakeRating ?? 'Not generated'}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <button className={secondaryButtonClassName} onClick={() => void deleteFrank(frankEditor.id)}>Delete Packet</button>
+                        <button className={secondaryButtonClassName} onClick={() => void saveFrank('draft')}>Save Frank Packet</button>
+                        <button
+                            className={primaryButtonClassName}
+                            disabled={Boolean(frankApprovalBlockedReason)}
+                            title={frankApprovalBlockedReason ?? undefined}
+                            onClick={() => void saveFrank('approved')}
                         >
-                            <div>
-                                <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                                <p className="mt-1 text-sm text-slate-600">{item.summary}</p>
-                            </div>
-                            {expanded ? (
-                                <div className="mt-3 space-y-3">
-                                    <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
-                                        {item.detail.map((bullet) => (
-                                            <li key={bullet}>{bullet}</li>
-                                        ))}
-                                    </ul>
-                                    <PromptPreview
-                                        promptText={item.promptText ?? null}
-                                        promptLabel={item.promptLabel}
-                                        emptyState={item.promptEmptyState}
-                                    />
-                                    {item.extraPromptText ? (
-                                        <PromptPreview
-                                            promptText={item.extraPromptText}
-                                            promptLabel={item.extraPromptLabel}
-                                            emptyState={item.extraPromptEmptyState}
-                                        />
-                                    ) : null}
-                                </div>
-                            ) : null}
-                        </div>
-                    );
-                })}
+                            Approve Frank Packet
+                        </button>
+                    </div>
+                </div>
             </div>
-        </div>
-    );
-}
-
-function PromptPreview({
-    promptText,
-    promptLabel,
-    emptyState,
-}: {
-    promptText: string | null;
-    promptLabel?: string;
-    emptyState?: string;
-}) {
-    if (!promptText) {
-        return emptyState ? <p className="text-xs text-slate-500">{emptyState}</p> : null;
+        );
     }
 
-    return (
-        <details className="rounded-xl border border-slate-200 bg-white">
-            <summary className="cursor-pointer list-none px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
-                {promptLabel ?? 'View Exact Prompt'}
-            </summary>
-            <div className="border-t border-slate-200 px-3 py-3">
-                <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-slate-950 p-3 text-xs leading-6 text-slate-100">
-                    {promptText}
-                </pre>
-            </div>
-        </details>
-    );
-}
-
-function ApprovalBadge({ approved, label }: { approved: boolean; label?: string }) {
-    return (
-        <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${approved ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-            {approved ? <CheckCircle2 className="h-3.5 w-3.5" /> : <FlaskConical className="h-3.5 w-3.5" />}
-            {label ?? (approved ? 'Approved' : 'Draft')}
-        </div>
-    );
-}
-
-function ArtifactListCard({
-    title,
-    items,
-    onSelect,
-    selectedId,
-    onDelete,
-    deletingId,
-}: {
-    title: string;
-    items: Array<{ id: string; status?: string; updatedAt?: string; legalDomain?: string; domainScope?: string; createdAt?: string }>;
-    onSelect: (id: string) => void;
-    selectedId?: string;
-    onDelete?: (id: string) => void;
-    deletingId?: string | null;
-}) {
-    return (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <SectionHeader title={title} description="Most recently updated first." />
-            {items.length === 0 ? (
-                <div className="mt-4">
-                    <EmptyState title="Nothing here yet" description="Create the first item from this stage to populate the list." />
-                </div>
-            ) : (
-                <div className="mt-4 space-y-3">
-                    {items.map((item) => {
-                        const isSelected = item.id === selectedId;
-                        const isDeleting = item.id === deletingId;
-                        return (
-                        <div
-                            key={item.id}
-                            className={`rounded-xl border transition ${isSelected ? 'border-teal-300 bg-teal-50/70 shadow-[0_10px_24px_rgba(13,148,136,0.08)]' : 'border-slate-200 bg-slate-50 hover:border-teal-200 hover:bg-teal-50/40'}`}
-                        >
-                            <div className="flex items-start gap-3 px-4 py-3">
-                                <button
-                                    type="button"
-                                    onClick={() => onSelect(item.id)}
-                                    className="min-w-0 flex-1 text-left"
-                                >
-                                    <p className="text-sm font-semibold text-slate-800">{item.legalDomain ? `${item.legalDomain} · ${item.domainScope ?? ''}` : item.id}</p>
-                                    <p className="mt-2 text-xs text-slate-500">{item.updatedAt ?? item.createdAt ?? ''}</p>
-                                </button>
-                                <div className="flex shrink-0 items-center gap-2">
-                                    <ApprovalBadge approved={item.status === 'approved' || item.status === 'completed'} label={item.status ?? 'draft'} />
-                                    {onDelete ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => onDelete(item.id)}
-                                            disabled={Boolean(deletingId)}
-                                            aria-label={`Delete ${item.legalDomain ? `${item.legalDomain} ${item.domainScope ?? ''}` : item.id}`}
-                                            className={workflowButtonClass('danger', 'icon', 'border-rose-200 text-rose-600')}
-                                        >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </button>
-                                    ) : null}
-                                </div>
-                            </div>
-                            {isDeleting ? <p className="px-4 pb-3 text-xs font-medium text-rose-700">Deleting...</p> : null}
-                        </div>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
-    );
-}
-
-function ReadOnlyListCard({
-    title,
-    items,
-    emptyMessage,
-}: {
-    title: string;
-    items: Array<{ id: string; label: string; meta?: string }>;
-    emptyMessage: string;
-}) {
-    return (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">{title}</p>
-            {items.length === 0 ? (
-                <p className="mt-2 text-sm text-slate-500">{emptyMessage}</p>
-            ) : (
-                <div className="mt-3 space-y-2">
-                    {items.map((item) => (
-                        <div key={item.id} className="rounded-xl border border-slate-200 bg-white px-3 py-3">
-                            <p className="text-sm text-slate-800">{item.label}</p>
-                            {item.meta ? <p className="mt-1 text-xs text-slate-500">{item.meta}</p> : null}
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-}
-
-function ClusterViewCard({
-    run,
-    selectedClusterId,
-    onSelectCluster,
-}: {
-    run: DashaRun | null;
-    selectedClusterId: string | null;
-    onSelectCluster: (clusterId: string | null) => void;
-}) {
-    const [hoveredClusterId, setHoveredClusterId] = useState<string | null>(null);
-    const entries = useMemo(() => buildClusterViewEntries(run), [run]);
-    const visibleModels = useMemo(
-        () => Array.from(new Set(entries.flatMap((entry) => entry.cluster.modelBreakdown.map((item) => item.model)))),
-        [entries],
-    );
-    const modelColorMap = useMemo(() => buildModelColorMap(visibleModels), [visibleModels]);
-    const mapData = useMemo(() => buildDashaClusterMapData(entries), [entries]);
-    const axisDomain = useMemo(() => buildDashaAxisDomain(mapData.points, mapData.regions), [mapData.points, mapData.regions]);
-    const xTicks = useMemo(() => buildTicks(axisDomain.minX, axisDomain.maxX, 4), [axisDomain.maxX, axisDomain.minX]);
-    const yTicks = useMemo(() => buildTicks(axisDomain.minY, axisDomain.maxY, 4), [axisDomain.maxY, axisDomain.minY]);
-    const filteredLookup = useMemo(
-        () => new Map(entries.map((entry) => [entry.cluster.id, entry])),
-        [entries],
-    );
-    const safeHoveredClusterId = hoveredClusterId && filteredLookup.has(hoveredClusterId) ? hoveredClusterId : null;
-    const selectedEntry = selectedClusterId ? filteredLookup.get(selectedClusterId) ?? null : null;
-    const hoveredEntry = safeHoveredClusterId ? filteredLookup.get(safeHoveredClusterId) ?? null : null;
-    const focusEntry = selectedEntry ?? hoveredEntry;
-    const activeClusterId = selectedClusterId ?? safeHoveredClusterId;
-
-    return (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <SectionHeader
-                title="Cluster View"
-                description="This shows the raw clusters returned by Dasha’s clustering step. The UI is not reclustering centroids; it is only laying out the existing clusters so you can inspect each representative answer."
-            />
-
-            {!run || entries.length === 0 ? (
-                <div className="mt-4">
-                    <EmptyState
-                        title="No clusters to inspect yet"
-                        description="Run Dasha first. The cluster view will appear here once frontier-model answers have been grouped."
-                    />
-                </div>
-            ) : (
-                <div className="mt-4">
-                    <div className="flex flex-col gap-4 xl:flex-row xl:items-stretch xl:gap-4">
-                        <div className="min-w-0 xl:basis-[58%]">
-                            <div className="relative overflow-hidden rounded-xl border border-slate-700 bg-slate-950">
-                                <svg
-                                    viewBox={`0 0 ${DASHA_MAP_WIDTH} ${DASHA_MAP_HEIGHT}`}
-                                    className="h-auto w-full"
-                                    role="img"
-                                    aria-label="Dasha cluster scatter map"
-                                >
-                                    <rect
-                                        x={0}
-                                        y={0}
-                                        width={DASHA_MAP_WIDTH}
-                                        height={DASHA_MAP_HEIGHT}
-                                        fill="#061227"
-                                        onClick={() => onSelectCluster(null)}
+    function renderStagePanel() {
+        switch (visibleStage) {
+            case 'source':
+                return (
+                    <>
+                        <SectionHeader title={currentStage.title} description={currentStage.description} />
+                        <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr,0.9fr]">
+                            <div className="space-y-3">
+                                <Field label="Packet title">
+                                    <input
+                                        className={inputClassName}
+                                        value={newPacketTitle}
+                                        onChange={(event) => setNewPacketTitle(event.target.value)}
+                                        placeholder="Optional title for the uploaded source packet"
                                     />
-
-                                    {xTicks.map((tick) => {
-                                        const x = toDashaSvgX(tick, axisDomain);
-                                        return (
-                                            <g key={`x-${tick}`}>
-                                                <line x1={x} y1={0} x2={x} y2={DASHA_MAP_HEIGHT} stroke="#334155" strokeOpacity={0.42} strokeWidth={1} />
-                                                <text x={x} y={DASHA_MAP_HEIGHT - 9} textAnchor="middle" fontSize="11" fill="#94a3b8">
-                                                    {formatTick(tick)}
-                                                </text>
-                                            </g>
-                                        );
-                                    })}
-
-                                    {yTicks.map((tick) => {
-                                        const y = toDashaSvgY(tick, axisDomain);
-                                        return (
-                                            <g key={`y-${tick}`}>
-                                                <line x1={0} y1={y} x2={DASHA_MAP_WIDTH} y2={y} stroke="#334155" strokeOpacity={0.42} strokeWidth={1} />
-                                                <text x={10} y={y - 6} textAnchor="start" fontSize="11" fill="#94a3b8">
-                                                    {formatTick(tick)}
-                                                </text>
-                                            </g>
-                                        );
-                                    })}
-
-                                    {mapData.regions.map((region) => {
-                                        const active = activeClusterId === region.clusterId;
-                                        const muted = Boolean(activeClusterId) && !active;
-                                        const color = modelColorMap.get(region.dominantModel) || '#94a3b8';
-                                        const labelX = toDashaSvgX(region.centerX, axisDomain);
-                                        const labelY = toDashaSvgY(region.centerY, axisDomain);
-                                        return (
-                                            <g
-                                                key={`region-${region.clusterId}`}
-                                                onMouseEnter={() => setHoveredClusterId(region.clusterId)}
-                                                onMouseLeave={() => setHoveredClusterId((current) => (current === region.clusterId ? null : current))}
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    onSelectCluster(region.clusterId);
-                                                }}
-                                                className="cursor-pointer"
-                                            >
-                                                <circle
-                                                    cx={labelX}
-                                                    cy={labelY}
-                                                    r={Math.max((region.radius / (axisDomain.maxX - axisDomain.minX || 1)) * DASHA_MAP_WIDTH, 8)}
-                                                    fill={color}
-                                                    fillOpacity={active ? 0.22 : muted ? 0.05 : 0.12}
-                                                    stroke={color}
-                                                    strokeOpacity={active ? 0.95 : muted ? 0.2 : 0.55}
-                                                    strokeWidth={active ? 2.2 : 1.2}
-                                                />
-                                                <text
-                                                    x={labelX}
-                                                    y={labelY + 4}
-                                                    textAnchor="middle"
-                                                    fontSize={active ? '11' : '10'}
-                                                    fontWeight={active ? '700' : '600'}
-                                                    fill={color}
-                                                    fillOpacity={active ? 0.9 : muted ? 0.35 : 0.65}
-                                                    pointerEvents="none"
-                                                >
-                                                    {formatClusterMapLabel(region.clusterId)}
-                                                </text>
-                                            </g>
-                                        );
-                                    })}
-
-                                    {mapData.points.map((point, index) => {
-                                        const active = activeClusterId === point.clusterId;
-                                        const muted = Boolean(activeClusterId) && !active;
-                                        const isCentroid = point.isCentroid ?? false;
-                                        return (
-                                            <g key={`${point.clusterId}-${index}`}>
-                                                <title>{isCentroid ? `${point.memberId} (cluster centroid)` : point.memberId ?? point.model}</title>
-                                                <circle
-                                                    cx={toDashaSvgX(point.x, axisDomain)}
-                                                    cy={toDashaSvgY(point.y, axisDomain)}
-                                                    r={isCentroid ? 4.8 : active ? 4.2 : 3.4}
-                                                    fill={modelColorMap.get(point.model) || '#94a3b8'}
-                                                    fillOpacity={muted ? 0.18 : 0.9}
-                                                    stroke={isCentroid ? '#0d9488' : 'none'}
-                                                    strokeWidth={isCentroid ? 2 : 0}
-                                                    onMouseEnter={() => setHoveredClusterId(point.clusterId)}
-                                                    onMouseLeave={() => setHoveredClusterId((current) => (current === point.clusterId ? null : current))}
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        onSelectCluster(point.clusterId);
+                                </Field>
+                                <Field label="Authority files">
+                                    <input
+                                        className={inputClassName}
+                                        type="file"
+                                        multiple
+                                        accept=".pdf,.txt,.md"
+                                        onChange={(event) => onUploadFilesSelected(event.target.files)}
+                                    />
+                                </Field>
+                                {uploadRows.length > 0 ? (
+                                    <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                        {uploadRows.map((row, index) => (
+                                            <div key={`${row.file.name}_${index}`} className="grid gap-2 md:grid-cols-[1fr,220px]">
+                                                <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{row.file.name}</div>
+                                                <select
+                                                    className={inputClassName}
+                                                    value={row.role}
+                                                    onChange={(event) => {
+                                                        const nextRows = [...uploadRows];
+                                                        nextRows[index] = { ...nextRows[index], role: event.target.value as ArtifactRole };
+                                                        setUploadRows(nextRows);
                                                     }}
-                                                    className="cursor-pointer"
-                                                />
-                                            </g>
-                                        );
-                                    })}
-
-                                    <text x={DASHA_MAP_WIDTH / 2} y={22} textAnchor="middle" fontSize="15" fill="#dbeafe" fontWeight="700">
-                                        {run.id}
-                                    </text>
-                                    <text x={DASHA_MAP_WIDTH - 16} y={DASHA_MAP_HEIGHT - 28} textAnchor="end" fontSize="11" fill="#94a3b8">
-                                        Layout X
-                                    </text>
-                                    <text
-                                        transform={`translate(18 ${DASHA_MAP_HEIGHT / 2}) rotate(-90)`}
-                                        textAnchor="middle"
-                                        fontSize="11"
-                                        fill="#94a3b8"
-                                    >
-                                        Layout Y
-                                    </text>
-                                </svg>
-
-                                {mapData.points.length === 0 ? (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-slate-950/70 p-4 text-center">
-                                        <p className="max-w-md rounded-lg border border-slate-600 bg-slate-900/90 px-4 py-3 text-sm text-slate-200">
-                                            No cluster points are available for this Dasha run.
-                                        </p>
+                                                >
+                                                    <option value="anchor_case">Anchor authority</option>
+                                                    <option value="supporting_authority">Supporting authority</option>
+                                                    <option value="issue_statement">Issue statement</option>
+                                                    <option value="evidence_packet">Evidence packet</option>
+                                                    <option value="supplemental">Supplemental</option>
+                                                </select>
+                                            </div>
+                                        ))}
                                     </div>
                                 ) : null}
+                                <button className={primaryButtonClassName} onClick={() => void createFrankPacket()}>
+                                    Create Packet and Run Phase 1
+                                </button>
                             </div>
 
-                            <p className="mt-2 text-xs text-slate-500">
-                                Raw clusters: {entries.length} · Displayed centroids: {mapData.points.length} · Method: {run.clusteringMethod || 'unknown'}
-                            </p>
-
-                            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                                <div className="flex items-center justify-between gap-2">
-                                    <h3 className="text-sm font-bold text-slate-900">Selected Cluster Status</h3>
-                                    {selectedEntry ? (
-                                        <p className="text-[11px] font-semibold text-slate-500">
-                                            {formatClusterInspectorTitle(selectedEntry.cluster.id)}
-                                        </p>
-                                    ) : null}
+                            <div className="space-y-3">
+                                <Field label="Saved Frank packets">
+                                    <select
+                                        className={inputClassName}
+                                        value={selectedFrankId}
+                                        onChange={(event) => {
+                                            const packet = frankPackets.find((item) => item.id === event.target.value);
+                                            if (packet) {
+                                                applyFrankPacket(packet);
+                                            }
+                                        }}
+                                    >
+                                        <option value="">Select a packet</option>
+                                        {frankPackets.map((packet) => (
+                                            <option key={packet.id} value={packet.id}>
+                                                {packet.title} · {formatFrankPacketPhase(packet.phase)} · {packet.status}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </Field>
+                                {renderFrankSummaryCard()}
+                            </div>
+                        </div>
+                    </>
+                );
+            case 'routing_intake':
+                return (
+                    <>
+                        <SectionHeader title={currentStage.title} description={currentStage.description} />
+                        {frankEditor ? (
+                            <div className="mt-4 space-y-4">
+                                {renderFrankSummaryCard()}
+                                <Banner tone="info" text="Frank Phase 1 runs when the packet is created. Review or edit the routing record here, then continue to Phase 2 for extraction and mapping." />
+                                <div className="grid gap-4 lg:grid-cols-2">
+                                    <Field label="Title">
+                                        <input
+                                            className={inputClassName}
+                                            value={frankEditor.title}
+                                            onChange={(event) => setFrankEditor((current) => current ? { ...current, title: event.target.value } : current)}
+                                        />
+                                    </Field>
+                                    <Field label="Selected pack">
+                                        <select
+                                            className={inputClassName}
+                                            value={frankEditor.selectedPack ?? ''}
+                                            onChange={(event) => setFrankEditor((current) => current ? { ...current, selectedPack: (event.target.value || null) as FrankSofPackId | null } : current)}
+                                        >
+                                            <option value="">Select pack</option>
+                                            {PACK_OPTIONS.map((option) => (
+                                                <option key={option.value} value={option.value}>{option.label}</option>
+                                            ))}
+                                        </select>
+                                    </Field>
+                                    <Field label="Routing reason" className="lg:col-span-2">
+                                        <textarea
+                                            className={textareaClassName}
+                                            value={frankEditor.routingReason}
+                                            onChange={(event) => setFrankEditor((current) => current ? { ...current, routingReason: event.target.value } : current)}
+                                        />
+                                    </Field>
+                                    <Field label="Secondary issues" className="lg:col-span-2">
+                                        <textarea
+                                            className={textareaClassName}
+                                            value={frankEditor.secondaryIssues.join('\n')}
+                                            onChange={(event) => setFrankEditor((current) => current ? { ...current, secondaryIssues: splitLines(event.target.value) } : current)}
+                                        />
+                                    </Field>
+                                    <ReadOnlyJsonCard title="Intake checklist" value={frankEditor.intakeChecklist} />
+                                    <ReadOnlyJsonCard title="Source artifacts" value={frankEditor.sourceArtifacts.map((artifact) => ({ role: artifact.role, fileName: artifact.fileName }))} />
                                 </div>
-
-                                {selectedEntry ? (
-                                    <div className="mt-3 space-y-3">
-                                        <p className="text-xs text-slate-600">
-                                            These metrics describe the selected raw cluster only. Dasha scores the representative answer for this cluster against every rubric domain, then marks which domains this cluster actually won.
-                                        </p>
-                                        <div className="grid gap-2 sm:grid-cols-2">
-                                            <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Won domains</p>
-                                                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedEntry.winningDomains.length}</p>
-                                            </div>
-                                            <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Average domain score</p>
-                                                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedEntry.averageDomainScore === null ? 'N/A' : selectedEntry.averageDomainScore.toFixed(1)}</p>
-                                            </div>
-                                            <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Representative model</p>
-                                                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedEntry.representativeResponse?.model ?? 'Unknown'}</p>
-                                            </div>
-                                            <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Raw source cluster</p>
-                                                <p className="mt-1 text-sm font-semibold text-slate-900">
-                                                    {selectedEntry.cluster.sourceClusterId || selectedEntry.cluster.id}
-                                                </p>
-                                            </div>
+                            </div>
+                        ) : <EmptyPanelCopy text="Select a Frank packet to inspect routing and intake." />}
+                    </>
+                );
+            case 'extraction_mapping':
+                return (
+                    <>
+                        <SectionHeader title={currentStage.title} description={currentStage.description} />
+                        {frankEditor ? (
+                            <div className="mt-4 space-y-4">
+                                {renderFrankSummaryCard()}
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        className={primaryButtonClassName}
+                                        onClick={() => void runFrankPhase({
+                                            endpoint: '/api/frank-packets/extraction-mapping',
+                                            inProgressLabel: hasExtractionMapping
+                                                ? 'Re-running Frank Phase 2: extraction and mapping...'
+                                                : 'Running Frank Phase 2: extraction and mapping...',
+                                            successLabel: 'Frank Phase 2 completed. Extraction and mapping updated.',
+                                            errorLabel: 'Failed to run Frank Phase 2.',
+                                        })}
+                                    >
+                                        {hasExtractionMapping ? 'Re-run Phase 2' : 'Run Phase 2'}
+                                    </button>
+                                </div>
+                                <div className="grid gap-4 lg:grid-cols-3">
+                                    <ReadOnlyJsonCard title="Source extraction sheet" value={frankEditor.sourceExtractionSheet} />
+                                    <ReadOnlyJsonCard title="Gold packet mapping" value={frankEditor.goldPacketMapping} />
+                                    <ReadOnlyJsonCard title="Likely failure modes" value={frankEditor.likelyFailureModes} />
+                                </div>
+                                {benchmarkBlockedReason ? <Banner tone="warning" text={benchmarkBlockedReason} /> : null}
+                            </div>
+                        ) : <EmptyPanelCopy text="Select a Frank packet to inspect extraction and mapping." />}
+                    </>
+                );
+            case 'benchmark':
+                return (
+                    <>
+                        <SectionHeader title={currentStage.title} description={currentStage.description} />
+                        {frankEditor ? (
+                            <div className="mt-4 space-y-4">
+                                {renderFrankSummaryCard()}
+                                {benchmarkBlockedReason ? <Banner tone="warning" text={benchmarkBlockedReason} /> : null}
+                                <div className="grid gap-4 lg:grid-cols-[0.9fr,1.1fr]">
+                                    <ReadOnlyTextCard title="Required headings" text={benchmarkHeadingPreview} />
+                                    <Field label="Benchmark answer">
+                                        <textarea
+                                            className={`${textareaClassName} min-h-[420px]`}
+                                            value={frankEditor.benchmarkAnswer}
+                                            onChange={(event) => setFrankEditor((current) => current ? { ...current, benchmarkAnswer: event.target.value } : current)}
+                                        />
+                                    </Field>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        className={primaryButtonClassName}
+                                        disabled={Boolean(benchmarkBlockedReason)}
+                                        onClick={() => void runFrankPhase({
+                                            endpoint: '/api/frank-packets/benchmark',
+                                            inProgressLabel: hasBenchmark
+                                                ? 'Re-running Frank Phase 3: benchmark answer...'
+                                                : 'Running Frank Phase 3: benchmark answer...',
+                                            successLabel: 'Frank Phase 3 completed. Benchmark answer updated.',
+                                            errorLabel: 'Failed to run Frank Phase 3.',
+                                        })}
+                                    >
+                                        {hasBenchmark ? 'Re-run Phase 3' : 'Run Phase 3'}
+                                    </button>
+                                    <button className={secondaryButtonClassName} onClick={() => void saveFrank('draft')}>Save Phase 3 Draft</button>
+                                </div>
+                                {frankEditor.benchmarkWarnings.length > 0 ? (
+                                    <WarningList title="Benchmark warnings" items={frankEditor.benchmarkWarnings} />
+                                ) : null}
+                            </div>
+                        ) : <EmptyPanelCopy text="Select a Frank packet to generate or edit the benchmark answer." />}
+                    </>
+                );
+            case 'question':
+                return (
+                    <>
+                        <SectionHeader title={currentStage.title} description={currentStage.description} />
+                        {frankEditor ? (
+                            <div className="mt-4 space-y-4">
+                                {renderFrankSummaryCard()}
+                                <Field label="Reverse-engineered question">
+                                    <textarea
+                                        className={`${textareaClassName} min-h-[260px]`}
+                                        value={frankEditor.reverseEngineeredQuestion}
+                                        onChange={(event) => setFrankEditor((current) => current ? { ...current, reverseEngineeredQuestion: event.target.value } : current)}
+                                    />
+                                </Field>
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        className={primaryButtonClassName}
+                                        disabled={Boolean(benchmarkBlockedReason) || !frankEditor.benchmarkAnswer.trim()}
+                                        onClick={() => void runFrankPhase({
+                                            endpoint: '/api/frank-packets/question',
+                                            inProgressLabel: hasQuestion
+                                                ? 'Re-running Frank Phase 4: reverse-engineered question...'
+                                                : 'Running Frank Phase 4: reverse-engineered question...',
+                                            successLabel: 'Frank Phase 4 completed. Reverse-engineered question updated.',
+                                            errorLabel: 'Failed to run Frank Phase 4.',
+                                        })}
+                                    >
+                                        {hasQuestion ? 'Re-run Phase 4' : 'Run Phase 4'}
+                                    </button>
+                                    <button className={secondaryButtonClassName} onClick={() => void saveFrank('draft')}>Save Phase 4 Draft</button>
+                                </div>
+                                {frankEditor.questionWarnings.length > 0 ? (
+                                    <WarningList title="Question warnings" items={frankEditor.questionWarnings} />
+                                ) : null}
+                            </div>
+                        ) : <EmptyPanelCopy text="Select a Frank packet to generate or edit the reverse-engineered question." />}
+                    </>
+                );
+            case 'rubric':
+                return (
+                    <>
+                        <SectionHeader title={currentStage.title} description={currentStage.description} />
+                        <div className="mt-4 grid gap-4 lg:grid-cols-[320px,1fr]">
+                            <div className="space-y-3">
+                                <Field label="Approved Frank packet">
+                                    <select
+                                        className={inputClassName}
+                                        value={frankEditor?.status === 'approved' ? frankEditor.id : ''}
+                                        onChange={(event) => {
+                                            const packet = approvedFrankPackets.find((item) => item.id === event.target.value);
+                                            if (packet) {
+                                                applyFrankPacket(packet);
+                                            }
+                                        }}
+                                    >
+                                        <option value="">Select approved Frank packet</option>
+                                        {approvedFrankPackets.map((packet) => (
+                                            <option key={packet.id} value={packet.id}>{packet.title}</option>
+                                        ))}
+                                    </select>
+                                </Field>
+                                <button className={primaryButtonClassName} onClick={() => void generateRubricPack()}>
+                                    {rubricEditor?.frankPacketId === frankEditor?.id ? 'Regenerate Rubric Pack' : 'Generate Rubric Pack'}
+                                </button>
+                                <Field label="Saved rubric packs">
+                                    <select
+                                        className={inputClassName}
+                                        value={selectedRubricId}
+                                        onChange={(event) => {
+                                            const pack = rubricPacks.find((item) => item.id === event.target.value);
+                                            if (pack) {
+                                                applyRubricPack(pack);
+                                            }
+                                        }}
+                                    >
+                                        <option value="">Select rubric pack</option>
+                                        {rubricPacks.map((pack) => (
+                                            <option key={pack.id} value={pack.id}>{FRANK_V2_PACK_LABELS[pack.selectedPack]} · {pack.status}</option>
+                                        ))}
+                                    </select>
+                                </Field>
+                                {rubricEditor ? (
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                                        <p><span className="font-semibold">Pack:</span> {FRANK_V2_PACK_LABELS[rubricEditor.selectedPack]}</p>
+                                        <p><span className="font-semibold">Rows:</span> {rubricEditor.rows.length}</p>
+                                        <p><span className="font-semibold">Status:</span> {rubricEditor.status}</p>
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            <button className={secondaryButtonClassName} onClick={() => void saveRubric('draft')}>Save Rubric Pack</button>
+                                            <button className={primaryButtonClassName} onClick={() => void saveRubric('approved')}>Approve Rubric Pack</button>
                                         </div>
-                                        {selectedEntry.winningDomains.length === 0 ? (
-                                            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                                                This cluster exists in the raw clustering output, but no rubric domain selected its centroid as the best match.
-                                            </p>
-                                        ) : (
-                                            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                                                This cluster supplied the winning centroid for {selectedEntry.winningDomains.length} domain(s). Difference footprint: {formatDifferenceFootprint(selectedEntry.winningDomains, selectedEntry.cluster.id)}.
-                                            </p>
-                                        )}
                                     </div>
                                 ) : (
-                                    <p className="mt-3 text-sm text-slate-600">
-                                        Click a raw cluster bubble to pin it and see whether its representative centroid won anything.
-                                    </p>
+                                    <EmptyPanelCopy text="Generate or select a rubric pack to edit row-level scoring definitions." />
                                 )}
                             </div>
+                            <div>
+                                {rubricEditor ? (
+                                    <div className="space-y-4">
+                                        <Field label="Comparison method note">
+                                            <textarea
+                                                className={textareaClassName}
+                                                value={rubricEditor.comparisonMethodNote}
+                                                onChange={(event) => setRubricEditor((current) => current ? { ...current, comparisonMethodNote: event.target.value } : current)}
+                                            />
+                                        </Field>
+                                        <div className="space-y-3">
+                                            {rubricEditor.rows.map((row) => (
+                                                <RubricRowEditor
+                                                    key={row.key}
+                                                    row={row}
+                                                    onChange={(nextRow) => setRubricEditor((current) => current ? {
+                                                        ...current,
+                                                        rows: current.rows.map((item) => item.key === nextRow.key ? nextRow : item),
+                                                    } : current)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
                         </div>
-
-                        <aside className="min-w-0 xl:basis-[42%]">
-                            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                                <div className="flex items-center justify-between gap-2">
-                                    <h3 className="text-sm font-bold text-slate-900">Cluster Inspector</h3>
-                                    {selectedClusterId ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => onSelectCluster(null)}
-                                            className={workflowButtonClass('ghost', 'xs')}
-                                        >
-                                            Clear focus
-                                        </button>
-                                    ) : null}
-                                </div>
-
-                                {focusEntry ? (
-                                    <div className="mt-3 space-y-3">
-                                        <div>
-                                            <p className="text-sm font-bold text-slate-900">{formatClusterInspectorTitle(focusEntry.cluster.id)}</p>
-                                            <p className="mt-0.5 text-xs text-slate-600">{focusEntry.cluster.size} members · source cluster {focusEntry.cluster.sourceClusterId || focusEntry.cluster.id}</p>
-                                        </div>
-
-                                        <p className="text-xs text-slate-700">
-                                            Representative: <span className="font-semibold">{focusEntry.representativeResponse?.id ?? focusEntry.cluster.representativeResponseId}</span>
-                                            {' '}({focusEntry.representativeResponse?.model ?? 'unknown'})
-                                        </p>
-                                        <p className="text-xs text-slate-600">
-                                            {truncateText(focusEntry.cluster.representativeText, 260) || 'No representative preview available.'}
-                                        </p>
-
-                                        <div>
-                                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Model breakdown</p>
-                                            <div className="mt-1.5 space-y-1.5">
-                                                {focusEntry.cluster.modelBreakdown.map((entry) => (
-                                                    <div key={`${focusEntry.cluster.id}-${entry.modelKey}`} className="flex items-center justify-between gap-2 rounded border border-slate-200 bg-slate-50 px-2 py-1">
-                                                        <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
-                                                            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: modelColorMap.get(entry.model) || '#94a3b8' }} />
-                                                            {entry.model}
-                                                        </span>
-                                                        <span className="text-xs font-semibold text-slate-600">{entry.count}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Domain comparisons</p>
-                                            <div className="mt-2 space-y-2">
-                                                {focusEntry.domainComparisons.length === 0 ? (
-                                                    <p className="text-xs text-slate-500">This cluster has no saved domain evaluations.</p>
-                                                ) : (
-                                                    focusEntry.domainComparisons.map(({ domain, evaluation, isWinner }) => {
-                                                        const difference = evaluation.difference;
-                                                        return (
-                                                            <div key={`${focusEntry.cluster.id}_${domain.domainId}`} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                                                                <div className="flex items-center justify-between gap-2">
-                                                                    <div>
-                                                                        <p className="text-xs font-semibold text-slate-800">{domain.domainName}</p>
-                                                                        <p className="mt-0.5 text-[11px] text-slate-500">
-                                                                            {isWinner ? 'Winning centroid for this domain' : 'Evaluated but not selected as the winner'}
-                                                                        </p>
-                                                                    </div>
-                                                                    <span className="text-[11px] font-semibold text-slate-500">{evaluation.score ?? 'N/A'}</span>
-                                                                </div>
-                                                                {difference?.differenceSummary ? (
-                                                                    <p className="mt-1 text-xs leading-5 text-slate-600">{difference.differenceSummary}</p>
-                                                                ) : null}
-                                                                <p className="mt-1 text-[11px] text-slate-500">
-                                                                    Matched {difference?.matchedGoldenPoints.length ?? 0}, missing {difference?.missingGoldenPoints.length ?? 0}, extra {difference?.extraCentroidPoints.length ?? 0}, contradictions {difference?.contradictionPoints.length ?? 0}
-                                                                </p>
-                                                            </div>
-                                                        );
-                                                    })
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Representative answer</p>
-                                            <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-xs leading-6 text-slate-700 whitespace-pre-wrap">
-                                                {focusEntry.cluster.representativeText}
-                                            </div>
-                                        </div>
-
-                                        <div className="border-t border-slate-200 pt-3">
-                                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Raw cluster list</p>
-                                            <div className="mt-2 max-h-64 space-y-1.5 overflow-y-auto pr-1">
-                                                {entries.map((entry) => {
-                                                    const dominantModel = entry.cluster.modelBreakdown[0]?.model || 'unknown';
-                                                    const dominantColor = modelColorMap.get(dominantModel) || '#94a3b8';
-                                                    const selected = selectedClusterId === entry.cluster.id;
-                                                    const hovered = hoveredClusterId === entry.cluster.id;
+                    </>
+                );
+            case 'judge':
+                return (
+                    <>
+                        <SectionHeader title={currentStage.title} description={currentStage.description} />
+                        <div className="mt-4 grid gap-4 lg:grid-cols-[360px,1fr]">
+                            <div className="space-y-4">
+                                <Field label="Approved rubric pack">
+                                    <select
+                                        className={inputClassName}
+                                        value={dashaRubricPackId}
+                                        onChange={(event) => setDashaRubricPackId(event.target.value)}
+                                    >
+                                        <option value="">Select approved rubric pack</option>
+                                        {approvedRubricPacks.map((pack) => (
+                                            <option key={pack.id} value={pack.id}>{FRANK_V2_PACK_LABELS[pack.selectedPack]} · {pack.id}</option>
+                                        ))}
+                                    </select>
+                                </Field>
+                                <Field label="Run mode">
+                                    <select className={inputClassName} value={dashaRunMode} onChange={(event) => setDashaRunMode(event.target.value as DashaRunMode)}>
+                                        <option value="score_and_cluster">Score + cluster</option>
+                                        <option value="cluster_only">Cluster only</option>
+                                    </select>
+                                </Field>
+                                <Field label="Requested responses">
+                                    <input className={inputClassName} value={sampleCount} onChange={(event) => setSampleCount(event.target.value)} />
+                                </Field>
+                                <Field label="Models">
+                                    <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                        {(Object.keys(MODEL_OPTIONS_BY_PROVIDER) as ModelProvider[]).map((provider) => (
+                                            <div key={provider} className="space-y-2">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{PROVIDER_LABELS[provider]}</p>
+                                                {MODEL_OPTIONS_BY_PROVIDER[provider].map((option) => {
+                                                    const key = `${provider}::${option.value}`;
                                                     return (
-                                                        <button
-                                                            key={entry.cluster.id}
-                                                            type="button"
-                                                            onClick={() => onSelectCluster(entry.cluster.id)}
-                                                            onMouseEnter={() => setHoveredClusterId(entry.cluster.id)}
-                                                            onMouseLeave={() => setHoveredClusterId((current) => (current === entry.cluster.id ? null : current))}
-                                                            className={`flex w-full items-center justify-between rounded-md border px-2 py-1.5 text-left text-xs shadow-sm transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 ${selected ? 'border-blue-300 bg-blue-50' : hovered ? 'border-slate-300 bg-slate-100' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
-                                                        >
-                                                            <div>
-                                                                <span className="inline-flex items-center gap-2 font-semibold text-slate-700">
-                                                                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: dominantColor }} />
-                                                                    {formatClusterInspectorTitle(entry.cluster.id)}
-                                                                </span>
-                                                                <p className="mt-0.5 text-[11px] text-slate-500">
-                                                                    source {entry.cluster.sourceClusterId || entry.cluster.id} · centroid {entry.representativeResponse?.model ?? 'unknown'} · won {entry.winningDomains.length}
-                                                                </p>
-                                                            </div>
-                                                            <span className="font-semibold text-slate-600">{entry.cluster.size}</span>
-                                                        </button>
+                                                        <label key={key} className="flex items-center gap-2 text-sm text-slate-700">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedModelKeys.includes(key)}
+                                                                onChange={(event) => {
+                                                                    setSelectedModelKeys((current) => event.target.checked
+                                                                        ? [...current, key]
+                                                                        : current.filter((item) => item !== key));
+                                                                }}
+                                                            />
+                                                            {option.label}
+                                                        </label>
                                                     );
                                                 })}
                                             </div>
-                                        </div>
+                                        ))}
                                     </div>
+                                </Field>
+                                <button className={primaryButtonClassName} onClick={() => void runDasha()}>
+                                    Start Dasha Run
+                                </button>
+                                <Field label="Saved runs">
+                                    <select className={inputClassName} value={selectedRun?.id ?? ''} onChange={(event) => setSelectedRunId(event.target.value)}>
+                                        <option value="">Select run</option>
+                                        {dashaRuns.map((run) => (
+                                            <option key={run.id} value={run.id}>{run.id} · {run.status}</option>
+                                        ))}
+                                    </select>
+                                </Field>
+                            </div>
+                            <div className="space-y-4">
+                                {selectedRun ? (
+                                    <>
+                                        <div className="grid gap-3 md:grid-cols-3">
+                                            <MetricCard label="Status" value={selectedRun.status} />
+                                            <MetricCard label="Clusters" value={String(selectedRun.clusters.length)} />
+                                            <MetricCard label="Weighted score" value={selectedRun.weightedSummary.weightedScore === null ? 'N/A' : selectedRun.weightedSummary.weightedScore.toFixed(1)} />
+                                        </div>
+                                        <ReadOnlyTextCard title="Clustering notes" text={selectedRun.clusteringNotes ?? 'None'} />
+                                        <ReadOnlyJsonCard title="Module summaries" value={selectedRun.moduleSummaries} />
+                                        <div className="space-y-3">
+                                            {selectedRun.rowResults.map((row) => (
+                                                <div key={`${selectedRun.id}_${row.rowKey}`} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-slate-800">{row.rowKey} · {row.rowTitle}</p>
+                                                            <p className="text-xs text-slate-500">{RUBRIC_MODULE_LABELS[row.moduleId]}</p>
+                                                        </div>
+                                                        <div className="text-right text-xs text-slate-500">
+                                                            <p>Weight {row.weight}</p>
+                                                            <p>Winning score {row.winningScore === null ? 'N/A' : row.winningScore}</p>
+                                                        </div>
+                                                    </div>
+                                                    <p className="mt-2 text-sm text-slate-600">{row.rationale}</p>
+                                                    <details className="mt-3">
+                                                        <summary className="cursor-pointer text-sm font-semibold text-slate-700">Centroid evaluations</summary>
+                                                        <div className="mt-3 space-y-3">
+                                                            {row.centroidEvaluations.map((evaluation) => (
+                                                                <div key={`${row.rowKey}_${evaluation.clusterId}`} className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                                                                    <p><span className="font-semibold">Cluster:</span> {evaluation.clusterId}</p>
+                                                                    <p><span className="font-semibold">Applicability:</span> {evaluation.applicabilityStatus}</p>
+                                                                    <p><span className="font-semibold">Score:</span> {evaluation.score ?? 'N/A'}</p>
+                                                                    <p className="mt-2">{evaluation.rationale}</p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </details>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
                                 ) : (
-                                    <p className="mt-3 text-sm text-slate-600">Click or hover a cluster to inspect details.</p>
+                                    <EmptyPanelCopy text="Start a Dasha judge run or select an existing run to inspect row and module scoring." />
                                 )}
                             </div>
-                        </aside>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
+                        </div>
+                    </>
+                );
+            default:
+                return <EmptyPanelCopy text="This stage is not available." />;
+        }
+    }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">{label}</p>
-            <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
-        </div>
-    );
-}
-
-function LabeledInput({
-    label,
-    value,
-    onChange,
-    hint,
-}: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    hint?: string;
-}) {
-    return (
-        <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</span>
-            <input
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-            />
-            {hint ? <span className="block text-xs text-slate-500">{hint}</span> : null}
-        </label>
-    );
-}
-
-function LabeledTextarea({
-    label,
-    value,
-    onChange,
-    rows,
-    hint,
-    readOnly,
-}: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    rows: number;
-    hint?: string;
-    readOnly?: boolean;
-}) {
-    return (
-        <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</span>
-            <textarea
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                rows={rows}
-                readOnly={readOnly}
-                className={`w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 ${readOnly ? 'bg-slate-50' : 'bg-white'}`}
-            />
-            {hint ? <span className="block text-xs text-slate-500">{hint}</span> : null}
-        </label>
-    );
-}
-
-function LabeledSelect({
-    label,
-    value,
-    onChange,
-    options,
-}: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    options: Array<{ value: string; label: string }>;
-}) {
-    return (
-        <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</span>
-            <select
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+    if (!hasMounted) {
+        return (
+            <AppShell
+                eyebrow="Workflow v2"
+                title="Frank V2 SoF Pipeline"
+                subtitle="Strict Statute-of-Frauds packet generation with phase-based Frank drafting, row-based Karthic rubrics, and row/module Dasha scoring."
             >
-                {options.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-            </select>
-        </label>
+                <div className="space-y-6">
+                    <Banner tone="info" text="Loading Frank v2 workflow data..." />
+                </div>
+            </AppShell>
+        );
+    }
+
+    return (
+        <AppShell
+            eyebrow="Workflow v2"
+            title="Frank V2 SoF Pipeline"
+            subtitle="Strict Statute-of-Frauds packet generation with phase-based Frank drafting, row-based Karthic rubrics, and row/module Dasha scoring."
+        >
+            <div className="space-y-6">
+                {isLoading ? <Banner tone="info" text="Loading Frank v2 workflow data..." /> : null}
+                {statusMessage ? <Banner tone="info" text={statusMessage} /> : null}
+                {errorMessage ? <Banner tone="error" text={errorMessage} /> : null}
+
+                <Panel>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Pipeline Navigator</p>
+                            <p className="mt-2 text-sm text-slate-600">
+                                One workflow stage is visible at a time. The Next button stays gated by the same packet validation and stop rules enforced on the server.
+                            </p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                            <p className="font-semibold text-slate-900">Workflow Stage {currentStageIndex + 1} of {stageViews.length}</p>
+                            {getFrankPhaseNumber(currentStage.id) !== null ? (
+                                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                    Frank Phase {getFrankPhaseNumber(currentStage.id)} of {FRANK_PHASE_ORDER.length}
+                                </p>
+                            ) : null}
+                            <p>{currentStage.title}</p>
+                        </div>
+                    </div>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+                        {stageViews.map((stage) => (
+                            <button
+                                key={stage.id}
+                                type="button"
+                                aria-current={stage.id === visibleStage ? 'step' : undefined}
+                                disabled={!stage.unlocked}
+                                className={buildStageButtonClassName(stage, stage.id === visibleStage)}
+                                onClick={() => goToStage(stage.id)}
+                            >
+                                <span className="text-xs font-semibold uppercase tracking-[0.12em]">{getNavigatorBadge(stage.id)}</span>
+                                <span className="mt-2 block text-sm font-semibold">{stage.shortLabel}</span>
+                                <span className="mt-1 block text-xs">{stage.statusLabel}</span>
+                            </button>
+                        ))}
+                    </div>
+                </Panel>
+
+                <Panel>
+                    <div className="space-y-4 md:flex md:items-start md:gap-4 md:space-y-0">
+                        <div className="min-w-0 md:basis-[70%] md:flex-1">
+                            {renderStagePanel()}
+                        </div>
+                        <div className="md:basis-[30%] md:max-w-[420px] md:flex-none">
+                            <StageGuideCard stageId={visibleStage} promptPreview={activeStagePrompt} />
+                        </div>
+                    </div>
+                    <div className="mt-6 border-t border-slate-200 pt-4">
+                        {nextStageBlockedReason ? <Banner tone="warning" text={nextStageBlockedReason} /> : null}
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                            <button
+                                className={secondaryButtonClassName}
+                                disabled={!previousStage}
+                                onClick={() => {
+                                    if (previousStage) {
+                                        goToStage(previousStage.id);
+                                    }
+                                }}
+                            >
+                                Previous
+                            </button>
+                            <div className="text-sm text-slate-500">
+                                {nextStage ? `Next: ${nextStage.title}` : 'Final stage'}
+                            </div>
+                            <button
+                                className={primaryButtonClassName}
+                                disabled={!nextStage || Boolean(nextStageBlockedReason)}
+                                onClick={() => {
+                                    if (nextStage && !nextStageBlockedReason) {
+                                        goToStage(nextStage.id);
+                                    }
+                                }}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </Panel>
+            </div>
+        </AppShell>
     );
 }
 
-function createEmptyDomainRow(index: number): KarthicDomain {
-    return {
-        id: `domain_${index + 1}`,
-        name: '',
-        description: '',
-        weight: 1,
-        naGuidance: 'This domain is not applicable to the given question.',
-    };
+function findLastUnlockedStage(stages: WorkflowStageView[]) {
+    for (let index = stages.length - 1; index >= 0; index -= 1) {
+        if (stages[index].unlocked) {
+            return stages[index];
+        }
+    }
+    return stages[0] ?? null;
 }
 
-function splitTextarea(value: string) {
+function getFrankPhaseNumber(stageId: WorkflowStageId) {
+    const index = FRANK_PHASE_ORDER.indexOf(stageId);
+    return index >= 0 ? index + 1 : null;
+}
+
+function getNavigatorBadge(stageId: WorkflowStageId) {
+    const phaseNumber = getFrankPhaseNumber(stageId);
+    if (phaseNumber !== null) {
+        return `Phase ${phaseNumber}`;
+    }
+    switch (stageId) {
+        case 'source':
+            return 'Source';
+        case 'rubric':
+            return 'Rubric';
+        case 'judge':
+            return 'Judge';
+        default:
+            return 'Stage';
+    }
+}
+
+function formatFrankPacketPhase(phase: FrankPacketV2['phase']) {
+    switch (phase) {
+        case 'source':
+            return 'Source Upload / Packet Selection';
+        case 'routing_intake':
+            return 'Phase 1 · Routing / Intake';
+        case 'extraction_mapping':
+            return 'Phase 2 · Extraction / Mapping';
+        case 'benchmark':
+            return 'Phase 3 · Benchmark Answer';
+        case 'question':
+            return 'Phase 4 · Reverse-Engineered Question';
+        default:
+            return phase;
+    }
+}
+
+function buildClientFrankBlockReason(packet: FrankPacketV2) {
+    if (packet.routingConfidence === 'weak') {
+        return 'Routing confidence is weak. Stop at intake/extraction and resolve JD review first.';
+    }
+    if (!packet.sourceExtractionSheet || !packet.goldPacketMapping || !packet.likelyFailureModes) {
+        return 'Run Phase 2 before generating the benchmark answer or question.';
+    }
+    if (packet.intakeChecklist?.finalIntakeRating === 'Weak; support/contrast source only' || packet.intakeChecklist?.finalIntakeRating === 'Not a strong gold-source candidate without additional authority') {
+        return 'This source failed the stop rule and cannot proceed to benchmark or question generation.';
+    }
+    if (packet.intakeChecklist?.finalIntakeRating === 'Moderate; usable with supporting authority') {
+        const hasSupportingAuthority = packet.sourceArtifacts.some((artifact) => artifact.role === 'supporting_authority' || artifact.role === 'supplemental');
+        if (!hasSupportingAuthority) {
+            return 'This source is only moderate and requires supporting authority before benchmark/question generation.';
+        }
+    }
+    return null;
+}
+
+function buildClientFrankApprovalBlockReason(packet: FrankPacketV2) {
+    if (!packet.selectedPack || !packet.intakeChecklist) {
+        return 'Complete Frank Phase 1 before approval.';
+    }
+    if (!packet.sourceExtractionSheet || !packet.goldPacketMapping || !packet.likelyFailureModes) {
+        return 'Complete Frank Phase 2 before approval.';
+    }
+    const benchmarkBlockReason = buildClientFrankBlockReason(packet);
+    if (benchmarkBlockReason) {
+        return benchmarkBlockReason;
+    }
+    if (!packet.benchmarkAnswer.trim()) {
+        return 'Complete Frank Phase 3 before approval.';
+    }
+    if (!packet.reverseEngineeredQuestion.trim()) {
+        return 'Complete Frank Phase 4 before approval.';
+    }
+    return null;
+}
+
+function buildSelectedModels(selectedModelKeys: string[]): DashaSelectedModel[] {
+    return selectedModelKeys.map((modelKey) => {
+        const [provider, model] = modelKey.split('::');
+        return {
+            provider: provider as ModelProvider,
+            model,
+            reasoningEffort: provider === 'anthropic' ? undefined : 'medium',
+        };
+    });
+}
+
+function sortByUpdated<T extends { updatedAt?: string }>(items: T[]) {
+    return [...items].sort((left, right) => String(right.updatedAt ?? '').localeCompare(String(left.updatedAt ?? '')));
+}
+
+function sortRuns(items: DashaRunV2[]) {
+    return [...items].sort((left, right) => String(right.completedAt ?? right.createdAt).localeCompare(String(left.completedAt ?? left.createdAt)));
+}
+
+function splitLines(value: string) {
     return value
         .split('\n')
         .map((item) => item.trim())
         .filter(Boolean);
 }
 
-function sortByUpdated<T extends { updatedAt?: string; createdAt?: string; completedAt?: string | null }>(items: T[]): T[] {
-    return [...items].sort((left, right) => {
-        const leftValue = left.updatedAt ?? left.completedAt ?? left.createdAt ?? '';
-        const rightValue = right.updatedAt ?? right.completedAt ?? right.createdAt ?? '';
-        return String(rightValue).localeCompare(String(leftValue));
-    });
-}
-
-function buildSelectedModels(keys: string[]): DashaSelectedModel[] {
-    return keys.map((key) => {
-        const [provider, model] = key.split('::');
-        return {
-            provider: provider as ModelProvider,
-            model,
-            reasoningEffort: defaultReasoningEffort(provider as ModelProvider, model),
-            temperature: 0.7,
-        };
-    });
-}
-
-function defaultReasoningEffort(provider: ModelProvider, model: string): ReasoningEffort {
-    if (provider === 'openai' && model.startsWith('gpt-5')) {
-        return 'medium';
+function buildStageButtonClassName(stage: WorkflowStageView, isCurrent: boolean) {
+    if (isCurrent) {
+        return 'rounded-2xl border border-teal-300 bg-teal-50 px-4 py-4 text-left text-teal-900 shadow-[0_10px_25px_rgba(13,148,136,0.12)]';
     }
-    if (provider === 'gemini') {
-        return model.includes('pro') ? 'high' : 'medium';
+    if (!stage.unlocked) {
+        return 'rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-left text-slate-400';
     }
-    return 'none';
-}
-
-function buildClusterViewEntries(run: DashaRun | null) {
-    if (!run) {
-        return [];
+    if (stage.complete) {
+        return 'rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-left text-emerald-900';
     }
-
-    const responseById = new Map(run.responses.map((response) => [response.id, response]));
-
-    return run.clusters.map((cluster) => {
-        const winningDomains = run.domainResults
-            .filter((result) => result.winningCentroidId === cluster.id)
-            .sort((left, right) => {
-                const scoreDelta = (right.winningScore ?? -1) - (left.winningScore ?? -1);
-                if (scoreDelta !== 0) {
-                    return scoreDelta;
-                }
-                const weightDelta = right.weight - left.weight;
-                if (weightDelta !== 0) {
-                    return weightDelta;
-                }
-                return left.domainName.localeCompare(right.domainName);
-            });
-
-        const domainComparisons = run.domainResults
-            .map((result) => {
-                const evaluation = result.centroidEvaluations.find((item) => item.clusterId === cluster.id);
-                if (!evaluation) {
-                    return null;
-                }
-                return {
-                    domain: result,
-                    evaluation,
-                    isWinner: result.winningCentroidId === cluster.id,
-                };
-            })
-            .filter((item): item is NonNullable<typeof item> => Boolean(item))
-            .sort((left, right) => {
-                if (left.isWinner !== right.isWinner) {
-                    return left.isWinner ? -1 : 1;
-                }
-                const scoreDelta = (right.evaluation.score ?? -1) - (left.evaluation.score ?? -1);
-                if (scoreDelta !== 0) {
-                    return scoreDelta;
-                }
-                const weightDelta = right.domain.weight - left.domain.weight;
-                if (weightDelta !== 0) {
-                    return weightDelta;
-                }
-                return left.domain.domainName.localeCompare(right.domain.domainName);
-            });
-
-        const memberResponses = cluster.memberResponseIds
-            .map((id) => responseById.get(id))
-            .filter((response): response is DashaRun['responses'][number] => Boolean(response));
-
-        const representativeResponse = responseById.get(cluster.representativeResponseId) ?? memberResponses[0] ?? null;
-        const winningScores = winningDomains
-            .map((domain) => domain.winningScore)
-            .filter((score): score is number => score !== null);
-        const applicableScores = domainComparisons
-            .map((item) => item.evaluation.score)
-            .filter((score): score is number => score !== null);
-
-        return {
-            cluster,
-            representativeResponse,
-            memberResponses,
-            winningDomains,
-            domainComparisons,
-            averageWinningScore: winningScores.length > 0 ? winningScores.reduce((sum, score) => sum + score, 0) / winningScores.length : null,
-            averageDomainScore: applicableScores.length > 0 ? applicableScores.reduce((sum, score) => sum + score, 0) / applicableScores.length : null,
-        };
-    });
-}
-
-function pickDefaultClusterId(run: DashaRun | null) {
-    return run?.clusters[0]?.id ?? null;
-}
-
-function shortClusterLabel(clusterId: string) {
-    const number = clusterId.replace(/^cluster_/, '');
-    return number === clusterId ? clusterId : `C${number}`;
-}
-
-function formatClusterMapLabel(clusterId: string) {
-    if (clusterId.toLowerCase() === 'noise') {
-        return 'Noise';
+    if (stage.blocked) {
+        return 'rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-left text-amber-900';
     }
-    return shortClusterLabel(clusterId);
+    return 'rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left text-slate-700';
 }
 
-function formatClusterInspectorTitle(clusterId: string) {
-    if (clusterId.toLowerCase() === 'noise') {
-        return 'Noise Cluster';
-    }
-    const short = shortClusterLabel(clusterId);
-    return short === clusterId ? `Cluster ${clusterId}` : `Cluster ${short.slice(1)}`;
-}
-
-function buildDashaClusterMapData(entries: ReturnType<typeof buildClusterViewEntries>) {
-    if (entries.length === 0) {
-        return { points: [] as DashaClusterMapPoint[], regions: [] as DashaClusterMapRegion[] };
-    }
-
-    const seeds = entries
-        .map((entry) => {
-            const visibleMembers = entry.cluster.modelBreakdown.reduce((total, item) => total + item.count, 0);
-            if (visibleMembers === 0) {
+function buildStagePromptPreview(input: {
+    stageId: WorkflowStageId;
+    frankPacket: FrankPacketV2 | null;
+    rubricPack: KarthicRubricPackV2 | null;
+    dashaPack: KarthicRubricPackV2 | null;
+    selectedRun: DashaRunV2 | null;
+}): StagePromptPreview | null {
+    switch (input.stageId) {
+        case 'source':
+        case 'routing_intake':
+            return getSavedPromptPreview(input.frankPacket?.savedPrompts, 'routing_intake_generation');
+        case 'extraction_mapping':
+            return getSavedPromptPreview(input.frankPacket?.savedPrompts, 'extraction_mapping_generation');
+        case 'benchmark':
+            return getSavedPromptPreview(input.frankPacket?.savedPrompts, 'benchmark_generation');
+        case 'question':
+            return getSavedPromptPreview(input.frankPacket?.savedPrompts, 'question_generation');
+        case 'rubric':
+            return getSavedPromptPreview(input.rubricPack?.savedPrompts, 'rubric_generation');
+        case 'judge': {
+            const questionText = input.selectedRun?.questionText?.trim() || input.dashaPack?.questionText?.trim() || '';
+            if (!questionText) {
                 return null;
             }
-
-            const dominantModel = entry.cluster.modelBreakdown[0]?.model || 'unknown';
-            const radius = 2.8 + Math.sqrt(visibleMembers) * 1.9;
-
             return {
-                clusterId: entry.cluster.id,
-                radius,
-                visibleMembers,
-                totalMembers: entry.cluster.size,
-                dominantModel,
-                note: truncateText(entry.cluster.representativeText, 180),
-                representativeModel: entry.representativeResponse?.model || dominantModel,
-                representativeId: entry.cluster.representativeResponseId,
+                title: 'Dasha generation prompt',
+                prompt: [
+                    'System:',
+                    'Write a direct legal analysis answering the prompt. Do not use markdown headings unless the question calls for them.',
+                    '',
+                    'User:',
+                    questionText,
+                ].join('\n'),
             };
-        })
-        .filter((seed): seed is NonNullable<typeof seed> => seed !== null);
-
-    if (seeds.length === 0) {
-        return { points: [] as DashaClusterMapPoint[], regions: [] as DashaClusterMapRegion[] };
-    }
-
-    const seededRegions: DashaClusterMapRegion[] = seeds.map((seed, index) => {
-        const spiralStep = 8 + Math.floor(index / 6) * 7;
-        const angle = index * GOLDEN_ANGLE * 0.92;
-        return {
-            clusterId: seed.clusterId,
-            centerX: Math.cos(angle) * spiralStep,
-            centerY: Math.sin(angle) * spiralStep * 0.72,
-            radius: seed.radius,
-            visibleMembers: seed.visibleMembers,
-            totalMembers: seed.totalMembers,
-            dominantModel: seed.dominantModel,
-            note: seed.note,
-        };
-    });
-
-    const regions = resolveDashaRegionOverlaps(seededRegions);
-    const regionByCluster = new Map(regions.map((region) => [region.clusterId, region]));
-
-    const points: DashaClusterMapPoint[] = [];
-    for (const seed of seeds) {
-        const region = regionByCluster.get(seed.clusterId);
-        if (!region) {
-            continue;
         }
-
-        points.push({
-            x: region.centerX,
-            y: region.centerY,
-            model: seed.representativeModel,
-            clusterId: seed.clusterId,
-            memberId: seed.representativeId,
-            isCentroid: true,
-        });
+        default:
+            return null;
     }
-
-    return {
-        points,
-        regions: regions.sort((left, right) => right.visibleMembers - left.visibleMembers),
-    };
 }
 
-function resolveDashaRegionOverlaps(regions: DashaClusterMapRegion[]) {
-    const adjusted = regions.map((region) => ({ ...region }));
-
-    for (let iteration = 0; iteration < 120; iteration += 1) {
-        let moved = false;
-
-        for (let i = 0; i < adjusted.length; i += 1) {
-            for (let j = i + 1; j < adjusted.length; j += 1) {
-                const left = adjusted[i];
-                const right = adjusted[j];
-                const dx = right.centerX - left.centerX;
-                const dy = right.centerY - left.centerY;
-                const distance = Math.hypot(dx, dy) || 0.0001;
-                const minimumDistance = left.radius + right.radius + 2.3;
-
-                if (distance < minimumDistance) {
-                    const overlap = (minimumDistance - distance) * 0.5;
-                    const ux = dx / distance;
-                    const uy = dy / distance;
-                    left.centerX -= ux * overlap;
-                    left.centerY -= uy * overlap;
-                    right.centerX += ux * overlap;
-                    right.centerY += uy * overlap;
-                    moved = true;
-                }
-            }
-        }
-
-        for (const region of adjusted) {
-            region.centerX *= 0.995;
-            region.centerY *= 0.995;
-        }
-
-        if (!moved) {
-            break;
-        }
-    }
-
-    return adjusted;
+function getSavedPromptPreview(
+    prompts: Array<{ kind: string; title: string; prompt: string }> | undefined,
+    kind: string,
+): StagePromptPreview | null {
+    const match = [...(prompts ?? [])].reverse().find((item) => item.kind === kind && item.prompt.trim());
+    return match ? { title: match.title, prompt: match.prompt } : null;
 }
 
-function buildModelColorMap(models: string[]) {
-    const map = new Map<string, string>();
-    models.forEach((model, index) => {
-        map.set(model, MODEL_PALETTE[index % MODEL_PALETTE.length]);
-    });
-    return map;
+function StageGuideCard({ stageId, promptPreview }: { stageId: WorkflowStageId; promptPreview: StagePromptPreview | null }) {
+    const guide = WORKFLOW_STAGE_GUIDES[stageId];
+    const phaseNumber = getFrankPhaseNumber(stageId);
+    return (
+        <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)] md:sticky md:top-24">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Stage Guide</p>
+            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {phaseNumber !== null ? `Frank Phase ${phaseNumber}` : stageId === 'source' ? 'Source Setup' : WORKFLOW_STAGES.find((stage) => stage.id === stageId)?.title ?? 'Workflow Stage'}
+            </p>
+            <p className="mt-2 text-sm font-semibold text-slate-900">What this stage is doing</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{guide.purpose}</p>
+
+            {guide.promptFiles?.length ? (
+                <StageGuideSection title="V2 Prompt Files">
+                    {guide.promptFiles.map((item) => (
+                        <li key={`${stageId}_file_${item}`}>{item}</li>
+                    ))}
+                </StageGuideSection>
+            ) : null}
+
+            {guide.promptNote ? (
+                <div className="mt-4 rounded-xl border border-teal-200 bg-teal-50 px-3 py-3 text-sm text-teal-900">
+                    <p className="font-semibold">Prompt usage</p>
+                    <p className="mt-1 leading-6">{guide.promptNote}</p>
+                </div>
+            ) : null}
+
+            {guide.stopRules?.length ? (
+                <StageGuideSection title="Watch for">
+                    {guide.stopRules.map((item) => (
+                        <li key={`${stageId}_stop_${item}`}>{item}</li>
+                    ))}
+                </StageGuideSection>
+            ) : null}
+
+            <div className="mt-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Prompt Preview</p>
+                {promptPreview ? (
+                    <details className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white" open={stageId === 'benchmark' || stageId === 'question'}>
+                        <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-slate-800">
+                            {promptPreview.title}
+                        </summary>
+                        <pre className="max-h-[420px] overflow-auto border-t border-slate-200 px-3 py-3 text-xs leading-5 text-slate-700 whitespace-pre-wrap">
+                            {promptPreview.prompt}
+                        </pre>
+                    </details>
+                ) : (
+                    <div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-white px-3 py-3 text-sm text-slate-500">
+                        No prompt preview is available for this stage yet.
+                    </div>
+                )}
+            </div>
+        </aside>
+    );
 }
 
-function buildDashaAxisDomain(points: DashaClusterMapPoint[], regions: DashaClusterMapRegion[]): DashaAxisDomain {
-    if (points.length === 0 && regions.length === 0) {
-        return { minX: -20, maxX: 20, minY: -20, maxY: 20 };
-    }
-
-    let minX = Number.POSITIVE_INFINITY;
-    let maxX = Number.NEGATIVE_INFINITY;
-    let minY = Number.POSITIVE_INFINITY;
-    let maxY = Number.NEGATIVE_INFINITY;
-
-    for (const point of points) {
-        minX = Math.min(minX, point.x);
-        maxX = Math.max(maxX, point.x);
-        minY = Math.min(minY, point.y);
-        maxY = Math.max(maxY, point.y);
-    }
-
-    for (const region of regions) {
-        minX = Math.min(minX, region.centerX - region.radius);
-        maxX = Math.max(maxX, region.centerX + region.radius);
-        minY = Math.min(minY, region.centerY - region.radius);
-        maxY = Math.max(maxY, region.centerY + region.radius);
-    }
-
-    const width = Math.max(1, maxX - minX);
-    const height = Math.max(1, maxY - minY);
-    const paddingX = Math.max(6, width * 0.16);
-    const paddingY = Math.max(6, height * 0.16);
-
-    return {
-        minX: minX - paddingX,
-        maxX: maxX + paddingX,
-        minY: minY - paddingY,
-        maxY: maxY + paddingY,
-    };
+function StageGuideSection({ title, children }: { title: string; children: ReactNode }) {
+    return (
+        <div className="mt-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{title}</p>
+            <ul className="mt-2 space-y-2 text-sm leading-6 text-slate-700">
+                {children}
+            </ul>
+        </div>
+    );
 }
 
-function buildTicks(min: number, max: number, steps: number) {
-    const range = max - min;
-    if (range <= 0 || steps <= 0) {
-        return [min];
-    }
-    return Array.from({ length: steps + 1 }, (_, index) => min + (range * index) / steps);
+function Banner({ tone, text }: { tone: 'info' | 'warning' | 'error'; text: string }) {
+    const className = tone === 'error'
+        ? 'border-rose-200 bg-rose-50 text-rose-800'
+        : tone === 'warning'
+            ? 'border-amber-200 bg-amber-50 text-amber-800'
+            : 'border-teal-200 bg-teal-50 text-teal-800';
+    return <div className={`rounded-xl border px-4 py-3 text-sm ${className}`}>{text}</div>;
 }
 
-function toDashaSvgX(value: number, domain: DashaAxisDomain) {
-    const ratio = (value - domain.minX) / (domain.maxX - domain.minX || 1);
-    return ratio * DASHA_MAP_WIDTH;
+function Panel({ children }: { children: ReactNode }) {
+    return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.08)]">{children}</section>;
 }
 
-function toDashaSvgY(value: number, domain: DashaAxisDomain) {
-    const ratio = (value - domain.minY) / (domain.maxY - domain.minY || 1);
-    return DASHA_MAP_HEIGHT - ratio * DASHA_MAP_HEIGHT;
+function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+    return (
+        <div className={className}>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</label>
+            {children}
+        </div>
+    );
 }
 
-function formatTick(value: number) {
-    return value.toFixed(0);
+function EmptyPanelCopy({ text }: { text: string }) {
+    return <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">{text}</div>;
 }
 
-function formatDifferenceFootprint(domains: ReturnType<typeof buildClusterViewEntries>[number]['winningDomains'], clusterId: string) {
-    let matched = 0;
-    let missing = 0;
-    let extra = 0;
-    let contradictions = 0;
-
-    for (const domain of domains) {
-        const evaluation = domain.centroidEvaluations.find((item) => item.clusterId === clusterId);
-        if (!evaluation?.difference) {
-            continue;
-        }
-        matched += evaluation.difference.matchedGoldenPoints.length;
-        missing += evaluation.difference.missingGoldenPoints.length;
-        extra += evaluation.difference.extraCentroidPoints.length;
-        contradictions += evaluation.difference.contradictionPoints.length;
-    }
-
-    return `M ${matched} · Miss ${missing} · Extra ${extra} · Contr ${contradictions}`;
+function ReadOnlyJsonCard({ title, value }: { title: string; value: unknown }) {
+    return (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{title}</p>
+            <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap text-xs text-slate-700">{JSON.stringify(value, null, 2)}</pre>
+        </div>
+    );
 }
 
-function truncateText(value: string, maxLength: number) {
-    const normalized = value.replace(/\s+/g, ' ').trim();
-    if (normalized.length <= maxLength) {
-        return normalized;
-    }
-    return `${normalized.slice(0, Math.max(0, maxLength - 1)).trim()}…`;
+function ReadOnlyTextCard({ title, text }: { title: string; text: string }) {
+    return (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{title}</p>
+            <pre className="whitespace-pre-wrap text-sm text-slate-700">{text}</pre>
+        </div>
+    );
 }
+
+function WarningList({ title, items }: { title: string; items: string[] }) {
+    return (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-800">{title}</p>
+            <ul className="mt-2 space-y-1 text-sm text-amber-900">
+                {items.map((item, index) => (
+                    <li key={`${title}_${index}`}>• {item}</li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p>
+            <p className="mt-2 text-lg font-semibold text-slate-900">{value}</p>
+        </div>
+    );
+}
+
+function RubricRowEditor({ row, onChange }: { row: KarthicRubricRow; onChange: (row: KarthicRubricRow) => void }) {
+    return (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p className="text-sm font-semibold text-slate-800">{row.key} · {row.title}</p>
+                    <p className="text-xs text-slate-500">{RUBRIC_MODULE_LABELS[row.moduleId]}</p>
+                </div>
+                <div className="w-24">
+                    <Field label="Weight">
+                        <input
+                            className={inputClassName}
+                            value={String(row.weight)}
+                            onChange={(event) => onChange({ ...row, weight: Number.parseInt(event.target.value || '0', 10) || row.weight })}
+                        />
+                    </Field>
+                </div>
+            </div>
+            <div className="mt-3 grid gap-3">
+                <Field label="Description">
+                    <textarea className={textareaClassName} value={row.description} onChange={(event) => onChange({ ...row, description: event.target.value })} />
+                </Field>
+                <Field label="NA guidance">
+                    <textarea className={textareaClassName} value={row.naGuidance} onChange={(event) => onChange({ ...row, naGuidance: event.target.value })} />
+                </Field>
+                <Field label="Golden target summary">
+                    <textarea
+                        className={textareaClassName}
+                        value={row.goldenTarget.summary}
+                        onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, summary: event.target.value } })}
+                    />
+                </Field>
+                <Field label="Golden contains">
+                    <textarea
+                        className={textareaClassName}
+                        value={row.goldenTarget.goldenContains.join('\n')}
+                        onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, goldenContains: splitLines(event.target.value) } })}
+                    />
+                </Field>
+                <Field label="Allowed omissions">
+                    <textarea
+                        className={textareaClassName}
+                        value={row.goldenTarget.allowedOmissions.join('\n')}
+                        onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, allowedOmissions: splitLines(event.target.value) } })}
+                    />
+                </Field>
+                <Field label="Contradiction flags">
+                    <textarea
+                        className={textareaClassName}
+                        value={row.goldenTarget.contradictionFlags.join('\n')}
+                        onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, contradictionFlags: splitLines(event.target.value) } })}
+                    />
+                </Field>
+                <Field label="Comparison guidance">
+                    <textarea
+                        className={textareaClassName}
+                        value={row.goldenTarget.comparisonGuidance}
+                        onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, comparisonGuidance: event.target.value } })}
+                    />
+                </Field>
+            </div>
+        </div>
+    );
+}
+
+const inputClassName = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400';
+const textareaClassName = 'min-h-[110px] w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400';
+const primaryButtonClassName = 'rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';
+const secondaryButtonClassName = 'rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';

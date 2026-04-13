@@ -3,8 +3,8 @@ import { spawn } from 'child_process';
 
 import { NextResponse } from 'next/server';
 
-import { listDashaRuns, runDashaEvaluation } from '@/lib/legal-workflow-server';
-import type { ArtifactRole, DashaRunMode, DashaSelectedModel } from '@/lib/legal-workflow-types';
+import { listDashaRuns, runDashaEvaluation } from '@/lib/legal-workflow-v2-server';
+import type { ArtifactRole, DashaRunMode, DashaSelectedModel } from '@/lib/legal-workflow-v2-types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

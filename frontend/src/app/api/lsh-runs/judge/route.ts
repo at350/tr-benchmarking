@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 
 import { buildLshJudgeOutputInstructions } from '@/lib/lsh-judge-output-format';
 import { getLshClusterJudgePayload } from '@/lib/lsh-runs';
+import { buildJudgeRubricFromPack, getKarthicRubricPack } from '@/lib/legal-workflow-v2-server';
 import { retrieveOutlineContext } from '@/lib/outline-rag';
 import { isValidOutlineFileName } from '@/lib/outlines';
 
@@ -120,6 +121,7 @@ type RequestBody = {
     customInstructions?: string;
     contextMode?: ContextMode;
     judgeOutlineIds?: string[];
+    rubricPackId?: string;
 };
 
 type ChatMessage = {
@@ -146,6 +148,7 @@ export async function POST(req: Request) {
         const reasoningEffort = normalizeReasoningEffort(body.reasoningEffort);
         const contextMode = normalizeContextMode(body.contextMode);
         const judgeOutlineIds = normalizeOutlineIds(body.judgeOutlineIds);
+        const rubricPackId = typeof body.rubricPackId === 'string' ? body.rubricPackId.trim() : '';
 
         if (!judgeProvider) {
             return NextResponse.json({ error: 'Invalid judge provider.' }, { status: 400 });
@@ -159,6 +162,8 @@ export async function POST(req: Request) {
         const customInstructions = typeof body.customInstructions === 'string'
             ? body.customInstructions.trim()
             : '';
+        const rubricPack = rubricPackId ? await getKarthicRubricPack(rubricPackId) : null;
+        const rubricBlock = rubricPack ? buildJudgeRubricFromPack(rubricPack) : BASE_RUBRIC;
 
         const clusterContext = contextMode === 'centroid_only'
             ? buildClusterCentroidContext(cluster)
@@ -185,7 +190,7 @@ export async function POST(req: Request) {
             buildLshJudgeOutputInstructions('this cluster'),
             '',
             'Rubric:',
-            BASE_RUBRIC,
+            rubricBlock,
             '',
             ...(outlineContext.contextBlock
                 ? [
@@ -227,6 +232,7 @@ export async function POST(req: Request) {
                 customInstructions,
                 contextMode,
                 judgeOutlineIds,
+                rubricPackId: rubricPackId || null,
             },
         });
     } catch (error) {
