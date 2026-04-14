@@ -1533,7 +1533,16 @@ function validateReverseEngineeredQuestionOrThrow(text: string) {
         }
     }
     const callLine = normalized.split('\n').at(-1)?.trim() ?? '';
-    if (!/(Analyze\.|Who has the better claim\? Analyze\.|Is the agreement enforceable\? Analyze\.|Does the claimant have the better argument for enforcement\? Analyze\.)$/i.test(callLine)) {
+    const allowedCallLineEndings = [
+        'analyze.',
+        'who has the better claim? analyze.',
+        'is the agreement enforceable? analyze.',
+        'is the promise enforceable against the promisor? analyze.',
+        'does the claimant have the better argument for enforcement? analyze.',
+        'is the writing sufficient to make the agreement enforceable? analyze.',
+    ];
+    const normalizedCallLine = callLine.toLowerCase();
+    if (!allowedCallLineEndings.some((ending) => normalizedCallLine.endsWith(ending))) {
         throw new Error('Reverse-engineered question must end with a neutral exam-style call to analyze.');
     }
     const leakagePatterns = [
