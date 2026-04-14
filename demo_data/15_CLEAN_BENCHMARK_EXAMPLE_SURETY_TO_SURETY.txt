@@ -1,0 +1,56 @@
+15_CLEAN_BENCHMARK_EXAMPLE_SURETY_TO_SURETY
+
+PURPOSE
+This file is an additional clean benchmark example for Pack 10 — Common-law oral promises. It is a pack-specific style model for clean benchmark drafting in narrow suretyship / debt-payment questions involving a promise to a proposed surety.
+
+USE RULES
+- Use this file for structure, depth, issue-prioritization, and black-letter-law style within Pack 10 only.
+- Do not copy its fact pattern, issue mix, or fallback theories unless the current source or prompt supports them.
+- Do not refer to cases, opinions, sources, or authority inside the benchmark answer unless the user explicitly asks for authority-grounded drafting.
+- Keep the exact headings below when drafting benchmark answers.
+- Keep the answer evaluator-facing, concise, ordered, and neutral.
+- Preserve maximum continuity with current runs by using the current benchmark headings.
+
+EXACT HEADINGS TO PRESERVE
+Jurisdiction assumption:
+Bottom-line outcome:
+Controlling doctrine:
+Formation:
+Statute of Frauds Gates:
+Exceptions/Promissory Estoppel:
+Defenses/Mistake:
+Strongest counterargument:
+Bounded uncertainty:
+
+WORKED BENCHMARK ANSWER
+
+Jurisdiction assumption:
+New Hampshire law, narrowly framed to a jurisdiction-specific suretyship rule involving an oral promise made to a proposed surety.
+
+Bottom-line outcome:
+The oral promise is likely enforceable, and the surety should recover.
+
+Controlling doctrine:
+The likely controlling doctrine is the suretyship / debt-payment Statute of Frauds question, and more specifically whether an oral promise made to a proposed surety to see the debt paid and indemnify the surety is an original undertaking outside the statute or a collateral promise within it.
+
+Formation:
+There is a straightforward bargain framing because the promisor requested that the promisee sign the note as surety, and the promisee's signing was the requested act in exchange for the promisor's assurance that he would see the note paid and indemnify the surety. Formation therefore is not the main difficulty. The real issue is whether the promise falls within the Statute of Frauds.
+
+Statute of Frauds Gates:
+The suretyship gate is the dispositive issue. A promise to answer for the debt or default of another ordinarily falls within the Statute of Frauds and requires a signed writing. But this fact pattern is narrower than an ordinary promise to a creditor. The promise ran to a proposed surety, not to the lender, and the promisor promised both to see the note paid and to indemnify the surety if he signed.
+
+Under the governing New Hampshire-specific approach, that posture is treated as an original rather than collateral undertaking when the surety became bound relying solely on the promisor's assurance. On those facts, the suretyship writing requirement is not triggered, so the absence of a writing does not bar enforcement.
+
+Other Statute of Frauds categories are not the real issue. The problem is not about marriage consideration or the one-year provision.
+
+Exceptions/Promissory Estoppel:
+No fallback doctrine is needed. The stronger analysis is not that equity saves an oral promise otherwise within the Statute of Frauds, but that this promise falls outside the statute on these facts. Promissory estoppel therefore should remain secondary and unnecessary here.
+
+Defenses/Mistake:
+No separate mistake or condition issue appears to control. The real competing doctrine is the contrary suretyship view that the principal debtor already owes the surety an implied duty of indemnity, so the promisor's express undertaking is only collateral to coexisting liability and therefore within the statute. But under the assumed New Hampshire rule, that competing view does not prevail.
+
+Strongest counterargument:
+The strongest counterargument is that the promise still concerns another person's debt and should count as a collateral assurance because the principal debtor already owes reimbursement to the surety as a matter of implied indemnity. If that framing controlled, the oral promise would fall within the Statute of Frauds and be unenforceable absent a writing.
+
+Bounded uncertainty:
+The main uncertainty is portability. Many jurisdictions do not necessarily treat a promise to a proposed surety this way, and some take the opposite view. But if the benchmark is kept narrow to the New Hampshire promise-to-surety / sole-reliance posture, the stronger answer is that the oral promise is enforceable.
