@@ -37,7 +37,7 @@ At minimum, the draft should clearly surface:
 - compliance / substitute / exception analysis
 - other defenses or competing doctrines
 - strongest counterargument
-- bounded uncertainty
+- uncertainty folded into "Strongest counterargument:"
 
 FAST TRIAGE
 Run these checks first:

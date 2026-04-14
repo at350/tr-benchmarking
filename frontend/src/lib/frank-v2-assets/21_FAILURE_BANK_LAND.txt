@@ -96,7 +96,7 @@ Typical cues:
 - part performance or estoppel declared dispositive without explaining which writing defect it addresses
 - sufficiency of memorandum, signature, and land description all treated as one merged issue
 
-SG-5 No bottom line / bounded-uncertainty failure
+SG-5 No bottom line / strongest-counterargument-specificity failure
 Apply when the answer gives no clear conclusion, gives conflicting conclusions, or hides behind vague uncertainty instead of resolving the writing issue.
 Typical cues:
 - generic “depends on state law” language with no identified doctrinal split

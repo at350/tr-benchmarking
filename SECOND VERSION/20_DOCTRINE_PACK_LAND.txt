@@ -221,7 +221,7 @@ Watch especially for these recurring mistakes:
 - Remedy confusion: jumps from specific-performance-friendly facts to full damages at law without analysis.
 - Full-performance overread: says any substantial step toward closing eliminates the Statute of Frauds.
 - Parol-evidence overuse: uses oral testimony to supply omitted property or core terms instead of only clarifying an existing writing.
-- No bounded uncertainty: says only “it depends” instead of naming the exact source of variability.
+- No specific uncertainty under "Strongest counterargument:" says only “it depends” instead of naming the exact source of variability.
 
 ANSWER-STYLE DEFAULTS
 When drafting from this pack:
@@ -246,7 +246,6 @@ Writing requirement and trigger:
 Compliance / substitute / exception analysis:
 Other defenses or competing doctrines:
 Strongest counterargument:
-Bounded uncertainty:
 
 Backward-compatibility rule:
 - If the project freezes the current legacy heading set instead, do not mix formats across runs. Map this pack’s content into the frozen global headings and keep the same headings for clustering comparability.

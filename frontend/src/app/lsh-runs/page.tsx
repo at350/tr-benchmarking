@@ -260,6 +260,7 @@ type BatchJudgeClusterStatRow = {
     correctness: string;
     reasoning: string;
     rowScores: Record<string, number>;
+    modelBreakdown: ModelBreakdownEntry[];
 };
 
 type BatchJudgeStatistics = {
@@ -1712,14 +1713,29 @@ export default function LshRunsPage() {
                                     <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2">
                                         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700">Best cluster</p>
                                         {visibleBatchJudgeStats.bestCluster ? (
-                                            <>
+                                            (() => {
+                                                const bestCluster = visibleBatchJudgeStats.bestCluster;
+                                                return (
+                                                    <>
                                                 <p className="mt-1 text-sm font-bold text-emerald-900">
-                                                    {visibleBatchJudgeStats.bestCluster.clusterId} • {visibleBatchJudgeStats.bestCluster.finalScore.toFixed(2)}
+                                                        {bestCluster.clusterId} • {bestCluster.finalScore.toFixed(2)}
                                                 </p>
                                                 <p className="text-[11px] text-emerald-800">
-                                                    {visibleBatchJudgeStats.bestCluster.outcome} • {visibleBatchJudgeStats.bestCluster.correctness}
+                                                        {bestCluster.outcome} • {bestCluster.correctness}
                                                 </p>
-                                            </>
+                                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                                        {bestCluster.modelBreakdown.map((entry) => (
+                                                        <span
+                                                                key={`best-cluster-model-${bestCluster.clusterId}-${entry.model}`}
+                                                            className="rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-emerald-900"
+                                                        >
+                                                                {entry.model} {formatModelShare(entry.count, bestCluster.memberCount)}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                                    </>
+                                                );
+                                            })()
                                         ) : (
                                             <p className="mt-1 text-xs text-emerald-800">No successful cluster grades yet.</p>
                                         )}
@@ -3811,6 +3827,9 @@ function buildBatchJudgeStatistics(
     const clusterOrder = new Map(
         (selectedRun?.clusters || []).map((cluster, index) => [cluster.id, index]),
     );
+    const clusterLookup = new Map(
+        (selectedRun?.clusters || []).map((cluster) => [cluster.id, cluster]),
+    );
     const clusterRows = batchRun.snapshots
         .map<BatchJudgeClusterStatRow>((snapshot) => ({
             clusterId: snapshot.clusterId,
@@ -3823,6 +3842,7 @@ function buildBatchJudgeStatistics(
             correctness: snapshot.grading.outcomes.outcomeCorrectness,
             reasoning: snapshot.grading.outcomes.reasoningAlignment,
             rowScores: snapshot.grading.rowScores,
+            modelBreakdown: clusterLookup.get(snapshot.clusterId)?.modelBreakdown ?? [],
         }))
         .sort((a, b) => {
             const orderA = clusterOrder.get(a.clusterId);
@@ -3901,6 +3921,13 @@ function countLabelFrequency(values: string[]) {
             }
             return a.label.localeCompare(b.label);
         });
+}
+
+function formatModelShare(count: number, total: number) {
+    if (total <= 0) {
+        return `${count}`;
+    }
+    return `${Math.round((count / total) * 100)}% (${count}/${total})`;
 }
 
 function findMostCommon(values: string[]) {

@@ -64,15 +64,13 @@ Other defenses or competing doctrines:
 
 Strongest counterargument:
 
-Bounded uncertainty:
-
 REQUIRED REASONING ORDER
 Even though the output begins with jurisdiction, bottom line, and controlling doctrine, the substantive discussion should still follow this order:
 1. Transaction / formation characterization
 2. Writing requirement and trigger
 3. Compliance / substitute / exception analysis
 4. Other defenses or competing doctrines
-5. Counterargument and bounded uncertainty
+5. Strongest counterargument, including any remaining uncertainty
 
 SECTION RULES
 
@@ -123,11 +121,7 @@ Strongest counterargument:
 - State the best opposing doctrinal argument in one to three sentences.
 - Make it a real counterargument, not a straw man.
 - Tie it to the facts and the selected doctrine pack.
-
-Bounded uncertainty:
-- Identify the specific missing fact, jurisdiction-sensitive point, or source ambiguity.
-- Do not say only "it depends."
-- Keep the uncertainty bounded so the dominant analysis still remains visible.
+- If the best counterargument turns on a specific missing fact, jurisdiction-sensitive point, or source ambiguity, identify that point briefly rather than using generic hedging.
 
 BATCH-RUN / CLUSTERING RULES
 - Use the exact headings in every run.
@@ -143,7 +137,7 @@ BATCH-RUN / CLUSTERING RULES
 READY-TO-USE CORE PROMPT BLOCK
 Use or adapt the block below when you want a model to produce a benchmark-ready answer:
 
-You are analyzing a legal question for evaluation or benchmarking purposes. Do not use generic IRAC. Use the exact section headings below. Keep the analysis concise, fact-specific, doctrinally ordered, neutral, and black-letter-law in style. Name the likely controlling doctrine early. Keep independent barriers separate. Address fallback theories only after the main writing or formality analysis. Use full doctrine names. Do not invent facts, writings, signatures, parties, or jurisdiction-specific rules. If uncertainty remains, identify the specific source of uncertainty rather than saying only "it depends." Do not cite outside authority unless the task specifically asks for it.
+You are analyzing a legal question for evaluation or benchmarking purposes. Do not use generic IRAC. Use the exact section headings below. Keep the analysis concise, fact-specific, doctrinally ordered, neutral, and black-letter-law in style. Name the likely controlling doctrine early. Keep independent barriers separate. Address fallback theories only after the main writing or formality analysis. Use full doctrine names. Do not invent facts, writings, signatures, parties, or jurisdiction-specific rules. Do not cite outside authority unless the task specifically asks for it.
 
 Return your answer in exactly this format:
 Jurisdiction assumption:
@@ -154,7 +148,6 @@ Writing requirement and trigger:
 Compliance / substitute / exception analysis:
 Other defenses or competing doctrines:
 Strongest counterargument:
-Bounded uncertainty:
 
 LEGACY MAPPING FROM THE ORAL-PROMISE FILE SET
 Use this mapping when converting older father-son or oral-promise materials into the core shell:

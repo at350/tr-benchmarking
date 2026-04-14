@@ -532,12 +532,12 @@
       "rowTitle": "Clear bottom line + structured reasoning",
       "weight": 5,
       "applicabilityStatus": "applicable",
-      "applicabilityExplanation": "The question directly triggers the issue of clear bottom line and structured reasoning by requiring an enforceability conclusion tied to controlling doctrine with bounded uncertainty.",
+      "applicabilityExplanation": "The question directly triggers the issue of clear bottom line and structured reasoning by requiring an enforceability conclusion tied to controlling doctrine with any remaining uncertainty folded into the strongest counterargument.",
       "centroidEvaluations": [
         {
           "clusterId": "cluster_1",
           "applicabilityStatus": "applicable",
-          "applicabilityExplanation": "The question directly triggers the issue of clear bottom line and structured reasoning by requiring an enforceability conclusion tied to controlling doctrine with bounded uncertainty.",
+          "applicabilityExplanation": "The question directly triggers the issue of clear bottom line and structured reasoning by requiring an enforceability conclusion tied to controlling doctrine with any remaining uncertainty folded into the strongest counterargument.",
           "score": 95,
           "confidence": 0.9,
           "rationale": "The answer directly addresses enforceability with a clear bottom line, ties it to the controlling doctrine (Statute of Frauds), and carefully explains why exceptions do not apply, bounding uncertainty. The reasoning is well-structured and leads logically to the conclusion, fulfilling the rubric criteria for clear bottom line and structured reasoning.",
@@ -557,7 +557,7 @@
               "Explicit practical consequences for the bank and B are included, enhancing clarity."
             ],
             "contradictionPoints": [],
-            "differenceSummary": "The centroid answer aligns well with the rubric row J requirements, providing a clear bottom line and structured reasoning with bounded uncertainty. It includes more detailed discussion of exceptions and practical consequences than minimally required but remains focused and clear."
+            "differenceSummary": "The centroid answer aligns well with the rubric row J requirements, providing a clear bottom line and structured reasoning with any remaining uncertainty folded into the strongest counterargument. It includes more detailed discussion of exceptions and practical consequences than minimally required but remains focused and clear."
           },
           "metadataTags": {
             "bottomLineOutcome": "Unenforceable",
@@ -579,7 +579,7 @@
               "The conclusion is tied to the controlling statute of frauds doctrine.",
               "The answer discusses the main purpose exception and its likely inapplicability.",
               "The answer addresses B's reliance argument and the limits of estoppel in this context.",
-              "The reasoning is structured with clear sections and bounded uncertainty."
+              "The reasoning is structured with clear sections and any remaining uncertainty folded into the strongest counterargument."
             ],
             "missingGoldenPoints": [
               "Explicitly stating the bottom line upfront before detailed analysis could improve clarity."

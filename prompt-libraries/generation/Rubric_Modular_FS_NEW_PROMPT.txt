@@ -47,9 +47,10 @@ ANALYSIS RULES
 1. Conclusion
 - Give a clear bottom line.
 - Name the controlling doctrine.
-- State the strongest counterargument in one to two sentences.
-- If uncertainty remains, identify the specific source of uncertainty.
-- Do not use generic hedging like “it depends” without explaining what specifically is uncertain.
+- Under `Strongest counterargument:`, state the best opposing doctrinal argument in one to three sentences.
+- Make it a real counterargument, not a straw man.
+- Tie it to the facts and the selected doctrine pack.
+- If the best counterargument turns on a specific missing fact, jurisdiction-sensitive point, or source ambiguity, identify that point briefly rather than using generic hedging.
 
 GLOBAL REQUIREMENTS
 
@@ -74,4 +75,3 @@ Statute of Frauds Gates:
 Exceptions/Promissory Estoppel:
 Defenses/Mistake:
 Strongest counterargument:
-Bounded uncertainty:

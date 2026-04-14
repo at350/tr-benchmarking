@@ -171,6 +171,8 @@ export function DashaResultsExplorer({ run }: DashaResultsExplorerProps) {
 }
 
 function RunOverviewStrip({ data }: { data: DashaExplorerData }) {
+    const overallWinner = data.clusters.find((cluster) => cluster.clusterId === data.overallWinningClusterId) ?? null;
+
     return (
         <section className="rounded-[28px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.12),_transparent_42%),radial-gradient(circle_at_bottom_right,_rgba(30,64,175,0.10),_transparent_40%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-[0_16px_36px_rgba(15,23,42,0.06)]">
             <div className="grid gap-4 xl:grid-cols-[1.4fr_repeat(5,minmax(0,1fr))]">
@@ -180,6 +182,24 @@ function RunOverviewStrip({ data }: { data: DashaExplorerData }) {
                     <p className="mt-2 text-sm leading-6 text-slate-600">
                         {data.clusteringNotes || 'No clustering notes were recorded for this run.'}
                     </p>
+                    {overallWinner ? (
+                        <div className="mt-4 rounded-2xl border border-teal-200 bg-teal-50/70 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-teal-700">Overall winner</p>
+                            <p className="mt-1 text-sm font-semibold text-teal-950">
+                                {overallWinner.clusterId} · Weighted {formatScore(overallWinner.weightedScore)} · {overallWinner.size} answers
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                {overallWinner.modelBreakdown.map((entry) => (
+                                    <span
+                                        key={`${overallWinner.clusterId}_overview_${entry.modelKey}`}
+                                        className="rounded-full border border-teal-200 bg-white px-2 py-1 text-xs font-medium text-slate-700"
+                                    >
+                                        {entry.model} {formatPercentage(entry.count / Math.max(overallWinner.size, 1))} ({entry.count}/{overallWinner.size})
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
                 <OverviewMetric label="Weighted score" value={formatScore(data.weightedScore)} tone={data.weightedScore === null ? 'muted' : data.weightedScore >= 92 ? 'teal' : data.weightedScore >= 80 ? 'amber' : 'rose'} />
                 <OverviewMetric label="Clusters" value={String(data.clusterCount)} tone="slate" />
@@ -644,7 +664,7 @@ function ExplainView({ data, visibleRows, comparisonClusters }: { data: DashaExp
                                 <div className="flex flex-wrap gap-2">
                                     {cluster.modelBreakdown.map((model) => (
                                         <span key={`${cluster.clusterId}_${model.modelKey}`} className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
-                                            {model.model} ×{model.count}
+                                            {model.model} {formatPercentage(model.count / Math.max(cluster.size, 1))} ({model.count}/{cluster.size})
                                         </span>
                                     ))}
                                 </div>
@@ -812,7 +832,7 @@ function ClusterSummaryGrid({ data }: { data: DashaExplorerData }) {
                         <div className="mt-4 flex flex-wrap gap-2">
                             {cluster.modelBreakdown.map((model) => (
                                 <span key={`${cluster.clusterId}_${model.modelKey}`} className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
-                                    {model.model} ×{model.count}
+                                    {model.model} {formatPercentage(model.count / Math.max(cluster.size, 1))} ({model.count}/{cluster.size})
                                 </span>
                             ))}
                         </div>
@@ -1001,6 +1021,10 @@ function applyFocusToModules(modules: DashaExplorerModule[], focusedModuleId: Ru
 
 function formatScore(score: number | null) {
     return score === null ? 'N/A' : score.toFixed(1);
+}
+
+function formatPercentage(value: number) {
+    return `${Math.round(value * 100)}%`;
 }
 
 function humanizeMethod(method: string) {

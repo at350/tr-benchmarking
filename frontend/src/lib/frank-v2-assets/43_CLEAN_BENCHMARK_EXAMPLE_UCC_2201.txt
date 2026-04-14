@@ -21,7 +21,6 @@ Statute of Frauds Gates:
 Exceptions/Promissory Estoppel:
 Defenses/Mistake:
 Strongest counterargument:
-Bounded uncertainty:
 
 WORKED BENCHMARK ANSWER
 
@@ -55,5 +54,4 @@ No separate mistake or excuse issue appears to control. The buyer's later claim 
 Strongest counterargument:
 The strongest counterargument is that the parties intended not to be bound until a formal purchase order issued, so the seller's confirmation should be treated as only a negotiation memo rather than a memorandum of a completed sale. That is a real argument, but it is still weaker than the enforcement position if the signed confirmation stated the quantity, both parties were merchants, and no written objection was sent within ten days.
 
-Bounded uncertainty:
 The main uncertainty is factual and partly jurisdiction-sensitive: whether both parties qualify as merchants for the confirmation rule, whether the confirmation was signed and definite enough to indicate a completed contract, and how individualized the goods were and how far production had progressed if the analysis shifts to the specially manufactured goods exception. But if the quantity term and merchant-confirmation facts are strong, the better analysis is that the contract is enforceable at least up to the stated quantity.

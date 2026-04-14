@@ -157,7 +157,6 @@ Statute of Frauds trigger and writing requirement:
 Compliance / substitutes / exceptions:
 Other defenses or competing doctrines:
 Strongest counterargument:
-Bounded uncertainty:
 
 Rules for Step 4:
 - Do not use generic IRAC.
@@ -202,12 +201,10 @@ Other defenses or competing doctrines:
 - Distinguish excuse arguments from the primary writing-enforceability question.
 
 Strongest counterargument:
-- State a real doctrinal counterargument, not a straw man.
-- Keep it short.
-
-Bounded uncertainty:
-- Identify the exact doctrinal, factual, or jurisdictional uncertainty.
-- Do not use generic hedging.
+- State the best opposing doctrinal argument in one to three sentences.
+- Make it a real counterargument, not a straw man.
+- Tie it to the facts and the selected doctrine pack.
+- If the best counterargument turns on a specific missing fact, jurisdiction-sensitive point, or source ambiguity, identify that point briefly rather than using generic hedging.
 
 LEGACY-COMPATIBILITY MAP
 If backward compatibility with older answer sets is needed, use this map:

@@ -9,7 +9,6 @@ export const FRANK_V2_BENCHMARK_HEADINGS = [
     'Compliance / substitute / exception analysis:',
     'Other defenses or competing doctrines:',
     'Strongest counterargument:',
-    'Bounded uncertainty:',
 ] as const;
 
 export const FRANK_V2_BENCHMARK_HEADING_ALIASES: Record<(typeof FRANK_V2_BENCHMARK_HEADINGS)[number], readonly string[]> = {
@@ -27,7 +26,6 @@ export const FRANK_V2_BENCHMARK_HEADING_ALIASES: Record<(typeof FRANK_V2_BENCHMA
     ],
     'Other defenses or competing doctrines:': ['Other defenses or competing doctrines:'],
     'Strongest counterargument:': ['Strongest counterargument:'],
-    'Bounded uncertainty:': ['Bounded uncertainty:'],
 } as const;
 
 export const RUBRIC_MODULE_LABELS: Record<RubricModuleId, string> = {

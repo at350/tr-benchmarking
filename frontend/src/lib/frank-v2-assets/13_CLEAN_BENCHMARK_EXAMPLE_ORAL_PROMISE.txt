@@ -20,7 +20,6 @@ Statute of Frauds Gates:
 Exceptions/Promissory Estoppel:
 Defenses/Mistake:
 Strongest counterargument:
-Bounded uncertainty:
 
 WORKED BENCHMARK ANSWER
 
@@ -56,5 +55,4 @@ The father’s later realization that he would not receive the expected tax dedu
 Strongest counterargument:
 The strongest counterargument is that the promise should be enforced through a fallback theory because the father had a concrete economic motive, the son completed the requested marriage, and fairness may seem to favor enforcement after the son changed position. But that argument is still weaker than the main Statute of Frauds analysis because the marriage-consideration gate is the likely controller, and the son’s prior intent to marry weakens the reliance story.
 
-Bounded uncertainty:
 The main uncertainty is jurisdiction sensitivity at the margins: some jurisdictions may frame the marriage-consideration category differently, treat estoppel more generously, or analyze debt-payment promises in a more expansive suretyship framework. But on the stated facts, the strongest analysis is that the oral promise is not enforceable because the marriage-consideration Statute of Frauds gate controls and no signed writing exists.

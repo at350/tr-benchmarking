@@ -21,7 +21,6 @@ Statute of Frauds Gates:
 Exceptions/Promissory Estoppel:
 Defenses/Mistake:
 Strongest counterargument:
-Bounded uncertainty:
 
 WORKED BENCHMARK ANSWER
 
@@ -57,5 +56,4 @@ No separate mistake or condition issue appears to control. The seller’s later 
 Strongest counterargument:
 The strongest counterargument is that the seller’s signed message, combined with the accepted deposit and the buyer’s concrete expenditures on survey and title work, should be treated as enough memorandum plus reliance to permit enforcement. That is a real argument, but it is still weaker than the nonenforcement position because land contracts ordinarily demand clearer writing or stronger part-performance facts than appear here.
 
-Bounded uncertainty:
 The main uncertainty is jurisdiction sensitivity on two linked points: how exact the property description in an informal writing must be, and how far a jurisdiction will go in treating deposit payments and preparatory expenditures as sufficient part performance or estoppel in the land-sale setting. But if the writing is thin and the buyer neither took possession nor made substantial improvements, the stronger analysis is that the agreement is not enforceable.

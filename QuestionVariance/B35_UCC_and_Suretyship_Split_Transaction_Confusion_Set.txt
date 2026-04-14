@@ -1,0 +1,120 @@
+UCC + SURETYSHIP — SPLIT-TRANSACTION CONFUSION SET
+
+Purpose:
+This file helps the GPT handle fact patterns that contain:
+1. an underlying sale-of-goods agreement, and
+2. a separate third-party oral guaranty of that agreement.
+
+Why this confusion case matters:
+Weak outputs often jam the whole fact pattern into either UCC 2-201 or suretyship and miss that there are two distinct promises requiring separate routing.
+
+Primary routing lesson:
+Split the analysis.
+Route the underlying sales contract under UCC 2-201.
+Route the separate guaranty under the suretyship pack.
+
+Competing route map:
+Candidate route A:
+UCC Article 2 / Section 2-201 for the underlying buyer-seller agreement
+
+Candidate route B:
+Suretyship provision for the founder's or owner's separate guaranty promise
+
+Relationship between routes:
+Split-transaction.
+There are two different promises, and they should not be merged into one route.
+
+Routing snapshot:
+Input type: Cross-pack confusion benchmark
+Confusion pattern: Split-transaction
+Governing-law candidate: UCC for the underlying sale + common-law suretyship for the separate guaranty
+Primary SoF provision candidate: UCC Article 2 / Section 2-201 for one promise; Suretyship provision for the second promise
+Secondary candidate(s): None if the promises are clearly distinct
+Controlling doctrine: Separate the underlying sales obligation from the third-party backup-payment promise before analyzing writing issues
+Main gate order:
+identify the underlying sale contract -> route it under Article 2 -> identify the separate guaranty promise -> route it under suretyship -> assess writing issues for each promise separately
+Variation readiness: Ready only if the two-promise structure remains clear
+Main no-silent-change facts:
+- there are two distinct promises
+- the underlying transaction is a sale of goods
+- the guarantor is not the same as the primary buyer
+- no sufficient writings are present unless the benchmark says otherwise
+
+Benchmark packet
+
+Source-style fact core:
+Axis Electronics orally agrees to sell 500 tablet computers to StartCo for $400 each. During the same meeting, StartCo's founder, Maya, tells Axis, "If StartCo does not pay, I will." No signed writing memorializes either statement. StartCo later refuses to pay, and Axis seeks to enforce both the sales agreement against StartCo and Maya's oral guaranty against Maya.
+
+Neutral legal question:
+Axis Electronics orally agrees to sell 500 tablet computers to StartCo for $400 each. During the same meeting, StartCo's founder, Maya, says, "If StartCo does not pay, I will." There is no signed writing for either statement. StartCo later refuses to pay. How should the enforceability of the underlying sales agreement and Maya's promise be analyzed?
+
+Gold routing + benchmark answer:
+
+Jurisdiction / Governing-law assumption
+Assume baseline UCC Article 2 / Section 2-201 principles for the sale-of-goods agreement and ordinary common-law suretyship principles for the separate guaranty.
+
+Bottom-line routing outcome
+This fact pattern must be split into two routes. The underlying buyer-seller agreement is a UCC 2-201 issue. Maya's separate backup-payment promise is a suretyship issue. A single-pack answer is incomplete.
+
+Controlling doctrine
+The controlling move is separation, not synthesis. The law governing StartCo's obligation to buy the tablets is not the same as the law governing Maya's personal backup promise.
+
+Competing route analysis
+Underlying sale:
+The contract between Axis and StartCo is for the sale of 500 tablet computers, which are goods. That makes UCC 2-201 the correct first route for that promise.
+
+Separate guaranty:
+Maya's statement, "If StartCo does not pay, I will," is a classic collateral promise to answer for another's debt. That makes the suretyship pack the correct route for Maya's promise.
+
+Relationship between the routes
+This is a split-transaction problem. The same meeting produced two promises, but they are not the same obligation.
+
+Main gate order
+separate the two promises -> route the buyer-seller promise under UCC 2-201 -> route Maya's guaranty under suretyship -> assess writings or substitutes for each independently
+
+Transaction characterization
+The first promise is a primary sales obligation by StartCo. The second is a secondary guaranty by Maya. The fact that they arose in one conversation does not collapse them into one legal route.
+
+Writing / compliance analysis
+The facts say there is no signed writing for either statement. That means the benchmark should analyze the underlying sale under UCC writing rules and Maya's guaranty under suretyship writing rules, without borrowing one route's compliance standards for the other.
+
+Other possible routes and why they do or do not control
+It would be wrong to analyze Maya's promise only under UCC because she is not simply the buyer. It would also be wrong to analyze the StartCo purchase obligation only under suretyship because it is a primary sale-of-goods contract.
+
+Strongest counterargument
+Axis's strongest arguments would come from any available UCC substitute route against StartCo and any route showing Maya undertook original rather than collateral liability. The stated facts do not clearly establish either substitute.
+
+Bounded uncertainty
+The route would become less stable if Maya appeared to be the actual buyer, co-buyer, or recipient of a direct main-purpose benefit, or if the goods contract itself were unclear. On the stated facts, the two-promise structure is clear.
+
+Carry-forward routing notes:
+Core answer reuse:
+- Cosmetic edits only if the underlying sale remains a sale of goods and Maya remains a separate collateral promisor.
+
+Safest Lane A zones after routing is fixed:
+- names
+- product labels that remain goods
+- company type or industry
+- neutral salience facts about the size of the order or the startup
+
+Best Lane B ambiguity targets:
+- whether Maya spoke as guarantor or co-buyer
+- whether the underlying contract is predominantly goods
+- whether any signed purchase order, confirmation, or guaranty email exists
+- whether Maya received a direct benefit supporting a different liability characterization
+
+Unsafe drifts:
+- merging Maya into the buyer role without marking the route change
+- changing the order into a services deal
+- using one writing analysis for both promises as though they were the same contract
+
+Rubric focus points:
+A strong answer should:
+- separate the two promises at the outset
+- route the sale under UCC and the guaranty under suretyship
+- keep party roles and liability direction clear
+- avoid collapsing two writing analyses into one
+
+Why this is a good anchor:
+This file trains the router to split a multi-promise fact pattern before applying doctrine.
+That is essential in real Statute of Frauds datasets, where one conversation can generate more than one legally distinct obligation.

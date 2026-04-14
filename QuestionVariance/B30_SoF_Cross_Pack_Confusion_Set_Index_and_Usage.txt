@@ -1,0 +1,108 @@
+STATUTE OF FRAUDS CROSS-PACK CONFUSION SETS — INDEX + USAGE NOTES
+
+Purpose:
+This layer adds routing-focused edge cases for situations where the hard part is not varying facts within one clean Statute of Frauds provision, but deciding which provision controls, whether more than one provision is implicated, or whether the analysis must be split across multiple promises.
+
+Where this layer sits:
+Use this layer after B00 routing if the initial route is not cleanly stable.
+This layer is for:
+- dual-trigger problems
+- priority problems, where one governing-law family should control before another is considered
+- split-transaction problems, where different promises in the same fact pattern belong in different packs
+- classification-first problems, where no safe variation should be offered until a missing classification fact is identified
+
+What this layer is not for:
+- it is not a substitute for B00 routing
+- it is not a generic doctrine outline
+- it does not override the actual source materials
+- it does not authorize collapsing two legally distinct promises into one route
+- it does not justify forcing a stable Lane A menu when the route is still unresolved
+
+Recommended read/load order:
+1. B00_SoF_Routing_Matrix_and_Universal_Template
+2. If B00 returns Stable route with one clear provision, skip this layer
+3. If B00 returns Multiple plausible routes or Needs classification first, load the most relevant B31-B36 confusion set
+4. Resolve whether the problem is:
+   - dual-trigger,
+   - priority,
+   - split-transaction, or
+   - unresolved classification
+5. Only after that resolution, load the controlling provision pack from B10-B16
+6. Then load the matching worked benchmark example from B20-B26 if helpful
+7. Then apply B01-B03
+
+Relationship labels for cross-pack problems:
+- Dual-trigger:
+  More than one Statute of Frauds provision is genuinely implicated by the same promise.
+  Do not pretend only one pack exists if both trigger the same writing problem.
+
+- Priority:
+  More than one route might look plausible at first glance, but one governing-law family or more specific provision should control first.
+  Do not let a more general pack displace the primary one.
+
+- Split-transaction:
+  The fact pattern contains more than one promise or agreement, and different promises must be routed separately.
+  Do not force one pack onto the whole fact pattern.
+
+- Needs classification first:
+  A necessary classification fact is missing or unstable.
+  Do not offer a normal Lane A menu yet.
+  The correct next move is to identify the missing fact and bound the uncertainty.
+
+Required routing output for confusion cases:
+Input type:
+Confusion pattern:
+Candidate route A:
+Candidate route B:
+Any additional candidate route:
+Relationship between routes:
+Current best route:
+What fact or rule decides the route:
+Main gate order:
+Variation readiness:
+Menu rule:
+
+Default use rules:
+1. State the relationship between the candidate routes before you talk about enforceability.
+2. If the correct analysis is split, say so explicitly.
+3. If the route is unresolved, say what missing fact controls the classification.
+4. By default, do not vary cross-pack problems until the route type is stable.
+5. If the source materials pick one route over another, the source materials control.
+
+Example map:
+- B31_Marriage_and_Land_Dual_Trigger_Confusion_Set
+  Premarital promise to transfer land if the other party marries.
+  Core lesson: one promise can trigger both marriage-consideration and land-interest writing concerns.
+
+- B32_Executor_and_Suretyship_Overlap_Confusion_Set
+  Executor personally promises to pay estate or decedent obligations.
+  Core lesson: executor-personal-promise analysis may be more specific than generic suretyship, but both may appear.
+
+- B33_UCC_and_One_Year_Priority_Confusion_Set
+  Sale-of-goods agreement performed over more than one year.
+  Core lesson: once Article 2 clearly governs, do not let common-law one-year analysis displace UCC 2-201 without source support.
+
+- B34_Land_and_One_Year_Lease_Confusion_Set
+  Oral lease or land-use arrangement extending beyond one year.
+  Core lesson: land-interest classification usually comes first, even if the duration also exceeds one year.
+
+- B35_UCC_and_Suretyship_Split_Transaction_Confusion_Set
+  Underlying sale of goods plus a separate oral guaranty.
+  Core lesson: split the underlying sales contract from the separate guaranty promise.
+
+- B36_UCC_and_Land_Fixtures_or_Severance_Confusion_Set
+  Asset attached to realty or to-be-severed property.
+  Core lesson: do not force either UCC or land treatment until the severance/classification facts are stable.
+
+Quality checks before using one of these anchors:
+- Are there actually two plausible routes, or are you inventing ambiguity that the facts do not create?
+- Are you preserving governing-law priority rules instead of merging everything into one broad SoF label?
+- Does the fact pattern contain one promise or two distinct promises?
+- Is a missing classification fact the real issue?
+- Would a Lane B ambiguity test be more faithful than a false single-route answer?
+- Are you silently changing party roles, capacity, threshold side, goods classification, land status, or writing status?
+
+House rule:
+These files are routing anchors.
+Their job is to teach disciplined classification before variation.
+If a cross-pack benchmark still cannot be routed confidently after applying the deciding facts listed in the file, do not proceed as though the route is stable.

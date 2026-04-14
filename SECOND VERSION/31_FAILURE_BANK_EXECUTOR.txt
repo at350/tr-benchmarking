@@ -41,7 +41,7 @@ Ordering preference:
 3. Writing trigger
 4. Writing satisfaction
 5. Substitute / exception / fallback
-6. Counterargument / bounded uncertainty
+6. Strongest counterargument / residual uncertainty
 
 CORE DECISION LADDER
 Gate 1. Is there actually a promise by a personal representative?
@@ -285,7 +285,7 @@ Definition:
 The answer states a categorical conclusion where the source leaves open key points such as capacity, estate solvency or assets, wording of the promise, or jurisdiction-specific treatment of fallback theories.
 
 Typical symptoms:
-- no bounded uncertainty section when the source is mixed
+- no specific uncertainty folded into "Strongest counterargument:" when the source is mixed
 - unqualified statements that a promise always is or is not within the statute
 
 OPTIONAL SECONDARY LABELS
@@ -382,6 +382,6 @@ A clean answer in this pack usually does all of the following:
 - analyzes any memorandum without inventing facts
 - keeps fallback theories separate and source-supported
 - states the strongest counterargument
-- uses bounded uncertainty when capacity, assets, or the exact undertaking are not fully pinned down
+- omits specific uncertainty inside "Strongest counterargument:" when capacity, assets, or the exact undertaking are not fully pinned down
 
 END OF FILE

@@ -7,7 +7,7 @@ Use it to model:
 - exact headings
 - ordered gate-by-gate reasoning
 - source-grounded analysis
-- bounded uncertainty
+- uncertainty folded into "Strongest counterargument:"
 - concise treatment of non-triggered secondary issues
 
 USE RULES
@@ -73,7 +73,6 @@ Strongest counterargument:
 [Supported by source] The strongest counterargument is that the arrangement became executed after marriage because the promisor actually obtained a certificate naming the spouse beneficiary, and that he therefore should be estopped from later changing the designation.
 [Supported by source] That is a real doctrinal counterargument because it tracks the trial court's reasoning. But the appellate court rejected it on the ground that the original oral promise was within the Statute of Frauds and the later act did not eliminate that defect.
 
-Bounded uncertainty:
 [Supported by source] If the task is limited to Illinois law as reflected in Anglemire, the outcome is strong.
 [Inference from source] The main uncertainty is portability: another jurisdiction might treat estoppel more broadly, or might frame the significance of the later-issued certificate differently.
 [Background generalization] That portability question should be flagged as jurisdiction-sensitive rather than used to weaken the source-grounded Illinois conclusion.

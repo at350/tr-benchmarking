@@ -1381,7 +1381,7 @@ function validateReverseEngineeredQuestionOrThrow(text: string) {
 function collectBenchmarkWarnings(text: string) {
     const warnings: string[] = [];
     if (/\bit depends\b/i.test(text)) {
-        warnings.push('Benchmark answer still uses generic hedging. Review bounded uncertainty for specificity.');
+        warnings.push('Benchmark answer still uses generic hedging. Review "Strongest counterargument:" for specificity.');
     }
     return warnings;
 }

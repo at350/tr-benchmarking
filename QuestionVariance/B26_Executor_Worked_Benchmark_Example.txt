@@ -1,0 +1,102 @@
+EXECUTOR / ADMINISTRATOR PERSONAL-PROMISE PROVISION — WORKED BENCHMARK EXAMPLE
+
+Purpose:
+This file gives the GPT one clean benchmark anchor for an executor or administrator Statute of Frauds problem. Use it as a model for routing, neutral-question drafting, and benchmark-answer structure. Do not copy the facts verbatim into later variations.
+
+Why this example is clean:
+- the promisor is clearly acting in a fiduciary role
+- the statement expressly reaches the promisor's own funds
+- the underlying obligation belongs to the estate
+- there is a signed email memorializing the promise
+- the benchmark can focus on personal-versus-representative capacity and writing compliance
+
+Routing snapshot:
+Input type: Worked benchmark example
+Governing-law candidate: Executor / probate-related Statute of Frauds path
+Primary SoF provision candidate: Executor / administrator personal-promise provision
+Secondary candidate(s): Suretyship only as a distant analogy, not the better primary route on these facts
+Controlling doctrine: Personal promise by an executor or administrator to answer for an estate obligation generally requires a qualifying writing under the governing source path
+Main gate order: identify fiduciary role and estate obligation -> personal vs representative capacity -> writing -> any supported substitute
+Variation readiness: Ready
+Main no-silent-change facts:
+- Tessa is acting as administrator of an estate
+- the underlying bill is an estate obligation
+- Tessa's statement reaches her own funds
+- the email is signed or otherwise attributable to Tessa
+- the benchmark turns on personal undertaking, not on routine estate administration
+
+Benchmark packet
+
+Source-style fact core:
+As administrator of her aunt's estate, Tessa signs an email to a funeral home stating, "If the estate account falls short, I will pay the remaining balance from my own funds." The funeral home proceeds with the services. A dispute later arises over whether Tessa is personally bound.
+
+Neutral legal question:
+As administrator of her aunt's estate, Tessa signs an email to a funeral home stating, "If the estate account falls short, I will pay the remaining balance from my own funds." The funeral home proceeds with the services. Is Tessa's promise within the executor personal-promise provision, and does the email matter?
+
+Gold benchmark answer:
+
+Jurisdiction / Governing-law assumption
+Assume ordinary executor or administrator Statute of Frauds principles and no probate-specific variation beyond what the benchmark source materials support.
+
+Bottom-line outcome
+Likely enforceable against Tessa on the stated benchmark path. The promise is best read as a personal undertaking by a fiduciary to answer for an estate obligation, and the signed email likely satisfies the writing requirement.
+
+Controlling doctrine
+The controlling doctrine is the executor or administrator personal-promise provision of the Statute of Frauds: a fiduciary's personal promise to answer for an estate obligation generally requires a qualifying writing.
+
+Main gate order
+identify the fiduciary role and estate obligation -> decide whether the promise is personal or representative -> assess writing -> assess any supported substitute only if needed
+
+Transaction characterization
+Tessa is not an ordinary third-party guarantor. She is the estate's administrator. The threshold characterization issue is whether she promised merely that the estate would pay, or whether she personally undertook the obligation if estate funds were insufficient.
+
+Trigger analysis
+The promise appears to be a personal undertaking because Tessa says she will pay the remaining balance from her own funds. That language distinguishes the promise from a routine representative statement about estate administration.
+
+Writing / compliance analysis
+The promise appears in a signed email attributable to Tessa. On a baseline benchmark path, that writing likely satisfies the statute because it memorializes the personal nature of the undertaking and identifies the estate-related obligation.
+
+Exception / substitute / enforcement-limitation analysis
+No substitute route is needed because the benchmark can proceed through the writing path. The benchmark should not import unrelated probate doctrines or generic suretyship exceptions unless the source materials specifically do so.
+
+Other defenses or competing doctrines
+The main competing argument is representative capacity, not a separate body of probate law. The benchmark should stay focused on whether Tessa personally bound herself.
+
+Strongest counterargument
+Tessa's best counterargument is that she was communicating only in her administrative role and merely describing how the estate matter would be handled. But the explicit promise to pay from her own funds makes the stronger baseline reading a personal undertaking.
+
+Bounded uncertainty
+The answer would be less stable if the email did not mention Tessa's own funds, if the statement were made only internally rather than to the creditor, or if the message were unsigned or unattributable. On the stated facts, the key capacity signal is clear.
+
+Carry-forward variation notes:
+Core answer reuse:
+- Cosmetic edits only for Lane A changes that preserve fiduciary status, personal-capacity language, and signed-writing status.
+
+Safest Lane A zones:
+- names
+- estate background details that do not change capacity
+- type of estate obligation if legal function stays the same
+- non-controlling salience facts such as estate size or family status
+- place names if jurisdiction does not change
+
+Best Lane B ambiguity targets:
+- whether the promise was personal or only representative
+- whether payment was to come from personal funds or estate assets
+- whether the obligation belonged to the estate
+- whether the promise was made to the creditor directly
+- whether the email or note is attributable to the fiduciary
+
+Unsafe drifts:
+- changing Tessa into an ordinary guarantor with no fiduciary role
+- deleting the personal-funds language while keeping the same answer
+- shifting the debt from an estate obligation to Tessa's own obligation
+- collapsing executor-capacity analysis into generic suretyship without marking the doctrinal change
+
+Rubric focus points:
+- identifies the fiduciary role and estate obligation
+- distinguishes personal from representative capacity
+- makes the signed writing matter for the correct reason
+- avoids flattening the problem into ordinary guaranty analysis
+
+Why this is a good anchor:
+This example forces the model to respect capacity language. In executor benchmarks, the most common mistake is to treat every promise around an estate as if it were just another suretyship fact pattern.

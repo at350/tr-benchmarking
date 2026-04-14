@@ -211,7 +211,7 @@ Watch especially for these recurring mistakes:
 - Invented probate facts: adds appointment validity, estate insolvency, claim allowance, release terms, or creditor assent not found in the source.
 - Main-purpose overread: uses vague personal motive, family obligation, or general convenience to erase the writing requirement.
 - Remedy confusion: conflates unenforceability of the personal promise with extinction of separate estate liability or restitutionary relief.
-- No bounded uncertainty: hides real capacity, timing, or jurisdiction questions behind generic hedging.
+- No specific uncertainty under "Strongest counterargument:" hides real capacity, timing, or jurisdiction questions behind generic hedging.
 
 ANSWER-STYLE DEFAULTS
 When drafting from this pack:
@@ -236,7 +236,6 @@ Writing requirement and trigger:
 Compliance / substitute / exception analysis:
 Other defenses or competing doctrines:
 Strongest counterargument:
-Bounded uncertainty:
 
 Backward-compatibility rule:
 - If the project freezes the current legacy heading set instead, do not mix formats across runs. Map this pack's content into the frozen global headings and keep the same headings for clustering comparability.

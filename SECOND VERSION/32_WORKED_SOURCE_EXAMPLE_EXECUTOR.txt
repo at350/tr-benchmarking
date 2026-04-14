@@ -7,7 +7,7 @@ Use it to model:
 - exact headings
 - ordered gate-by-gate reasoning
 - source-grounded analysis
-- bounded uncertainty
+- uncertainty folded into "Strongest counterargument:"
 - concise treatment of non-triggered competing doctrines
 
 USE RULES
@@ -66,7 +66,6 @@ Strongest counterargument:
 [Supported by source] The strongest counterargument is that the promise was a fresh bargain: the creditor agreed to forgo $1,000, and the executor personally agreed to pay the reduced balance.
 [Inference from source] That argument explains why there is a real contract-like exchange, but it still does not overcome the source's writing requirement for an executor's personal promise to answer estate debt.
 
-Bounded uncertainty:
 [Inference from source] The main uncertainty is factual characterization. If a fuller record showed that the representative was promising only to pay from estate assets, not from personal funds, the Pack 30 trigger could weaken materially.
 [Inference from source] A second uncertainty is source posture: this example is built from a doctrine summary rather than a full opinion text, so it is best used as a narrow Pack 30 source-grounded illustration rather than as a broad, jurisdiction-specific authority packet.
 

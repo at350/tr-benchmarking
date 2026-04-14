@@ -77,7 +77,6 @@ Writing requirement and trigger:
 Compliance / substitute / exception analysis:
 Other defenses or competing doctrines:
 Strongest counterargument:
-Bounded uncertainty:
 
 BACKWARD-COMPATIBILITY RULE
 If the user explicitly asks for a controlled backward-compatibility run with legacy headings, keep the entire run internally consistent and use the legacy mapping in the core files. Otherwise, use the core output shell above.

@@ -109,7 +109,7 @@ Typical cues:
 - estoppel or main purpose declared dispositive without explaining what barrier it actually reaches
 - one Statute of Frauds category discussed as though it resolves all other categories too
 
-SG-5 No bottom line / bounded-uncertainty failure
+SG-5 No bottom line / strongest-counterargument-specificity failure
 Apply when the answer gives no clear conclusion, gives conflicting conclusions, or uses vague uncertainty instead of resolving the problem.
 Typical cues:
 - generic “it depends” language with no identified source of uncertainty

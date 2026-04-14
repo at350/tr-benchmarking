@@ -127,7 +127,7 @@ Shared cross-pack expectations:
 - does not lead with fallback theories or a doctrine laundry list;
 - maps each exception only to the barrier it can actually address;
 - gives a clear bottom line tied to the controlling doctrine;
-- states bounded uncertainty specifically rather than hiding behind generic hedging.
+- states any residual uncertainty specifically inside "Strongest counterargument:" rather than hiding behind generic hedging.
 
 Prompt mirror:
 The prompt should require exact headings, ordered analysis, a clear bottom line, and a strongest counterargument.
@@ -185,7 +185,7 @@ Pack author must fill in:
 - pack-specific trigger tests;
 - which D and E rows are actually needed;
 - must-separate role distinctions;
-- doctrine-specific bounded-uncertainty points;
+- doctrine-specific uncertainty points for "Strongest counterargument:";
 - pack-specific failure labels.
 
 Examples of pack-local use:
@@ -315,7 +315,7 @@ Each doctrine pack should add or confirm:
 - must-separate subissues
 - writing or satisfaction requirements if relevant
 - fallback theories and their limits
-- bounded-uncertainty points
+- uncertainty points for "Strongest counterargument:"
 - pack-specific failure labels
 - one worked source-grounded example
 - one clean benchmark example

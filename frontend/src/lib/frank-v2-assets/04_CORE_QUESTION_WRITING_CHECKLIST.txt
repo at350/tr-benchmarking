@@ -42,7 +42,7 @@ Before drafting, identify which posture governs the benchmark.
 - But do not simplify away the controlling trigger, strongest counterargument, or any fact that makes the legal path stable.
 
 4. Uncertainty-driven benchmark posture
-- If the target benchmark answer is supposed to identify a missing fact, bounded uncertainty, or conditional branches, preserve that posture honestly.
+- If the target benchmark answer is supposed to identify a missing fact, uncertainty folded into "Strongest counterargument:", or conditional branches, preserve that posture honestly.
 - Do not turn an uncertainty test into a falsely definitive question.
 - Do not hide a missing-fact test inside a supposedly clean benchmark.
 
@@ -64,7 +64,7 @@ Before writing the question, identify:
 - the strongest fallback theory or counterargument;
 - which facts are essential and which can be removed;
 - whether jurisdiction, governing law, or governing text must be stated explicitly;
-- whether the target answer posture is definitive or bounded-uncertainty;
+- whether the target answer posture is definitive or whether any remaining uncertainty belongs under "Strongest counterargument:";
 - whether the source is a strong, moderate, or weak candidate for reverse-engineering.
 
 If several of these are unclear, narrow the question or stop for JD review.
@@ -229,7 +229,7 @@ Do not finalize unless all are true:
 - The question is suitable for comparison, clustering, and later rubric use.
 - Jurisdiction is explicit if the target benchmark answer requires it.
 - Benchmark posture is respected.
-- If the target benchmark is uncertainty-driven, the question honestly supports bounded uncertainty rather than false definiteness.
+- If the target benchmark is uncertainty-driven, the question honestly supports a fact-specific "Strongest counterargument:" rather than false definiteness.
 
 OPTIONAL INTERNAL STATUS TAG
 Before finalizing, assign one:

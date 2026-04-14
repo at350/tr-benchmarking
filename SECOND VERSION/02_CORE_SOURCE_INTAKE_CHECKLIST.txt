@@ -154,14 +154,14 @@ Ask:
 Strong:
 - source is stable within its jurisdiction and not unusually split-dependent
 Moderate:
-- some jurisdiction sensitivity; should be flagged in bounded uncertainty or benchmark posture
+- some jurisdiction sensitivity; should be flagged in "Strongest counterargument:" or benchmark posture
 Weak:
 - major split or unusual local rule makes stand-alone use risky
 
 11. Benchmark-answer suitability:
 Ask:
 - Can this source be normalized into the benchmark-answer structure used by the core workflow without importing missing doctrine?
-- Can it support: bottom-line outcome, controlling doctrine, main rule path or main gates, strongest counterargument, and bounded uncertainty?
+- Can it support: bottom-line outcome, controlling doctrine, main rule path or main gates, strongest counterargument, with any remaining uncertainty folded into that section?
 Strong:
 - cleanly fits benchmark-answer drafting
 Moderate:

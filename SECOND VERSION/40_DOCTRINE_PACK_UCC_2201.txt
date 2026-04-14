@@ -288,7 +288,7 @@ Watch especially for these recurring mistakes:
 - Separate-guaranty collapse: mistakes a collateral promise to pay for a goods deal for the goods contract itself.
 - Section-2-207 drift: turns a section 2-201 writing problem into a battle-of-the-forms problem without showing that term inclusion, rather than enforceability, is the real issue.
 - Warranty or performance drift: abandons the writing analysis and jumps into perfect tender, revocation, or damages before showing there is an enforceable sales contract.
-- No bounded uncertainty: says only "it depends" instead of naming the exact point of variability.
+- No specific uncertainty under "Strongest counterargument:" says only "it depends" instead of naming the exact point of variability.
 
 ANSWER-STYLE DEFAULTS
 When drafting from this pack:
@@ -314,7 +314,6 @@ Writing requirement and trigger:
 Compliance / substitute / exception analysis:
 Other defenses or competing doctrines:
 Strongest counterargument:
-Bounded uncertainty:
 
 Backward-compatibility rule:
 - If the project freezes the current legacy heading set instead, do not mix formats across runs. Map this pack's content into the frozen global headings and keep the same headings for clustering comparability.

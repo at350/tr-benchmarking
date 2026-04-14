@@ -39,7 +39,6 @@ Statute of Frauds Gates:
 Exceptions/Promissory Estoppel:
 Defenses/Mistake:
 Strongest counterargument:
-Bounded uncertainty:
 
 1. SCOPE AND TRIGGER
 Use Pack 10 when the likely controlling issue is a common-law oral-promise enforceability problem involving one or more of the following:
@@ -194,7 +193,7 @@ D. Other workaround doctrines
 - Do not stack multiple workaround doctrines unless the source clearly supports each one.
 
 6. TYPICAL BOUNDED-UNCERTAINTY POINTS
-When uncertainty exists in Pack 10, identify the exact source of uncertainty rather than using generic hedging. Typical bounded-uncertainty points include:
+When uncertainty exists in Pack 10, identify the exact source of uncertainty rather than using generic hedging. Typical uncertainty points for "Strongest counterargument:" include:
 - whether the requested act is the real consideration or only a condition on a gift
 - whether marriage is the true bargain term or only incidental background
 - whether the jurisdiction allows promissory estoppel to overcome the specific Statute of Frauds category at issue
@@ -203,7 +202,7 @@ When uncertainty exists in Pack 10, identify the exact source of uncertainty rat
 - whether a later act by the promisor is merely later conduct or a source-supported substitute with legal effect
 - whether the source supports a portable common-law statement or only a narrow jurisdiction-specific benchmark
 
-Good bounded uncertainty style
+Good uncertainty-inside-counterargument style
 - Identify the exact doctrinal question.
 - State what remains clear despite the uncertainty.
 - Do not weaken a strong controlling-gate analysis by adding vague "varies by jurisdiction" language with no specific point attached.
@@ -216,7 +215,7 @@ Structural failures
 - fallback-first analysis
 - laundry-list discussion without prioritization
 - exception bleed-over / barrier collapse
-- no clear bottom line or bounded uncertainty
+- no clear bottom line or no specific uncertainty folded into the strongest counterargument
 
 Formation failures
 - any act treated as automatic consideration
@@ -250,7 +249,7 @@ Cross-cutting failures
 - party-role confusion
 - timeline or math error
 - unsupported jurisdiction-specific rule
-- generic hedging instead of specific bounded uncertainty
+- generic hedging instead of specific uncertainty folded into the strongest counterargument
 
 8. COMPANION WORKED SOURCE-GROUNDED EXAMPLE
 Full companion file:
@@ -283,7 +282,7 @@ What the clean example should model
 - concise black-letter-law style
 - clear controlling-doctrine naming early
 - brief but real treatment of non-triggered or secondary issues
-- specific bounded uncertainty rather than generic hedging
+- specific uncertainty folded into the strongest counterargument rather than generic hedging
 
 PACK 10 DRAFTING DEFAULTS
 When drafting from this doctrine pack:

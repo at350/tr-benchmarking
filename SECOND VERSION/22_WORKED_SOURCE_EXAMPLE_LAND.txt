@@ -7,7 +7,7 @@ Use it to model:
 - exact headings
 - ordered gate-by-gate reasoning
 - source-grounded analysis
-- bounded uncertainty
+- uncertainty folded into "Strongest counterargument:"
 - concise treatment of non-triggered competing doctrines
 
 USE RULES
@@ -68,7 +68,6 @@ Strongest counterargument:
 [Inference from source] The strongest counterargument is that the seller did sign a short written confirmation, accepted a deposit, and knew the buyer had already spent money on survey and title work in direct anticipation of closing.
 [Inference from source] That makes enforcement feel more plausible, but the counterargument is still weaker than the source-grounded nonenforcement path if the parcel description is thin and the buyer never took possession or made substantial improvements.
 
-Bounded uncertainty:
 [Inference from source] The main uncertainty is jurisdiction sensitivity on two linked issues: how demanding the memorandum requirement is as to land description and essential terms, and how strictly the relevant jurisdiction applies the possession-plus-payment-or-improvements formulation of part performance.
 [Inference from source] A second uncertainty is source posture: this example is built from a doctrine summary rather than a full opinion text, so it is best used as a narrow Pack 20 source-grounded illustration rather than as a broad jurisdiction-specific authority packet.
 

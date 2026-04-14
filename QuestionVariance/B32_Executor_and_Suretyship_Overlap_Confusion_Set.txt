@@ -1,0 +1,121 @@
+EXECUTOR + SURETYSHIP — OVERLAP CONFUSION SET
+
+Purpose:
+This file helps the GPT handle cases in which an executor or administrator allegedly promises to pay estate or decedent obligations personally, creating potential overlap between:
+1. the executor / administrator personal-promise provision, and
+2. the suretyship provision.
+
+Why this confusion case matters:
+These cases often look like ordinary guaranties.
+But the executor-capacity feature may make the executor-personal-promise pack the more specific and better first route.
+
+Primary routing lesson:
+When the promisor is acting as executor or administrator and promises to answer personally for estate or decedent obligations, treat the executor-personal-promise route as the first candidate.
+Do not ignore the suretyship resemblance, but do not let generic guaranty language erase the capacity issue.
+
+Competing route map:
+Candidate route A:
+Executor / administrator personal-promise provision
+
+Candidate route B:
+Suretyship provision
+
+Relationship between routes:
+Overlap with specificity priority.
+The executor-personal-promise route is usually the more specific first lens, while suretyship remains a serious secondary candidate.
+
+Routing snapshot:
+Input type: Cross-pack confusion benchmark
+Confusion pattern: Overlap with specificity priority
+Governing-law candidate: Probate/executor SoF route with suretyship resemblance
+Primary SoF provision candidate: Executor / administrator personal-promise provision
+Secondary candidate(s): Suretyship provision
+Controlling doctrine: Personal promise by an executor or administrator to answer for estate or decedent obligations may require a writing under the more specific executor route, while also resembling a collateral promise
+Main gate order:
+identify capacity -> determine whether the promise is personal or merely representative -> identify whose debt is being answered for -> assess writing -> assess any supported substitute
+Variation readiness: Ready only if capacity and personal-liability direction remain stable
+Main no-silent-change facts:
+- the promisor is executor or administrator
+- the promise is personal, not merely a statement that the estate will pay
+- the underlying obligation belongs to the estate or decedent
+- no sufficient writing is present unless the benchmark says otherwise
+
+Benchmark packet
+
+Source-style fact core:
+Dana is the executor of Victor's estate. Victor owed $80,000 to a medical supplier at the time of his death. In a phone call with the supplier, Dana says, "If the estate does not pay Victor's invoices, I will pay them from my own funds." No signed writing memorializes Dana's statement. The supplier later sues Dana personally.
+
+Neutral legal question:
+Dana, acting as executor of Victor's estate, orally tells Victor's medical supplier, "If the estate does not pay Victor's invoices, I will pay them from my own funds." There is no signed writing. The supplier later sues Dana personally. Is Dana's promise enforceable?
+
+Gold routing + benchmark answer:
+
+Jurisdiction / Governing-law assumption
+Assume ordinary Statute of Frauds principles, including a rule requiring a writing for certain personal promises by executors or administrators, and no special jurisdiction-specific exception unless the source materials provide one.
+
+Bottom-line routing outcome
+The best first route is the executor / administrator personal-promise provision because Dana is an executor who allegedly undertook personal liability for estate obligations. Suretyship is a serious secondary candidate because the statement also resembles a collateral promise, but the executor-capacity feature is the more specific classificatory signal.
+
+Controlling doctrine
+The central routing question is whether Dana spoke in a personal capacity, thereby promising to answer estate obligations from personal funds, or merely described estate payment. The executor-personal-promise pack is therefore the cleaner first lens.
+
+Competing route analysis
+Executor route:
+Dana is not just a third party. Dana is the estate fiduciary and expressly says, "I will pay them from my own funds." That puts personal-versus-representative capacity at the center.
+
+Suretyship route:
+The promise also looks collateral because Dana promises to pay if the estate does not. That resemblance should be acknowledged, not ignored.
+
+Relationship between the routes
+The executor route is more specific. Suretyship remains a useful secondary frame, especially if the source materials discuss both. A disciplined answer should say that the case overlaps, but that executor-capacity analysis comes first.
+
+Main gate order
+identify executor capacity -> determine whether Dana undertook personal liability -> identify the underlying estate obligation -> assess writing -> assess any supported substitute or exception
+
+Transaction characterization
+This is a personal undertaking by a fiduciary to satisfy estate debt from personal funds if the estate does not pay. The capacity language matters at least as much as the backup-payment structure.
+
+Writing / compliance analysis
+The facts say there is no signed writing. On the benchmark path, that means the ordinary writing route is missing.
+
+Other possible routes and why they do or do not control
+A pure suretyship analysis is incomplete because it misses the executor-specific status of the promisor. A clean answer should not erase that status.
+
+Strongest counterargument
+The supplier's strongest argument is that Dana made a direct and serious personal commitment. That may support the claim that Dana undertook personal liability, but it does not remove the writing problem on the stated facts.
+
+Bounded uncertainty
+The route would become less stable if Dana's words were framed only as "the estate will pay" rather than "I will pay from my own funds," or if Dana were not acting as executor. On the stated facts, the personal-capacity signal is clear enough to support an executor-first route.
+
+Carry-forward routing notes:
+Core answer reuse:
+- Cosmetic edits only if executor status, personal-capacity language, and no-writing status remain fixed.
+
+Safest Lane A zones after routing is fixed:
+- names
+- type of estate debt
+- business setting
+- neutral salience facts about the estate or creditor
+- dollar shifts that do not create a new threshold or bias problem
+
+Best Lane B ambiguity targets:
+- whether the promise was personal or merely representative
+- whether the statement was made as executor at all
+- whether the underlying debt belonged to the estate, decedent, or someone else
+- whether any signed note, email, or letter exists
+
+Unsafe drifts:
+- replacing "I will pay from my own funds" with "the estate will pay" without marking the route change
+- changing the promisor from executor to ordinary business owner
+- changing the estate debt into a corporate debt without labeling the doctrine shift
+
+Rubric focus points:
+A strong answer should:
+- identify executor status as a major routing signal
+- separate personal capacity from representative capacity
+- acknowledge suretyship resemblance without treating it as the whole case
+- center the missing writing
+- avoid silently converting the promise into an ordinary guaranty
+
+Why this is a good anchor:
+This file teaches the router to prefer the more specific pack when two routes overlap, while still preserving the secondary route as a serious doctrinal consideration.

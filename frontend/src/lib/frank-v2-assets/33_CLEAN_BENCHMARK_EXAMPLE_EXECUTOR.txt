@@ -21,7 +21,6 @@ Statute of Frauds Gates:
 Exceptions/Promissory Estoppel:
 Defenses/Mistake:
 Strongest counterargument:
-Bounded uncertainty:
 
 WORKED BENCHMARK ANSWER
 
@@ -55,5 +54,4 @@ The executor's later discovery that the estate was more insolvent than expected,
 Strongest counterargument:
 The strongest counterargument is that the executor used unmistakably personal language, obtained concrete delay and reduction of the claim, and induced the creditor to change position in reliance on that promise. That is a real argument, but it is still weaker than the nonenforcement position because this Statute of Frauds category specifically targets unwritten personal undertakings by estate representatives, and no signed writing clearly memorializes one here.
 
-Bounded uncertainty:
 The main uncertainty is how strongly the facts show a truly personal promise rather than a representative assurance, and how far a given jurisdiction will go in using estoppel where the creditor gave concrete forbearance in reliance on the promise. But if there is no signed writing clearly showing personal liability, the stronger analysis is that the executor's oral promise is not enforceable as a personal undertaking.
