@@ -12,6 +12,24 @@ export const FRANK_V2_BENCHMARK_HEADINGS = [
     'Bounded uncertainty:',
 ] as const;
 
+export const FRANK_V2_BENCHMARK_HEADING_ALIASES: Record<(typeof FRANK_V2_BENCHMARK_HEADINGS)[number], readonly string[]> = {
+    'Jurisdiction assumption:': ['Jurisdiction assumption:'],
+    'Bottom-line outcome:': ['Bottom-line outcome:'],
+    'Controlling doctrine:': ['Controlling doctrine:'],
+    'Transaction / formation characterization:': ['Transaction / formation characterization:'],
+    'Writing requirement and trigger:': [
+        'Writing requirement and trigger:',
+        'Statute of Frauds trigger and writing requirement:',
+    ],
+    'Compliance / substitute / exception analysis:': [
+        'Compliance / substitute / exception analysis:',
+        'Compliance / substitutes / exceptions:',
+    ],
+    'Other defenses or competing doctrines:': ['Other defenses or competing doctrines:'],
+    'Strongest counterargument:': ['Strongest counterargument:'],
+    'Bounded uncertainty:': ['Bounded uncertainty:'],
+} as const;
+
 export const RUBRIC_MODULE_LABELS: Record<RubricModuleId, string> = {
     module0: 'Module 0 — Metadata Tags',
     module1: 'Module 1 — Structural Gatekeeping',

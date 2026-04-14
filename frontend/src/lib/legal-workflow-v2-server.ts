@@ -10,6 +10,7 @@ import { promisify } from 'util';
 import OpenAI from 'openai';
 
 import {
+    FRANK_V2_BENCHMARK_HEADING_ALIASES,
     FRANK_V2_BENCHMARK_HEADINGS,
     RUBRIC_MODULE_LABELS,
     RUBRIC_ROW_SPECS,
@@ -1293,17 +1294,55 @@ function validateFrankApprovalOrThrow(packet: FrankPacketV2) {
 
 function validateBenchmarkAnswerOrThrow(text: string) {
     const normalized = text.replace(/\r/g, '').trim();
-    let lastIndex = -1;
-    for (const heading of FRANK_V2_BENCHMARK_HEADINGS) {
-        const index = normalized.indexOf(heading);
-        if (index === -1) {
-            throw new Error(`Benchmark answer is missing required heading "${heading}".`);
+    const expectedHeadingSets = FRANK_V2_BENCHMARK_HEADINGS.map((heading) => new Set(
+        FRANK_V2_BENCHMARK_HEADING_ALIASES[heading].map((candidate) => normalizeBenchmarkHeadingLabel(candidate)),
+    ));
+
+    let expectedIndex = 0;
+    for (const line of normalized.split('\n')) {
+        const candidate = normalizeBenchmarkHeadingLabel(line);
+        if (!candidate) {
+            continue;
         }
-        if (index <= lastIndex) {
+        const matchedIndex = expectedHeadingSets.findIndex((headingSet) => headingSet.has(candidate));
+        if (matchedIndex === -1) {
+            continue;
+        }
+        if (matchedIndex < expectedIndex) {
+            continue;
+        }
+        if (matchedIndex > expectedIndex) {
             throw new Error('Benchmark answer headings are missing or out of order.');
         }
-        lastIndex = index;
+        expectedIndex += 1;
+        if (expectedIndex === FRANK_V2_BENCHMARK_HEADINGS.length) {
+            return;
+        }
     }
+
+    if (expectedIndex < FRANK_V2_BENCHMARK_HEADINGS.length) {
+        throw new Error(`Benchmark answer is missing required heading "${FRANK_V2_BENCHMARK_HEADINGS[expectedIndex]}".`);
+    }
+}
+
+function normalizeBenchmarkHeadingLabel(value: string) {
+    if (!value.trim()) {
+        return '';
+    }
+    return value
+        .normalize('NFKC')
+        .replace(/\u00A0/g, ' ')
+        .trim()
+        .replace(/^#{1,6}\s*/, '')
+        .replace(/^>\s*/, '')
+        .replace(/^[-*+]\s+/, '')
+        .replace(/^\d+[.)]\s+/, '')
+        .replace(/^\*\*(.+)\*\*$/u, '$1')
+        .replace(/^__(.+)__$/u, '$1')
+        .replace(/^[*_`]+|[*_`]+$/g, '')
+        .replace(/\s+/g, ' ')
+        .replace(/[：:]\s*$/u, '')
+        .toLowerCase();
 }
 
 function validateReverseEngineeredQuestionOrThrow(text: string) {

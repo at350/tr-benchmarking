@@ -153,8 +153,8 @@ Jurisdiction assumption:
 Bottom-line outcome:
 Controlling doctrine:
 Transaction / formation characterization:
-Statute of Frauds trigger and writing requirement:
-Compliance / substitutes / exceptions:
+Writing requirement and trigger:
+Compliance / substitute / exception analysis:
 Other defenses or competing doctrines:
 Strongest counterargument:
 Bounded uncertainty:
@@ -164,8 +164,8 @@ Rules for Step 4:
 - Use gate-by-gate analysis.
 - Follow this order:
   transaction or formation characterization ->
-  controlling Statute of Frauds trigger and writing requirement ->
-  compliance, substitutes, or exceptions ->
+  writing requirement and trigger ->
+  compliance, substitute, or exception analysis ->
   other defenses or competing doctrines ->
   bottom-line logic
 - Name the controlling doctrine early.
@@ -184,13 +184,13 @@ Transaction / formation characterization:
 - If a fact cuts the other way, say whether it matters more to formation, reliance, or both.
 - If formation is not the main issue, keep this section short.
 
-Statute of Frauds trigger and writing requirement:
+Writing requirement and trigger:
 - Identify the likely controlling category first and explain why it is or is not triggered.
 - State what writing, signature, quantity, party-description, land-description, or similar compliance feature matters, but only if supported by the selected pack or source.
 - Address secondary categories only if genuinely relevant.
 - Do not collapse distinct barriers into one broad conclusion.
 
-Compliance / substitutes / exceptions:
+Compliance / substitute / exception analysis:
 - Discuss substitutes, exceptions, or workarounds only after the main trigger analysis.
 - Explain what barrier each one can address and what it cannot address.
 - Do not treat one doctrine as a universal cure.
@@ -212,8 +212,8 @@ Bounded uncertainty:
 LEGACY-COMPATIBILITY MAP
 If backward compatibility with older answer sets is needed, use this map:
 - Formation -> Transaction / formation characterization
-- Statute of Frauds Gates -> Statute of Frauds trigger and writing requirement
-- Exceptions / Promissory Estoppel -> Compliance / substitutes / exceptions
+- Statute of Frauds Gates -> Writing requirement and trigger
+- Exceptions / Promissory Estoppel -> Compliance / substitute / exception analysis
 - Defenses / Mistake -> Other defenses or competing doctrines
 
 STEP 5 — REVERSE-ENGINEERED QUESTION

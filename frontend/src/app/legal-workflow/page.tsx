@@ -1,7 +1,9 @@
 'use client';
 
 import { startTransition, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
+import { DashaResultsExplorer } from '@/components/DashaResultsExplorer';
 import { AppShell } from '@/components/ui/AppShell';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { FRANK_V2_BENCHMARK_HEADINGS, FRANK_V2_PACK_LABELS, RUBRIC_MODULE_LABELS } from '@/lib/legal-workflow-v2-constants';
@@ -224,6 +226,7 @@ export default function LegalWorkflowPage() {
     const [rubricPacks, setRubricPacks] = useState<KarthicRubricPackV2[]>([]);
     const [selectedRubricId, setSelectedRubricId] = useState('');
     const [rubricEditor, setRubricEditor] = useState<KarthicRubricPackV2 | null>(null);
+    const [collapsedRubricRows, setCollapsedRubricRows] = useState<Record<string, boolean>>({});
 
     const [dashaRuns, setDashaRuns] = useState<DashaRunV2[]>([]);
     const [selectedRunId, setSelectedRunId] = useState('');
@@ -609,6 +612,29 @@ export default function LegalWorkflowPage() {
     const benchmarkBlockedReason = frankEditor ? buildClientFrankBlockReason(frankEditor) : null;
     const frankApprovalBlockedReason = frankEditor ? buildClientFrankApprovalBlockReason(frankEditor) : null;
     const benchmarkHeadingPreview = FRANK_V2_BENCHMARK_HEADINGS.join('\n');
+    const visibleRubricRowKeys = useMemo(
+        () => rubricEditor ? rubricEditor.rows.map((row) => `${rubricEditor.id}:${row.key}`) : [],
+        [rubricEditor],
+    );
+    const allRubricRowsCollapsed = useMemo(
+        () => visibleRubricRowKeys.length > 0 && visibleRubricRowKeys.every((key) => collapsedRubricRows[key]),
+        [collapsedRubricRows, visibleRubricRowKeys],
+    );
+
+    useEffect(() => {
+        if (visibleRubricRowKeys.length === 0) {
+            setCollapsedRubricRows({});
+            return;
+        }
+        const visibleKeySet = new Set(visibleRubricRowKeys);
+        setCollapsedRubricRows((current) => {
+            const nextEntries = Object.entries(current).filter(([key]) => visibleKeySet.has(key));
+            if (nextEntries.length === Object.keys(current).length) {
+                return current;
+            }
+            return Object.fromEntries(nextEntries);
+        });
+    }, [visibleRubricRowKeys]);
 
     const hasFrankPacket = Boolean(frankEditor);
     const hasRoutingIntake = Boolean(frankEditor?.selectedPack && frankEditor?.intakeChecklist);
@@ -1127,11 +1153,29 @@ export default function LegalWorkflowPage() {
                                                 onChange={(event) => setRubricEditor((current) => current ? { ...current, comparisonMethodNote: event.target.value } : current)}
                                             />
                                         </Field>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                className={secondaryButtonClassName}
+                                                onClick={() => setCollapsedRubricRows(
+                                                    allRubricRowsCollapsed
+                                                        ? {}
+                                                        : Object.fromEntries(rubricEditor.rows.map((row) => [`${rubricEditor.id}:${row.key}`, true])),
+                                                )}
+                                                type="button"
+                                            >
+                                                {allRubricRowsCollapsed ? 'Expand All Issues' : 'Collapse All Issues'}
+                                            </button>
+                                        </div>
                                         <div className="space-y-3">
                                             {rubricEditor.rows.map((row) => (
                                                 <RubricRowEditor
                                                     key={row.key}
                                                     row={row}
+                                                    collapsed={Boolean(collapsedRubricRows[`${rubricEditor.id}:${row.key}`])}
+                                                    onToggleCollapsed={() => setCollapsedRubricRows((current) => ({
+                                                        ...current,
+                                                        [`${rubricEditor.id}:${row.key}`]: !current[`${rubricEditor.id}:${row.key}`],
+                                                    }))}
                                                     onChange={(nextRow) => setRubricEditor((current) => current ? {
                                                         ...current,
                                                         rows: current.rows.map((item) => item.key === nextRow.key ? nextRow : item),
@@ -1212,45 +1256,7 @@ export default function LegalWorkflowPage() {
                             </div>
                             <div className="space-y-4">
                                 {selectedRun ? (
-                                    <>
-                                        <div className="grid gap-3 md:grid-cols-3">
-                                            <MetricCard label="Status" value={selectedRun.status} />
-                                            <MetricCard label="Clusters" value={String(selectedRun.clusters.length)} />
-                                            <MetricCard label="Weighted score" value={selectedRun.weightedSummary.weightedScore === null ? 'N/A' : selectedRun.weightedSummary.weightedScore.toFixed(1)} />
-                                        </div>
-                                        <ReadOnlyTextCard title="Clustering notes" text={selectedRun.clusteringNotes ?? 'None'} />
-                                        <ReadOnlyJsonCard title="Module summaries" value={selectedRun.moduleSummaries} />
-                                        <div className="space-y-3">
-                                            {selectedRun.rowResults.map((row) => (
-                                                <div key={`${selectedRun.id}_${row.rowKey}`} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                                                    <div className="flex flex-wrap items-start justify-between gap-3">
-                                                        <div>
-                                                            <p className="text-sm font-semibold text-slate-800">{row.rowKey} · {row.rowTitle}</p>
-                                                            <p className="text-xs text-slate-500">{RUBRIC_MODULE_LABELS[row.moduleId]}</p>
-                                                        </div>
-                                                        <div className="text-right text-xs text-slate-500">
-                                                            <p>Weight {row.weight}</p>
-                                                            <p>Winning score {row.winningScore === null ? 'N/A' : row.winningScore}</p>
-                                                        </div>
-                                                    </div>
-                                                    <p className="mt-2 text-sm text-slate-600">{row.rationale}</p>
-                                                    <details className="mt-3">
-                                                        <summary className="cursor-pointer text-sm font-semibold text-slate-700">Centroid evaluations</summary>
-                                                        <div className="mt-3 space-y-3">
-                                                            {row.centroidEvaluations.map((evaluation) => (
-                                                                <div key={`${row.rowKey}_${evaluation.clusterId}`} className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
-                                                                    <p><span className="font-semibold">Cluster:</span> {evaluation.clusterId}</p>
-                                                                    <p><span className="font-semibold">Applicability:</span> {evaluation.applicabilityStatus}</p>
-                                                                    <p><span className="font-semibold">Score:</span> {evaluation.score ?? 'N/A'}</p>
-                                                                    <p className="mt-2">{evaluation.rationale}</p>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </details>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </>
+                                    <DashaResultsExplorer key={selectedRun.id} run={selectedRun} />
                                 ) : (
                                     <EmptyPanelCopy text="Start a Dasha judge run or select an existing run to inspect row and module scoring." />
                                 )}
@@ -1670,76 +1676,96 @@ function WarningList({ title, items }: { title: string; items: string[] }) {
     );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function RubricRowEditor({
+    row,
+    collapsed,
+    onToggleCollapsed,
+    onChange,
+}: {
+    row: KarthicRubricRow;
+    collapsed: boolean;
+    onToggleCollapsed: () => void;
+    onChange: (row: KarthicRubricRow) => void;
+}) {
     return (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p>
-            <p className="mt-2 text-lg font-semibold text-slate-900">{value}</p>
-        </div>
-    );
-}
-
-function RubricRowEditor({ row, onChange }: { row: KarthicRubricRow; onChange: (row: KarthicRubricRow) => void }) {
-    return (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <p className="text-sm font-semibold text-slate-800">{row.key} · {row.title}</p>
-                    <p className="text-xs text-slate-500">{RUBRIC_MODULE_LABELS[row.moduleId]}</p>
+        <div className={`rounded-xl border border-slate-200 bg-slate-50 ${collapsed ? 'px-3 py-2' : 'p-4'}`}>
+            <div className={`flex flex-wrap justify-between gap-3 ${collapsed ? 'items-center' : 'items-start'}`}>
+                <div className="flex min-w-0 items-start gap-2">
+                    <button
+                        className="mt-0.5 rounded-md p-1 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
+                        onClick={onToggleCollapsed}
+                        type="button"
+                        aria-label={collapsed ? `Expand issue ${row.key}` : `Collapse issue ${row.key}`}
+                    >
+                        {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                    <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-800">{row.key} · {row.title}</p>
+                        <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${collapsed ? 'mt-0.5' : 'mt-1'}`}>
+                            <p className="text-xs text-slate-500">{RUBRIC_MODULE_LABELS[row.moduleId]}</p>
+                            {collapsed ? (
+                                <p className="text-xs font-medium text-slate-600">Weight {row.weight}</p>
+                            ) : null}
+                        </div>
+                    </div>
                 </div>
-                <div className="w-24">
-                    <Field label="Weight">
-                        <input
-                            className={inputClassName}
-                            value={String(row.weight)}
-                            onChange={(event) => onChange({ ...row, weight: Number.parseInt(event.target.value || '0', 10) || row.weight })}
+                <div className={collapsed ? 'self-center' : 'w-24'}>
+                    {collapsed ? null : (
+                        <Field label="Weight">
+                            <input
+                                className={inputClassName}
+                                value={String(row.weight)}
+                                onChange={(event) => onChange({ ...row, weight: Number.parseInt(event.target.value || '0', 10) || row.weight })}
+                            />
+                        </Field>
+                    )}
+                </div>
+            </div>
+            {collapsed ? null : (
+                <div className="mt-3 grid gap-3">
+                    <Field label="Description">
+                        <textarea className={textareaClassName} value={row.description} onChange={(event) => onChange({ ...row, description: event.target.value })} />
+                    </Field>
+                    <Field label="NA guidance">
+                        <textarea className={textareaClassName} value={row.naGuidance} onChange={(event) => onChange({ ...row, naGuidance: event.target.value })} />
+                    </Field>
+                    <Field label="Golden target summary">
+                        <textarea
+                            className={textareaClassName}
+                            value={row.goldenTarget.summary}
+                            onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, summary: event.target.value } })}
+                        />
+                    </Field>
+                    <Field label="Golden contains">
+                        <textarea
+                            className={textareaClassName}
+                            value={row.goldenTarget.goldenContains.join('\n')}
+                            onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, goldenContains: splitLines(event.target.value) } })}
+                        />
+                    </Field>
+                    <Field label="Allowed omissions">
+                        <textarea
+                            className={textareaClassName}
+                            value={row.goldenTarget.allowedOmissions.join('\n')}
+                            onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, allowedOmissions: splitLines(event.target.value) } })}
+                        />
+                    </Field>
+                    <Field label="Contradiction flags">
+                        <textarea
+                            className={textareaClassName}
+                            value={row.goldenTarget.contradictionFlags.join('\n')}
+                            onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, contradictionFlags: splitLines(event.target.value) } })}
+                        />
+                    </Field>
+                    <Field label="Comparison guidance">
+                        <textarea
+                            className={textareaClassName}
+                            value={row.goldenTarget.comparisonGuidance}
+                            onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, comparisonGuidance: event.target.value } })}
                         />
                     </Field>
                 </div>
-            </div>
-            <div className="mt-3 grid gap-3">
-                <Field label="Description">
-                    <textarea className={textareaClassName} value={row.description} onChange={(event) => onChange({ ...row, description: event.target.value })} />
-                </Field>
-                <Field label="NA guidance">
-                    <textarea className={textareaClassName} value={row.naGuidance} onChange={(event) => onChange({ ...row, naGuidance: event.target.value })} />
-                </Field>
-                <Field label="Golden target summary">
-                    <textarea
-                        className={textareaClassName}
-                        value={row.goldenTarget.summary}
-                        onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, summary: event.target.value } })}
-                    />
-                </Field>
-                <Field label="Golden contains">
-                    <textarea
-                        className={textareaClassName}
-                        value={row.goldenTarget.goldenContains.join('\n')}
-                        onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, goldenContains: splitLines(event.target.value) } })}
-                    />
-                </Field>
-                <Field label="Allowed omissions">
-                    <textarea
-                        className={textareaClassName}
-                        value={row.goldenTarget.allowedOmissions.join('\n')}
-                        onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, allowedOmissions: splitLines(event.target.value) } })}
-                    />
-                </Field>
-                <Field label="Contradiction flags">
-                    <textarea
-                        className={textareaClassName}
-                        value={row.goldenTarget.contradictionFlags.join('\n')}
-                        onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, contradictionFlags: splitLines(event.target.value) } })}
-                    />
-                </Field>
-                <Field label="Comparison guidance">
-                    <textarea
-                        className={textareaClassName}
-                        value={row.goldenTarget.comparisonGuidance}
-                        onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, comparisonGuidance: event.target.value } })}
-                    />
-                </Field>
-            </div>
+            )}
         </div>
     );
 }
