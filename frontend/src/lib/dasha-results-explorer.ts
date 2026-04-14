@@ -136,7 +136,7 @@ export type DashaExplorerData = {
 export function deriveDashaExplorerData(run: DashaRunV2): DashaExplorerData {
     const clusterOrder = run.clusters.map((cluster) => cluster.id);
     const rowEntries = deriveRows(run.rowResults, clusterOrder);
-    const moduleEntries = deriveModules(rowEntries, clusterOrder);
+    const moduleEntries = deriveModules(rowEntries, clusterOrder, run.clusters);
     const clusterEntries = deriveClusters(run, rowEntries, moduleEntries);
     const modelParticipations = deriveModelParticipations(run.selectedModels, run.responses);
     const overallWinningCluster = chooseOverallWinningCluster(clusterEntries, run.clusters);
@@ -236,8 +236,9 @@ function deriveRows(rowResults: RubricRowResult[], clusterOrder: string[]): Dash
     });
 }
 
-function deriveModules(rows: DashaExplorerRow[], clusterOrder: string[]): DashaExplorerModule[] {
+function deriveModules(rows: DashaExplorerRow[], clusterOrder: string[], rawClusters: DashaClusterRecord[]): DashaExplorerModule[] {
     const grouped = new Map<RubricModuleId, DashaExplorerRow[]>();
+    const rawLookup = new Map(rawClusters.map((cluster) => [cluster.id, cluster]));
     rows.forEach((row) => {
         const current = grouped.get(row.moduleId);
         if (current) {
@@ -264,7 +265,34 @@ function deriveModules(rows: DashaExplorerRow[], clusterOrder: string[]): DashaE
             .sort((left, right) => right - left);
         const bestScore = numericScores[0] ?? null;
         const secondBestScore = numericScores[1] ?? null;
-        const winningClusterId = clusterScores.find((item) => item.score !== null && item.score === bestScore)?.clusterId ?? null;
+        const standings = clusterScores
+            .filter((item): item is { clusterId: string; score: number; isWinner: boolean } => typeof item.score === 'number')
+            .map((item) => ({
+                ...item,
+                winsCount: moduleRows.filter((row) => row.winningClusterId === item.clusterId).length,
+                weightedScore: computeClusterWeightedScore(item.clusterId, moduleRows),
+                size: rawLookup.get(item.clusterId)?.size ?? 0,
+            }));
+        const winningClusterId = standings
+            .sort((left, right) => {
+                const scoreDelta = right.score - left.score;
+                if (scoreDelta !== 0) {
+                    return scoreDelta;
+                }
+                const winDelta = right.winsCount - left.winsCount;
+                if (winDelta !== 0) {
+                    return winDelta;
+                }
+                const weightedDelta = (right.weightedScore ?? -1) - (left.weightedScore ?? -1);
+                if (weightedDelta !== 0) {
+                    return weightedDelta;
+                }
+                const sizeDelta = right.size - left.size;
+                if (sizeDelta !== 0) {
+                    return sizeDelta;
+                }
+                return left.clusterId.localeCompare(right.clusterId);
+            })[0]?.clusterId ?? null;
         return {
             moduleId,
             label: RUBRIC_MODULE_LABELS[moduleId],

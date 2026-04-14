@@ -1,0 +1,254 @@
+42_WORKED_SOURCE_EXAMPLE_UCC_2201
+
+PACK 40 WORKED SOURCE EXAMPLE
+UCC § 2-201
+
+Purpose
+This file is the worked source example for Pack 40. It shows how the Pack 40 workflow should move from authority and source facts to a benchmark ready answer, a neutral reverse engineered question, and likely model failure modes. Unlike the clean benchmark example, this file includes the internal extraction and mapping steps.
+
+Use this file when the likely controlling issue is enforceability of a sale of goods agreement under UCC § 2-201.
+
+Do not use this file for:
+- land transactions
+- executor or administrator personal promise questions
+- common law oral promise categories such as marriage consideration, one year, or suretyship
+
+Jurisdiction posture for this example
+Assume a jurisdiction that has adopted UCC Article 2 in substance similar to the official text of § 2-201.
+
+==================================================
+I. ILLUSTRATIVE SOURCE PACKET
+==================================================
+
+A. Authority excerpt
+
+UCC § 2-201(1)
+A contract for the sale of goods for the price of $500 or more is not enforceable unless there is some signed writing or record sufficient to indicate that a contract for sale has been made. The writing is not insufficient because it omits or incorrectly states other agreed terms, but it is not enforceable beyond the quantity shown.
+
+UCC § 2-201(2)
+Between merchants, a confirmation received within a reasonable time that is sufficient against the sender satisfies subsection (1) against the recipient unless the recipient gives written notice of objection within 10 days.
+
+UCC § 2-201(3)
+A contract that does not satisfy subsection (1) may still be enforceable if:
+(a) the goods are specially manufactured for the buyer, are not suitable for sale to others in the ordinary course of the seller's business, and the seller made a substantial beginning or procurement commitments before notice of repudiation;
+(b) the party to be charged admits in pleading, testimony, or otherwise in court that a contract for sale was made, though only up to the quantity admitted; or
+(c) payment has been made and accepted, or goods have been received and accepted.
+
+Official comment points to carry forward
+1. The only fixed memorandum requirements are that the record indicate a contract for sale, be signed or authenticated by the party to be charged, and state a quantity.
+2. Price, delivery details, warranties, and other terms may be omitted or misstated without defeating sufficiency.
+3. A merchant confirmation that is not objected to within 10 days defeats the Statute of Frauds defense, but it does not by itself prove that the oral contract was made. Formation still must be shown.
+4. Part performance validates the agreement only for goods that have been paid for and accepted or received and accepted.
+
+B. Fact excerpt
+
+Blue River Packaging manufactures custom retail bags. Cedar Market is a regional grocery chain that regularly buys store branded packaging through its procurement department.
+
+During a phone call, Blue River and Cedar Market orally agree that Blue River will sell 10,000 custom paper shopping bags bearing Cedar Market's name and holiday slogan for $0.60 per bag, total price $6,000. The same day, Blue River's sales manager emails Cedar Market's procurement manager: "Confirming today's order for 10,000 Cedar Market holiday shopping bags at $0.60 each. Delivery by November 1." The email ends with the typed name and title of Blue River's sales manager.
+
+Cedar Market receives the email and does not send any written objection. Over the next week, Blue River orders custom printing plates and begins printing Cedar Market's name and slogan on the bags. Twelve days after receiving the email, Cedar Market cancels and argues that there is no enforceable contract because Cedar Market never signed anything.
+
+==================================================
+II. SOURCE SCREENING AND ROUTING
+==================================================
+
+Best fit pack
+Pack 40: Sale of goods (UCC § 2-201)
+
+Why this pack fits
+1. The transaction is a sale of movable goods, not land and not a service only arrangement.
+2. The price is $6,000, so the UCC sale of goods Statute of Frauds is triggered.
+3. The source facts directly raise merchant confirmation and specially manufactured goods, which are Pack 40 subissues.
+4. The problem should not be forced into common law oral promise categories.
+
+Immediate routing notes
+- Primary doctrine gate: UCC Article 2 sale of goods.
+- Primary enforceability route: § 2-201(2) merchant confirmation.
+- Independent backup route: § 2-201(3)(a) specially manufactured goods.
+- Keep contract formation separate from Statute of Frauds compliance.
+
+==================================================
+III. SOURCE EXTRACTION SHEET
+==================================================
+
+Controlling issue
+Whether the oral agreement for 10,000 custom bags is enforceable against Cedar Market under UCC § 2-201.
+
+Controlling source rules
+1. Article 2 applies to sales of goods.
+2. A sale of goods for $500 or more normally requires a signed record sufficient to indicate a contract and show quantity.
+3. Between merchants, a confirmation sufficient against the sender and not objected to within 10 days satisfies the writing requirement against the recipient.
+4. Specially manufactured goods can make the oral contract enforceable even without a compliant writing if the goods are not suitable for sale to others and the seller made a substantial beginning or procurement commitments before repudiation.
+5. A model must not demand all material terms. Quantity is the indispensable term.
+6. A model must not treat merchant confirmation as conclusive proof that the oral contract was formed.
+
+Trigger facts from the source packet
+1. Goods: custom paper shopping bags are movable goods.
+2. Price threshold: $6,000 exceeds $500.
+3. Quantity: 10,000 bags is stated in the email.
+4. Signed or authenticated record against sender: the confirmation email bears the sender's typed name and title.
+5. Between merchants: both parties are commercial entities operating through business personnel in a commercial packaging transaction.
+6. Receipt and silence: Cedar Market received the confirmation and did not object in writing within 10 days.
+7. Special manufacture: the bags carry Cedar Market's own name and slogan.
+8. Substantial beginning or procurement commitments: Blue River ordered custom printing plates and began printing before cancellation.
+
+Facts that still matter and should be flagged
+1. Merchant status could still be contested, especially if the buyer's procurement role or commercial sophistication were weaker than these facts suggest.
+2. The sender's typed name likely counts as authentication, but the record should still be treated as a sign or authenticate issue rather than assumed away.
+3. The no objection route only removes the Statute of Frauds defense. The fact finder still must decide whether the parties actually formed the oral deal described in the email.
+4. The specially manufactured goods route depends on whether the goods were genuinely unsuitable for sale to others in the ordinary course.
+
+Issues that are present but not primary here
+- contract formation apart from the Statute of Frauds
+- any later breach or damages questions
+- possible dispute about exact delivery terms
+- course of dealing or trade usage, if later raised
+
+Issues that are not supported by the facts and should not be invented
+- admission in pleadings or testimony
+- payment made and accepted
+- goods received and accepted
+- promissory estoppel as a substitute doctrine
+
+==================================================
+IV. GOLD-PACKET MAPPING
+==================================================
+
+Recommended benchmark posture
+Likely enforceable.
+
+Reason for posture
+The strongest route is § 2-201(2): the seller sent a confirmation within a reasonable time, the confirmation appears sufficient against the sender, Cedar Market received it, and Cedar Market did not object in writing within 10 days. There is also an independent alternative route under § 2-201(3)(a) because the goods are buyer specific and Blue River made a substantial beginning and procurement commitments before repudiation.
+
+Priority order for analysis
+1. Characterize the transaction as a sale of goods governed by Article 2.
+2. Trigger the writing requirement because the price exceeds $500.
+3. Analyze whether the confirmation email is sufficient against the sender and whether subsection (2) applies against the buyer.
+4. Separately analyze the specially manufactured goods exception as an independent fallback.
+5. Keep formation and any non SoF defenses distinct from the writing analysis.
+
+What the benchmark should emphasize
+- Quantity is essential; other omitted terms are usually not.
+- The merchant confirmation route works against a silent merchant recipient.
+- The special manufacture route is independent and fact specific.
+- A good answer separates enforceability from proof that the oral agreement was actually made.
+
+==================================================
+V. WORKED BENCHMARK ANSWER
+==================================================
+
+Jurisdiction assumption:
+Assume the forum has adopted UCC Article 2 in substance similar to official § 2-201.
+
+Bottom-line outcome:
+The oral agreement is likely enforceable against Cedar Market.
+
+Controlling doctrine:
+UCC § 2-201 governs because this is a contract for the sale of goods priced above $500. The strongest path is the between merchants confirmation rule in § 2-201(2). An independent backup path is the specially manufactured goods exception in § 2-201(3)(a).
+
+Transaction / formation characterization:
+The subject matter is 10,000 custom paper shopping bags. Bags are movable goods, so Article 2 applies. The stated total price is $6,000, which triggers § 2-201. This is not a land transfer, not an executor promise, and not a common law one year or suretyship problem.
+
+Writing requirement and trigger:
+Because the sale of goods exceeds $500, the default rule is that the contract is not enforceable unless there is a signed writing or record sufficient to indicate a contract for sale and to show quantity. The confirmation email likely satisfies the sufficiency standard against Blue River as sender because it indicates that a contract was made and states the quantity of 10,000 bags. The fact that the email may omit other terms would not defeat sufficiency, because quantity is the indispensable term and other terms may be omitted or misstated.
+
+Compliance / substitute / exception analysis:
+The best route is § 2-201(2). Both sides appear to be merchants in a commercial packaging transaction. Blue River sent a confirmation on the same day as the oral deal, which is within a reasonable time. Cedar Market received it and had reason to know its contents. Cedar Market did not object in writing within 10 days. On those facts, the confirmation satisfies the Statute of Frauds against Cedar Market even though Cedar Market did not sign it.
+
+There is also an independent alternative route under § 2-201(3)(a). The bags were buyer specific because they carried Cedar Market's name and holiday slogan. Those facts support the view that the goods were not suitable for sale to others in the ordinary course of Blue River's business. Blue River also ordered custom printing plates and began printing before cancellation, which supports a substantial beginning or procurement commitments before repudiation. If those facts are proven, the oral deal is enforceable under the specially manufactured goods exception even apart from merchant confirmation.
+
+Other defenses or competing doctrines:
+Cedar Market could still dispute formation by arguing that the phone call was only preliminary negotiation or that the email did not accurately reflect the final terms. That argument goes to whether a contract was made, not to whether the Statute of Frauds defense is available. Cedar Market might also contest merchant status or argue that the goods were not truly unsuitable for sale to others. Promissory estoppel is not needed on these facts because the statute itself supplies stronger routes to enforceability.
+
+Strongest counterargument:
+Cedar Market's strongest argument is that subsection (2) should not apply because Cedar Market is not a merchant for this transaction or because the email was only a proposal rather than a confirmation of a completed oral deal. Cedar Market could also argue that custom bags can still be sold elsewhere, so the specially manufactured goods exception is not clearly met.
+
+Bounded uncertainty:
+The answer is strongest if the record shows that Cedar Market regularly handles commercial packaging purchases, that the confirmation was actually received, and that the bags and printing plates were sufficiently buyer specific to be unsuitable for ordinary resale. If those facts weaken, the merchant confirmation path or the special manufacture path could become less secure. Even then, the correct analysis would still focus on § 2-201's statutory routes rather than on common law Statute of Frauds categories.
+
+==================================================
+VI. REVERSE ENGINEERED QUESTION ONLY
+==================================================
+
+A packaging manufacturer and a regional grocery chain discussed a purchase of 10,000 custom paper shopping bags bearing the grocery chain's name and holiday slogan for a total price of $6,000. After the phone call, the manufacturer sent an email to the chain's procurement manager confirming the order, stating the quantity and price, and signing the email with the sales manager's typed name and title. The chain received the email and did not send any written objection. The manufacturer then ordered custom printing plates and began printing the buyer's name and slogan on the bags. Twelve days later, the grocery chain refused to go forward and argued that it never signed a contract. Is the agreement enforceable?
+
+==================================================
+VII. LIKELY MODEL FAILURE MODES
+==================================================
+
+Failure mode 1
+Misclassifies the problem as a common law Statute of Frauds category instead of a UCC sale of goods problem.
+
+Why it is wrong
+The transaction is a sale of movable goods governed by Article 2.
+
+Failure mode 2
+Says the contract is unenforceable because Cedar Market never signed anything.
+
+Why it is wrong
+Between merchants, a confirmation sufficient against the sender can satisfy the statute against the recipient if no written objection is made within 10 days.
+
+Failure mode 3
+Demands price, delivery date, payment terms, or other full material terms in the writing as if all are required.
+
+Why it is wrong
+Under § 2-201, quantity is the indispensable term. Other terms may be omitted or misstated.
+
+Failure mode 4
+Treats the unobjected to confirmation as conclusive proof that the oral contract existed.
+
+Why it is wrong
+The merchant confirmation rule removes the Statute of Frauds defense. It does not by itself prove formation.
+
+Failure mode 5
+Uses the specially manufactured goods exception without analyzing whether the goods are unsuitable for sale to others or whether the seller made a substantial beginning before repudiation.
+
+Why it is wrong
+Both elements matter. Customization alone is not enough if the goods are still readily marketable to others or if the seller had not materially begun performance.
+
+Failure mode 6
+Forgets the quantity constraint.
+
+Why it is wrong
+Any writing based route under § 2-201 is enforceable only up to the quantity shown in the writing, and the admission route is limited to the quantity admitted.
+
+Failure mode 7
+Jumps to promissory estoppel or generalized reliance language without exhausting the statute's own routes.
+
+Why it is wrong
+The statute provides direct, source backed paths here. Reliance theories are unnecessary and can muddy the benchmark.
+
+Failure mode 8
+Blends Statute of Frauds enforceability with breach, remedies, or damages.
+
+Why it is wrong
+This benchmark is about enforceability. Other issues should be separated unless the source specifically asks for them.
+
+==================================================
+VIII. WHY THIS IS A GOOD PACK 40 WORKED EXAMPLE
+==================================================
+
+1. It uses a clear sale of goods fact pattern and avoids mixed land or service issues.
+2. It highlights the main Pack 40 pathways that models often miss: merchant confirmation and specially manufactured goods.
+3. It forces the answer to keep quantity, receipt, no objection, and merchant status separate.
+4. It shows how to distinguish Statute of Frauds compliance from the independent question whether the parties actually formed the oral contract.
+5. It provides a benchmark answer and a neutral question that can be used for clustering and later rubric work.
+
+==================================================
+IX. DRAFTING NOTES FOR FUTURE PACK 40 EXAMPLES
+==================================================
+
+1. Start with the goods characterization and the $500 trigger.
+2. Identify the best statutory route before discussing fallback theories.
+3. Keep each § 2-201 pathway separate:
+   - subsection (1) writing or record with quantity
+   - subsection (2) merchant confirmation
+   - subsection (3)(a) specially manufactured goods
+   - subsection (3)(b) admission
+   - subsection (3)(c) payment or receipt and acceptance
+4. Do not require all material terms in the writing.
+5. Do not treat silence after a merchant confirmation as automatic proof of contract formation.
+6. Do not invent facts about payment, acceptance, or courtroom admission.
+7. Use the standardized benchmark headings so clustering and comparison remain clean.
+
+END OF FILE

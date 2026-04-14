@@ -1,0 +1,59 @@
+33_CLEAN_BENCHMARK_EXAMPLE_EXECUTOR
+
+PURPOSE
+This file is a worked example of a clean benchmark answer for Pack 30 — executor or administrator personal promise.
+It preserves the current benchmark headings for continuity across packs and should be used as a style-and-structure model for executor/administrator personal-promise benchmark drafting.
+
+USE RULES
+- Use this file for structure, depth, issue-prioritization, and black-letter-law style only.
+- Do not copy its fact pattern, issue mix, or fallback theories unless the current source or prompt supports them.
+- Do not refer to cases, opinions, sources, or authority inside the benchmark answer unless the user explicitly asks for authority-grounded drafting.
+- Keep the exact headings below when drafting benchmark answers.
+- Keep the answer evaluator-facing, concise, ordered, and neutral.
+- For this pack, center the analysis on personal versus representative capacity, whether the promise is truly personal, signed-writing compliance, and narrow fallback theories tied to creditor forbearance or reliance.
+
+EXACT HEADINGS TO PRESERVE
+Jurisdiction assumption:
+Bottom-line outcome:
+Controlling doctrine:
+Formation:
+Statute of Frauds Gates:
+Exceptions/Promissory Estoppel:
+Defenses/Mistake:
+Strongest counterargument:
+Bounded uncertainty:
+
+WORKED BENCHMARK ANSWER
+
+Jurisdiction assumption:
+U.S. common law / Restatement-style framing for an executor's alleged personal promise to answer a decedent's debt.
+
+Bottom-line outcome:
+The executor's oral promise is likely not enforceable as a personal undertaking.
+
+Controlling doctrine:
+The likely controlling doctrine is the Statute of Frauds rule requiring a signed writing when an executor or administrator promises to answer personally for a duty of the decedent or estate.
+
+Formation:
+There is a plausible bargain framing because the creditor agreed to delay immediate collection and waive some charges in exchange for the executor's promise to pay the balance personally. The main fact cutting the other way is that the discussion occurred in the probate setting, where a representative's assurance can sometimes mean only that the estate will pay valid debts in due course. On these facts, however, the executor's alleged statement that she would pay from her own funds makes a personal undertaking plausible enough to reach the Statute of Frauds issue.
+
+Statute of Frauds Gates:
+The executor-administrator gate is the dispositive issue. A personal representative's promise to answer personally for a decedent's debt ordinarily must be evidenced by a signed writing by the party to be charged. The central distinction is between a promise in representative capacity and a promise in personal capacity. If the executor merely promises to use estate assets to satisfy valid estate obligations, that is not the same as assuming personal liability. Here, the alleged promise was that the executor would cover the debt herself if the creditor forbore collection, so the better characterization is a personal undertaking.
+
+Because there is no signed writing memorializing that personal promise, the executor-administrator category strongly supports nonenforcement. Informal oral assurances are not enough. Even a short follow-up message such as "I will take care of the bill" would still need to show a personal assumption of liability rather than an ordinary promise to administer the estate responsibly.
+
+This is not mainly a one-year problem, because the forbearance period is short and the controlling barrier is the executor-writing requirement. Although the facts also resemble a debt-payment promise, the more specific executor-administrator category is the cleaner controller here because the promisor is acting as a personal representative in response to estate debt.
+
+Exceptions/Promissory Estoppel:
+Any fallback theory should be analyzed only after the main gate. The creditor's best fallback is promissory estoppel or a narrow reliance argument based on delaying collection, surrendering fees, or refraining from filing an immediate claim against the estate. Those facts can show concrete reliance. But many courts are cautious about using estoppel to override a Statute of Frauds category that specifically demands a signed personal undertaking by the representative. Even where estoppel is available, the remedy may be limited to avoiding injustice rather than full enforcement of the whole promise.
+
+The creditor can argue that the probate context makes the reliance especially serious because delaying collection may affect priority, timing, or leverage against the estate. But reliance does not automatically satisfy the writing requirement. On these facts, estoppel remains a weaker path than direct writing compliance.
+
+Defenses/Mistake:
+The executor's later discovery that the estate was more insolvent than expected, or that other claims were larger than anticipated, is generally not an automatic excuse if she actually undertook personal liability. Unless the promise was expressly conditioned on the estate's solvency or reimbursement, that later financial disappointment looks more like a mistaken assumption about exposure than a discharge defense. But this point matters only if the promise would otherwise be enforceable, which it likely is not.
+
+Strongest counterargument:
+The strongest counterargument is that the executor used unmistakably personal language, obtained concrete delay and reduction of the claim, and induced the creditor to change position in reliance on that promise. That is a real argument, but it is still weaker than the nonenforcement position because this Statute of Frauds category specifically targets unwritten personal undertakings by estate representatives, and no signed writing clearly memorializes one here.
+
+Bounded uncertainty:
+The main uncertainty is how strongly the facts show a truly personal promise rather than a representative assurance, and how far a given jurisdiction will go in using estoppel where the creditor gave concrete forbearance in reliance on the promise. But if there is no signed writing clearly showing personal liability, the stronger analysis is that the executor's oral promise is not enforceable as a personal undertaking.

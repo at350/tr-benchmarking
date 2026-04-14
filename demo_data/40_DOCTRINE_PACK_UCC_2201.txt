@@ -1,0 +1,325 @@
+SALE OF GOODS (UCC § 2-201) DOCTRINE PACK
+For Gold-Packet Drafting, Benchmark Answers, and Failure-Mode Drafting
+
+PURPOSE
+This file is the Pack 40 substantive doctrine guide for questions whose likely controlling issue is whether an alleged contract for the sale of goods is enforceable despite a missing, incomplete, or disputed writing under Uniform Commercial Code section 2-201. It is not itself legal authority. It is a reasoning aid for source extraction, benchmark-answer drafting, and failure-mode identification.
+
+SCOPE
+This pack is intentionally narrower than Article 2 generally. It is designed for:
+- oral or informally documented contracts for the sale of goods
+- questions about whether Article 2 applies because the transaction is for goods rather than services
+- questions about whether a writing, email, invoice, purchase order, text, check, or related memorandum satisfies UCC section 2-201
+- merchant-confirmation problems under UCC section 2-201(2)
+- quantity-term sufficiency problems
+- specially manufactured goods, admission, and payment / receipt-and-acceptance pathways under UCC section 2-201(3)
+- modification questions where the effect of UCC section 2-201 turns on changed quantity or on whether the contract as modified falls within the statute
+
+Do not force-fit:
+- separate guaranty or suretyship disputes merely because the underlying transaction concerns goods
+- pure service, employment, consulting, or construction contracts where goods are incidental
+- warranty, perfect-tender, rejection, revocation, risk-of-loss, or damages disputes unless the UCC section 2-201 writing issue is central
+- battle-of-the-forms disputes where the real issue is term inclusion under UCC section 2-207 rather than writing compliance under section 2-201
+- leases of goods, secured-transactions issues, title disputes, or shipping-performance questions unless the source clearly makes section 2-201 the primary issue
+- land, executor-administrator, or marriage / one-year / suretyship questions just because goods appear in the facts
+
+ROUTING TRIGGER
+Use Pack 40 when the best description of the controlling issue is:
+- sale of goods under UCC Article 2
+- whether the alleged transaction is a goods contract governed by Article 2 rather than a services contract
+- whether UCC section 2-201 requires a writing and whether the existing writing or conduct satisfies that requirement
+- whether the merchant-confirmation rule, quantity term, special-manufacture path, admission path, or payment / receipt-and-acceptance path makes the agreement enforceable
+
+If mixed or unclear, do source extraction first and name the best-fit pack without forcing a final benchmark answer.
+
+USE RULE
+Treat the uploaded case, statute, Restatement section, doctrine source, or statutory text as the substantive authority. Use this pack as a default framing aid only. If the source conflicts with this pack, the source controls.
+
+DEFAULT FRAMING
+- Default to UCC Article 2 / U.S. commercial-law framing unless the source requires a specific jurisdiction or statutory variant.
+- Focus on enforceability, not just proof.
+- Keep goods characterization, merchant status, writing sufficiency, and exception analysis analytically separate.
+- Distinguish contract formation from section 2-201 compliance.
+- Distinguish the sale contract itself from any separate collateral promise.
+- Distinguish direct compliance with section 2-201 from partial or exception-based enforcement.
+- Keep the quantity cap visible. Under the standard UCC section 2-201 formulation used in the current materials, the contract is enforceable only up to the quantity supported by the qualifying writing, admission, or conduct.
+- Do not invent purchase orders, signed confirmations, quantities, accepted payments, receipt-and-acceptance facts, admissions, manufacturing steps, or merchant status facts.
+- Do not assume that delivery alone is enough; where conduct is used, the legally significant paths are typically payment made and accepted or goods received and accepted.
+
+SCOPE AND TRIGGER
+Core trigger:
+- UCC section 2-201 usually applies when the alleged contract is for the sale of goods and the price is $500 or more under the standard section 2-201 formulation reflected in the current materials.
+- Goods are things movable at the time they are identified to the contract.
+- Pack 40 usually applies when the enforceability question turns on whether the transaction is governed by Article 2 and, if so, whether the writing requirement is met or excused.
+
+What usually fits:
+- oral purchase and sale agreements for goods valued at $500 or more
+- email, invoice, text, purchase-order, or check disputes over whether a writing satisfies section 2-201
+- merchant-confirmation disputes between sellers, buyers, dealers, wholesalers, or other merchants
+- quantity-term disputes where the writing mentions goods and price but does not clearly state quantity
+- specially manufactured goods not suitable for resale to others in the ordinary course of the seller's business
+- in-court admissions that a contract for sale was made
+- payment made and accepted, or goods received and accepted, as a partial-enforcement path
+- mixed goods-and-services transactions where the main question is whether Article 2 governs at all
+- modification disputes where the relevant writing supports one quantity and the alleged modification supports another
+
+What usually does NOT fit:
+- a separate promise to answer for another party's debt on a goods deal, where the real issue is suretyship rather than the goods contract itself
+- an artist, contractor, consultant, or service provider dispute where the main thrust is labor or services rather than transfer of movable goods
+- a concededly enforceable sales contract followed by a dispute only about warranty, rejection, revocation, or damages
+- a pure term-battle under section 2-207 with no serious section 2-201 writing question
+- security-interest, title, shipment, or risk-of-loss disputes where section 2-201 is merely background
+- software, fixtures, severance, crops, or hybrid transactions when the source makes another doctrine family the true controller rather than Article 2 writing compliance
+
+MUST-SEPARATE SUBISSUES
+1. Transaction characterization
+Ask first what the alleged transaction actually is:
+- sale of goods versus contract for services
+- mixed goods-and-services contract requiring a primary-purpose analysis
+- sale contract itself versus a separate collateral promise
+- goods versus non-goods, including whether the subject matter is movable at identification
+
+2. Trigger question
+Separate:
+- whether Article 2 and section 2-201 apply at all
+from
+- whether the existing writing or conduct satisfies section 2-201
+
+3. Merchant status
+Do not bury this inside generic writing analysis.
+Ask:
+- Are both parties merchants for purposes of the merchant-confirmation rule?
+- Is the relevant merchant status based on dealing in goods of the kind, on professional expertise, or on some other claimed basis?
+- Is the answer assuming merchant status merely because the transaction is commercial?
+
+4. Writing sufficiency
+Separate:
+- existence of some writing
+from
+- whether the writing is signed by the party to be charged or otherwise attributable to that party
+from
+- whether the writing states a quantity of goods
+from
+- whether the writing reasonably indicates that a contract for sale has been made
+
+5. Quantity term
+Do not treat quantity as a minor drafting detail.
+Ask:
+- What exact quantity, if any, is stated in the qualifying writing?
+- Is the answer trying to use oral testimony to supply a quantity that the writing does not contain?
+- Is the enforcement theory broader than the quantity the writing, admission, or conduct actually supports?
+
+6. Merchant-confirmation rule
+Keep distinct:
+- whether the confirming writing would satisfy the statute as against the sender
+- whether both parties are merchants
+- whether the recipient received the writing and had reason to know its contents
+- whether a written objection was sent within ten days of receipt
+Do not reduce this to "one merchant sent an email, so the statute is satisfied."
+
+7. Exception or conduct pathway
+Keep each path tied to the barrier it is supposed to cure:
+- merchant confirmation
+- specially manufactured goods
+- admission in pleading, testimony, or similar in-court statement
+- payment made and accepted
+- goods received and accepted
+- estoppel or restitution, if the source clearly permits those theories
+Do not let one path dissolve all section 2-201 problems without fit analysis.
+
+8. Modification posture
+Separate:
+- whether the original contract was within section 2-201
+from
+- whether the alleged modification changes quantity or otherwise changes the writing analysis
+from
+- whether the original writing still supports enforcement only up to the original quantity
+
+9. Remedy posture
+Separate:
+- full contract enforcement
+- enforcement only up to the quantity supported by a writing, admission, or conduct
+- fallback restitution or reliance-style recovery
+The same facts do not necessarily support each remedy equally.
+
+WRITING SATISFACTION REQUIREMENTS
+Core rule:
+- Under the standard section 2-201 formulation reflected in the current materials, a contract for the sale of goods at $500 or more is generally unenforceable unless there is some writing sufficient to indicate that a contract for sale has been made and signed by the party against whom enforcement is sought.
+- The writing can be informal, but it ordinarily must at least provide a reasonable basis to believe that a contract was made and state a quantity of goods.
+- The contract is ordinarily enforceable only up to the quantity of goods stated in the qualifying writing.
+
+Practical writing questions:
+- Is the transaction governed by Article 2 as a sale of goods?
+- Is the price high enough to trigger section 2-201 under the governing source?
+- What writing exists: contract, invoice, purchase order, text, email, check, note, or chain of related writings?
+- Who signed or otherwise adopted the writing?
+- What quantity does the writing actually state?
+- Does the writing indicate that a contract for sale has been made, or is it only preliminary negotiation?
+- Are multiple writings being linked together, and if so, is the quantity still anchored somewhere in the linked writings?
+- If a merchant-confirmation theory is being used, would the writing satisfy the statute as against the sender?
+- If a modification is alleged, what quantity does the original writing support and what quantity does the modification try to add or change?
+
+Guardrails:
+- Do not assume that price, product description, or date alone substitutes for a quantity term.
+- Do not assume that any business communication between merchants automatically satisfies section 2-201.
+- Do not assume that one party's unsigned internal notes or draft forms satisfy the statute against the other side.
+- Do not use oral testimony to create a missing quantity term.
+- Do not forget that enforcement is usually capped at the quantity supported by the qualifying writing, admission, or conduct.
+- Do not silently treat a purchase order or invoice as a final contract if the source frames it as negotiation or confirmation only.
+
+SUBSTITUTES / EXCEPTIONS / FALLBACK THEORIES
+Use only after the main trigger and writing questions.
+
+1. Merchant confirmation
+Core idea:
+- Between merchants, a writing in confirmation of the contract that is sufficient against the sender can satisfy section 2-201 against the recipient if it is received within a reasonable time, the recipient has reason to know its contents, and no written objection is sent within ten days.
+
+What to analyze:
+- whether both parties are merchants
+- whether the writing is confirmatory rather than a new or different proposal
+- whether the writing contains a quantity term and is sufficient against the sender
+- whether the recipient received it and had reason to know its contents
+- whether a written objection was sent within ten days
+
+Guardrails:
+- Do not use this rule unless both sides qualify as merchants.
+- Do not assume silence by a nonmerchant has the same effect.
+- Do not ignore written objection.
+- Do not let the merchant-confirmation rule cure a missing quantity term.
+
+2. Specially manufactured goods
+Core idea:
+- No signed writing is required if the goods are specially manufactured for the buyer, are not suitable for sale to others in the ordinary course of the seller's business, and the seller has substantially begun manufacture or made a commitment to procure the goods before notice of repudiation.
+
+What to analyze:
+- whether the goods are genuinely custom rather than merely selected from inventory
+- whether the goods are unsuitable for ordinary resale to others
+- whether manufacture or procurement had substantially begun before repudiation
+- whether the surrounding facts show that the goods were for the particular buyer
+
+Guardrails:
+- Do not treat generic branded goods as automatically custom.
+- Do not count mere planning, quoting, or ordering raw materials in the abstract as enough without source support.
+- Do not ignore resale suitability.
+
+3. Admission
+Core idea:
+- A party against whom enforcement is sought may satisfy section 2-201 by admitting in court that a contract for sale was made.
+
+What to analyze:
+- whether the admission appears in pleading, testimony, deposition, or another qualifying in-court context under the source
+- what exact quantity is admitted
+- whether the admission is to a contract for sale rather than only to negotiation
+
+Guardrails:
+- Do not convert informal negotiation statements into judicial admissions.
+- Do not forget that enforcement is limited to the quantity admitted.
+
+4. Payment made and accepted / goods received and accepted
+Core idea:
+- Section 2-201 may allow enforcement without a signed writing to the extent that payment has been made and accepted or goods have been received and accepted.
+
+What to analyze:
+- whether the payment was merely tendered or was actually accepted
+- whether goods were merely shipped or delivered, or were actually received and accepted
+- what quantity of goods the conduct supports
+- whether the conduct supports only part of the alleged agreement rather than the whole
+
+Guardrails:
+- Do not call this a universal part-performance doctrine.
+- Do not assume delivery alone equals acceptance.
+- Do not assume a mailed but rejected check counts as payment accepted.
+- Do not ignore the extent limitation: the conduct often supports enforcement only as to the goods paid for or accepted.
+
+5. Promissory estoppel / restitution / other fallback theories
+Core idea:
+- Some sources or jurisdictions may discuss estoppel, restitution, or other limited workarounds when section 2-201 is not satisfied, but these are not universal overrides.
+
+What to analyze:
+- whether the governing source actually allows the theory in this setting
+- what injustice, reliance, or benefit-conferred facts are present
+- whether the remedy is limited rather than full expectation enforcement
+- whether the theory can do anything about a missing quantity problem
+
+Guardrails:
+- Do not say fairness defeats section 2-201.
+- Do not use estoppel to invent a quantity term.
+- Do not treat restitution as proof that the contract itself is enforceable.
+
+6. Modifications
+Core idea:
+- Modification disputes require separate analysis of the original writing and the alleged modification, especially where the modification changes quantity or is the event that makes section 2-201 relevant.
+
+Use carefully:
+- identify what the original writing already supports
+- identify what the later oral change adds or alters
+- keep the quantity limitation visible
+- do not assume that because the original contract was enforceable, every later quantity change is automatically enforceable without a compliant writing
+
+TYPICAL BOUNDED-UNCERTAINTY POINTS
+The main recurring uncertainty points in UCC section 2-201 cases are:
+- whether the transaction is really a sale of goods rather than a services or mixed contract
+- whether the disputed item counts as a good at the relevant time
+- whether the writing is truly signed or otherwise adopted by the party to be charged
+- whether a chain of writings can be linked together and, if so, whether one of them supplies the necessary quantity term
+- whether both parties qualify as merchants for purposes of section 2-201(2)
+- whether a communication is a confirmation of an existing contract or merely a proposal or counteroffer
+- whether the recipient sent a timely written objection within ten days
+- whether the goods are sufficiently special and resale-unsuitable to qualify as specially manufactured goods
+- whether an admission is broad enough to establish a contract and what quantity it actually admits
+- whether payment was accepted or goods were received and accepted, and to what extent
+- whether the alleged modification changes quantity or otherwise requires fresh section 2-201 analysis
+- whether a jurisdiction allows estoppel or other nontextual workarounds, and for what remedy
+
+PACK-SPECIFIC MODEL FAILURE MODES
+Watch especially for these recurring mistakes:
+- Goods-characterization miss: treats a services contract, construction contract, or hybrid deal as automatically governed by Article 2 without testing the primary purpose.
+- Any-commercial-deal trigger: assumes that because the transaction is business-related, UCC section 2-201 necessarily applies.
+- Writing-as-proof-only error: treats the missing writing as just an evidentiary weakness instead of an enforceability barrier.
+- Quantity-blindness: says the writing is sufficient without testing whether it states a quantity of goods.
+- Price-is-enough error: treats price, product description, or total dollar amount as a substitute for quantity.
+- Merchant shortcut: assumes both parties are merchants because they are businesses, or assumes one merchant is enough for the merchant-confirmation rule.
+- Confirmation overread: says an invoice, email, or purchase order automatically binds the recipient under section 2-201(2) without testing confirmation, receipt, and written objection.
+- Ten-day omission: forgets that a written objection within ten days defeats the merchant-confirmation path.
+- Special-manufacture overread: treats ordinary or easily resold goods as specially manufactured, or ignores whether manufacture substantially began before repudiation.
+- Admission overclaim: treats negotiation statements or informal concessions as judicial admissions, or ignores the quantity cap on admitted contracts.
+- Payment / delivery confusion: treats shipment or delivery alone as enough, without testing whether payment was accepted or goods were received and accepted.
+- Universal part-performance cure: assumes any conduct makes the entire oral goods contract enforceable without regard to extent.
+- Modification carryover error: assumes that because the original writing was valid, a later oral quantity change is automatically enforceable.
+- Separate-guaranty collapse: mistakes a collateral promise to pay for a goods deal for the goods contract itself.
+- Section-2-207 drift: turns a section 2-201 writing problem into a battle-of-the-forms problem without showing that term inclusion, rather than enforceability, is the real issue.
+- Warranty or performance drift: abandons the writing analysis and jumps into perfect tender, revocation, or damages before showing there is an enforceable sales contract.
+- No bounded uncertainty: says only "it depends" instead of naming the exact point of variability.
+
+ANSWER-STYLE DEFAULTS
+When drafting from this pack:
+- Characterize the transaction first.
+- Name UCC section 2-201 early.
+- Separate Article 2 applicability from writing sufficiency.
+- Keep merchant status and quantity analysis explicit when they matter.
+- Distinguish direct compliance from merchant confirmation and from section 2-201(3) pathways.
+- Keep the quantity limitation visible throughout.
+- Keep section 2-207, warranty, and performance issues secondary unless the source makes them central.
+- Distinguish contract enforceability from remedy scope.
+- Use full doctrine names and neutral black-letter-law style.
+- Preserve factual fidelity.
+- If the source is too jurisdiction-specific, too procedural, or too split-sensitive to generalize, say so and stop at source extraction plus JD review flags.
+
+PREFERRED OUTPUT SHAPE
+Preferred Pack 40 shape if the project moves to the pack-wide universal format:
+Jurisdiction assumption:
+Bottom-line outcome:
+Controlling doctrine:
+Transaction / formation characterization:
+Writing requirement and trigger:
+Compliance / substitute / exception analysis:
+Other defenses or competing doctrines:
+Strongest counterargument:
+Bounded uncertainty:
+
+Backward-compatibility rule:
+- If the project freezes the current legacy heading set instead, do not mix formats across runs. Map this pack's content into the frozen global headings and keep the same headings for clustering comparability.
+
+COMPANION FILES IN PACK 40
+- 41_FAILURE_BANK_UCC_2201.txt = UCC section 2-201-specific label bank
+- 42_WORKED_SOURCE_EXAMPLE_UCC_2201.txt = source-grounded illustration
+- 43_CLEAN_BENCHMARK_EXAMPLE_UCC_2201.txt = clean benchmark-answer model
