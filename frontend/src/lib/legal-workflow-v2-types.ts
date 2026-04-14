@@ -34,7 +34,6 @@ export type BenchmarkPosture =
     | 'narrow_source_grounded_benchmark_only'
     | 'generalizable_only_with_supporting_authority'
     | 'portable_benchmark_under_stated_assumptions';
-export type ReverseEngineeringSuitability = 'strong' | 'moderate' | 'weak';
 
 export type FrankSourceIntakeChecklist = {
     candidateSource: string;
@@ -113,8 +112,61 @@ export type FrankSavedPrompt = {
     createdAt: string;
 };
 
+export type KarthicPrefillStatus = 'Fixed' | 'Fixed but jurisdiction-sensitive' | 'Needs human confirmation';
+export type KarthicVariationLane = 'A' | 'B';
+export type KarthicOutputShell = 'core_cross_pack_v1' | 'legacy_father_son_v1' | 'custom';
+export type KarthicPacketReadiness = 'Ready' | 'Needs work' | 'Blocked';
+
+export type KarthicHandoffAuditStatus = {
+    selected_pack: KarthicPrefillStatus;
+    doctrine_family: KarthicPrefillStatus;
+    jurisdiction_assumption: KarthicPrefillStatus;
+    benchmark_posture: KarthicPrefillStatus;
+    likely_controlling_doctrine: KarthicPrefillStatus;
+    required_gate_order: KarthicPrefillStatus;
+    output_shell: KarthicPrefillStatus;
+    strongest_expected_counterargument: KarthicPrefillStatus;
+    gold_answer_ref: KarthicPrefillStatus;
+    doctrine_guide_or_pack_ref: KarthicPrefillStatus;
+    failure_bank_ref: KarthicPrefillStatus;
+    variation_lane: KarthicPrefillStatus;
+    human_weight_overrides: KarthicPrefillStatus;
+    packet_readiness: KarthicPrefillStatus;
+};
+
+export type KarthicHandoff = {
+    packet_id: string;
+    date_created: string;
+    created_by: string;
+    source_authority: string;
+    source_type: string;
+    selected_pack: string;
+    doctrine_family: string;
+    benchmark_posture: string;
+    variation_lane: KarthicVariationLane;
+    source_grounded_vs_generalized: string;
+    jurisdiction_assumption: string;
+    likely_controlling_doctrine: string;
+    required_gate_order: string;
+    strongest_expected_counterargument: string;
+    key_jurisdiction_sensitive_points: string[];
+    output_shell: KarthicOutputShell;
+    custom_output_shell_text: string;
+    gold_answer_ref: string;
+    doctrine_guide_or_pack_ref: string;
+    failure_bank_ref: string;
+    clustered_centroids_or_archetypes_ref: string;
+    human_weight_overrides: string;
+    failure_bank_status: string;
+    cluster_confidence_or_escalation_flag: string;
+    packet_readiness: KarthicPacketReadiness;
+    missing_or_uncertain_items: string[];
+    zak_review_needed_before_lock: 'Yes' | 'No';
+    prefill_audit_status: KarthicHandoffAuditStatus;
+};
+
 export type FrankPacketV2 = {
-    schemaVersion: 2;
+    schemaVersion: 2 | 3;
     id: string;
     status: Extract<WorkflowStatus, 'draft' | 'approved'>;
     phase: FrankPhase;
@@ -132,6 +184,7 @@ export type FrankPacketV2 = {
     likelyFailureModes: FrankLikelyFailureModes | null;
     benchmarkAnswer: string;
     reverseEngineeredQuestion: string;
+    karthicHandoff: KarthicHandoff;
     savedPrompts: FrankSavedPrompt[];
     benchmarkWarnings: string[];
     questionWarnings: string[];
@@ -140,8 +193,10 @@ export type FrankPacketV2 = {
     updatedAt: string;
 };
 
-export type RubricRowKey = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M';
+export type RubricRowKey = string;
 export type RubricModuleId = 'module0' | 'module1' | 'module2' | 'module3' | 'module4';
+export type RubricRowSource = 'anchor' | 'emergent';
+export type RubricRowRole = 'controlling' | 'secondary' | 'fallback' | 'cross_cutting';
 
 export type RubricRowGoldenTarget = {
     summary: string;
@@ -151,24 +206,67 @@ export type RubricRowGoldenTarget = {
     comparisonGuidance: string;
 };
 
+export type RubricRowScoreAnchors = {
+    '0': string;
+    '1': string;
+    '2': string;
+    '3': string;
+    '4': string;
+};
+
 export type KarthicRubricRow = {
     key: RubricRowKey;
     moduleId: RubricModuleId;
+    rowSource: RubricRowSource;
+    role: RubricRowRole;
     title: string;
     description: string;
     weight: number;
+    lockedWeight: number;
+    include: boolean;
     naGuidance: string;
+    failureMode: string;
+    scoreAnchors: RubricRowScoreAnchors;
     goldenTarget: RubricRowGoldenTarget;
 };
 
+export type KarthicModuleBudget = {
+    moduleId: Exclude<RubricModuleId, 'module0'>;
+    label: string;
+    defaultBudget: number;
+    overrideBudget: number | null;
+    finalBudget: number;
+    rationale: string;
+};
+
+export type KarthicFailureLabelMapEntry = {
+    rowKey: RubricRowKey;
+    label: string;
+    notes: string;
+};
+
+export type KarthicDecompositionLogEntry = {
+    rowKey: RubricRowKey;
+    action: 'created' | 'split' | 'merged' | 'pruned' | 'retained';
+    note: string;
+};
+
 export type KarthicRubricPackV2 = {
-    schemaVersion: 2;
+    schemaVersion: 2 | 3;
     id: string;
     frankPacketId: string;
     selectedPack: FrankSofPackId;
     questionText: string;
     status: Extract<WorkflowStatus, 'draft' | 'approved'>;
+    prefillAudit: KarthicHandoff;
+    moduleBudgets: KarthicModuleBudget[];
+    anchorRows: KarthicRubricRow[];
+    emergentRows: KarthicRubricRow[];
     rows: KarthicRubricRow[];
+    failureLabelMap: KarthicFailureLabelMapEntry[];
+    decompositionLog: KarthicDecompositionLogEntry[];
+    variationPatchNotes: string[];
+    escalationNotes: string[];
     savedPrompts: FrankSavedPrompt[];
     comparisonMethodNote: string;
     approvedAt: string | null;
@@ -268,8 +366,59 @@ export type WeightedSummary = {
     notApplicableRowKeys: RubricRowKey[];
 };
 
+export type DashaPenaltyApplication = {
+    code: string;
+    points: number;
+    reason: string;
+};
+
+export type DashaCapStatus = {
+    code: string | null;
+    applied: boolean;
+    capValue: number | null;
+    note: string;
+};
+
+export type DashaClusterRowScore = {
+    rowKey: RubricRowKey;
+    moduleId: RubricModuleId;
+    rowTitle: string;
+    weight: number;
+    rowSource: RubricRowSource;
+    role: RubricRowRole;
+    applicabilityStatus: 'applicable' | 'not_applicable';
+    applicabilityExplanation: string;
+    score: 0 | 1 | 2 | 3 | 4 | null;
+    weightedContribution: number;
+    confidence: number | null;
+    rationale: string;
+    difference: RubricRowDifference;
+    metadataTags: {
+        bottomLineOutcome: string;
+        outcomeCorrectness: string;
+        reasoningAlignment: string;
+        jurisdictionAssumption: string;
+    };
+};
+
+export type DashaClusterScorecard = {
+    clusterId: string;
+    size: number;
+    modelBreakdown: DashaClusterRecord['modelBreakdown'];
+    rowScores: DashaClusterRowScore[];
+    moduleSummaries: ModuleSummary[];
+    subtotal: number;
+    penaltiesApplied: DashaPenaltyApplication[];
+    capStatus: DashaCapStatus;
+    postPenaltyScore: number;
+    finalScore: number;
+    zakReviewFlag: boolean;
+    averageConfidence: number | null;
+    rank: number | null;
+};
+
 export type DashaRunV2 = {
-    schemaVersion: 2;
+    schemaVersion: 2 | 3;
     id: string;
     rubricPackId: string;
     runMode: DashaRunMode;
@@ -284,6 +433,8 @@ export type DashaRunV2 = {
     rowResults: RubricRowResult[];
     moduleSummaries: ModuleSummary[];
     weightedSummary: WeightedSummary;
+    clusterScorecards: DashaClusterScorecard[];
+    primaryClusterId: string | null;
     clusteringMethod: string;
     clusteringNotes: string | null;
     errorMessage?: string;

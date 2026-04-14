@@ -12,6 +12,7 @@ import OpenAI from 'openai';
 import {
     FRANK_V2_BENCHMARK_HEADING_ALIASES,
     FRANK_V2_BENCHMARK_HEADINGS,
+    KARTHIC_MODULE_DEFAULT_BUDGETS,
     RUBRIC_MODULE_LABELS,
     RUBRIC_ROW_SPECS,
 } from '@/lib/legal-workflow-v2-constants';
@@ -29,6 +30,10 @@ import type {
     ArtifactRole,
     BenchmarkPosture,
     DashaClusterRecord,
+    DashaClusterRowScore,
+    DashaClusterScorecard,
+    DashaCapStatus,
+    DashaPenaltyApplication,
     DashaResponseRecord,
     DashaRunMode,
     DashaRunV2,
@@ -41,8 +46,17 @@ import type {
     FrankSourceExtractionSheet,
     FrankSourceIntakeChecklist,
     IntakeRating,
+    KarthicDecompositionLogEntry,
+    KarthicFailureLabelMapEntry,
+    KarthicHandoff,
+    KarthicHandoffAuditStatus,
+    KarthicModuleBudget,
+    KarthicOutputShell,
+    KarthicPacketReadiness,
+    KarthicPrefillStatus,
     KarthicRubricPackV2,
     KarthicRubricRow,
+    KarthicVariationLane,
     ModelProvider,
     ModuleSummary,
     ReasoningEffort,
@@ -52,8 +66,9 @@ import type {
     RubricRowDifference,
     RubricRowGoldenTarget,
     RubricRowKey,
+    RubricRowRole,
+    RubricRowScoreAnchors,
     RubricRowResult,
-    WeightedSummary,
 } from '@/lib/legal-workflow-v2-types';
 
 const openai = new OpenAI({
@@ -73,8 +88,11 @@ const DATA_DIRECTORIES = {
 const DEFAULT_OPENAI_JSON_MODEL = 'gpt-4.1-mini';
 const DEFAULT_OPENAI_TEXT_MODEL = 'gpt-5.4-mini';
 const PACK_IDS = new Set<FrankSofPackId>(['pack10', 'pack20', 'pack30', 'pack40']);
-const ROW_KEYS = new Set<RubricRowKey>(RUBRIC_ROW_SPECS.map((row) => row.key));
 const MODULE_IDS = new Set<RubricModuleId>(['module0', 'module1', 'module2', 'module3', 'module4']);
+const PREFILL_STATUSES = new Set<KarthicPrefillStatus>(['Fixed', 'Fixed but jurisdiction-sensitive', 'Needs human confirmation']);
+const OUTPUT_SHELLS = new Set<KarthicOutputShell>(['core_cross_pack_v1', 'legacy_father_son_v1', 'custom']);
+const VARIATION_LANES = new Set<KarthicVariationLane>(['A', 'B']);
+const PACKET_READINESS = new Set<KarthicPacketReadiness>(['Ready', 'Needs work', 'Blocked']);
 
 const VALID_BENCHMARK_POSTURES = new Set<BenchmarkPosture>([
     'narrow_source_grounded_benchmark_only',
@@ -157,7 +175,7 @@ export async function draftFrankPacket(input: {
 
         const intakeChecklist = normalizeIntakeChecklist(parsed.intakeChecklist);
         const packet: FrankPacketV2 = {
-            schemaVersion: 2,
+            schemaVersion: 3,
             id,
             status: 'draft',
             phase: 'routing_intake',
@@ -175,6 +193,14 @@ export async function draftFrankPacket(input: {
             likelyFailureModes: null,
             benchmarkAnswer: '',
             reverseEngineeredQuestion: '',
+            karthicHandoff: buildDefaultKarthicHandoff({
+                id,
+                title: normalizeNonEmptyString(parsed.title, input.title?.trim() || sourceArtifacts[0]?.fileName || id),
+                selectedPack: normalizePackId(parsed.selectedPack),
+                routingReason: normalizeNonEmptyString(parsed.routingReason, 'Routing explanation unavailable.'),
+                sourceArtifacts,
+                intakeChecklist,
+            }),
             savedPrompts: [{
                 id: `prompt_${randomUUID().slice(0, 8)}`,
                 kind: 'routing_intake_generation',
@@ -243,6 +269,14 @@ export async function generateFrankExtractionMapping(input: {
         sourceExtractionSheet,
         goldPacketMapping,
         likelyFailureModes,
+        karthicHandoff: buildUpdatedKarthicHandoff({
+            packet: {
+                ...packet,
+                sourceExtractionSheet,
+                goldPacketMapping,
+                likelyFailureModes,
+            },
+        }),
         savedPrompts: [
             ...packet.savedPrompts,
             {
@@ -284,6 +318,13 @@ export async function generateFrankBenchmark(input: {
         phase: 'benchmark',
         benchmarkAnswer,
         benchmarkWarnings: collectBenchmarkWarnings(benchmarkAnswer),
+        karthicHandoff: buildUpdatedKarthicHandoff({
+            packet: {
+                ...packet,
+                benchmarkAnswer,
+                benchmarkWarnings: collectBenchmarkWarnings(benchmarkAnswer),
+            },
+        }),
         savedPrompts: [
             ...packet.savedPrompts,
             {
@@ -327,6 +368,13 @@ export async function generateFrankQuestion(input: {
         phase: 'question',
         reverseEngineeredQuestion: questionText,
         questionWarnings: collectQuestionWarnings(questionText),
+        karthicHandoff: buildUpdatedKarthicHandoff({
+            packet: {
+                ...packet,
+                reverseEngineeredQuestion: questionText,
+                questionWarnings: collectQuestionWarnings(questionText),
+            },
+        }),
         savedPrompts: [
             ...packet.savedPrompts,
             {
@@ -347,7 +395,7 @@ export async function saveFrankPacket(input: Partial<FrankPacketV2> & { id?: str
     const existing = input.id ? await getFrankPacket(input.id) : null;
     const now = new Date().toISOString();
     const packet: FrankPacketV2 = {
-        schemaVersion: 2,
+        schemaVersion: 3,
         id: existing?.id ?? normalizeNonEmptyString(input.id, `frank_v2_${Date.now()}_${randomUUID().slice(0, 8)}`),
         status: input.status === 'approved' ? 'approved' : existing?.status ?? 'draft',
         phase: normalizePhase(input.phase, existing?.phase ?? 'source'),
@@ -368,6 +416,24 @@ export async function saveFrankPacket(input: Partial<FrankPacketV2> & { id?: str
         likelyFailureModes: normalizeFailureModes(input.likelyFailureModes ?? existing?.likelyFailureModes),
         benchmarkAnswer: normalizeOptionalString(input.benchmarkAnswer, existing?.benchmarkAnswer ?? ''),
         reverseEngineeredQuestion: normalizeOptionalString(input.reverseEngineeredQuestion, existing?.reverseEngineeredQuestion ?? ''),
+        karthicHandoff: normalizeKarthicHandoff(
+            input.karthicHandoff ?? existing?.karthicHandoff,
+            {
+                id: existing?.id ?? normalizeNonEmptyString(input.id, `frank_v2_${Date.now()}_${randomUUID().slice(0, 8)}`),
+                title: normalizeNonEmptyString(input.title, existing?.title ?? 'Untitled Statute of Frauds packet'),
+                selectedPack: normalizePackId(input.selectedPack ?? existing?.selectedPack),
+                routingReason: normalizeOptionalString(input.routingReason, existing?.routingReason ?? ''),
+                sourceArtifacts: normalizeArtifacts(input.sourceArtifacts ?? existing?.sourceArtifacts ?? []),
+                intakeChecklist: normalizeIntakeChecklist(input.intakeChecklist ?? existing?.intakeChecklist),
+                sourceExtractionSheet: normalizeSourceExtractionSheet(
+                    input.sourceExtractionSheet ?? existing?.sourceExtractionSheet,
+                    normalizePackId(input.selectedPack ?? existing?.selectedPack),
+                ),
+                goldPacketMapping: normalizeGoldPacketMapping(input.goldPacketMapping ?? existing?.goldPacketMapping),
+                likelyFailureModes: normalizeFailureModes(input.likelyFailureModes ?? existing?.likelyFailureModes),
+                benchmarkAnswer: normalizeOptionalString(input.benchmarkAnswer, existing?.benchmarkAnswer ?? ''),
+            },
+        ),
         savedPrompts: Array.isArray(input.savedPrompts) ? input.savedPrompts : existing?.savedPrompts ?? [],
         benchmarkWarnings: normalizeStringArray(input.benchmarkWarnings ?? existing?.benchmarkWarnings ?? []),
         questionWarnings: normalizeStringArray(input.questionWarnings ?? existing?.questionWarnings ?? []),
@@ -425,18 +491,42 @@ export async function generateKarthicRubricPack(input: {
         reasoningEffort: input.reasoningEffort,
     });
 
-    const rows = normalizeRubricRows(parsed.rows);
-    validateRubricRowsOrThrow(rows);
     const existing = input.id ? await getKarthicRubricPack(input.id) : null;
     const now = new Date().toISOString();
+    const prefillAudit = normalizeKarthicHandoff(frankPacket.karthicHandoff, {
+        id: frankPacket.id,
+        title: frankPacket.title,
+        selectedPack: frankPacket.selectedPack,
+        routingReason: frankPacket.routingReason,
+        sourceArtifacts: frankPacket.sourceArtifacts,
+        intakeChecklist: frankPacket.intakeChecklist,
+        sourceExtractionSheet: frankPacket.sourceExtractionSheet,
+        goldPacketMapping: frankPacket.goldPacketMapping,
+        likelyFailureModes: frankPacket.likelyFailureModes,
+        benchmarkAnswer: frankPacket.benchmarkAnswer,
+    });
+    validateKarthicHandoffForGenerationOrThrow(prefillAudit);
+    const moduleBudgets = normalizeModuleBudgets(parsed.moduleBudgets, existing?.moduleBudgets);
+    const anchorRows = normalizeRubricRows(parsed.anchorRows, 'anchor');
+    const emergentRows = normalizeRubricRows(parsed.emergentRows, 'emergent');
+    const rows = flattenIncludedRows(anchorRows, emergentRows, moduleBudgets);
+    validateRubricRowsOrThrow(rows, anchorRows);
     const pack: KarthicRubricPackV2 = {
-        schemaVersion: 2,
+        schemaVersion: 3,
         id: existing?.id ?? `karthic_v2_${Date.now()}_${randomUUID().slice(0, 8)}`,
         frankPacketId: frankPacket.id,
         selectedPack: frankPacket.selectedPack,
         questionText: frankPacket.reverseEngineeredQuestion,
         status: existing?.status ?? 'draft',
+        prefillAudit,
+        moduleBudgets,
+        anchorRows,
+        emergentRows,
         rows,
+        failureLabelMap: normalizeFailureLabelMap(parsed.failureLabelMap),
+        decompositionLog: normalizeDecompositionLog(parsed.decompositionLog),
+        variationPatchNotes: normalizeStringArray(parsed.variationPatchNotes),
+        escalationNotes: normalizeEscalationNotes(parsed.escalationNotes, prefillAudit),
         savedPrompts: [
             ...(existing?.savedPrompts ?? []),
             {
@@ -463,14 +553,41 @@ export async function saveKarthicRubricPack(input: Partial<KarthicRubricPackV2> 
     const existing = input.id ? await getKarthicRubricPack(input.id) : null;
     const frankPacket = await getRequiredFrankPacket(input.frankPacketId);
     const now = new Date().toISOString();
+    const prefillAudit = normalizeKarthicHandoff(
+        input.prefillAudit ?? existing?.prefillAudit ?? frankPacket.karthicHandoff,
+        {
+            id: frankPacket.id,
+            title: frankPacket.title,
+            selectedPack: frankPacket.selectedPack,
+            routingReason: frankPacket.routingReason,
+            sourceArtifacts: frankPacket.sourceArtifacts,
+            intakeChecklist: frankPacket.intakeChecklist,
+            sourceExtractionSheet: frankPacket.sourceExtractionSheet,
+            goldPacketMapping: frankPacket.goldPacketMapping,
+            likelyFailureModes: frankPacket.likelyFailureModes,
+            benchmarkAnswer: frankPacket.benchmarkAnswer,
+        },
+    );
+    const moduleBudgets = normalizeModuleBudgets(input.moduleBudgets ?? existing?.moduleBudgets, existing?.moduleBudgets);
+    const anchorRows = normalizeRubricRows(input.anchorRows ?? existing?.anchorRows ?? existing?.rows ?? [], 'anchor');
+    const emergentRows = normalizeRubricRows(input.emergentRows ?? existing?.emergentRows ?? [], 'emergent');
+    const rows = flattenIncludedRows(anchorRows, emergentRows, moduleBudgets);
     const pack: KarthicRubricPackV2 = {
-        schemaVersion: 2,
+        schemaVersion: 3,
         id: existing?.id ?? normalizeNonEmptyString(input.id, `karthic_v2_${Date.now()}_${randomUUID().slice(0, 8)}`),
         frankPacketId: frankPacket.id,
         selectedPack: frankPacket.selectedPack as FrankSofPackId,
         questionText: normalizeNonEmptyString(input.questionText, existing?.questionText ?? frankPacket.reverseEngineeredQuestion),
         status: input.status === 'approved' ? 'approved' : existing?.status ?? 'draft',
-        rows: normalizeRubricRows(input.rows ?? existing?.rows ?? []),
+        prefillAudit,
+        moduleBudgets,
+        anchorRows,
+        emergentRows,
+        rows,
+        failureLabelMap: normalizeFailureLabelMap(input.failureLabelMap ?? existing?.failureLabelMap),
+        decompositionLog: normalizeDecompositionLog(input.decompositionLog ?? existing?.decompositionLog),
+        variationPatchNotes: normalizeStringArray(input.variationPatchNotes ?? existing?.variationPatchNotes ?? []),
+        escalationNotes: normalizeEscalationNotes(input.escalationNotes ?? existing?.escalationNotes, prefillAudit),
         savedPrompts: Array.isArray(input.savedPrompts) ? input.savedPrompts : existing?.savedPrompts ?? [],
         comparisonMethodNote: normalizeOptionalString(
             input.comparisonMethodNote,
@@ -480,12 +597,13 @@ export async function saveKarthicRubricPack(input: Partial<KarthicRubricPackV2> 
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
     };
-    validateRubricRowsOrThrow(pack.rows);
+    validateRubricRowsOrThrow(pack.rows, pack.anchorRows);
     if (pack.status === 'approved') {
         if (!pack.questionText.trim()) {
             throw new Error('Question text is required before approving the rubric pack.');
         }
         validateReverseEngineeredQuestionOrThrow(pack.questionText);
+        validateKarthicHandoffForApprovalOrThrow(pack.prefillAudit);
     }
     await writeArtifact(DATA_DIRECTORIES.karthic, pack.id, pack);
     return pack;
@@ -519,7 +637,7 @@ export async function runDashaEvaluation(input: {
     const now = new Date().toISOString();
     const inputArtifacts = input.files.length > 0 ? await saveUploadedArtifacts(id, input.files) : [];
     const draftRun: DashaRunV2 = {
-        schemaVersion: 2,
+        schemaVersion: 3,
         id,
         rubricPackId: pack.id,
         runMode: input.runMode,
@@ -538,6 +656,8 @@ export async function runDashaEvaluation(input: {
             weightedScore: null,
             notApplicableRowKeys: [],
         },
+        clusterScorecards: [],
+        primaryClusterId: null,
         clusteringMethod: 'pending',
         clusteringNotes: 'Dasha evaluation started and is running in the background.',
         createdAt: now,
@@ -560,21 +680,16 @@ export async function executeDashaRun(id: string) {
 }
 
 export function buildJudgeRubricFromPack(pack: KarthicRubricPackV2) {
-    return RUBRIC_ROW_SPECS
-        .map((spec) => {
-            const row = pack.rows.find((item) => item.key === spec.key);
-            if (!row) {
-                return null;
-            }
-            return [
-                `${row.key} ${row.title} (${row.weight})`,
-                `Module: ${RUBRIC_MODULE_LABELS[row.moduleId]}`,
-                `Description: ${row.description}`,
-                `NA guidance: ${row.naGuidance}`,
-                `Golden target summary: ${row.goldenTarget.summary}`,
-            ].join('\n');
-        })
-        .filter(Boolean)
+    return pack.rows
+        .filter((row) => row.include)
+        .map((row) => [
+            `${row.key} ${row.title} (${row.lockedWeight})`,
+            `Module: ${RUBRIC_MODULE_LABELS[row.moduleId]}`,
+            `Role: ${row.role}`,
+            `Description: ${row.description}`,
+            `NA guidance: ${row.naGuidance}`,
+            `Golden target summary: ${row.goldenTarget.summary}`,
+        ].join('\n'))
         .join('\n\n');
 }
 
@@ -594,16 +709,25 @@ async function finalizeDashaRun(input: {
         }
 
         const clusteringResult = await clusterResponses(validResponses);
-        const rowResults: RubricRowResult[] = input.run.runMode === 'score_and_cluster'
-            ? await evaluateClustersAgainstRows({
+        const clusterScorecards = input.run.runMode === 'score_and_cluster'
+            ? await evaluateClustersAgainstPacket({
                 questionText: input.run.questionText,
                 pack: input.pack,
+                handoff: input.pack.prefillAudit,
                 clusters: clusteringResult.clusters,
                 responses: validResponses,
             })
             : [];
-        const moduleSummaries = buildModuleSummaries(rowResults);
-        const weightedSummary = summarizeRowResults(rowResults);
+        const primaryCluster = clusterScorecards[0] ?? null;
+        const rowResults = primaryCluster ? buildPrimaryRowResults(primaryCluster, clusteringResult.clusters) : [];
+        const moduleSummaries = primaryCluster?.moduleSummaries ?? [];
+        const weightedSummary = primaryCluster
+            ? {
+                applicableWeightTotal: primaryCluster.rowScores.reduce((sum, row) => row.applicabilityStatus === 'applicable' ? sum + row.weight : sum, 0),
+                weightedScore: primaryCluster.finalScore,
+                notApplicableRowKeys: primaryCluster.rowScores.filter((row) => row.applicabilityStatus !== 'applicable').map((row) => row.rowKey),
+            }
+            : { applicableWeightTotal: 0, weightedScore: null, notApplicableRowKeys: [] };
 
         const completedRun: DashaRunV2 = {
             ...input.run,
@@ -614,6 +738,8 @@ async function finalizeDashaRun(input: {
             rowResults,
             moduleSummaries,
             weightedSummary,
+            clusterScorecards,
+            primaryClusterId: primaryCluster?.clusterId ?? null,
             clusteringMethod: clusteringResult.method,
             clusteringNotes: input.run.runMode === 'cluster_only'
                 ? `${clusteringResult.notes} Row scoring was skipped because this run was started in clustering-only mode.`
@@ -640,6 +766,8 @@ async function finalizeFailedRun(run: DashaRunV2, errorMessage: string) {
             weightedScore: null,
             notApplicableRowKeys: [],
         },
+        clusterScorecards: [],
+        primaryClusterId: null,
         clusteringMethod: 'not_run',
         clusteringNotes: 'Dasha evaluation terminated before clustering completed.',
         errorMessage,
@@ -649,51 +777,136 @@ async function finalizeFailedRun(run: DashaRunV2, errorMessage: string) {
     return failedRun;
 }
 
-async function evaluateClustersAgainstRows(input: {
+async function evaluateClustersAgainstPacket(input: {
     questionText: string;
     pack: KarthicRubricPackV2;
+    handoff: KarthicHandoff;
     clusters: DashaClusterRecord[];
     responses: DashaResponseRecord[];
-}): Promise<RubricRowResult[]> {
+}): Promise<DashaClusterScorecard[]> {
     const responseById = new Map(input.responses.map((response) => [response.id, response]));
-    return await Promise.all(input.pack.rows.map(async (row) => {
-        const rawCentroidEvaluations = await Promise.all(input.clusters.map(async (cluster) => {
-            const representative = responseById.get(cluster.representativeResponseId);
-            if (!representative) {
-                return null;
-            }
-            const evaluation = await evaluateRowAgainstResponse({
-                row,
-                questionText: input.questionText,
-                responseText: representative.responseText,
-            });
-            return {
-                clusterId: cluster.id,
-                applicabilityStatus: evaluation.applicabilityStatus,
-                applicabilityExplanation: evaluation.applicabilityExplanation,
-                score: evaluation.score,
-                confidence: evaluation.confidence ?? null,
-                rationale: evaluation.rationale,
-                difference: evaluation.difference,
-                metadataTags: evaluation.metadataTags,
-            } as RubricRowCentroidEvaluation;
-        }));
-        const centroidEvaluations = rawCentroidEvaluations.filter((item): item is RubricRowCentroidEvaluation => Boolean(item));
+    const unsorted: Array<DashaClusterScorecard | null> = await Promise.all(input.clusters.map(async (cluster) => {
+        const representative = responseById.get(cluster.representativeResponseId);
+        if (!representative) {
+            return null;
+        }
+        const rowScores = await Promise.all(
+            input.pack.rows
+                .filter((row) => row.include)
+                .map(async (row) => {
+                    const evaluation = await evaluateRowAgainstResponse({
+                        row,
+                        questionText: input.questionText,
+                        responseText: representative.responseText,
+                    });
+                    const score = evaluation.applicabilityStatus === 'applicable'
+                        ? clampNullableAnchorScore(evaluation.score, null)
+                        : null;
+                    return {
+                        rowKey: row.key,
+                        moduleId: row.moduleId,
+                        rowTitle: row.title,
+                        weight: row.lockedWeight,
+                        rowSource: row.rowSource,
+                        role: row.role,
+                        applicabilityStatus: evaluation.applicabilityStatus,
+                        applicabilityExplanation: evaluation.applicabilityExplanation,
+                        score,
+                        weightedContribution: score === null ? 0 : roundToTwo((row.lockedWeight * score) / 4),
+                        confidence: evaluation.confidence ?? null,
+                        rationale: evaluation.rationale,
+                        difference: evaluation.difference,
+                        metadataTags: evaluation.metadataTags,
+                    } satisfies DashaClusterRowScore;
+                }),
+        );
+        const moduleSummaries = buildClusterModuleSummaries(rowScores);
+        const subtotal = roundToTwo(rowScores.reduce((sum, row) => sum + row.weightedContribution, 0));
+        const penaltiesApplied = detectAnswerLevelPenalties({
+            handoff: input.handoff,
+            responseText: representative.responseText,
+            rowScores,
+        });
+        const totalPenalty = penaltiesApplied.reduce((sum, item) => sum + item.points, 0);
+        const postPenaltyScore = roundToTwo(clampNumber(subtotal + totalPenalty, 0, 100));
+        const capStatus = detectCapStatus({
+            handoff: input.handoff,
+            responseText: representative.responseText,
+            penaltiesApplied,
+            rowScores,
+            postPenaltyScore,
+        });
+        const finalScore = capStatus.applied && typeof capStatus.capValue === 'number'
+            ? Math.min(postPenaltyScore, capStatus.capValue)
+            : postPenaltyScore;
+        const averageConfidence = computeAverageConfidence(rowScores);
+        const zakReviewFlag = buildZakReviewFlag({ handoff: input.handoff, penaltiesApplied, capStatus });
 
-        const winning = chooseWinningCentroid(centroidEvaluations, input.clusters);
         return {
-            rowKey: row.key,
-            moduleId: row.moduleId,
-            rowTitle: row.title,
-            weight: row.weight,
-            applicabilityStatus: winning?.applicabilityStatus ?? 'not_applicable',
-            applicabilityExplanation: winning?.applicabilityExplanation ?? row.naGuidance,
-            centroidEvaluations,
-            winningCentroidId: winning?.clusterId ?? null,
-            winningScore: winning?.score ?? null,
-            rationale: winning?.rationale ?? 'No applicable centroid satisfied this row.',
-            winningModelMix: winning ? (input.clusters.find((cluster) => cluster.id === winning.clusterId)?.modelBreakdown ?? []) : [],
-        } as RubricRowResult;
+            clusterId: cluster.id,
+            size: cluster.size,
+            modelBreakdown: cluster.modelBreakdown,
+            rowScores,
+            moduleSummaries,
+            subtotal,
+            penaltiesApplied,
+            capStatus,
+            postPenaltyScore,
+            finalScore,
+            zakReviewFlag,
+            averageConfidence,
+            rank: null,
+        } satisfies DashaClusterScorecard;
+    }));
+
+    const scorecards = unsorted.filter((item): item is DashaClusterScorecard => item !== null);
+    return scorecards
+        .sort((left, right) => {
+            const finalDelta = right.finalScore - left.finalScore;
+            if (finalDelta !== 0) {
+                return finalDelta;
+            }
+            const capDelta = capSeverity(left.capStatus) - capSeverity(right.capStatus);
+            if (capDelta !== 0) {
+                return capDelta;
+            }
+            const sizeDelta = right.size - left.size;
+            if (sizeDelta !== 0) {
+                return sizeDelta;
+            }
+            const confidenceDelta = (right.averageConfidence ?? -1) - (left.averageConfidence ?? -1);
+            if (confidenceDelta !== 0) {
+                return confidenceDelta;
+            }
+            return left.clusterId.localeCompare(right.clusterId);
+        })
+        .map((item, index) => ({ ...item, rank: index + 1 }));
+}
+
+function buildPrimaryRowResults(scorecard: DashaClusterScorecard, clusters: DashaClusterRecord[]): RubricRowResult[] {
+    return scorecard.rowScores.map((row) => ({
+        rowKey: row.rowKey,
+        moduleId: row.moduleId,
+        rowTitle: row.rowTitle,
+        weight: row.weight,
+        applicabilityStatus: row.applicabilityStatus,
+        applicabilityExplanation: row.applicabilityExplanation,
+        centroidEvaluations: [
+            {
+                clusterId: scorecard.clusterId,
+                applicabilityStatus: row.applicabilityStatus,
+                applicabilityExplanation: row.applicabilityExplanation,
+                score: row.score === null ? null : row.score * 25,
+                confidence: row.confidence,
+                rationale: row.rationale,
+                difference: row.difference,
+                metadataTags: row.metadataTags,
+            },
+        ],
+        winningCentroidId: scorecard.clusterId,
+        winningScore: row.score === null ? null : row.score * 25,
+        rationale: row.rationale,
+        winningModelMix: clusters.find((cluster) => cluster.id === scorecard.clusterId)?.modelBreakdown ?? [],
     }));
 }
 
@@ -723,7 +936,7 @@ function normalizeRowEvaluation(parsed: Record<string, unknown>, fallback: Retur
         applicabilityStatus,
         applicabilityExplanation: normalizeNonEmptyString(parsed.applicabilityExplanation, fallback.applicabilityExplanation),
         score: applicabilityStatus === 'applicable'
-            ? clampNullableScore(parsed.score, fallback.score)
+            ? clampNullableAnchorScore(parsed.score, fallback.score)
             : null,
         confidence: clampNumber(toNumber(parsed.confidence, fallback.confidence), 0, 1),
         rationale: normalizeNonEmptyString(parsed.rationale, fallback.rationale),
@@ -743,14 +956,14 @@ function normalizeRowEvaluation(parsed: Record<string, unknown>, fallback: Retur
     };
 }
 
-function buildModuleSummaries(results: RubricRowResult[]): ModuleSummary[] {
+function buildClusterModuleSummaries(rows: DashaClusterRowScore[]): ModuleSummary[] {
     return Object.entries(RUBRIC_MODULE_LABELS)
         .filter(([moduleId]) => moduleId !== 'module0')
         .map(([moduleId, label]) => {
-            const moduleRows = results.filter((result) => result.moduleId === moduleId);
-            const applicableRows = moduleRows.filter((row) => row.applicabilityStatus === 'applicable' && typeof row.winningScore === 'number');
+            const moduleRows = rows.filter((row) => row.moduleId === moduleId);
+            const applicableRows = moduleRows.filter((row) => row.applicabilityStatus === 'applicable' && typeof row.score === 'number');
             const averageScore = applicableRows.length > 0
-                ? roundToTwo(applicableRows.reduce((sum, row) => sum + (row.winningScore ?? 0), 0) / applicableRows.length)
+                ? roundToTwo((applicableRows.reduce((sum, row) => sum + ((row.score ?? 0) * 25), 0)) / applicableRows.length)
                 : null;
             return {
                 moduleId: moduleId as RubricModuleId,
@@ -760,50 +973,6 @@ function buildModuleSummaries(results: RubricRowResult[]): ModuleSummary[] {
                 winningRowKeys: applicableRows.map((row) => row.rowKey),
             };
         });
-}
-
-function summarizeRowResults(results: RubricRowResult[]): WeightedSummary {
-    let weightedTotal = 0;
-    let applicableWeightTotal = 0;
-    const notApplicableRowKeys: RubricRowKey[] = [];
-
-    for (const result of results) {
-        if (result.applicabilityStatus !== 'applicable' || typeof result.winningScore !== 'number') {
-            notApplicableRowKeys.push(result.rowKey);
-            continue;
-        }
-        applicableWeightTotal += result.weight;
-        weightedTotal += result.weight * result.winningScore;
-    }
-
-    return {
-        applicableWeightTotal,
-        weightedScore: applicableWeightTotal > 0 ? roundToTwo(weightedTotal / applicableWeightTotal) : null,
-        notApplicableRowKeys,
-    };
-}
-
-function chooseWinningCentroid(evaluations: RubricRowCentroidEvaluation[], clusters: DashaClusterRecord[]) {
-    const clusterById = new Map(clusters.map((cluster) => [cluster.id, cluster]));
-    const applicable = evaluations.filter((evaluation) => evaluation.applicabilityStatus === 'applicable' && typeof evaluation.score === 'number');
-    if (applicable.length === 0) {
-        return evaluations[0] ?? null;
-    }
-    return applicable.sort((left, right) => {
-        const scoreDelta = (right.score ?? -1) - (left.score ?? -1);
-        if (scoreDelta !== 0) {
-            return scoreDelta;
-        }
-        const confidenceDelta = (right.confidence ?? -1) - (left.confidence ?? -1);
-        if (confidenceDelta !== 0) {
-            return confidenceDelta;
-        }
-        const sizeDelta = (clusterById.get(right.clusterId)?.size ?? 0) - (clusterById.get(left.clusterId)?.size ?? 0);
-        if (sizeDelta !== 0) {
-            return sizeDelta;
-        }
-        return left.clusterId.localeCompare(right.clusterId);
-    })[0];
 }
 
 function heuristicRowEvaluation(input: {
@@ -828,7 +997,7 @@ function heuristicRowEvaluation(input: {
     return {
         applicabilityStatus: applicable ? 'applicable' as const : 'not_applicable' as const,
         applicabilityExplanation: applicable ? `The representative answer engages with row ${input.row.key}.` : input.row.naGuidance,
-        score: applicable ? Math.round(clampNumber(overlap * 240, 15, 96)) : null,
+        score: applicable ? clampNullableAnchorScore(Math.round(clampNumber(overlap * 10, 0, 4)), null) : null,
         confidence: roundToTwo(applicable ? Math.max(overlap, 0.35) : 0.4),
         rationale: applicable
             ? `Score derived from semantic overlap between the answer and the approved row ${input.row.key} target.`
@@ -1290,6 +1459,7 @@ function validateFrankApprovalOrThrow(packet: FrankPacketV2) {
     if (!packet.reverseEngineeredQuestion.trim()) {
         throw new Error('Reverse-engineered question is required before approval.');
     }
+    validateKarthicHandoffForApprovalOrThrow(packet.karthicHandoff);
 }
 
 function validateBenchmarkAnswerOrThrow(text: string) {
@@ -1394,34 +1564,47 @@ function collectQuestionWarnings(text: string) {
     return warnings;
 }
 
-function validateRubricRowsOrThrow(rows: KarthicRubricRow[]) {
-    if (rows.length !== RUBRIC_ROW_SPECS.length) {
-        throw new Error(`Rubric pack must contain exactly ${RUBRIC_ROW_SPECS.length} rows.`);
+function validateRubricRowsOrThrow(rows: KarthicRubricRow[], anchorRows: KarthicRubricRow[]) {
+    if (anchorRows.length !== RUBRIC_ROW_SPECS.length) {
+        throw new Error(`Rubric pack must contain exactly ${RUBRIC_ROW_SPECS.length} anchor rows.`);
     }
     for (const spec of RUBRIC_ROW_SPECS) {
-        const row = rows.find((item) => item.key === spec.key);
+        const row = anchorRows.find((item) => item.key === spec.key);
         if (!row) {
             throw new Error(`Rubric pack is missing row ${spec.key}.`);
         }
         if (row.moduleId !== spec.moduleId) {
             throw new Error(`Row ${spec.key} must belong to ${spec.moduleId}.`);
         }
-        if (!row.title.trim() || !row.description.trim() || !row.naGuidance.trim()) {
+        if (!row.title.trim() || !row.description.trim() || !row.naGuidance.trim() || !row.failureMode.trim()) {
             throw new Error(`Row ${spec.key} is incomplete.`);
         }
         if (!row.goldenTarget.summary.trim() || row.goldenTarget.goldenContains.length === 0 || !row.goldenTarget.comparisonGuidance.trim()) {
             throw new Error(`Row ${spec.key} is missing required golden-target fields.`);
         }
+        if (!row.scoreAnchors['0'].trim() || !row.scoreAnchors['1'].trim() || !row.scoreAnchors['2'].trim() || !row.scoreAnchors['3'].trim() || !row.scoreAnchors['4'].trim()) {
+            throw new Error(`Row ${spec.key} is missing scoring anchors.`);
+        }
+    }
+    for (const row of rows) {
+        if (!row.key.trim() || !row.title.trim() || !row.failureMode.trim()) {
+            throw new Error(`Rubric row ${row.key || '(blank)'} is incomplete.`);
+        }
     }
 }
 
 function normalizeFrankPacket(value: unknown): FrankPacketV2 | null {
-    if (!isRecord(value) || value.schemaVersion !== 2) {
+    if (!isRecord(value) || (value.schemaVersion !== 2 && value.schemaVersion !== 3)) {
         return null;
     }
     const sourceArtifacts = normalizeArtifacts(value.sourceArtifacts);
+    const intakeChecklist = normalizeIntakeChecklist(value.intakeChecklist);
+    const sourceExtractionSheet = normalizeSourceExtractionSheet(value.sourceExtractionSheet, normalizePackId(value.selectedPack));
+    const goldPacketMapping = normalizeGoldPacketMapping(value.goldPacketMapping);
+    const likelyFailureModes = normalizeFailureModes(value.likelyFailureModes);
+    const benchmarkAnswer = normalizeOptionalString(value.benchmarkAnswer, '');
     return {
-        schemaVersion: 2,
+        schemaVersion: 3,
         id: normalizeNonEmptyString(value.id, `frank_v2_${randomUUID().slice(0, 8)}`),
         status: value.status === 'approved' ? 'approved' : 'draft',
         phase: normalizePhase(value.phase, 'source'),
@@ -1433,12 +1616,24 @@ function normalizeFrankPacket(value: unknown): FrankPacketV2 | null {
         secondaryIssues: normalizeStringArray(value.secondaryIssues),
         routingConfidence: normalizeRoutingConfidence(value.routingConfidence),
         sourceArtifacts,
-        intakeChecklist: normalizeIntakeChecklist(value.intakeChecklist),
-        sourceExtractionSheet: normalizeSourceExtractionSheet(value.sourceExtractionSheet, normalizePackId(value.selectedPack)),
-        goldPacketMapping: normalizeGoldPacketMapping(value.goldPacketMapping),
-        likelyFailureModes: normalizeFailureModes(value.likelyFailureModes),
-        benchmarkAnswer: normalizeOptionalString(value.benchmarkAnswer, ''),
+        intakeChecklist,
+        sourceExtractionSheet,
+        goldPacketMapping,
+        likelyFailureModes,
+        benchmarkAnswer,
         reverseEngineeredQuestion: normalizeOptionalString(value.reverseEngineeredQuestion, ''),
+        karthicHandoff: normalizeKarthicHandoff(value.karthicHandoff, {
+            id: normalizeNonEmptyString(value.id, `frank_v2_${randomUUID().slice(0, 8)}`),
+            title: normalizeNonEmptyString(value.title, 'Untitled Statute of Frauds packet'),
+            selectedPack: normalizePackId(value.selectedPack),
+            routingReason: normalizeOptionalString(value.routingReason, ''),
+            sourceArtifacts,
+            intakeChecklist,
+            sourceExtractionSheet,
+            goldPacketMapping,
+            likelyFailureModes,
+            benchmarkAnswer,
+        }),
         savedPrompts: Array.isArray(value.savedPrompts) ? value.savedPrompts as FrankPacketV2['savedPrompts'] : [],
         benchmarkWarnings: normalizeStringArray(value.benchmarkWarnings),
         questionWarnings: normalizeStringArray(value.questionWarnings),
@@ -1449,17 +1644,32 @@ function normalizeFrankPacket(value: unknown): FrankPacketV2 | null {
 }
 
 function normalizeKarthicRubricPack(value: unknown): KarthicRubricPackV2 | null {
-    if (!isRecord(value) || value.schemaVersion !== 2) {
+    if (!isRecord(value) || (value.schemaVersion !== 2 && value.schemaVersion !== 3)) {
         return null;
     }
+    const prefillAudit = normalizeKarthicHandoff(value.prefillAudit ?? value.karthicHandoff, {
+        id: normalizeNonEmptyString(value.frankPacketId, ''),
+    });
+    const moduleBudgets = normalizeModuleBudgets(value.moduleBudgets);
+    const anchorRows = normalizeRubricRows(value.anchorRows ?? value.rows, 'anchor');
+    const emergentRows = normalizeRubricRows(value.emergentRows, 'emergent');
+    const rows = flattenIncludedRows(anchorRows, emergentRows, moduleBudgets);
     return {
-        schemaVersion: 2,
+        schemaVersion: 3,
         id: normalizeNonEmptyString(value.id, `karthic_v2_${randomUUID().slice(0, 8)}`),
         frankPacketId: normalizeNonEmptyString(value.frankPacketId, ''),
         selectedPack: normalizePackId(value.selectedPack) ?? 'pack10',
         questionText: normalizeOptionalString(value.questionText, ''),
         status: value.status === 'approved' ? 'approved' : 'draft',
-        rows: normalizeRubricRows(value.rows),
+        prefillAudit,
+        moduleBudgets,
+        anchorRows,
+        emergentRows,
+        rows,
+        failureLabelMap: normalizeFailureLabelMap(value.failureLabelMap),
+        decompositionLog: normalizeDecompositionLog(value.decompositionLog),
+        variationPatchNotes: normalizeStringArray(value.variationPatchNotes),
+        escalationNotes: normalizeEscalationNotes(value.escalationNotes, prefillAudit),
         savedPrompts: Array.isArray(value.savedPrompts) ? value.savedPrompts as KarthicRubricPackV2['savedPrompts'] : [],
         comparisonMethodNote: normalizeOptionalString(value.comparisonMethodNote, ''),
         approvedAt: typeof value.approvedAt === 'string' ? value.approvedAt : null,
@@ -1469,11 +1679,11 @@ function normalizeKarthicRubricPack(value: unknown): KarthicRubricPackV2 | null 
 }
 
 function normalizeDashaRun(value: unknown): DashaRunV2 | null {
-    if (!isRecord(value) || value.schemaVersion !== 2) {
+    if (!isRecord(value) || (value.schemaVersion !== 2 && value.schemaVersion !== 3)) {
         return null;
     }
     return {
-        schemaVersion: 2,
+        schemaVersion: 3,
         id: normalizeNonEmptyString(value.id, `dasha_v2_${randomUUID().slice(0, 8)}`),
         rubricPackId: normalizeNonEmptyString(value.rubricPackId, ''),
         runMode: value.runMode === 'cluster_only' ? 'cluster_only' : 'score_and_cluster',
@@ -1494,6 +1704,8 @@ function normalizeDashaRun(value: unknown): DashaRunV2 | null {
                 notApplicableRowKeys: normalizeRubricRowKeys(value.weightedSummary.notApplicableRowKeys),
             }
             : { applicableWeightTotal: 0, weightedScore: null, notApplicableRowKeys: [] },
+        clusterScorecards: normalizeClusterScorecards(value.clusterScorecards),
+        primaryClusterId: typeof value.primaryClusterId === 'string' && value.primaryClusterId.trim() ? value.primaryClusterId.trim() : null,
         clusteringMethod: normalizeOptionalString(value.clusteringMethod, 'unknown'),
         clusteringNotes: typeof value.clusteringNotes === 'string' ? value.clusteringNotes : null,
         errorMessage: typeof value.errorMessage === 'string' ? value.errorMessage : undefined,
@@ -1502,39 +1714,29 @@ function normalizeDashaRun(value: unknown): DashaRunV2 | null {
     };
 }
 
-function normalizeRubricRows(value: unknown): KarthicRubricRow[] {
+function normalizeRubricRows(value: unknown, rowSource: 'anchor' | 'emergent'): KarthicRubricRow[] {
     const records = Array.isArray(value) ? value : [];
     const parsedRows = records
-        .map((record) => normalizeRubricRow(record))
+        .map((record) => normalizeRubricRow(record, rowSource))
         .filter((row): row is KarthicRubricRow => Boolean(row));
+
+    if (rowSource === 'emergent') {
+        return parsedRows;
+    }
 
     const output: KarthicRubricRow[] = [];
     for (const spec of RUBRIC_ROW_SPECS) {
         const parsed = parsedRows.find((row) => row.key === spec.key);
-        output.push(parsed ?? {
-            key: spec.key,
-            moduleId: spec.moduleId,
-            title: spec.title,
-            description: spec.defaultDescription,
-            weight: spec.defaultWeight,
-            naGuidance: `Mark row ${spec.key} not applicable only if the question packet does not materially trigger this issue.`,
-            goldenTarget: {
-                summary: `Assess whether the answer correctly handles ${spec.title.toLowerCase()}.`,
-                goldenContains: [`The answer should directly address ${spec.title.toLowerCase()}.`],
-                allowedOmissions: [],
-                contradictionFlags: [],
-                comparisonGuidance: `Compare the centroid against row ${spec.key} as the evaluation lens.`,
-            },
-        });
+        output.push(parsed ?? buildDefaultAnchorRow(spec.key));
     }
     return output;
 }
 
-function normalizeRubricRow(value: unknown): KarthicRubricRow | null {
+function normalizeRubricRow(value: unknown, rowSource: 'anchor' | 'emergent'): KarthicRubricRow | null {
     if (!isRecord(value)) {
         return null;
     }
-    const key = typeof value.key === 'string' && ROW_KEYS.has(value.key as RubricRowKey) ? value.key as RubricRowKey : null;
+    const key = typeof value.key === 'string' && value.key.trim() ? value.key.trim() : null;
     const moduleId = typeof value.moduleId === 'string' && MODULE_IDS.has(value.moduleId as RubricModuleId) ? value.moduleId as RubricModuleId : null;
     if (!key || !moduleId) {
         return null;
@@ -1543,11 +1745,42 @@ function normalizeRubricRow(value: unknown): KarthicRubricRow | null {
     return {
         key,
         moduleId,
+        rowSource,
+        role: normalizeRubricRole(value.role, spec?.role ?? defaultRoleForModule(moduleId)),
         title: normalizeNonEmptyString(value.title, spec?.title ?? key),
         description: normalizeNonEmptyString(value.description, spec?.defaultDescription ?? ''),
-        weight: clampNumber(toNumber(value.weight, spec?.defaultWeight ?? 1), 1, 25),
+        weight: clampNumber(toNumber(value.weight, toNumber(value.lockedWeight, spec?.defaultWeight ?? 1)), 1, 40),
+        lockedWeight: clampNumber(toNumber(value.lockedWeight, toNumber(value.weight, spec?.defaultWeight ?? 1)), 1, 40),
+        include: value.include === false ? false : true,
         naGuidance: normalizeNonEmptyString(value.naGuidance, `Mark row ${key} not applicable only if the question packet does not materially trigger this issue.`),
+        failureMode: normalizeNonEmptyString(value.failureMode, `Earliest-gate failure on row ${key}.`),
+        scoreAnchors: normalizeScoreAnchors(value.scoreAnchors),
         goldenTarget: normalizeGoldenTarget(value.goldenTarget),
+    };
+}
+
+function buildDefaultAnchorRow(key: string): KarthicRubricRow {
+    const spec = RUBRIC_ROW_SPECS.find((row) => row.key === key) ?? RUBRIC_ROW_SPECS[0];
+    return {
+        key,
+        moduleId: spec.moduleId,
+        rowSource: 'anchor',
+        role: spec.role,
+        title: spec.title,
+        description: spec.defaultDescription,
+        weight: spec.defaultWeight,
+        lockedWeight: spec.defaultWeight,
+        include: true,
+        naGuidance: `Mark row ${key} not applicable only if the question packet does not materially trigger this issue.`,
+        failureMode: `Failure to satisfy ${spec.title.toLowerCase()}.`,
+        scoreAnchors: defaultScoreAnchors(spec.title),
+        goldenTarget: {
+            summary: `Assess whether the answer correctly handles ${spec.title.toLowerCase()}.`,
+            goldenContains: [`The answer should directly address ${spec.title.toLowerCase()}.`],
+            allowedOmissions: [],
+            contradictionFlags: [],
+            comparisonGuidance: `Compare the answer against row ${key} as the evaluation lens.`,
+        },
     };
 }
 
@@ -1560,6 +1793,262 @@ function normalizeGoldenTarget(value: unknown): RubricRowGoldenTarget {
         contradictionFlags: normalizeStringArray(record.contradictionFlags),
         comparisonGuidance: normalizeNonEmptyString(record.comparisonGuidance, 'Compare the centroid against this approved row target.'),
     };
+}
+
+function normalizeScoreAnchors(value: unknown): RubricRowScoreAnchors {
+    const record = isRecord(value) ? value : {};
+    return {
+        '0': normalizeNonEmptyString(record['0'], 'Absent or materially wrong; would mislead the outcome.'),
+        '1': normalizeNonEmptyString(record['1'], 'Mentioned but incorrect or superficial.'),
+        '2': normalizeNonEmptyString(record['2'], 'Partly correct but missing a key element, exception, or application step.'),
+        '3': normalizeNonEmptyString(record['3'], 'Mostly correct; minor gaps but still usable.'),
+        '4': normalizeNonEmptyString(record['4'], 'Strong; correct rule, prioritized path, fact-specific application, and key counterpoints addressed.'),
+    };
+}
+
+function normalizeModuleBudgets(value: unknown, fallback?: KarthicModuleBudget[]): KarthicModuleBudget[] {
+    const records = Array.isArray(value) ? value : [];
+    return (Object.entries(KARTHIC_MODULE_DEFAULT_BUDGETS) as Array<[Exclude<RubricModuleId, 'module0'>, number]>).map(([moduleId, defaultBudget]) => {
+        const current = records.find((item) => isRecord(item) && item.moduleId === moduleId);
+        const prior = fallback?.find((item) => item.moduleId === moduleId);
+        const overrideBudget = current && typeof current.overrideBudget === 'number'
+            ? clampNumber(current.overrideBudget, 1, 100)
+            : prior?.overrideBudget ?? null;
+        const finalBudget = overrideBudget ?? defaultBudget;
+        return {
+            moduleId,
+            label: RUBRIC_MODULE_LABELS[moduleId],
+            defaultBudget,
+            overrideBudget,
+            finalBudget,
+            rationale: current && typeof current.rationale === 'string'
+                ? current.rationale.trim()
+                : prior?.rationale ?? '',
+        };
+    });
+}
+
+function normalizeFailureLabelMap(value: unknown): KarthicFailureLabelMapEntry[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .filter(isRecord)
+        .map((item) => ({
+            rowKey: normalizeNonEmptyString(item.rowKey, ''),
+            label: normalizeNonEmptyString(item.label, ''),
+            notes: normalizeOptionalString(item.notes, ''),
+        }))
+        .filter((item) => item.rowKey && item.label);
+}
+
+function normalizeDecompositionLog(value: unknown): KarthicDecompositionLogEntry[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .filter(isRecord)
+        .map((item) => ({
+            rowKey: normalizeNonEmptyString(item.rowKey, ''),
+            action: normalizeDecompositionAction(item.action),
+            note: normalizeOptionalString(item.note, ''),
+        }))
+        .filter((item) => item.rowKey);
+}
+
+function normalizeEscalationNotes(value: unknown, handoff: KarthicHandoff): string[] {
+    const notes = normalizeStringArray(value);
+    if (!handoff.clustered_centroids_or_archetypes_ref.trim()) {
+        notes.push('Centroid or archetype reference is missing; rubric was generated without pre-Karthic centroid evidence and should be reviewed.');
+    }
+    return Array.from(new Set(notes));
+}
+
+function flattenIncludedRows(anchorRows: KarthicRubricRow[], emergentRows: KarthicRubricRow[], moduleBudgets: KarthicModuleBudget[]) {
+    const rows = [...anchorRows, ...emergentRows].filter((row) => row.include);
+    const budgetByModule = new Map(moduleBudgets.map((budget) => [budget.moduleId, budget.finalBudget]));
+    return rows.map((row) => ({
+        ...row,
+        weight: row.lockedWeight,
+        lockedWeight: roundToTwo(clampNumber(row.lockedWeight || row.weight || (row.moduleId === 'module0' ? 1 : (budgetByModule.get(row.moduleId) || 1)), 1, 100)),
+    }));
+}
+
+function normalizeKarthicHandoff(value: unknown, seed: Partial<{
+    id: string;
+    title: string;
+    selectedPack: FrankSofPackId | null;
+    routingReason: string;
+    sourceArtifacts: ArtifactRecord[];
+    intakeChecklist: FrankSourceIntakeChecklist | null;
+    sourceExtractionSheet: FrankSourceExtractionSheet | null;
+    goldPacketMapping: FrankGoldPacketMapping | null;
+    likelyFailureModes: FrankLikelyFailureModes | null;
+    benchmarkAnswer: string;
+}>): KarthicHandoff {
+    const record = isRecord(value) ? value : {};
+    const defaults = buildDefaultKarthicHandoff({
+        id: seed.id ?? '',
+        title: seed.title ?? '',
+        selectedPack: seed.selectedPack ?? null,
+        routingReason: seed.routingReason ?? '',
+        sourceArtifacts: seed.sourceArtifacts ?? [],
+        intakeChecklist: seed.intakeChecklist ?? null,
+        sourceExtractionSheet: seed.sourceExtractionSheet ?? null,
+        goldPacketMapping: seed.goldPacketMapping ?? null,
+        likelyFailureModes: seed.likelyFailureModes ?? null,
+        benchmarkAnswer: seed.benchmarkAnswer ?? '',
+    });
+    return {
+        packet_id: normalizeNonEmptyString(record.packet_id, defaults.packet_id),
+        date_created: normalizeNonEmptyString(record.date_created, defaults.date_created),
+        created_by: normalizeNonEmptyString(record.created_by, defaults.created_by),
+        source_authority: normalizeNonEmptyString(record.source_authority, defaults.source_authority),
+        source_type: normalizeNonEmptyString(record.source_type, defaults.source_type),
+        selected_pack: normalizeNonEmptyString(record.selected_pack, defaults.selected_pack),
+        doctrine_family: normalizeNonEmptyString(record.doctrine_family, defaults.doctrine_family),
+        benchmark_posture: normalizeNonEmptyString(record.benchmark_posture, defaults.benchmark_posture),
+        variation_lane: normalizeVariationLane(record.variation_lane),
+        source_grounded_vs_generalized: normalizeNonEmptyString(record.source_grounded_vs_generalized, defaults.source_grounded_vs_generalized),
+        jurisdiction_assumption: normalizeNonEmptyString(record.jurisdiction_assumption, defaults.jurisdiction_assumption),
+        likely_controlling_doctrine: normalizeNonEmptyString(record.likely_controlling_doctrine, defaults.likely_controlling_doctrine),
+        required_gate_order: normalizeNonEmptyString(record.required_gate_order, defaults.required_gate_order),
+        strongest_expected_counterargument: normalizeNonEmptyString(record.strongest_expected_counterargument, defaults.strongest_expected_counterargument),
+        key_jurisdiction_sensitive_points: normalizeStringArray(record.key_jurisdiction_sensitive_points).length > 0
+            ? normalizeStringArray(record.key_jurisdiction_sensitive_points)
+            : defaults.key_jurisdiction_sensitive_points,
+        output_shell: normalizeOutputShell(record.output_shell),
+        custom_output_shell_text: normalizeOptionalString(record.custom_output_shell_text, ''),
+        gold_answer_ref: normalizeNonEmptyString(record.gold_answer_ref, defaults.gold_answer_ref),
+        doctrine_guide_or_pack_ref: normalizeNonEmptyString(record.doctrine_guide_or_pack_ref, defaults.doctrine_guide_or_pack_ref),
+        failure_bank_ref: normalizeNonEmptyString(record.failure_bank_ref, defaults.failure_bank_ref),
+        clustered_centroids_or_archetypes_ref: normalizeOptionalString(record.clustered_centroids_or_archetypes_ref, defaults.clustered_centroids_or_archetypes_ref),
+        human_weight_overrides: normalizeNonEmptyString(record.human_weight_overrides, defaults.human_weight_overrides),
+        failure_bank_status: normalizeNonEmptyString(record.failure_bank_status, defaults.failure_bank_status),
+        cluster_confidence_or_escalation_flag: normalizeNonEmptyString(record.cluster_confidence_or_escalation_flag, defaults.cluster_confidence_or_escalation_flag),
+        packet_readiness: normalizePacketReadiness(record.packet_readiness),
+        missing_or_uncertain_items: normalizeStringArray(record.missing_or_uncertain_items),
+        zak_review_needed_before_lock: record.zak_review_needed_before_lock === 'Yes' ? 'Yes' : 'No',
+        prefill_audit_status: normalizePrefillAuditStatus(record.prefill_audit_status, defaults.prefill_audit_status),
+    };
+}
+
+function normalizePrefillAuditStatus(value: unknown, fallback: KarthicHandoffAuditStatus): KarthicHandoffAuditStatus {
+    const record = isRecord(value) ? value : {};
+    return {
+        selected_pack: normalizePrefillStatus(record.selected_pack, fallback.selected_pack),
+        doctrine_family: normalizePrefillStatus(record.doctrine_family, fallback.doctrine_family),
+        jurisdiction_assumption: normalizePrefillStatus(record.jurisdiction_assumption, fallback.jurisdiction_assumption),
+        benchmark_posture: normalizePrefillStatus(record.benchmark_posture, fallback.benchmark_posture),
+        likely_controlling_doctrine: normalizePrefillStatus(record.likely_controlling_doctrine, fallback.likely_controlling_doctrine),
+        required_gate_order: normalizePrefillStatus(record.required_gate_order, fallback.required_gate_order),
+        output_shell: normalizePrefillStatus(record.output_shell, fallback.output_shell),
+        strongest_expected_counterargument: normalizePrefillStatus(record.strongest_expected_counterargument, fallback.strongest_expected_counterargument),
+        gold_answer_ref: normalizePrefillStatus(record.gold_answer_ref, fallback.gold_answer_ref),
+        doctrine_guide_or_pack_ref: normalizePrefillStatus(record.doctrine_guide_or_pack_ref, fallback.doctrine_guide_or_pack_ref),
+        failure_bank_ref: normalizePrefillStatus(record.failure_bank_ref, fallback.failure_bank_ref),
+        variation_lane: normalizePrefillStatus(record.variation_lane, fallback.variation_lane),
+        human_weight_overrides: normalizePrefillStatus(record.human_weight_overrides, fallback.human_weight_overrides),
+        packet_readiness: normalizePrefillStatus(record.packet_readiness, fallback.packet_readiness),
+    };
+}
+
+function buildDefaultKarthicHandoff(seed: {
+    id: string;
+    title: string;
+    selectedPack: FrankSofPackId | null;
+    routingReason?: string;
+    sourceArtifacts?: ArtifactRecord[];
+    intakeChecklist?: FrankSourceIntakeChecklist | null;
+    sourceExtractionSheet?: FrankSourceExtractionSheet | null;
+    goldPacketMapping?: FrankGoldPacketMapping | null;
+    likelyFailureModes?: FrankLikelyFailureModes | null;
+    benchmarkAnswer?: string;
+}): KarthicHandoff {
+    const authority = seed.sourceArtifacts?.[0]?.fileName ?? seed.title ?? seed.id;
+    const doctrineFamily = seed.goldPacketMapping?.doctrineFamily ?? seed.intakeChecklist?.targetDoctrineFamilyLikelyPack ?? '';
+    const benchmarkPosture = seed.goldPacketMapping?.benchmarkPosture ?? seed.intakeChecklist?.benchmarkPosture ?? '';
+    const likelyControllingDoctrine = seed.goldPacketMapping?.controllingTrigger ?? '';
+    const requiredGateOrder = seed.goldPacketMapping?.requiredGateOrder?.join(' -> ') ?? '';
+    const strongestExpectedCounterargument = seed.goldPacketMapping?.likelyJurisdictionSensitivePoints?.[0] ?? '';
+    return {
+        packet_id: seed.id,
+        date_created: new Date().toISOString(),
+        created_by: 'Frank v2',
+        source_authority: authority,
+        source_type: seed.sourceArtifacts?.[0]?.role ?? 'uploaded_authority',
+        selected_pack: seed.selectedPack ?? '',
+        doctrine_family: doctrineFamily,
+        benchmark_posture: String(benchmarkPosture),
+        variation_lane: 'A',
+        source_grounded_vs_generalized: seed.routingReason ?? '',
+        jurisdiction_assumption: seed.sourceExtractionSheet?.jurisdictionForum ?? '',
+        likely_controlling_doctrine: likelyControllingDoctrine,
+        required_gate_order: requiredGateOrder,
+        strongest_expected_counterargument: strongestExpectedCounterargument,
+        key_jurisdiction_sensitive_points: seed.goldPacketMapping?.likelyJurisdictionSensitivePoints ?? [],
+        output_shell: 'core_cross_pack_v1',
+        custom_output_shell_text: '',
+        gold_answer_ref: seed.benchmarkAnswer?.trim() ? `packet:${seed.id}:benchmarkAnswer` : '',
+        doctrine_guide_or_pack_ref: seed.selectedPack ? `pack:${seed.selectedPack}` : '',
+        failure_bank_ref: seed.selectedPack ? `failure-bank:${seed.selectedPack}` : '',
+        clustered_centroids_or_archetypes_ref: '',
+        human_weight_overrides: 'None',
+        failure_bank_status: seed.likelyFailureModes ? 'Ready' : 'Needs work',
+        cluster_confidence_or_escalation_flag: '',
+        packet_readiness: 'Needs work',
+        missing_or_uncertain_items: [],
+        zak_review_needed_before_lock: 'No',
+        prefill_audit_status: {
+            selected_pack: seed.selectedPack ? 'Fixed' : 'Needs human confirmation',
+            doctrine_family: doctrineFamily ? 'Fixed' : 'Needs human confirmation',
+            jurisdiction_assumption: seed.sourceExtractionSheet?.jurisdictionForum ? 'Fixed but jurisdiction-sensitive' : 'Needs human confirmation',
+            benchmark_posture: benchmarkPosture ? 'Fixed' : 'Needs human confirmation',
+            likely_controlling_doctrine: likelyControllingDoctrine ? 'Fixed' : 'Needs human confirmation',
+            required_gate_order: requiredGateOrder ? 'Fixed' : 'Needs human confirmation',
+            output_shell: 'Needs human confirmation',
+            strongest_expected_counterargument: strongestExpectedCounterargument ? 'Fixed' : 'Needs human confirmation',
+            gold_answer_ref: seed.benchmarkAnswer?.trim() ? 'Fixed' : 'Needs human confirmation',
+            doctrine_guide_or_pack_ref: seed.selectedPack ? 'Fixed' : 'Needs human confirmation',
+            failure_bank_ref: seed.selectedPack ? 'Fixed' : 'Needs human confirmation',
+            variation_lane: 'Fixed',
+            human_weight_overrides: 'Fixed',
+            packet_readiness: 'Needs human confirmation',
+        },
+    };
+}
+
+function buildUpdatedKarthicHandoff(input: { packet: FrankPacketV2 }) {
+    const base = normalizeKarthicHandoff(input.packet.karthicHandoff, {
+        id: input.packet.id,
+        title: input.packet.title,
+        selectedPack: input.packet.selectedPack,
+        routingReason: input.packet.routingReason,
+        sourceArtifacts: input.packet.sourceArtifacts,
+        intakeChecklist: input.packet.intakeChecklist,
+        sourceExtractionSheet: input.packet.sourceExtractionSheet,
+        goldPacketMapping: input.packet.goldPacketMapping,
+        likelyFailureModes: input.packet.likelyFailureModes,
+        benchmarkAnswer: input.packet.benchmarkAnswer,
+    });
+    const updated = {
+        ...base,
+        packet_id: input.packet.id,
+        source_authority: input.packet.sourceArtifacts[0]?.fileName ?? base.source_authority,
+        selected_pack: input.packet.selectedPack ?? base.selected_pack,
+        doctrine_family: input.packet.goldPacketMapping?.doctrineFamily ?? base.doctrine_family,
+        benchmark_posture: String(input.packet.goldPacketMapping?.benchmarkPosture ?? input.packet.intakeChecklist?.benchmarkPosture ?? base.benchmark_posture),
+        jurisdiction_assumption: input.packet.sourceExtractionSheet?.jurisdictionForum ?? base.jurisdiction_assumption,
+        likely_controlling_doctrine: input.packet.goldPacketMapping?.controllingTrigger ?? base.likely_controlling_doctrine,
+        required_gate_order: input.packet.goldPacketMapping?.requiredGateOrder?.join(' -> ') ?? base.required_gate_order,
+        key_jurisdiction_sensitive_points: input.packet.goldPacketMapping?.likelyJurisdictionSensitivePoints ?? base.key_jurisdiction_sensitive_points,
+        gold_answer_ref: input.packet.benchmarkAnswer.trim() ? `packet:${input.packet.id}:benchmarkAnswer` : base.gold_answer_ref,
+        doctrine_guide_or_pack_ref: input.packet.selectedPack ? `pack:${input.packet.selectedPack}` : base.doctrine_guide_or_pack_ref,
+        failure_bank_ref: input.packet.selectedPack ? `failure-bank:${input.packet.selectedPack}` : base.failure_bank_ref,
+    };
+    updated.missing_or_uncertain_items = collectKarthicHandoffMissingItems(updated);
+    updated.packet_readiness = updated.missing_or_uncertain_items.length === 0 ? updated.packet_readiness : 'Needs work';
+    return updated;
 }
 
 function normalizeIntakeChecklist(value: unknown): FrankSourceIntakeChecklist | null {
@@ -1677,6 +2166,30 @@ function normalizePackId(value: unknown): FrankSofPackId | null {
     return typeof value === 'string' && PACK_IDS.has(value as FrankSofPackId) ? value as FrankSofPackId : null;
 }
 
+function normalizePrefillStatus(value: unknown, fallback: KarthicPrefillStatus): KarthicPrefillStatus {
+    return typeof value === 'string' && PREFILL_STATUSES.has(value as KarthicPrefillStatus)
+        ? value as KarthicPrefillStatus
+        : fallback;
+}
+
+function normalizeVariationLane(value: unknown): KarthicVariationLane {
+    return typeof value === 'string' && VARIATION_LANES.has(value as KarthicVariationLane)
+        ? value as KarthicVariationLane
+        : 'A';
+}
+
+function normalizeOutputShell(value: unknown): KarthicOutputShell {
+    return typeof value === 'string' && OUTPUT_SHELLS.has(value as KarthicOutputShell)
+        ? value as KarthicOutputShell
+        : 'core_cross_pack_v1';
+}
+
+function normalizePacketReadiness(value: unknown): KarthicPacketReadiness {
+    return typeof value === 'string' && PACKET_READINESS.has(value as KarthicPacketReadiness)
+        ? value as KarthicPacketReadiness
+        : 'Needs work';
+}
+
 function normalizeRoutingConfidence(value: unknown): RoutingConfidence | null {
     return value === 'strong' || value === 'moderate' || value === 'weak' ? value : null;
 }
@@ -1689,8 +2202,20 @@ function normalizePhase(value: unknown, fallback: FrankPhase): FrankPhase {
 
 function normalizeRubricRowKeys(value: unknown): RubricRowKey[] {
     return Array.isArray(value)
-        ? value.filter((item): item is RubricRowKey => typeof item === 'string' && ROW_KEYS.has(item as RubricRowKey))
+        ? value.filter((item): item is RubricRowKey => typeof item === 'string' && item.trim().length > 0).map((item) => item.trim())
         : [];
+}
+
+function normalizeRubricRole(value: unknown, fallback: RubricRowRole): RubricRowRole {
+    return value === 'controlling' || value === 'secondary' || value === 'fallback' || value === 'cross_cutting'
+        ? value
+        : fallback;
+}
+
+function normalizeDecompositionAction(value: unknown): KarthicDecompositionLogEntry['action'] {
+    return value === 'created' || value === 'split' || value === 'merged' || value === 'pruned' || value === 'retained'
+        ? value
+        : 'retained';
 }
 
 function normalizeOpenAiJsonModel(model?: string) {
@@ -1709,9 +2234,9 @@ function getNestedString(value: Record<string, unknown>, parentKey: string, chil
     return typeof parent[childKey] === 'string' ? parent[childKey] : '';
 }
 
-function clampNullableScore(value: unknown, fallback: number | null) {
+function clampNullableAnchorScore(value: unknown, fallback: 0 | 1 | 2 | 3 | 4 | null): 0 | 1 | 2 | 3 | 4 | null {
     if (typeof value === 'number' && Number.isFinite(value)) {
-        return clampNumber(value, 0, 100);
+        return clampNumber(Math.round(value), 0, 4) as 0 | 1 | 2 | 3 | 4;
     }
     return fallback;
 }
@@ -1735,6 +2260,57 @@ function normalizeStringArray(value: unknown) {
     return value.map((item) => typeof item === 'string' ? item.trim() : '').filter(Boolean);
 }
 
+function normalizeClusterScorecards(value: unknown): DashaClusterScorecard[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .filter(isRecord)
+        .map((item) => ({
+            clusterId: normalizeNonEmptyString(item.clusterId, ''),
+            size: Math.max(0, Math.floor(toNumber(item.size, 0))),
+            modelBreakdown: Array.isArray(item.modelBreakdown) ? item.modelBreakdown as DashaClusterScorecard['modelBreakdown'] : [],
+            rowScores: Array.isArray(item.rowScores) ? item.rowScores as DashaClusterRowScore[] : [],
+            moduleSummaries: Array.isArray(item.moduleSummaries) ? item.moduleSummaries as ModuleSummary[] : [],
+            subtotal: toNumber(item.subtotal, 0),
+            penaltiesApplied: Array.isArray(item.penaltiesApplied) ? item.penaltiesApplied as DashaPenaltyApplication[] : [],
+            capStatus: isRecord(item.capStatus)
+                ? {
+                    code: typeof item.capStatus.code === 'string' ? item.capStatus.code : null,
+                    applied: item.capStatus.applied === true,
+                    capValue: typeof item.capStatus.capValue === 'number' ? item.capStatus.capValue : null,
+                    note: normalizeOptionalString(item.capStatus.note, ''),
+                }
+                : { code: null, applied: false, capValue: null, note: '' },
+            postPenaltyScore: toNumber(item.postPenaltyScore, 0),
+            finalScore: toNumber(item.finalScore, 0),
+            zakReviewFlag: item.zakReviewFlag === true,
+            averageConfidence: typeof item.averageConfidence === 'number' ? item.averageConfidence : null,
+            rank: typeof item.rank === 'number' ? item.rank : null,
+        }))
+        .filter((item) => item.clusterId);
+}
+
+function defaultRoleForModule(moduleId: RubricModuleId): RubricRowRole {
+    if (moduleId === 'module3') {
+        return 'fallback';
+    }
+    if (moduleId === 'module4') {
+        return 'cross_cutting';
+    }
+    return 'secondary';
+}
+
+function defaultScoreAnchors(title: string): RubricRowScoreAnchors {
+    return {
+        '0': `Absent or materially wrong on ${title.toLowerCase()}; would mislead the outcome.`,
+        '1': `Mentions ${title.toLowerCase()} but gets the test, trigger, or application wrong.`,
+        '2': `Partly correct on ${title.toLowerCase()} but misses a key element, exception, or application step.`,
+        '3': `Mostly correct on ${title.toLowerCase()} with only limited gaps.`,
+        '4': `Strong on ${title.toLowerCase()}: correct rule, prioritization, and fact-specific application.`,
+    };
+}
+
 function toNumber(value: unknown, fallback: number) {
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
@@ -1745,6 +2321,137 @@ function clampNumber(value: number, min: number, max: number) {
 
 function roundToTwo(value: number) {
     return Math.round(value * 100) / 100;
+}
+
+function collectKarthicHandoffMissingItems(handoff: KarthicHandoff) {
+    const checks: Array<[string, string]> = [
+        ['selected_pack', handoff.selected_pack],
+        ['doctrine_family', handoff.doctrine_family],
+        ['jurisdiction_assumption', handoff.jurisdiction_assumption],
+        ['benchmark_posture', handoff.benchmark_posture],
+        ['likely_controlling_doctrine', handoff.likely_controlling_doctrine],
+        ['required_gate_order', handoff.required_gate_order],
+        ['output_shell', handoff.output_shell],
+        ['strongest_expected_counterargument', handoff.strongest_expected_counterargument],
+        ['gold_answer_ref', handoff.gold_answer_ref],
+        ['doctrine_guide_or_pack_ref', handoff.doctrine_guide_or_pack_ref],
+        ['failure_bank_ref', handoff.failure_bank_ref],
+        ['variation_lane', handoff.variation_lane],
+        ['human_weight_overrides', handoff.human_weight_overrides],
+    ];
+    return checks.filter(([, value]) => !String(value).trim()).map(([key]) => key);
+}
+
+function validateKarthicHandoffForGenerationOrThrow(handoff: KarthicHandoff) {
+    const missing = collectKarthicHandoffMissingItems(handoff);
+    if (missing.length > 0) {
+        throw new Error(`Karthic handoff is incomplete. Missing locked fields: ${missing.join(', ')}.`);
+    }
+}
+
+function validateKarthicHandoffForApprovalOrThrow(handoff: KarthicHandoff) {
+    const missing = collectKarthicHandoffMissingItems(handoff);
+    if (missing.length > 0) {
+        throw new Error(`Karthic handoff is incomplete. Missing locked fields: ${missing.join(', ')}.`);
+    }
+    const unresolved = Object.entries(handoff.prefill_audit_status)
+        .filter(([, status]) => status === 'Needs human confirmation')
+        .map(([key]) => key);
+    if (unresolved.length > 0) {
+        throw new Error(`Karthic handoff still has unresolved audit fields: ${unresolved.join(', ')}.`);
+    }
+    if (handoff.packet_readiness !== 'Ready') {
+        throw new Error('Karthic handoff packet_readiness must be Ready before approval.');
+    }
+}
+
+function detectAnswerLevelPenalties(input: {
+    handoff: KarthicHandoff;
+    responseText: string;
+    rowScores: DashaClusterRowScore[];
+}): DashaPenaltyApplication[] {
+    const response = normalizeForSimilarity(input.responseText);
+    const penalties: DashaPenaltyApplication[] = [];
+    const controllingRow = input.rowScores.find((row) => row.role === 'controlling') ?? input.rowScores.find((row) => row.rowKey === 'C');
+    const conclusionRow = input.rowScores.find((row) => row.rowKey === 'J');
+
+    if (controllingRow && (controllingRow.score === null || controllingRow.score <= 1)) {
+        penalties.push({ code: 'P_ControllingDoctrineOmitted', points: -15, reason: 'Controlling-doctrine row scored absent or materially wrong.' });
+    }
+    if (input.handoff.selected_pack.includes('pack') && controllingRow && controllingRow.score === 0) {
+        penalties.push({ code: 'P_WrongPackDriver', points: -15, reason: 'Answer appears to be driven by the wrong doctrinal pack.' });
+    }
+    if (/\bunless\b|\bmaybe\b|\bperhaps\b/.test(response) && input.handoff.variation_lane === 'A') {
+        penalties.push({ code: 'P_ExcessiveHedging', points: -5, reason: 'Answer is overly hedged for a Lane A packet.' });
+    }
+    if (/\bpromissory estoppel\b|\bestoppel\b/.test(response) && !input.handoff.failure_bank_ref.toLowerCase().includes('estoppel')) {
+        penalties.push({ code: 'P_RelianceByPerformance', points: -5, reason: 'Fallback reliance theory appears to displace the main doctrinal path.' });
+    }
+    if (/\bmerchant\b/.test(response) && !input.handoff.selected_pack.includes('pack40')) {
+        penalties.push({ code: 'P_IrrelevantDoctrine', points: -5, reason: 'Answer introduces doctrine strongly associated with a different pack.' });
+    }
+    if (/\bsigned writing\b|\bsignature\b/.test(response) && /\bno writing\b/.test(response)) {
+        penalties.push({ code: 'P_MaterialRuleMisstatement', points: -10, reason: 'Answer appears internally inconsistent on the writing/compliance rule.' });
+    }
+    if (/\bfacts? not given\b|\bif there were more facts\b/.test(response) && input.handoff.variation_lane === 'B') {
+        penalties.push({ code: 'P_FalseDefinitenessOnDesignedAmbiguity', points: -10, reason: 'Lane B packet appears mishandled with false definiteness.' });
+    }
+    if (conclusionRow && (conclusionRow.score === null || conclusionRow.score <= 1)) {
+        penalties.push({ code: 'P_MaterialFactOrRoleOrTimelineError', points: -10, reason: 'Conclusion/structure row indicates a materially unstable answer path.' });
+    }
+
+    const byCode = new Map<string, DashaPenaltyApplication>();
+    for (const penalty of penalties) {
+        if (!byCode.has(penalty.code)) {
+            byCode.set(penalty.code, penalty);
+        }
+    }
+    return Array.from(byCode.values());
+}
+
+function detectCapStatus(input: {
+    handoff: KarthicHandoff;
+    responseText: string;
+    penaltiesApplied: DashaPenaltyApplication[];
+    rowScores: DashaClusterRowScore[];
+    postPenaltyScore: number;
+}): DashaCapStatus {
+    if (input.penaltiesApplied.some((item) => item.code === 'P_ControllingDoctrineOmitted')) {
+        return { code: 'CAP_60_ControllingDoctrineOmitted', applied: true, capValue: 60, note: 'Controlling doctrine was omitted or materially missed.' };
+    }
+    if (input.penaltiesApplied.some((item) => item.code === 'P_WrongPackDriver')) {
+        return { code: 'CAP_60_WrongPackDriver', applied: true, capValue: 60, note: 'Wrong doctrinal pack appears to control the answer.' };
+    }
+    const conclusionRow = input.rowScores.find((row) => row.rowKey === 'J');
+    if (conclusionRow && conclusionRow.score !== null && conclusionRow.score <= 1) {
+        return { code: 'CAP_70_NoClearConclusion', applied: true, capValue: 70, note: 'Answer never reaches a clear bottom line.' };
+    }
+    if (input.handoff.variation_lane === 'B' && input.penaltiesApplied.some((item) => item.code === 'P_FalseDefinitenessOnDesignedAmbiguity')) {
+        return { code: 'CAP_75_FalseDefinitenessOnDesignedAmbiguity', applied: true, capValue: 75, note: 'Lane B ambiguity was treated with false definiteness.' };
+    }
+    return { code: null, applied: false, capValue: null, note: 'No cap applied.' };
+}
+
+function computeAverageConfidence(rowScores: DashaClusterRowScore[]) {
+    const scores = rowScores.map((row) => row.confidence).filter((item): item is number => typeof item === 'number');
+    return scores.length > 0 ? roundToTwo(scores.reduce((sum, item) => sum + item, 0) / scores.length) : null;
+}
+
+function buildZakReviewFlag(input: {
+    handoff: KarthicHandoff;
+    penaltiesApplied: DashaPenaltyApplication[];
+    capStatus: DashaCapStatus;
+}) {
+    const totalPenaltyLoad = Math.abs(input.penaltiesApplied.reduce((sum, item) => sum + item.points, 0));
+    return totalPenaltyLoad > 20
+        || input.penaltiesApplied.length >= 2
+        || input.capStatus.applied
+        || input.handoff.cluster_confidence_or_escalation_flag.trim().length > 0
+        || input.handoff.zak_review_needed_before_lock === 'Yes';
+}
+
+function capSeverity(capStatus: DashaCapStatus) {
+    return capStatus.applied && typeof capStatus.capValue === 'number' ? capStatus.capValue : Number.POSITIVE_INFINITY;
 }
 
 function normalizeExtractedText(value: string) {

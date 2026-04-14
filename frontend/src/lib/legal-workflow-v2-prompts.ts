@@ -13,6 +13,10 @@ type AssetKey =
     | 'routingMatrix'
     | 'selfAudit'
     | 'sharedModuleSkeleton'
+    | 'karthicBuildSpec'
+    | 'karthicOverlaySpec'
+    | 'karthicPrefillInstructions'
+    | 'karthicHandoffTemplate'
     | 'doctrinePack'
     | 'failureBank'
     | 'workedExample'
@@ -29,6 +33,10 @@ const CORE_ASSET_FILES = {
     routingMatrix: '05_SOF_ROUTING_MATRIX.txt',
     selfAudit: '06_CORE_SELF_AUDIT.txt',
     sharedModuleSkeleton: '07_SHARED_MODULE_SKELETON.txt',
+    karthicBuildSpec: '../../../KarthicVersion2/08_Karthic_Rubric_Build_Spec_v2.md',
+    karthicOverlaySpec: '../../../KarthicVersion2/09_Cross_Pack_Scoring_Overlays_Caps_Penalties_v2.md',
+    karthicPrefillInstructions: '../../../KarthicVersion2/50_Karthic_PreFill_Instructions_v2.md',
+    karthicHandoffTemplate: '../../../KarthicVersion2/54_Benchmark_Packet_Handoff_Template.md',
 } satisfies Record<Exclude<AssetKey, 'doctrinePack' | 'failureBank' | 'workedExample' | 'cleanExample'>, string>;
 
 const PACK_ASSET_FILES: Record<FrankSofPackId, Pick<AssetRegistryEntry, 'doctrinePack' | 'failureBank' | 'workedExample' | 'cleanExample'>> = {
@@ -71,7 +79,10 @@ async function readAsset(fileName: string) {
     if (cached) {
         return cached;
     }
-    const content = await fs.readFile(path.join(resolveAssetsRoot(), fileName), 'utf8');
+    const assetPath = fileName.startsWith('../')
+        ? path.resolve(resolveAssetsRoot(), fileName)
+        : path.join(resolveAssetsRoot(), fileName);
+    const content = await fs.readFile(assetPath, 'utf8');
     assetCache.set(fileName, content);
     return content;
 }
@@ -277,6 +288,14 @@ export function buildKarthicRowsPrompt(input: {
     assets: Awaited<ReturnType<typeof getFrankV2AssetBundle>>;
 }) {
     return [
+        input.assets.karthicPrefillInstructions,
+        '',
+        input.assets.karthicBuildSpec,
+        '',
+        input.assets.karthicOverlaySpec,
+        '',
+        input.assets.karthicHandoffTemplate,
+        '',
         input.assets.sharedModuleSkeleton,
         '',
         input.assets.doctrinePack,
@@ -288,17 +307,53 @@ export function buildKarthicRowsPrompt(input: {
         '',
         `Benchmark answer:\n${input.packet.benchmarkAnswer}`,
         '',
+        `Karthic handoff packet:\n${JSON.stringify(input.packet.karthicHandoff)}`,
+        '',
         `Extraction sheet:\n${JSON.stringify(input.packet.sourceExtractionSheet)}`,
         '',
         `Gold packet mapping:\n${JSON.stringify(input.packet.goldPacketMapping)}`,
         '',
         `Likely failure modes:\n${JSON.stringify(input.packet.likelyFailureModes)}`,
         '',
-        'Draft one rubric row object for each of these row keys in order:',
+        'Draft packet-backed rubric output using the fixed anchor rows first. Emergent rows are optional and should be added only when legally meaningful and nonredundant.',
+        'Use these anchor rows as the starting shell:',
         RUBRIC_ROW_SPECS.map((row) => `${row.key} (${RUBRIC_MODULE_LABELS[row.moduleId]}): ${row.title}`).join('\n'),
         '',
-        'Preserve the fixed row keys, module assignments, and default weights unless a pack-specific reason requires a modest adjustment.',
-        'Return JSON only of the form {"rows":[...],"comparisonMethodNote":"..."}',
+        'If clustered_centroids_or_archetypes_ref is blank, keep going but add a Zak/escalation note rather than inventing centroid evidence.',
+        'Preserve the fixed anchor row keys and module assignments unless the packet gives a concrete reason to change them.',
+        'Return JSON only with this top-level shape:',
+        JSON.stringify({
+            moduleBudgets: [
+                { moduleId: 'module1', overrideBudget: null, rationale: 'string' },
+            ],
+            anchorRows: [{
+                key: 'A',
+                moduleId: 'module1',
+                rowSource: 'anchor',
+                role: 'secondary',
+                title: 'string',
+                description: 'string',
+                weight: 15,
+                lockedWeight: 15,
+                include: true,
+                naGuidance: 'string',
+                failureMode: 'string',
+                scoreAnchors: { '0': 'string', '1': 'string', '2': 'string', '3': 'string', '4': 'string' },
+                goldenTarget: {
+                    summary: 'string',
+                    goldenContains: ['string'],
+                    allowedOmissions: ['string'],
+                    contradictionFlags: ['string'],
+                    comparisonGuidance: 'string',
+                },
+            }],
+            emergentRows: [],
+            failureLabelMap: [{ rowKey: 'A', label: 'string', notes: 'string' }],
+            decompositionLog: [{ rowKey: 'A', action: 'retained', note: 'string' }],
+            variationPatchNotes: ['string'],
+            escalationNotes: ['string'],
+            comparisonMethodNote: 'string',
+        }),
     ].join('\n');
 }
 
@@ -317,6 +372,8 @@ export function buildDashaRowEvaluationPrompt(input: {
         `Row title: ${input.row.title}`,
         `Description: ${input.row.description}`,
         `NA guidance: ${input.row.naGuidance}`,
+        `Failure mode: ${input.row.failureMode}`,
+        `Scoring anchors 0-4: ${input.row.scoreAnchors['0']} | ${input.row.scoreAnchors['1']} | ${input.row.scoreAnchors['2']} | ${input.row.scoreAnchors['3']} | ${input.row.scoreAnchors['4']}`,
         `Golden target summary: ${input.row.goldenTarget.summary}`,
         `Golden contains: ${input.row.goldenTarget.goldenContains.join(' | ') || 'None provided'}`,
         `Allowed omissions: ${input.row.goldenTarget.allowedOmissions.join(' | ') || 'None provided'}`,
@@ -343,7 +400,7 @@ export function buildDashaRowEvaluationPrompt(input: {
             },
         }),
         '',
-        'Use score 0-100 only if applicable. If not applicable, use score null.',
+        'Use score 0-4 only if applicable. If not applicable, use score null.',
         '',
         'Question:',
         input.questionText,
@@ -358,6 +415,8 @@ export function buildDynamicJudgeRubricBlock(rows: KarthicRubricRow[]) {
         return [
             `${row.key} ${row.title} (${row.weight})`,
             `Module: ${RUBRIC_MODULE_LABELS[row.moduleId]}`,
+            `Row source: ${row.rowSource}`,
+            `Role: ${row.role}`,
             `Description: ${row.description}`,
             `NA guidance: ${row.naGuidance}`,
             `Golden target summary: ${row.goldenTarget.summary}`,

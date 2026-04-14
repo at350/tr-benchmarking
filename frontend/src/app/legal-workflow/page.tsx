@@ -16,6 +16,8 @@ import type {
     FrankSofPackId,
     KarthicRubricPackV2,
     KarthicRubricRow,
+    KarthicHandoff,
+    KarthicPrefillStatus,
     ReasoningEffort,
 } from '@/lib/legal-workflow-v2-types';
 import { MODEL_OPTIONS_BY_PROVIDER, PROVIDER_LABELS, type ModelProvider } from '@/lib/model-options';
@@ -613,7 +615,7 @@ export default function LegalWorkflowPage() {
     const frankApprovalBlockedReason = frankEditor ? buildClientFrankApprovalBlockReason(frankEditor) : null;
     const benchmarkHeadingPreview = FRANK_V2_BENCHMARK_HEADINGS.join('\n');
     const visibleRubricRowKeys = useMemo(
-        () => rubricEditor ? rubricEditor.rows.map((row) => `${rubricEditor.id}:${row.key}`) : [],
+        () => rubricEditor ? [...rubricEditor.anchorRows, ...rubricEditor.emergentRows].map((row) => `${rubricEditor.id}:${row.key}`) : [],
         [rubricEditor],
     );
     const allRubricRowsCollapsed = useMemo(
@@ -825,10 +827,11 @@ export default function LegalWorkflowPage() {
                         <p className="text-base font-semibold text-slate-900">{frankEditor.title}</p>
                         <p><span className="font-semibold">Frank progress:</span> {formatFrankPacketPhase(frankEditor.phase)}</p>
                         <p><span className="font-semibold">Status:</span> {frankEditor.status}</p>
-                        <p><span className="font-semibold">Pack:</span> {frankEditor.selectedPack ? FRANK_V2_PACK_LABELS[frankEditor.selectedPack] : 'Unrouted'}</p>
-                        <p><span className="font-semibold">Routing confidence:</span> {frankEditor.routingConfidence ?? 'Unstated'}</p>
-                        <p><span className="font-semibold">Intake rating:</span> {frankEditor.intakeChecklist?.finalIntakeRating ?? 'Not generated'}</p>
-                    </div>
+                                        <p><span className="font-semibold">Pack:</span> {frankEditor.selectedPack ? FRANK_V2_PACK_LABELS[frankEditor.selectedPack] : 'Unrouted'}</p>
+                                        <p><span className="font-semibold">Routing confidence:</span> {frankEditor.routingConfidence ?? 'Unstated'}</p>
+                                        <p><span className="font-semibold">Intake rating:</span> {frankEditor.intakeChecklist?.finalIntakeRating ?? 'Not generated'}</p>
+                                        <p><span className="font-semibold">Packet readiness:</span> {frankEditor.karthicHandoff.packet_readiness}</p>
+                                    </div>
                     <div className="flex flex-wrap gap-2">
                         <button className={secondaryButtonClassName} onClick={() => void deleteFrank(frankEditor.id)}>Delete Packet</button>
                         <button className={secondaryButtonClassName} onClick={() => void saveFrank('draft')}>Save Frank Packet</button>
@@ -1082,6 +1085,10 @@ export default function LegalWorkflowPage() {
                                 {frankEditor.questionWarnings.length > 0 ? (
                                     <WarningList title="Question warnings" items={frankEditor.questionWarnings} />
                                 ) : null}
+                                <KarthicHandoffEditor
+                                    handoff={frankEditor.karthicHandoff}
+                                    onChange={(handoff) => setFrankEditor((current) => current ? { ...current, karthicHandoff: handoff } : current)}
+                                />
                             </div>
                         ) : <EmptyPanelCopy text="Select a Frank packet to generate or edit the reverse-engineered question." />}
                     </>
@@ -1156,6 +1163,45 @@ export default function LegalWorkflowPage() {
                                         <div className="flex flex-wrap gap-2">
                                             <button
                                                 className={secondaryButtonClassName}
+                                                type="button"
+                                                onClick={() => setRubricEditor((current) => current ? {
+                                                    ...current,
+                                                    emergentRows: [
+                                                        ...current.emergentRows,
+                                                        {
+                                                            key: `X${current.emergentRows.length + 1}`,
+                                                            moduleId: 'module2',
+                                                            rowSource: 'emergent',
+                                                            role: 'secondary',
+                                                            title: 'Emergent doctrinal row',
+                                                            description: '',
+                                                            weight: 4,
+                                                            lockedWeight: 4,
+                                                            include: true,
+                                                            naGuidance: 'Mark not applicable only if the packet does not materially trigger this issue.',
+                                                            failureMode: '',
+                                                            scoreAnchors: {
+                                                                '0': 'Absent or materially wrong.',
+                                                                '1': 'Mentioned but incorrect.',
+                                                                '2': 'Partly correct.',
+                                                                '3': 'Mostly correct.',
+                                                                '4': 'Strong and well-prioritized.',
+                                                            },
+                                                            goldenTarget: {
+                                                                summary: '',
+                                                                goldenContains: [],
+                                                                allowedOmissions: [],
+                                                                contradictionFlags: [],
+                                                                comparisonGuidance: '',
+                                                            },
+                                                        },
+                                                    ],
+                                                } : current)}
+                                            >
+                                                Add Emergent Row
+                                            </button>
+                                            <button
+                                                className={secondaryButtonClassName}
                                                 onClick={() => setCollapsedRubricRows(
                                                     allRubricRowsCollapsed
                                                         ? {}
@@ -1167,7 +1213,25 @@ export default function LegalWorkflowPage() {
                                             </button>
                                         </div>
                                         <div className="space-y-3">
-                                            {rubricEditor.rows.map((row) => (
+                                            <ReadOnlyJsonCard title="Prefill audit" value={rubricEditor.prefillAudit} />
+                                            <ReadOnlyJsonCard title="Module budgets" value={rubricEditor.moduleBudgets} />
+                                            <Field label="Variation patch notes">
+                                                <textarea
+                                                    className={textareaClassName}
+                                                    value={rubricEditor.variationPatchNotes.join('\n')}
+                                                    onChange={(event) => setRubricEditor((current) => current ? { ...current, variationPatchNotes: splitLines(event.target.value) } : current)}
+                                                />
+                                            </Field>
+                                            <Field label="Escalation notes">
+                                                <textarea
+                                                    className={textareaClassName}
+                                                    value={rubricEditor.escalationNotes.join('\n')}
+                                                    onChange={(event) => setRubricEditor((current) => current ? { ...current, escalationNotes: splitLines(event.target.value) } : current)}
+                                                />
+                                            </Field>
+                                            <ReadOnlyJsonCard title="Failure-label map" value={rubricEditor.failureLabelMap} />
+                                            <ReadOnlyJsonCard title="Decomposition / pruning log" value={rubricEditor.decompositionLog} />
+                                            {rubricEditor.anchorRows.map((row) => (
                                                 <RubricRowEditor
                                                     key={row.key}
                                                     row={row}
@@ -1178,10 +1242,28 @@ export default function LegalWorkflowPage() {
                                                     }))}
                                                     onChange={(nextRow) => setRubricEditor((current) => current ? {
                                                         ...current,
+                                                        anchorRows: current.anchorRows.map((item) => item.key === nextRow.key ? nextRow : item),
                                                         rows: current.rows.map((item) => item.key === nextRow.key ? nextRow : item),
                                                     } : current)}
                                                 />
                                             ))}
+                                            {rubricEditor.emergentRows.map((row) => (
+                                                <RubricRowEditor
+                                                    key={`${row.key}_emergent`}
+                                                    row={row}
+                                                    collapsed={Boolean(collapsedRubricRows[`${rubricEditor.id}:${row.key}`])}
+                                                    onToggleCollapsed={() => setCollapsedRubricRows((current) => ({
+                                                        ...current,
+                                                        [`${rubricEditor.id}:${row.key}`]: !current[`${rubricEditor.id}:${row.key}`],
+                                                    }))}
+                                                    onChange={(nextRow) => setRubricEditor((current) => current ? {
+                                                        ...current,
+                                                        emergentRows: current.emergentRows.map((item) => item.key === nextRow.key ? nextRow : item),
+                                                        rows: current.rows.map((item) => item.key === nextRow.key ? nextRow : item),
+                                                    } : current)}
+                                                />
+                                            ))}
+                                            <ReadOnlyJsonCard title="Flattened scoring rows" value={rubricEditor.rows} />
                                         </div>
                                     </div>
                                 ) : null}
@@ -1459,6 +1541,15 @@ function buildClientFrankApprovalBlockReason(packet: FrankPacketV2) {
     if (!packet.reverseEngineeredQuestion.trim()) {
         return 'Complete Frank Phase 4 before approval.';
     }
+    const unresolvedAudit = Object.entries(packet.karthicHandoff.prefill_audit_status)
+        .filter(([, status]) => status === 'Needs human confirmation')
+        .map(([key]) => key);
+    if (unresolvedAudit.length > 0) {
+        return `Resolve Karthic handoff audit fields before approval: ${unresolvedAudit.join(', ')}.`;
+    }
+    if (packet.karthicHandoff.packet_readiness !== 'Ready') {
+        return 'Set the Karthic handoff packet readiness to Ready before approval.';
+    }
     return null;
 }
 
@@ -1676,6 +1767,84 @@ function WarningList({ title, items }: { title: string; items: string[] }) {
     );
 }
 
+function KarthicHandoffEditor({
+    handoff,
+    onChange,
+}: {
+    handoff: KarthicHandoff;
+    onChange: (handoff: KarthicHandoff) => void;
+}) {
+    const setAuditStatus = (key: keyof KarthicHandoff['prefill_audit_status'], value: KarthicPrefillStatus) => {
+        onChange({
+            ...handoff,
+            prefill_audit_status: {
+                ...handoff.prefill_audit_status,
+                [key]: value,
+            },
+        });
+    };
+
+    return (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-semibold text-slate-900">Karthic Handoff / Packet Lock</p>
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                <Field label="Output shell">
+                    <select className={inputClassName} value={handoff.output_shell} onChange={(event) => onChange({ ...handoff, output_shell: event.target.value as KarthicHandoff['output_shell'] })}>
+                        <option value="core_cross_pack_v1">core_cross_pack_v1</option>
+                        <option value="legacy_father_son_v1">legacy_father_son_v1</option>
+                        <option value="custom">custom</option>
+                    </select>
+                </Field>
+                <Field label="Variation lane">
+                    <select className={inputClassName} value={handoff.variation_lane} onChange={(event) => onChange({ ...handoff, variation_lane: event.target.value as KarthicHandoff['variation_lane'] })}>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                    </select>
+                </Field>
+                <Field label="Likely controlling doctrine">
+                    <input className={inputClassName} value={handoff.likely_controlling_doctrine} onChange={(event) => onChange({ ...handoff, likely_controlling_doctrine: event.target.value })} />
+                </Field>
+                <Field label="Required gate order">
+                    <input className={inputClassName} value={handoff.required_gate_order} onChange={(event) => onChange({ ...handoff, required_gate_order: event.target.value })} />
+                </Field>
+                <Field label="Jurisdiction assumption">
+                    <input className={inputClassName} value={handoff.jurisdiction_assumption} onChange={(event) => onChange({ ...handoff, jurisdiction_assumption: event.target.value })} />
+                </Field>
+                <Field label="Strongest expected counterargument">
+                    <input className={inputClassName} value={handoff.strongest_expected_counterargument} onChange={(event) => onChange({ ...handoff, strongest_expected_counterargument: event.target.value })} />
+                </Field>
+                <Field label="Centroids / archetypes ref">
+                    <input className={inputClassName} value={handoff.clustered_centroids_or_archetypes_ref} onChange={(event) => onChange({ ...handoff, clustered_centroids_or_archetypes_ref: event.target.value })} />
+                </Field>
+                <Field label="Packet readiness">
+                    <select className={inputClassName} value={handoff.packet_readiness} onChange={(event) => onChange({ ...handoff, packet_readiness: event.target.value as KarthicHandoff['packet_readiness'] })}>
+                        <option value="Ready">Ready</option>
+                        <option value="Needs work">Needs work</option>
+                        <option value="Blocked">Blocked</option>
+                    </select>
+                </Field>
+                <Field label="Missing or uncertain items" className="lg:col-span-2">
+                    <textarea className={textareaClassName} value={handoff.missing_or_uncertain_items.join('\n')} onChange={(event) => onChange({ ...handoff, missing_or_uncertain_items: splitLines(event.target.value) })} />
+                </Field>
+                <Field label="Field audit statuses" className="lg:col-span-2">
+                    <div className="grid gap-2 md:grid-cols-2">
+                        {(Object.keys(handoff.prefill_audit_status) as Array<keyof KarthicHandoff['prefill_audit_status']>).map((key) => (
+                            <label key={key} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                                <span className="mb-1 block font-medium">{key}</span>
+                                <select className={inputClassName} value={handoff.prefill_audit_status[key]} onChange={(event) => setAuditStatus(key, event.target.value as KarthicPrefillStatus)}>
+                                    <option value="Fixed">Fixed</option>
+                                    <option value="Fixed but jurisdiction-sensitive">Fixed but jurisdiction-sensitive</option>
+                                    <option value="Needs human confirmation">Needs human confirmation</option>
+                                </select>
+                            </label>
+                        ))}
+                    </div>
+                </Field>
+            </div>
+        </div>
+    );
+}
+
 function RubricRowEditor({
     row,
     collapsed,
@@ -1703,19 +1872,24 @@ function RubricRowEditor({
                         <p className="text-sm font-semibold text-slate-800">{row.key} · {row.title}</p>
                         <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${collapsed ? 'mt-0.5' : 'mt-1'}`}>
                             <p className="text-xs text-slate-500">{RUBRIC_MODULE_LABELS[row.moduleId]}</p>
+                            <p className="text-xs text-slate-500">{row.rowSource}</p>
+                            <p className="text-xs text-slate-500">{row.role}</p>
                             {collapsed ? (
-                                <p className="text-xs font-medium text-slate-600">Weight {row.weight}</p>
+                                <p className="text-xs font-medium text-slate-600">Weight {row.lockedWeight}</p>
                             ) : null}
                         </div>
                     </div>
                 </div>
                 <div className={collapsed ? 'self-center' : 'w-24'}>
                     {collapsed ? null : (
-                        <Field label="Weight">
+                        <Field label="Locked weight">
                             <input
                                 className={inputClassName}
-                                value={String(row.weight)}
-                                onChange={(event) => onChange({ ...row, weight: Number.parseInt(event.target.value || '0', 10) || row.weight })}
+                                value={String(row.lockedWeight)}
+                                onChange={(event) => {
+                                    const nextWeight = Number.parseInt(event.target.value || '0', 10) || row.lockedWeight;
+                                    onChange({ ...row, lockedWeight: nextWeight, weight: nextWeight });
+                                }}
                             />
                         </Field>
                     )}
@@ -1723,6 +1897,15 @@ function RubricRowEditor({
             </div>
             {collapsed ? null : (
                 <div className="mt-3 grid gap-3">
+                    <Field label="Include in scoring">
+                        <select className={inputClassName} value={row.include ? 'yes' : 'no'} onChange={(event) => onChange({ ...row, include: event.target.value === 'yes' })}>
+                            <option value="yes">Yes</option>
+                            <option value="no">No</option>
+                        </select>
+                    </Field>
+                    <Field label="Failure mode">
+                        <textarea className={textareaClassName} value={row.failureMode} onChange={(event) => onChange({ ...row, failureMode: event.target.value })} />
+                    </Field>
                     <Field label="Description">
                         <textarea className={textareaClassName} value={row.description} onChange={(event) => onChange({ ...row, description: event.target.value })} />
                     </Field>
@@ -1763,6 +1946,20 @@ function RubricRowEditor({
                             value={row.goldenTarget.comparisonGuidance}
                             onChange={(event) => onChange({ ...row, goldenTarget: { ...row.goldenTarget, comparisonGuidance: event.target.value } })}
                         />
+                    </Field>
+                    <Field label="Score anchors 0-4">
+                        <div className="grid gap-3 md:grid-cols-2">
+                            {(['0', '1', '2', '3', '4'] as const).map((scoreKey) => (
+                                <label key={`${row.key}_${scoreKey}`} className="block">
+                                    <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{scoreKey}</span>
+                                    <textarea
+                                        className={textareaClassName}
+                                        value={row.scoreAnchors[scoreKey]}
+                                        onChange={(event) => onChange({ ...row, scoreAnchors: { ...row.scoreAnchors, [scoreKey]: event.target.value } })}
+                                    />
+                                </label>
+                            ))}
+                        </div>
                     </Field>
                 </div>
             )}

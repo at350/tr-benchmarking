@@ -75,6 +75,7 @@ export function DashaResultsExplorer({ run }: DashaResultsExplorerProps) {
                 </Notice>
             ) : null}
 
+            {run.clusterScorecards.length > 0 ? <PacketScorecards run={run} /> : null}
             <RunOverviewStrip data={data} />
             <ModelParticipationRail data={data} />
 
@@ -167,6 +168,66 @@ export function DashaResultsExplorer({ run }: DashaResultsExplorerProps) {
                 <ExplainView data={data} visibleRows={visibleRows} comparisonClusters={comparisonClusters} />
             ) : null}
         </div>
+    );
+}
+
+function PacketScorecards({ run }: { run: DashaRunV2 }) {
+    const primary = run.clusterScorecards.find((item) => item.clusterId === run.primaryClusterId) ?? run.clusterScorecards[0] ?? null;
+
+    return (
+        <section className={sectionClassName}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <p className={mutedLabelClassName}>Packet Scorecards</p>
+                    <p className="mt-1 text-sm text-slate-600">
+                        Final scoring is now computed per cluster: subtotal, overlays, optional cap, and final export fields.
+                    </p>
+                </div>
+                {primary ? (
+                    <span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700">
+                        Top cluster: {primary.clusterId} · Final {primary.finalScore.toFixed(2)}
+                    </span>
+                ) : null}
+            </div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                {run.clusterScorecards.map((scorecard) => (
+                    <div key={scorecard.clusterId} className={clsx('rounded-2xl border p-4', scorecard.clusterId === run.primaryClusterId ? 'border-teal-300 bg-teal-50/70' : 'border-slate-200 bg-slate-50/70')}>
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm font-semibold text-slate-900">{scorecard.clusterId}</p>
+                                <p className="mt-1 text-xs text-slate-500">Rank {scorecard.rank ?? 'N/A'} · {scorecard.size} answers</p>
+                            </div>
+                            {scorecard.zakReviewFlag ? (
+                                <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700">Zak review</span>
+                            ) : null}
+                        </div>
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                            <StatChip label="Subtotal" value={scorecard.subtotal.toFixed(2)} tone="slate" />
+                            <StatChip label="Final" value={scorecard.finalScore.toFixed(2)} tone={scorecard.clusterId === run.primaryClusterId ? 'teal' : 'slate'} />
+                            <StatChip label="Post-penalty" value={scorecard.postPenaltyScore.toFixed(2)} tone="slate" />
+                            <StatChip label="Cap" value={scorecard.capStatus.applied ? scorecard.capStatus.code ?? 'Applied' : 'None'} tone={scorecard.capStatus.applied ? 'amber' : 'slate'} />
+                        </div>
+                        <div className="mt-4 space-y-2">
+                            <p className={mutedLabelClassName}>Penalties</p>
+                            {scorecard.penaltiesApplied.length > 0 ? (
+                                scorecard.penaltiesApplied.map((penalty) => (
+                                    <div key={`${scorecard.clusterId}_${penalty.code}`} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                                        <span className="font-semibold">{penalty.code}</span> {penalty.points}
+                                        <p className="mt-1 text-xs text-slate-500">{penalty.reason}</p>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500">No penalties applied.</div>
+                            )}
+                        </div>
+                        <div className="mt-4 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                            <p className="font-semibold">Cap status</p>
+                            <p className="mt-1">{scorecard.capStatus.note}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </section>
     );
 }
 

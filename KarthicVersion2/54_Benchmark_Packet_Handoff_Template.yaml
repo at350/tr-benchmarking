@@ -1,0 +1,48 @@
+packet_id: ""
+date_created: ""
+created_by: ""
+source_authority: ""
+source_type: ""
+
+selected_pack: ""
+doctrine_family: ""
+benchmark_posture: ""
+variation_lane: "A"
+source_grounded_vs_generalized: ""
+
+jurisdiction_assumption: ""
+likely_controlling_doctrine: ""
+required_gate_order: ""
+strongest_expected_counterargument: ""
+key_jurisdiction_sensitive_points: []
+
+output_shell: "core_cross_pack_v1"  # core_cross_pack_v1 | legacy_father_son_v1 | custom
+custom_output_shell_text: ""
+
+gold_answer_ref: ""
+doctrine_guide_or_pack_ref: ""
+failure_bank_ref: ""
+clustered_centroids_or_archetypes_ref: ""
+human_weight_overrides: "None"
+
+failure_bank_status: ""
+cluster_confidence_or_escalation_flag: ""
+packet_readiness: "Needs work"  # Ready | Needs work | Blocked
+missing_or_uncertain_items: []
+zak_review_needed_before_lock: "No"
+
+prefill_audit_status:
+  selected_pack: "Needs human confirmation"
+  doctrine_family: "Needs human confirmation"
+  jurisdiction_assumption: "Needs human confirmation"
+  benchmark_posture: "Needs human confirmation"
+  likely_controlling_doctrine: "Needs human confirmation"
+  required_gate_order: "Needs human confirmation"
+  output_shell: "Needs human confirmation"
+  strongest_expected_counterargument: "Needs human confirmation"
+  gold_answer_ref: "Needs human confirmation"
+  doctrine_guide_or_pack_ref: "Needs human confirmation"
+  failure_bank_ref: "Needs human confirmation"
+  variation_lane: "Fixed"
+  human_weight_overrides: "Fixed"
+  packet_readiness: "Needs human confirmation"
