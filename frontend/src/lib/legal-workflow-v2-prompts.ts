@@ -33,10 +33,10 @@ const CORE_ASSET_FILES = {
     routingMatrix: '05_SOF_ROUTING_MATRIX.txt',
     selfAudit: '06_CORE_SELF_AUDIT.txt',
     sharedModuleSkeleton: '07_SHARED_MODULE_SKELETON.txt',
-    karthicBuildSpec: '../../../KarthicVersion2/08_Karthic_Rubric_Build_Spec_v2.md',
-    karthicOverlaySpec: '../../../KarthicVersion2/09_Cross_Pack_Scoring_Overlays_Caps_Penalties_v2.md',
-    karthicPrefillInstructions: '../../../KarthicVersion2/50_Karthic_PreFill_Instructions_v2.md',
-    karthicHandoffTemplate: '../../../KarthicVersion2/54_Benchmark_Packet_Handoff_Template.md',
+    karthicBuildSpec: 'KarthicVersion2/08_Karthic_Rubric_Build_Spec_v2.md',
+    karthicOverlaySpec: 'KarthicVersion2/09_Cross_Pack_Scoring_Overlays_Caps_Penalties_v2.md',
+    karthicPrefillInstructions: 'KarthicVersion2/50_Karthic_PreFill_Instructions_v2.md',
+    karthicHandoffTemplate: 'KarthicVersion2/54_Benchmark_Packet_Handoff_Template.md',
 } satisfies Record<Exclude<AssetKey, 'doctrinePack' | 'failureBank' | 'workedExample' | 'cleanExample'>, string>;
 
 const PACK_ASSET_FILES: Record<FrankSofPackId, Pick<AssetRegistryEntry, 'doctrinePack' | 'failureBank' | 'workedExample' | 'cleanExample'>> = {
@@ -74,12 +74,20 @@ function resolveAssetsRoot() {
         : path.resolve(process.cwd(), 'frontend/src/lib/frank-v2-assets');
 }
 
+function resolveRepoRoot() {
+    return path.basename(process.cwd()) === 'frontend'
+        ? path.resolve(process.cwd(), '..')
+        : process.cwd();
+}
+
 async function readAsset(fileName: string) {
     const cached = assetCache.get(fileName);
     if (cached) {
         return cached;
     }
-    const assetPath = fileName.startsWith('../')
+    const assetPath = fileName.startsWith('KarthicVersion2/')
+        ? path.resolve(resolveRepoRoot(), fileName)
+        : fileName.startsWith('../')
         ? path.resolve(resolveAssetsRoot(), fileName)
         : path.join(resolveAssetsRoot(), fileName);
     const content = await fs.readFile(assetPath, 'utf8');
