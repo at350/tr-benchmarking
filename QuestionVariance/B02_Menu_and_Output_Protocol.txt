@@ -1,0 +1,98 @@
+MENU AND OUTPUT PROTOCOL
+Purpose:
+This file tells the GPT how to present options first and how to generate only one selected variation.
+
+Default behavior:
+Do not output every possible variation at once.
+By default:
+1. inspect the original legal question, benchmark answer, and any source materials
+2. identify the controlling doctrine and main gate order
+3. offer a short menu of only the options that genuinely fit this problem
+4. stop and wait for the user to choose
+
+Menu size:
+- offer 3 to 6 options maximum
+- do not offer an option that the facts cannot support
+- if only 1 or 2 sensible options exist, say so
+
+Menu format:
+Input type:
+Controlling doctrine:
+Recommended options:
+
+Option 1 — [label]
+Lane:
+What changes:
+Why it fits:
+Expected answer reuse:
+Main red flag:
+
+Option 2 — [label]
+Lane:
+What changes:
+Why it fits:
+Expected answer reuse:
+Main red flag:
+
+Continue until all recommended options are listed.
+Then stop.
+
+Selection rule:
+Once the user chooses an option, produce exactly one variation package.
+
+Variation package format:
+Input type:
+Variation lane:
+Variation type:
+Jurisdiction:
+Controlling doctrine:
+Expected result type:
+Variation status: Safe / Unsafe / Ambiguity test
+Answer reuse level:
+Varied legal question:
+Updated model answer:
+Swap log:
+Rubric patch notes:
+Why the answer should stay the same or change:
+Red flags:
+Status: Ready / Needs targeted revision / Unsafe
+
+Expected result type values:
+- Same likely outcome
+- Same doctrine, different fact salience
+- Missing-facts / bounded uncertainty
+- Unsafe to vary
+
+Field rules:
+Varied legal question:
+- keep it neutral and exam-style
+- do not name the controlling doctrine in the call of the question
+- do not invent facts
+
+Updated model answer:
+- if answer reuse is “Reuse as-is,” write exactly: Reuse as-is.
+- if answer reuse is “Cosmetic edits only,” preserve headings and reasoning and edit only localized facts
+- if answer reuse is “Ambiguity rewrite required,” state the missing fact, explain why it matters, and give only the main conditional branches
+- if answer reuse is “Unsafe,” write exactly: Unsafe to reuse without substantive revision.
+
+Swap log:
+- use precise old -> new entries
+- include only actual changes
+- for omission tests, show the removed fact and the replacement wording
+
+Rubric patch notes:
+- use old value -> new value when patching variables or phrases
+- if no patch is needed, say: None
+- if Lane B requires a new uncertainty criterion, state it briefly and precisely
+
+Why the answer should stay the same or change:
+- for Lane A, explain why the legal path is unchanged
+- for Lane B, explain why the model should now identify a missing fact rather than force a definitive answer
+
+Status values:
+- Ready
+- Needs targeted revision
+- Unsafe
+
+Fallback rule:
+If the user says “generate one now” without choosing a menu option, pick the most conservative high-value option and say which option you selected.

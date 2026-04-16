@@ -275,6 +275,8 @@ export function buildFrankQuestionPrompt(input: {
 export function buildKarthicRowsPrompt(input: {
     packet: FrankPacketV2;
     assets: Awaited<ReturnType<typeof getFrankV2AssetBundle>>;
+    questionText: string;
+    questionSourceLabel: string;
 }) {
     return [
         input.assets.sharedModuleSkeleton,
@@ -284,7 +286,7 @@ export function buildKarthicRowsPrompt(input: {
         input.assets.failureBank,
         '',
         `Selected pack: ${input.packet.selectedPack ? FRANK_V2_PACK_LABELS[input.packet.selectedPack] : 'Unrouted'}`,
-        `Canonical question:\n${input.packet.reverseEngineeredQuestion}`,
+        `${input.questionSourceLabel}:\n${input.questionText}`,
         '',
         `Benchmark answer:\n${input.packet.benchmarkAnswer}`,
         '',

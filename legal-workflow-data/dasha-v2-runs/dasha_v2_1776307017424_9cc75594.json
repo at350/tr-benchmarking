@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 2,
+  "id": "dasha_v2_1776307017424_9cc75594",
+  "rubricPackId": "karthic_v2_1776190478702_75c7bd38",
+  "runMode": "score_and_cluster",
+  "status": "draft",
+  "inputArtifacts": [],
+  "questionText": "A man tells a woman before they marry that if she marries him, he will make her the beneficiary of his insurance certificate. She marries him, and he later names her as beneficiary. After that, he changes the beneficiary to someone else by following the association’s procedure, and when he dies, both women claim the proceeds. Who has the better claim? Analyze.",
+  "questionSource": "canonical",
+  "questionVariancePackageId": null,
+  "comparisonId": "dasha_cmp_1776307017424_078e1616",
+  "comparisonRole": "baseline",
+  "selectedModels": [
+    {
+      "provider": "openai",
+      "model": "gpt-5.4-nano",
+      "reasoningEffort": "medium"
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-3.1-flash-lite-preview",
+      "reasoningEffort": "medium"
+    }
+  ],
+  "requestedResponseCount": 30,
+  "validResponseCount": 0,
+  "responses": [],
+  "clusters": [],
+  "rowResults": [],
+  "moduleSummaries": [],
+  "weightedSummary": {
+    "applicableWeightTotal": 0,
+    "weightedScore": null,
+    "notApplicableRowKeys": []
+  },
+  "modelSummaries": [],
+  "clusteringMethod": "pending",
+  "clusteringNotes": "Dasha evaluation started and is running in the background.",
+  "createdAt": "2026-04-16T02:36:57.424Z",
+  "completedAt": null
+}

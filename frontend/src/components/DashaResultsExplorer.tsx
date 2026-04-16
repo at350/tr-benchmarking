@@ -63,7 +63,7 @@ export function DashaResultsExplorer({ run }: DashaResultsExplorerProps) {
     const visibleModules = applyFocusToModules(data.modules, focusedModuleId, focusedRowKey);
 
     return (
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
             {run.status === 'failed' ? (
                 <Notice tone="error" icon={<XCircle className="h-4 w-4" />} title="Run failed">
                     {run.errorMessage || 'Dasha stopped before clustering or rubric scoring completed.'}

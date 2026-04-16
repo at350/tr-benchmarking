@@ -24,6 +24,7 @@ export type ArtifactRecord = {
 export type FrankSofPackId = 'pack10' | 'pack20' | 'pack30' | 'pack40';
 export type RoutingConfidence = 'strong' | 'moderate' | 'weak';
 export type FrankPhase = 'source' | 'routing_intake' | 'extraction_mapping' | 'benchmark' | 'question';
+export type QuestionVariancePhase = 'routing' | 'menu' | 'package';
 export type IntakeRating =
     | 'Strong lead source'
     | 'Moderate; usable with supporting authority'
@@ -35,6 +36,81 @@ export type BenchmarkPosture =
     | 'generalizable_only_with_supporting_authority'
     | 'portable_benchmark_under_stated_assumptions';
 export type ReverseEngineeringSuitability = 'strong' | 'moderate' | 'weak';
+export type VariationProvisionId = 'marriage' | 'suretyship' | 'one_year' | 'land' | 'ucc_2201' | 'executor';
+export type VariationRouteStatus = 'stable_route' | 'multiple_plausible_routes' | 'needs_classification_first' | 'not_primarily_sof';
+export type VariationLane = 'lane_a' | 'lane_b';
+export type VariationReuseLevel = 'reuse_as_is' | 'cosmetic_edits_only' | 'ambiguity_rewrite_required' | 'unsafe';
+export type VariationStatus = 'ready' | 'needs_targeted_revision' | 'unsafe';
+export type VariationPackageStatus = 'safe' | 'unsafe' | 'ambiguity_test';
+export type VariationExpectedResultType = 'same_likely_outcome' | 'same_doctrine_different_fact_salience' | 'missing_facts_bounded_uncertainty' | 'unsafe_to_vary';
+export type ConfusionPattern = 'dual_trigger' | 'priority' | 'split_transaction' | 'needs_classification_first';
+export type QuestionSource = 'canonical' | 'question_variance_active_package';
+
+export type QuestionVarianceRoutingResult = {
+    inputType: string;
+    routeStatus: VariationRouteStatus;
+    governingLawCandidate: string;
+    primaryProvisionCandidate: VariationProvisionId | null;
+    secondaryCandidates: VariationProvisionId[];
+    controllingDoctrine: string;
+    mainGateOrder: string[];
+    variationReadiness: string;
+    mainNoSilentChangeFacts: string[];
+    confusionPattern: ConfusionPattern | null;
+    confusionSetId: string | null;
+    menuRule: string | null;
+};
+
+export type QuestionVarianceMenuOption = {
+    id: string;
+    label: string;
+    lane: VariationLane;
+    variationType: string;
+    whatChanges: string;
+    whyItFits: string;
+    expectedAnswerReuse: VariationReuseLevel;
+    mainRedFlag: string;
+};
+
+export type QuestionVarianceMenu = {
+    generatedAt: string;
+    resolvedProvisionId: VariationProvisionId | null;
+    options: QuestionVarianceMenuOption[];
+};
+
+export type QuestionVarianceSwapLogEntry = {
+    from: string;
+    to: string;
+};
+
+export type QuestionVariancePackage = {
+    id: string;
+    selectedOptionId: string;
+    lane: VariationLane;
+    variationType: string;
+    jurisdiction: string;
+    controllingDoctrine: string;
+    expectedResultType: VariationExpectedResultType;
+    variationStatus: VariationPackageStatus;
+    answerReuseLevel: VariationReuseLevel;
+    variedLegalQuestion: string;
+    updatedModelAnswer: string;
+    swapLog: QuestionVarianceSwapLogEntry[];
+    rubricPatchNotes: string[];
+    whyTheAnswerShouldStayTheSameOrChange: string;
+    redFlags: string[];
+    status: VariationStatus;
+    createdAt: string;
+};
+
+export type QuestionVarianceState = {
+    phase: QuestionVariancePhase;
+    routingResult: QuestionVarianceRoutingResult | null;
+    menu: QuestionVarianceMenu | null;
+    packages: QuestionVariancePackage[];
+    activePackageId: string | null;
+    warnings: string[];
+};
 
 export type FrankSourceIntakeChecklist = {
     candidateSource: string;
@@ -103,6 +179,8 @@ export type FrankSavedPromptKind =
     | 'extraction_mapping_generation'
     | 'benchmark_generation'
     | 'question_generation'
+    | 'question_variance_routing_menu_generation'
+    | 'question_variance_package_generation'
     | 'rubric_generation';
 
 export type FrankSavedPrompt = {
@@ -132,6 +210,7 @@ export type FrankPacketV2 = {
     likelyFailureModes: FrankLikelyFailureModes | null;
     benchmarkAnswer: string;
     reverseEngineeredQuestion: string;
+    questionVariance: QuestionVarianceState;
     savedPrompts: FrankSavedPrompt[];
     benchmarkWarnings: string[];
     questionWarnings: string[];
@@ -166,6 +245,8 @@ export type KarthicRubricPackV2 = {
     id: string;
     frankPacketId: string;
     selectedPack: FrankSofPackId;
+    questionSource: QuestionSource;
+    questionVariancePackageId: string | null;
     questionText: string;
     status: Extract<WorkflowStatus, 'draft' | 'approved'>;
     rows: KarthicRubricRow[];
@@ -177,6 +258,7 @@ export type KarthicRubricPackV2 = {
 };
 
 export type DashaRunMode = 'score_and_cluster' | 'cluster_only';
+export type DashaComparisonRole = 'baseline' | 'variant';
 
 export type DashaSelectedModel = {
     provider: ModelProvider;
@@ -209,6 +291,26 @@ export type DashaClusterRecord = {
         model: string;
         count: number;
     }>;
+};
+
+export type DashaModelClusterContribution = {
+    clusterId: string;
+    count: number;
+    share: number;
+    clusterWeightedScore: number | null;
+};
+
+export type DashaModelSummary = {
+    modelKey: string;
+    provider: ModelProvider;
+    model: string;
+    validCount: number;
+    errorCount: number;
+    totalResponses: number;
+    propagatedWeightedScore: number | null;
+    dominantClusterId: string | null;
+    dominantClusterShare: number;
+    clusterContributions: DashaModelClusterContribution[];
 };
 
 export type RubricRowDifference = {
@@ -276,6 +378,10 @@ export type DashaRunV2 = {
     status: Extract<WorkflowStatus, 'draft' | 'completed' | 'failed'>;
     inputArtifacts: ArtifactRecord[];
     questionText: string;
+    questionSource: QuestionSource;
+    questionVariancePackageId: string | null;
+    comparisonId: string | null;
+    comparisonRole: DashaComparisonRole | null;
     selectedModels: DashaSelectedModel[];
     requestedResponseCount?: number;
     validResponseCount?: number;
@@ -284,8 +390,59 @@ export type DashaRunV2 = {
     rowResults: RubricRowResult[];
     moduleSummaries: ModuleSummary[];
     weightedSummary: WeightedSummary;
+    modelSummaries: DashaModelSummary[];
     clusteringMethod: string;
     clusteringNotes: string | null;
+    errorMessage?: string;
+    createdAt: string;
+    completedAt: string | null;
+};
+
+export type DashaComparisonModuleDelta = {
+    moduleId: RubricModuleId;
+    label: string;
+    baselineScore: number | null;
+    variantScore: number | null;
+    scoreDelta: number | null;
+};
+
+export type DashaComparisonModelDelta = {
+    modelKey: string;
+    provider: ModelProvider;
+    model: string;
+    baselineScore: number | null;
+    variantScore: number | null;
+    scoreDelta: number | null;
+    baselineDominantClusterId: string | null;
+    variantDominantClusterId: string | null;
+    baselineValidCount: number;
+    variantValidCount: number;
+};
+
+export type DashaComparisonSummary = {
+    baselineWeightedScore: number | null;
+    variantWeightedScore: number | null;
+    weightedScoreDelta: number | null;
+    moduleDeltas: DashaComparisonModuleDelta[];
+    modelDeltas: DashaComparisonModelDelta[];
+};
+
+export type DashaComparisonV2 = {
+    schemaVersion: 2;
+    id: string;
+    status: Extract<WorkflowStatus, 'draft' | 'completed' | 'failed'>;
+    frankPacketId: string;
+    rubricPackId: string;
+    questionVariancePackageId: string;
+    variationLabel: string;
+    variationType: string;
+    baselineQuestionText: string;
+    variantQuestionText: string;
+    baselineRunId: string;
+    variantRunId: string;
+    selectedModels: DashaSelectedModel[];
+    requestedResponseCount: number;
+    summary: DashaComparisonSummary | null;
     errorMessage?: string;
     createdAt: string;
     completedAt: string | null;

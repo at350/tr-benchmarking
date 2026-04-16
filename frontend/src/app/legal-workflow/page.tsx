@@ -3,12 +3,23 @@
 import { startTransition, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
+import { DashaComparisonResults } from '@/components/DashaComparisonResults';
 import { DashaResultsExplorer } from '@/components/DashaResultsExplorer';
 import { AppShell } from '@/components/ui/AppShell';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { FRANK_V2_BENCHMARK_HEADINGS, FRANK_V2_PACK_LABELS, RUBRIC_MODULE_LABELS } from '@/lib/legal-workflow-v2-constants';
+import {
+    QUESTION_VARIANCE_CONFUSION_LABELS,
+    QUESTION_VARIANCE_FINAL_STATUS_LABELS,
+    QUESTION_VARIANCE_LANE_LABELS,
+    QUESTION_VARIANCE_PACKAGE_STATUS_LABELS,
+    QUESTION_VARIANCE_RESULT_TYPE_LABELS,
+    QUESTION_VARIANCE_REUSE_LABELS,
+    QUESTION_VARIANCE_ROUTE_STATUS_LABELS,
+} from '@/lib/question-variance-constants';
 import type {
     ArtifactRole,
+    DashaComparisonV2,
     DashaRunMode,
     DashaRunV2,
     DashaSelectedModel,
@@ -16,6 +27,7 @@ import type {
     FrankSofPackId,
     KarthicRubricPackV2,
     KarthicRubricRow,
+    QuestionSource,
     ReasoningEffort,
 } from '@/lib/legal-workflow-v2-types';
 import { MODEL_OPTIONS_BY_PROVIDER, PROVIDER_LABELS, type ModelProvider } from '@/lib/model-options';
@@ -227,11 +239,18 @@ export default function LegalWorkflowPage() {
     const [selectedRubricId, setSelectedRubricId] = useState('');
     const [rubricEditor, setRubricEditor] = useState<KarthicRubricPackV2 | null>(null);
     const [collapsedRubricRows, setCollapsedRubricRows] = useState<Record<string, boolean>>({});
+    const [selectedVariationOptionId, setSelectedVariationOptionId] = useState('');
+    const [rubricQuestionSource, setRubricQuestionSource] = useState<QuestionSource>('canonical');
+    const [rubricQuestionVariancePackageId, setRubricQuestionVariancePackageId] = useState<string | null>(null);
 
     const [dashaRuns, setDashaRuns] = useState<DashaRunV2[]>([]);
     const [selectedRunId, setSelectedRunId] = useState('');
     const [dashaRubricPackId, setDashaRubricPackId] = useState('');
     const [dashaRunMode, setDashaRunMode] = useState<DashaRunMode>('score_and_cluster');
+    const [dashaComparisons, setDashaComparisons] = useState<DashaComparisonV2[]>([]);
+    const [selectedComparisonId, setSelectedComparisonId] = useState('');
+    const [dashaComparisonRubricPackId, setDashaComparisonRubricPackId] = useState('');
+    const [dashaComparisonPackageId, setDashaComparisonPackageId] = useState('');
     const [sampleCount, setSampleCount] = useState('120');
     const [selectedModelKeys, setSelectedModelKeys] = useState<string[]>(DEFAULT_SELECTED_MODEL_KEYS);
 
@@ -246,6 +265,10 @@ export default function LegalWorkflowPage() {
     const selectedRun = useMemo(
         () => dashaRuns.find((run) => run.id === selectedRunId) ?? dashaRuns[0] ?? null,
         [dashaRuns, selectedRunId],
+    );
+    const selectedComparison = useMemo(
+        () => dashaComparisons.find((comparison) => comparison.id === selectedComparisonId) ?? null,
+        [dashaComparisons, selectedComparisonId],
     );
 
     useEffect(() => {
@@ -293,6 +316,35 @@ export default function LegalWorkflowPage() {
     }, [dashaRuns, selectedRunId]);
 
     useEffect(() => {
+        if (!selectedComparisonId) {
+            return;
+        }
+        if (!dashaComparisons.some((comparison) => comparison.id === selectedComparisonId)) {
+            setSelectedComparisonId('');
+        }
+    }, [dashaComparisons, selectedComparisonId]);
+
+    useEffect(() => {
+        const optionIds = new Set(frankEditor?.questionVariance.menu?.options.map((option) => option.id) ?? []);
+        if (!selectedVariationOptionId) {
+            return;
+        }
+        if (!optionIds.has(selectedVariationOptionId)) {
+            setSelectedVariationOptionId('');
+        }
+    }, [frankEditor?.questionVariance.menu?.options, selectedVariationOptionId]);
+
+    useEffect(() => {
+        if (rubricEditor && frankEditor && rubricEditor.frankPacketId === frankEditor.id) {
+            setRubricQuestionSource(rubricEditor.questionSource);
+            setRubricQuestionVariancePackageId(rubricEditor.questionVariancePackageId);
+            return;
+        }
+        setRubricQuestionSource('canonical');
+        setRubricQuestionVariancePackageId(frankEditor?.questionVariance.activePackageId ?? null);
+    }, [frankEditor, rubricEditor]);
+
+    useEffect(() => {
         if (!selectedRunId || selectedRun?.status !== 'draft') {
             return;
         }
@@ -300,20 +352,32 @@ export default function LegalWorkflowPage() {
         let cancelled = false;
         const intervalId = window.setInterval(async () => {
             try {
-                const response = await fetch(`/api/dasha-runs/${selectedRunId}`, { cache: 'no-store' });
-                const json = await response.json();
-                if (!response.ok) {
-                    throw new Error(json.error || 'Failed to refresh Dasha judge run.');
+                const [runResponse, comparisonResponse] = await Promise.all([
+                    fetch('/api/dasha-runs', { cache: 'no-store' }),
+                    fetch('/api/dasha-comparisons', { cache: 'no-store' }),
+                ]);
+                const [runJson, comparisonJson] = await Promise.all([
+                    runResponse.json(),
+                    comparisonResponse.json(),
+                ]);
+                if (!runResponse.ok) {
+                    throw new Error(runJson.error || 'Failed to refresh Dasha judge run.');
+                }
+                if (!comparisonResponse.ok) {
+                    throw new Error(comparisonJson.error || 'Failed to refresh Dasha comparisons.');
                 }
                 if (cancelled) {
                     return;
                 }
-                const item = json.item as DashaRunV2;
-                setDashaRuns((current) => sortRuns([item, ...current.filter((run) => run.id !== item.id)]));
-                if (item.status === 'completed') {
+                const refreshedRuns = sortRuns(Array.isArray(runJson.items) ? runJson.items as DashaRunV2[] : []);
+                const refreshedComparisons = sortComparisons(Array.isArray(comparisonJson.items) ? comparisonJson.items as DashaComparisonV2[] : []);
+                setDashaRuns(refreshedRuns);
+                setDashaComparisons(refreshedComparisons);
+                const item = refreshedRuns.find((run) => run.id === selectedRunId);
+                if (item?.status === 'completed') {
                     setStatusMessage('Dasha judge run completed.');
                 }
-                if (item.status === 'failed') {
+                if (item?.status === 'failed') {
                     setErrorMessage(item.errorMessage || 'Dasha judge run failed.');
                 }
             } catch (error) {
@@ -329,23 +393,75 @@ export default function LegalWorkflowPage() {
         };
     }, [selectedRun?.status, selectedRunId]);
 
+    useEffect(() => {
+        if (!selectedComparisonId || selectedComparison?.status !== 'draft') {
+            return;
+        }
+
+        let cancelled = false;
+        const intervalId = window.setInterval(async () => {
+            try {
+                const [runResponse, comparisonResponse] = await Promise.all([
+                    fetch('/api/dasha-runs', { cache: 'no-store' }),
+                    fetch('/api/dasha-comparisons', { cache: 'no-store' }),
+                ]);
+                const [runJson, comparisonJson] = await Promise.all([
+                    runResponse.json(),
+                    comparisonResponse.json(),
+                ]);
+                if (!runResponse.ok) {
+                    throw new Error(runJson.error || 'Failed to refresh Dasha judge runs.');
+                }
+                if (!comparisonResponse.ok) {
+                    throw new Error(comparisonJson.error || 'Failed to refresh Dasha comparisons.');
+                }
+                if (cancelled) {
+                    return;
+                }
+                const refreshedRuns = sortRuns(Array.isArray(runJson.items) ? runJson.items as DashaRunV2[] : []);
+                const refreshedComparisons = sortComparisons(Array.isArray(comparisonJson.items) ? comparisonJson.items as DashaComparisonV2[] : []);
+                setDashaRuns(refreshedRuns);
+                setDashaComparisons(refreshedComparisons);
+                const item = refreshedComparisons.find((comparison) => comparison.id === selectedComparisonId);
+                if (item?.status === 'completed') {
+                    setStatusMessage('Lane A comparison completed.');
+                }
+                if (item?.status === 'failed') {
+                    setErrorMessage(item.errorMessage || 'Lane A comparison failed.');
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    setErrorMessage(error instanceof Error ? error.message : 'Failed to refresh Dasha comparison.');
+                }
+            }
+        }, 4000);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(intervalId);
+        };
+    }, [selectedComparison?.status, selectedComparisonId]);
+
     async function loadAll() {
         setIsLoading(true);
         setErrorMessage(null);
         try {
-            const [frankRes, rubricRes, runRes] = await Promise.all([
+            const [frankRes, rubricRes, runRes, comparisonRes] = await Promise.all([
                 fetch('/api/frank-packets', { cache: 'no-store' }),
                 fetch('/api/karthic-rubric-packs', { cache: 'no-store' }),
                 fetch('/api/dasha-runs', { cache: 'no-store' }),
+                fetch('/api/dasha-comparisons', { cache: 'no-store' }),
             ]);
-            const [frankJson, rubricJson, runJson] = await Promise.all([
+            const [frankJson, rubricJson, runJson, comparisonJson] = await Promise.all([
                 frankRes.json(),
                 rubricRes.json(),
                 runRes.json(),
+                comparisonRes.json(),
             ]);
             setFrankPackets(sortByUpdated(Array.isArray(frankJson.items) ? frankJson.items as FrankPacketV2[] : []));
             setRubricPacks(sortByUpdated(Array.isArray(rubricJson.items) ? rubricJson.items as KarthicRubricPackV2[] : []));
             setDashaRuns(sortRuns(Array.isArray(runJson.items) ? runJson.items as DashaRunV2[] : []));
+            setDashaComparisons(sortComparisons(Array.isArray(comparisonJson.items) ? comparisonJson.items as DashaComparisonV2[] : []));
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to load workflow data.');
         } finally {
@@ -369,6 +485,9 @@ export default function LegalWorkflowPage() {
         setRubricEditor(clone(pack));
         if (pack.status === 'approved') {
             setDashaRubricPackId(pack.id);
+            if (pack.questionSource === 'canonical') {
+                setDashaComparisonRubricPackId(pack.id);
+            }
         }
     }
 
@@ -506,6 +625,155 @@ export default function LegalWorkflowPage() {
         }
     }
 
+    async function generateQuestionVarianceRoutingAndMenu() {
+        if (!frankEditor?.id) {
+            setErrorMessage('Select a Frank packet first.');
+            return;
+        }
+        setErrorMessage(null);
+        setStatusMessage('Generating QuestionVariance routing and menu...');
+        try {
+            const response = await fetch('/api/frank-packets/question-variance', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    id: frankEditor.id,
+                    model: frankModel,
+                    reasoningEffort: frankReasoningEffort,
+                }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to generate QuestionVariance routing and menu.');
+            }
+            const item = json.item as FrankPacketV2;
+            applyFrankPacket(item);
+            setFrankPackets((current) => sortByUpdated([item, ...current.filter((packet) => packet.id !== item.id)]));
+            setSelectedVariationOptionId('');
+            setStatusMessage('QuestionVariance routing updated.');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to generate QuestionVariance routing and menu.');
+            setStatusMessage(null);
+        }
+    }
+
+    async function clearQuestionVarianceMenu() {
+        if (!frankEditor?.id) {
+            return;
+        }
+        setErrorMessage(null);
+        setStatusMessage('Clearing QuestionVariance menu and packages...');
+        try {
+            const response = await fetch('/api/frank-packets/question-variance', {
+                method: 'DELETE',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ id: frankEditor.id }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to clear QuestionVariance menu.');
+            }
+            const item = json.item as FrankPacketV2;
+            applyFrankPacket(item);
+            setFrankPackets((current) => sortByUpdated([item, ...current.filter((packet) => packet.id !== item.id)]));
+            setSelectedVariationOptionId('');
+            setStatusMessage('QuestionVariance menu cleared.');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to clear QuestionVariance menu.');
+            setStatusMessage(null);
+        }
+    }
+
+    async function generateQuestionVariancePackage() {
+        if (!frankEditor?.id || !selectedVariationOptionId) {
+            setErrorMessage('Choose a QuestionVariance option first.');
+            return;
+        }
+        setErrorMessage(null);
+        setStatusMessage('Generating QuestionVariance package...');
+        try {
+            const response = await fetch('/api/frank-packets/question-variance/package', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    id: frankEditor.id,
+                    optionId: selectedVariationOptionId,
+                    model: frankModel,
+                    reasoningEffort: frankReasoningEffort,
+                }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to generate QuestionVariance package.');
+            }
+            const item = json.item as FrankPacketV2;
+            applyFrankPacket(item);
+            setFrankPackets((current) => sortByUpdated([item, ...current.filter((packet) => packet.id !== item.id)]));
+            setStatusMessage('QuestionVariance package generated.');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to generate QuestionVariance package.');
+            setStatusMessage(null);
+        }
+    }
+
+    async function clearQuestionVariancePackage(packageId?: string) {
+        if (!frankEditor?.id) {
+            return;
+        }
+        setErrorMessage(null);
+        setStatusMessage('Clearing QuestionVariance package...');
+        try {
+            const response = await fetch('/api/frank-packets/question-variance/package', {
+                method: 'DELETE',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    id: frankEditor.id,
+                    packageId,
+                }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to clear QuestionVariance package.');
+            }
+            const item = json.item as FrankPacketV2;
+            applyFrankPacket(item);
+            setFrankPackets((current) => sortByUpdated([item, ...current.filter((packet) => packet.id !== item.id)]));
+            setStatusMessage('QuestionVariance package cleared.');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to clear QuestionVariance package.');
+            setStatusMessage(null);
+        }
+    }
+
+    async function setActiveQuestionVariancePackage(packageId: string) {
+        if (!frankEditor?.id) {
+            return;
+        }
+        setErrorMessage(null);
+        setStatusMessage('Setting active QuestionVariance package...');
+        try {
+            const response = await fetch('/api/frank-packets/question-variance/active', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    id: frankEditor.id,
+                    packageId,
+                }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to set the active QuestionVariance package.');
+            }
+            const item = json.item as FrankPacketV2;
+            applyFrankPacket(item);
+            setFrankPackets((current) => sortByUpdated([item, ...current.filter((packet) => packet.id !== item.id)]));
+            setStatusMessage('Active QuestionVariance package updated.');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to set the active QuestionVariance package.');
+            setStatusMessage(null);
+        }
+    }
+
     async function generateRubricPack() {
         if (!frankEditor?.id || frankEditor.status !== 'approved') {
             setErrorMessage('Select an approved Frank packet first.');
@@ -520,6 +788,8 @@ export default function LegalWorkflowPage() {
                 body: JSON.stringify({
                     frankPacketId: frankEditor.id,
                     id: rubricEditor?.frankPacketId === frankEditor.id ? rubricEditor.id : undefined,
+                    questionSource: currentRubricQuestionSource,
+                    questionVariancePackageId: currentRubricQuestionVariancePackageId,
                     model: frankModel,
                     reasoningEffort: frankReasoningEffort,
                 }),
@@ -553,6 +823,8 @@ export default function LegalWorkflowPage() {
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
                     ...rubricEditor,
+                    questionSource: currentRubricQuestionSource,
+                    questionVariancePackageId: currentRubricQuestionVariancePackageId,
                     status,
                 }),
             });
@@ -601,10 +873,53 @@ export default function LegalWorkflowPage() {
             const item = json.item as DashaRunV2;
             setDashaRuns((current) => sortRuns([item, ...current.filter((run) => run.id !== item.id)]));
             setSelectedRunId(item.id);
+            setSelectedComparisonId('');
             setStatusMessage('Dasha judge run started.');
             goToStage('judge');
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to start Dasha judge run.');
+            setStatusMessage(null);
+        }
+    }
+
+    async function runDashaComparison() {
+        if (!dashaComparisonRubricPackId) {
+            setErrorMessage('Select an approved canonical rubric pack first.');
+            return;
+        }
+        if (!dashaComparisonPackageId) {
+            setErrorMessage('Select a safe Lane A QuestionVariance package first.');
+            return;
+        }
+        if (selectedModelKeys.length === 0) {
+            setErrorMessage('Select at least one model for the comparison.');
+            return;
+        }
+        setErrorMessage(null);
+        setStatusMessage('Starting Lane A comparison...');
+        try {
+            const response = await fetch('/api/dasha-comparisons', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    rubricPackId: dashaComparisonRubricPackId,
+                    questionVariancePackageId: dashaComparisonPackageId,
+                    sampleCount: sampleCount || '120',
+                    selectedModels: buildSelectedModels(selectedModelKeys),
+                }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to start Lane A comparison.');
+            }
+            const item = json.item as DashaComparisonV2;
+            setDashaComparisons((current) => sortComparisons([item, ...current.filter((comparison) => comparison.id !== item.id)]));
+            setSelectedComparisonId(item.id);
+            setSelectedRunId('');
+            setStatusMessage('Lane A comparison started.');
+            goToStage('judge');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to start Lane A comparison.');
             setStatusMessage(null);
         }
     }
@@ -641,9 +956,75 @@ export default function LegalWorkflowPage() {
     const hasExtractionMapping = Boolean(frankEditor?.sourceExtractionSheet && frankEditor?.goldPacketMapping && frankEditor?.likelyFailureModes);
     const hasBenchmark = Boolean(frankEditor?.benchmarkAnswer.trim());
     const hasQuestion = Boolean(frankEditor?.reverseEngineeredQuestion.trim());
+    const questionVariance = frankEditor?.questionVariance ?? null;
+    const questionVarianceRouting = questionVariance?.routingResult ?? null;
+    const questionVarianceMenu = questionVariance?.menu ?? null;
+    const activeQuestionVariancePackage = questionVariance?.packages.find((item) => item.id === questionVariance.activePackageId) ?? null;
+    const hasActiveQuestionVariancePackage = Boolean(activeQuestionVariancePackage?.variedLegalQuestion.trim());
+    const rubricEditorMatchesFrank = Boolean(rubricEditor && frankEditor && rubricEditor.frankPacketId === frankEditor.id);
+    const currentRubricQuestionSource = rubricEditorMatchesFrank && rubricEditor ? rubricEditor.questionSource : rubricQuestionSource;
+    const currentRubricQuestionVariancePackageId = rubricEditorMatchesFrank && rubricEditor
+        ? rubricEditor.questionVariancePackageId
+        : rubricQuestionVariancePackageId;
     const hasApprovedFrank = frankEditor?.status === 'approved';
     const hasApprovedRubric = rubricEditor?.status === 'approved';
     const hasCompletedRun = selectedRun?.status === 'completed';
+    const comparisonRubricPacks = useMemo(
+        () => approvedRubricPacks.filter((pack) => pack.questionSource === 'canonical'),
+        [approvedRubricPacks],
+    );
+    const selectedComparisonRubricPack = useMemo(
+        () => comparisonRubricPacks.find((pack) => pack.id === dashaComparisonRubricPackId) ?? null,
+        [comparisonRubricPacks, dashaComparisonRubricPackId],
+    );
+    const comparisonFrankPacket = useMemo(
+        () => frankPackets.find((packet) => packet.id === selectedComparisonRubricPack?.frankPacketId) ?? null,
+        [frankPackets, selectedComparisonRubricPack?.frankPacketId],
+    );
+    const eligibleComparisonPackages = useMemo(() => {
+        if (!comparisonFrankPacket) {
+            return [] as Array<{ id: string; label: string; variationType: string }>;
+        }
+        const questionVarianceState = comparisonFrankPacket.questionVariance;
+        return questionVarianceState.packages
+            .filter((pkg) => pkg.lane === 'lane_a' && pkg.status === 'ready' && pkg.variationStatus === 'safe')
+            .map((pkg) => ({
+                id: pkg.id,
+                label: questionVarianceState.menu?.options.find((option) => option.id === pkg.selectedOptionId)?.label ?? pkg.variationType,
+                variationType: pkg.variationType,
+            }))
+            .sort((left, right) => left.label.localeCompare(right.label));
+    }, [comparisonFrankPacket]);
+    const selectedComparisonBaselineRun = useMemo(
+        () => dashaRuns.find((run) => run.id === selectedComparison?.baselineRunId) ?? null,
+        [dashaRuns, selectedComparison?.baselineRunId],
+    );
+    const selectedComparisonVariantRun = useMemo(
+        () => dashaRuns.find((run) => run.id === selectedComparison?.variantRunId) ?? null,
+        [dashaRuns, selectedComparison?.variantRunId],
+    );
+
+    useEffect(() => {
+        const rubricPackIds = new Set(comparisonRubricPacks.map((item) => item.id));
+        if (dashaComparisonRubricPackId && !rubricPackIds.has(dashaComparisonRubricPackId)) {
+            setDashaComparisonRubricPackId('');
+            return;
+        }
+        if (!dashaComparisonRubricPackId && comparisonRubricPacks.length > 0) {
+            setDashaComparisonRubricPackId(comparisonRubricPacks[0].id);
+        }
+    }, [comparisonRubricPacks, dashaComparisonRubricPackId]);
+
+    useEffect(() => {
+        const packageIds = new Set(eligibleComparisonPackages.map((item) => item.id));
+        if (dashaComparisonPackageId && !packageIds.has(dashaComparisonPackageId)) {
+            setDashaComparisonPackageId('');
+            return;
+        }
+        if (!dashaComparisonPackageId && eligibleComparisonPackages.length > 0) {
+            setDashaComparisonPackageId(eligibleComparisonPackages[0].id);
+        }
+    }, [dashaComparisonPackageId, eligibleComparisonPackages]);
 
     const stageViews = useMemo<WorkflowStageView[]>(() => {
         return WORKFLOW_STAGES.map((stage) => {
@@ -842,6 +1223,190 @@ export default function LegalWorkflowPage() {
                         </button>
                     </div>
                 </div>
+            </div>
+        );
+    }
+
+    function renderQuestionVarianceSection() {
+        if (!frankEditor) {
+            return null;
+        }
+        const selectedOption = questionVarianceMenu?.options.find((option) => option.id === selectedVariationOptionId) ?? null;
+        return (
+            <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Question Variance</p>
+                        <p className="mt-1 text-sm text-slate-600">
+                            Generate a routing/readiness result, review the safe menu, then produce exactly one selected variation package without changing the canonical Frank question.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <button className={primaryButtonClassName} onClick={() => void generateQuestionVarianceRoutingAndMenu()}>
+                            {questionVarianceRouting ? 'Regenerate Variation Menu' : 'Generate Variation Menu'}
+                        </button>
+                        {(questionVarianceMenu || questionVariance?.packages.length) ? (
+                            <button className={secondaryButtonClassName} onClick={() => void clearQuestionVarianceMenu()}>
+                                Clear Variation Menu
+                            </button>
+                        ) : null}
+                    </div>
+                </div>
+
+                {questionVarianceRouting ? (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Routing readiness</p>
+                            <p><span className="font-semibold">Status:</span> {QUESTION_VARIANCE_ROUTE_STATUS_LABELS[questionVarianceRouting.routeStatus]}</p>
+                            <p><span className="font-semibold">Controlling doctrine:</span> {questionVarianceRouting.controllingDoctrine}</p>
+                            <p><span className="font-semibold">Variation readiness:</span> {questionVarianceRouting.variationReadiness}</p>
+                            <p><span className="font-semibold">Primary provision:</span> {questionVarianceRouting.primaryProvisionCandidate ?? 'Unresolved'}</p>
+                            {questionVarianceRouting.confusionPattern ? (
+                                <p><span className="font-semibold">Confusion pattern:</span> {QUESTION_VARIANCE_CONFUSION_LABELS[questionVarianceRouting.confusionPattern]}</p>
+                            ) : null}
+                            {questionVarianceRouting.menuRule ? (
+                                <p className="mt-2 text-sm text-slate-600">{questionVarianceRouting.menuRule}</p>
+                            ) : null}
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Gate order + frozen facts</p>
+                            <ul className="space-y-1 text-sm text-slate-700">
+                                {questionVarianceRouting.mainGateOrder.map((item, index) => (
+                                    <li key={`qv_gate_${index}`}>• {item}</li>
+                                ))}
+                            </ul>
+                            <div className="mt-3">
+                                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">No-silent-change facts</p>
+                                <ul className="space-y-1 text-sm text-slate-700">
+                                    {questionVarianceRouting.mainNoSilentChangeFacts.map((item, index) => (
+                                        <li key={`qv_fact_${index}`}>• {item}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <EmptyPanelCopy text="No QuestionVariance routing result yet. Generate the menu to compute readiness first." />
+                )}
+
+                {questionVariance?.warnings.length ? (
+                    <WarningList title="QuestionVariance warnings" items={questionVariance.warnings} />
+                ) : null}
+
+                {questionVarianceRouting && questionVarianceRouting.routeStatus !== 'stable_route' ? (
+                    <Banner tone="warning" text="QuestionVariance routing is not stable, so no normal variation menu is available for this packet." />
+                ) : null}
+
+                {questionVarianceMenu ? (
+                    <div className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Recommended options</p>
+                                <p className="text-sm text-slate-600">
+                                    Select one option first. v1 only generates a package from an existing stored menu option.
+                                </p>
+                            </div>
+                            <button
+                                className={primaryButtonClassName}
+                                disabled={!selectedVariationOptionId}
+                                onClick={() => void generateQuestionVariancePackage()}
+                            >
+                                Generate Variation Package
+                            </button>
+                        </div>
+                        {questionVarianceMenu.options.length > 0 ? (
+                            <div className="grid gap-3 lg:grid-cols-2">
+                                {questionVarianceMenu.options.map((option) => {
+                                    const isSelected = option.id === selectedVariationOptionId;
+                                    return (
+                                        <button
+                                            key={option.id}
+                                            type="button"
+                                            className={isSelected
+                                                ? 'rounded-xl border border-teal-300 bg-teal-50 p-4 text-left text-teal-900'
+                                                : 'rounded-xl border border-slate-200 bg-white p-4 text-left text-slate-700'}
+                                            onClick={() => setSelectedVariationOptionId(option.id)}
+                                        >
+                                            <p className="text-sm font-semibold">{option.label}</p>
+                                            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em]">{QUESTION_VARIANCE_LANE_LABELS[option.lane]}</p>
+                                            <p className="mt-2 text-sm"><span className="font-semibold">What changes:</span> {option.whatChanges}</p>
+                                            <p className="mt-1 text-sm"><span className="font-semibold">Why it fits:</span> {option.whyItFits}</p>
+                                            <p className="mt-1 text-sm"><span className="font-semibold">Answer reuse:</span> {QUESTION_VARIANCE_REUSE_LABELS[option.expectedAnswerReuse]}</p>
+                                            <p className="mt-1 text-sm"><span className="font-semibold">Main red flag:</span> {option.mainRedFlag}</p>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <EmptyPanelCopy text="No safe variation options are currently stored for this packet." />
+                        )}
+                        {selectedOption ? (
+                            <div className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900">
+                                Selected option: <span className="font-semibold">{selectedOption.label}</span>
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
+
+                {questionVariance?.packages.length ? (
+                    <div className="space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Generated packages</p>
+                                <p className="text-sm text-slate-600">Set one package active to make it available as an alternate rubric and Dasha question source.</p>
+                            </div>
+                            <button className={secondaryButtonClassName} onClick={() => void clearQuestionVariancePackage()}>
+                                Clear Packages
+                            </button>
+                        </div>
+                        {questionVariance.packages.map((pkg) => {
+                            const isActive = pkg.id === questionVariance.activePackageId;
+                            return (
+                                <div key={pkg.id} className={isActive ? 'rounded-xl border border-emerald-300 bg-emerald-50 p-4' : 'rounded-xl border border-slate-200 bg-white p-4'}>
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div className="space-y-1 text-sm text-slate-700">
+                                            <p className="font-semibold text-slate-900">{pkg.variationType}</p>
+                                            <p><span className="font-semibold">Lane:</span> {QUESTION_VARIANCE_LANE_LABELS[pkg.lane]}</p>
+                                            <p><span className="font-semibold">Expected result:</span> {QUESTION_VARIANCE_RESULT_TYPE_LABELS[pkg.expectedResultType]}</p>
+                                            <p><span className="font-semibold">Variation status:</span> {QUESTION_VARIANCE_PACKAGE_STATUS_LABELS[pkg.variationStatus]}</p>
+                                            <p><span className="font-semibold">Final status:</span> {QUESTION_VARIANCE_FINAL_STATUS_LABELS[pkg.status]}</p>
+                                            <p><span className="font-semibold">Answer reuse:</span> {QUESTION_VARIANCE_REUSE_LABELS[pkg.answerReuseLevel]}</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                className={secondaryButtonClassName}
+                                                disabled={isActive}
+                                                onClick={() => void setActiveQuestionVariancePackage(pkg.id)}
+                                            >
+                                                {isActive ? 'Active Package' : 'Set Active'}
+                                            </button>
+                                            <button className={secondaryButtonClassName} onClick={() => void clearQuestionVariancePackage(pkg.id)}>
+                                                Remove Package
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                                        <ReadOnlyTextCard title="Canonical question" text={frankEditor.reverseEngineeredQuestion} />
+                                        <ReadOnlyTextCard title="Varied legal question" text={pkg.variedLegalQuestion} />
+                                    </div>
+                                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                                        <ReadOnlyTextCard title="Updated model answer" text={pkg.updatedModelAnswer} />
+                                        <ReadOnlyListCard
+                                            title="Swap log"
+                                            items={pkg.swapLog.map((entry) => `${entry.from} -> ${entry.to}`)}
+                                            emptyText="No swap log entries."
+                                        />
+                                    </div>
+                                    <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                                        <ReadOnlyListCard title="Rubric patch notes" items={pkg.rubricPatchNotes} emptyText="None." />
+                                        <ReadOnlyListCard title="Red flags" items={pkg.redFlags} emptyText="None." />
+                                        <ReadOnlyTextCard title="Why the answer should stay the same or change" text={pkg.whyTheAnswerShouldStayTheSameOrChange} />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : null}
             </div>
         );
     }
@@ -1082,6 +1647,7 @@ export default function LegalWorkflowPage() {
                                 {frankEditor.questionWarnings.length > 0 ? (
                                     <WarningList title="Question warnings" items={frankEditor.questionWarnings} />
                                 ) : null}
+                                {renderQuestionVarianceSection()}
                             </div>
                         ) : <EmptyPanelCopy text="Select a Frank packet to generate or edit the reverse-engineered question." />}
                     </>
@@ -1112,6 +1678,35 @@ export default function LegalWorkflowPage() {
                                 <button className={primaryButtonClassName} onClick={() => void generateRubricPack()}>
                                     {rubricEditor?.frankPacketId === frankEditor?.id ? 'Regenerate Rubric Pack' : 'Generate Rubric Pack'}
                                 </button>
+                                <Field label="Question source for rubric + Dasha">
+                                    <select
+                                        className={inputClassName}
+                                        value={currentRubricQuestionSource}
+                                        onChange={(event) => {
+                                            const nextSource = event.target.value as QuestionSource;
+                                            const nextPackageId = nextSource === 'question_variance_active_package'
+                                                ? frankEditor?.questionVariance.activePackageId ?? null
+                                                : null;
+                                            setRubricQuestionSource(nextSource);
+                                            setRubricQuestionVariancePackageId(nextPackageId);
+                                            setRubricEditor((current) => current && current.frankPacketId === frankEditor?.id
+                                                ? {
+                                                    ...current,
+                                                    questionSource: nextSource,
+                                                    questionVariancePackageId: nextPackageId,
+                                                }
+                                                : current);
+                                        }}
+                                    >
+                                        <option value="canonical">Canonical reverse-engineered question</option>
+                                        <option value="question_variance_active_package" disabled={!hasActiveQuestionVariancePackage}>
+                                            Active QuestionVariance package
+                                        </option>
+                                    </select>
+                                </Field>
+                                {currentRubricQuestionSource === 'question_variance_active_package' && !hasActiveQuestionVariancePackage ? (
+                                    <Banner tone="warning" text="Set an active QuestionVariance package in the question stage before using it as the rubric question source." />
+                                ) : null}
                                 <Field label="Saved rubric packs">
                                     <select
                                         className={inputClassName}
@@ -1146,6 +1741,12 @@ export default function LegalWorkflowPage() {
                             <div>
                                 {rubricEditor ? (
                                     <div className="space-y-4">
+                                        <ReadOnlyTextCard
+                                            title="Current question source"
+                                            text={currentRubricQuestionSource === 'canonical'
+                                                ? frankEditor?.reverseEngineeredQuestion ?? rubricEditor.questionText
+                                                : activeQuestionVariancePackage?.variedLegalQuestion ?? rubricEditor.questionText}
+                                        />
                                         <Field label="Comparison method note">
                                             <textarea
                                                 className={textareaClassName}
@@ -1193,72 +1794,185 @@ export default function LegalWorkflowPage() {
                 return (
                     <>
                         <SectionHeader title={currentStage.title} description={currentStage.description} />
-                        <div className="mt-4 grid gap-4 lg:grid-cols-[360px,1fr]">
-                            <div className="space-y-4">
-                                <Field label="Approved rubric pack">
-                                    <select
-                                        className={inputClassName}
-                                        value={dashaRubricPackId}
-                                        onChange={(event) => setDashaRubricPackId(event.target.value)}
-                                    >
-                                        <option value="">Select approved rubric pack</option>
-                                        {approvedRubricPacks.map((pack) => (
-                                            <option key={pack.id} value={pack.id}>{FRANK_V2_PACK_LABELS[pack.selectedPack]} · {pack.id}</option>
-                                        ))}
-                                    </select>
-                                </Field>
-                                <Field label="Run mode">
-                                    <select className={inputClassName} value={dashaRunMode} onChange={(event) => setDashaRunMode(event.target.value as DashaRunMode)}>
-                                        <option value="score_and_cluster">Score + cluster</option>
-                                        <option value="cluster_only">Cluster only</option>
-                                    </select>
-                                </Field>
-                                <Field label="Requested responses">
-                                    <input className={inputClassName} value={sampleCount} onChange={(event) => setSampleCount(event.target.value)} />
-                                </Field>
-                                <Field label="Models">
-                                    <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                        {(Object.keys(MODEL_OPTIONS_BY_PROVIDER) as ModelProvider[]).map((provider) => (
-                                            <div key={provider} className="space-y-2">
-                                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{PROVIDER_LABELS[provider]}</p>
-                                                {MODEL_OPTIONS_BY_PROVIDER[provider].map((option) => {
-                                                    const key = `${provider}::${option.value}`;
-                                                    return (
-                                                        <label key={key} className="flex items-center gap-2 text-sm text-slate-700">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedModelKeys.includes(key)}
-                                                                onChange={(event) => {
-                                                                    setSelectedModelKeys((current) => event.target.checked
-                                                                        ? [...current, key]
-                                                                        : current.filter((item) => item !== key));
-                                                                }}
-                                                            />
-                                                            {option.label}
-                                                        </label>
-                                                    );
-                                                })}
-                                            </div>
-                                        ))}
+                        <div className="mt-4 space-y-5">
+                            <div className="grid gap-4 xl:grid-cols-2">
+                                <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 xl:col-span-2">
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Shared Dasha Configuration</p>
+                                            <p className="mt-1 text-sm text-slate-600">
+                                                Set the sample count and model pool once here. Both the Lane A comparison and the standalone Dasha run reuse this configuration.
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                className={secondaryButtonClassName}
+                                                type="button"
+                                                onClick={() => setSelectedModelKeys(DEFAULT_SELECTED_MODEL_KEYS)}
+                                            >
+                                                Reset defaults
+                                            </button>
+                                            <button
+                                                className={secondaryButtonClassName}
+                                                type="button"
+                                                disabled={selectedModelKeys.length === 0}
+                                                onClick={() => setSelectedModelKeys([])}
+                                            >
+                                                Clear all
+                                            </button>
+                                        </div>
                                     </div>
-                                </Field>
-                                <button className={primaryButtonClassName} onClick={() => void runDasha()}>
-                                    Start Dasha Run
-                                </button>
-                                <Field label="Saved runs">
-                                    <select className={inputClassName} value={selectedRun?.id ?? ''} onChange={(event) => setSelectedRunId(event.target.value)}>
-                                        <option value="">Select run</option>
-                                        {dashaRuns.map((run) => (
-                                            <option key={run.id} value={run.id}>{run.id} · {run.status}</option>
-                                        ))}
-                                    </select>
-                                </Field>
+                                    <div className="grid gap-4 xl:grid-cols-[220px,minmax(0,1fr)]">
+                                        <Field label="Requested responses">
+                                            <input className={inputClassName} value={sampleCount} onChange={(event) => setSampleCount(event.target.value)} />
+                                        </Field>
+                                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                            <div>
+                                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Model configuration</p>
+                                                <p className="mt-1 text-sm text-slate-600">
+                                                    {selectedModelKeys.length} model{selectedModelKeys.length === 1 ? '' : 's'} selected for both Dasha entry points.
+                                                </p>
+                                            </div>
+                                            <div className="mt-4">
+                                                <ModelSelectionPanel
+                                                    selectedModelKeys={selectedModelKeys}
+                                                    onToggleModel={(modelKey, checked) => {
+                                                        setSelectedModelKeys((current) => checked
+                                                            ? [...new Set([...current, modelKey])]
+                                                            : current.filter((item) => item !== modelKey));
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Lane A Comparison</p>
+                                        <p className="mt-1 text-sm text-slate-600">
+                                            Reuse the approved canonical rubric, run the canonical question and one safe Lane A variation as a linked pair, then compare score deltas without matching clusters across runs.
+                                        </p>
+                                    </div>
+                                    <Banner tone="info" text="This flow reuses the canonical Karthic rubric as-is for safe Lane A swaps. It does not regenerate Karthic." />
+                                    <div className="grid gap-4 lg:grid-cols-2">
+                                        <Field label="Approved canonical rubric pack">
+                                            <select
+                                                className={inputClassName}
+                                                value={dashaComparisonRubricPackId}
+                                                onChange={(event) => setDashaComparisonRubricPackId(event.target.value)}
+                                            >
+                                                <option value="">Select canonical rubric pack</option>
+                                                {comparisonRubricPacks.map((pack) => (
+                                                    <option key={pack.id} value={pack.id}>{FRANK_V2_PACK_LABELS[pack.selectedPack]} · {pack.id}</option>
+                                                ))}
+                                            </select>
+                                        </Field>
+                                        <Field label="Safe Lane A QuestionVariance package">
+                                            <select
+                                                className={inputClassName}
+                                                value={dashaComparisonPackageId}
+                                                onChange={(event) => setDashaComparisonPackageId(event.target.value)}
+                                                disabled={!selectedComparisonRubricPack}
+                                            >
+                                                <option value="">{selectedComparisonRubricPack ? 'Select Lane A package' : 'Choose a canonical rubric pack first'}</option>
+                                                {eligibleComparisonPackages.map((pkg) => (
+                                                    <option key={pkg.id} value={pkg.id}>{pkg.label} · {pkg.variationType}</option>
+                                                ))}
+                                            </select>
+                                        </Field>
+                                    </div>
+                                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr),220px]">
+                                        <Field label="Saved comparisons">
+                                            <select
+                                                className={inputClassName}
+                                                value={selectedComparison?.id ?? ''}
+                                                onChange={(event) => {
+                                                    setSelectedComparisonId(event.target.value);
+                                                    setSelectedRunId('');
+                                                }}
+                                            >
+                                                <option value="">Select comparison</option>
+                                                {dashaComparisons.map((comparison) => (
+                                                    <option key={comparison.id} value={comparison.id}>{comparison.variationLabel} · {comparison.status}</option>
+                                                ))}
+                                            </select>
+                                        </Field>
+                                        <div className="flex items-end">
+                                            <button className={`${primaryButtonClassName} w-full`} onClick={() => void runDashaComparison()}>
+                                                Start Lane A Comparison
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Single Dasha Run</p>
+                                        <p className="mt-1 text-sm text-slate-600">
+                                            Keep the original one-run Dasha workflow available for standalone inspection and debugging.
+                                        </p>
+                                    </div>
+                                    <div className="grid gap-4 lg:grid-cols-2">
+                                        <Field label="Approved rubric pack">
+                                            <select
+                                                className={inputClassName}
+                                                value={dashaRubricPackId}
+                                                onChange={(event) => setDashaRubricPackId(event.target.value)}
+                                            >
+                                                <option value="">Select approved rubric pack</option>
+                                                {approvedRubricPacks.map((pack) => (
+                                                    <option key={pack.id} value={pack.id}>{FRANK_V2_PACK_LABELS[pack.selectedPack]} · {pack.id}</option>
+                                                ))}
+                                            </select>
+                                        </Field>
+                                        <Field label="Run mode">
+                                            <select className={inputClassName} value={dashaRunMode} onChange={(event) => setDashaRunMode(event.target.value as DashaRunMode)}>
+                                                <option value="score_and_cluster">Score + cluster</option>
+                                                <option value="cluster_only">Cluster only</option>
+                                            </select>
+                                        </Field>
+                                    </div>
+                                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr),220px]">
+                                        <Field label="Saved runs">
+                                            <select
+                                                className={inputClassName}
+                                                value={selectedRun?.id ?? ''}
+                                                onChange={(event) => {
+                                                    setSelectedRunId(event.target.value);
+                                                    setSelectedComparisonId('');
+                                                }}
+                                            >
+                                                <option value="">Select run</option>
+                                                {dashaRuns.map((run) => (
+                                                    <option key={run.id} value={run.id}>{run.id} · {run.status}</option>
+                                                ))}
+                                            </select>
+                                        </Field>
+                                        <div className="flex items-end">
+                                            <button className={`${primaryButtonClassName} w-full`} onClick={() => void runDasha()}>
+                                                Start Dasha Run
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="space-y-4">
-                                {selectedRun ? (
+
+                            <div className="min-w-0 space-y-4">
+                                {selectedComparison ? (
+                                    <DashaComparisonResults
+                                        comparison={selectedComparison}
+                                        baselineRun={selectedComparisonBaselineRun}
+                                        variantRun={selectedComparisonVariantRun}
+                                        onOpenRun={(runId) => {
+                                            setSelectedRunId(runId);
+                                            setSelectedComparisonId('');
+                                        }}
+                                    />
+                                ) : selectedRun ? (
                                     <DashaResultsExplorer key={selectedRun.id} run={selectedRun} />
                                 ) : (
-                                    <EmptyPanelCopy text="Start a Dasha judge run or select an existing run to inspect row and module scoring." />
+                                    <EmptyPanelCopy text="Start a Lane A comparison or a single Dasha run to inspect saved results." />
                                 )}
                             </div>
                         </div>
@@ -1331,11 +2045,11 @@ export default function LegalWorkflowPage() {
                 </Panel>
 
                 <Panel>
-                    <div className="space-y-4 md:flex md:items-start md:gap-4 md:space-y-0">
-                        <div className="min-w-0 md:basis-[70%] md:flex-1">
+                    <div className="space-y-4 xl:grid xl:grid-cols-[minmax(0,1fr),320px] xl:items-start xl:gap-4 xl:space-y-0">
+                        <div className="min-w-0">
                             {renderStagePanel()}
                         </div>
-                        <div className="md:basis-[30%] md:max-w-[420px] md:flex-none">
+                        <div className="min-w-0 xl:w-full">
                             <StageGuideCard stageId={visibleStage} promptPreview={activeStagePrompt} />
                         </div>
                     </div>
@@ -1481,6 +2195,10 @@ function sortRuns(items: DashaRunV2[]) {
     return [...items].sort((left, right) => String(right.completedAt ?? right.createdAt).localeCompare(String(left.completedAt ?? left.createdAt)));
 }
 
+function sortComparisons(items: DashaComparisonV2[]) {
+    return [...items].sort((left, right) => String(right.completedAt ?? right.createdAt).localeCompare(String(left.completedAt ?? left.createdAt)));
+}
+
 function splitLines(value: string) {
     return value
         .split('\n')
@@ -1556,7 +2274,7 @@ function StageGuideCard({ stageId, promptPreview }: { stageId: WorkflowStageId; 
     const guide = WORKFLOW_STAGE_GUIDES[stageId];
     const phaseNumber = getFrankPhaseNumber(stageId);
     return (
-        <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)] md:sticky md:top-24">
+        <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)] xl:sticky xl:top-24">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Stage Guide</p>
             <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                 {phaseNumber !== null ? `Frank Phase ${phaseNumber}` : stageId === 'source' ? 'Source Setup' : WORKFLOW_STAGES.find((stage) => stage.id === stageId)?.title ?? 'Workflow Stage'}
@@ -1619,6 +2337,87 @@ function StageGuideSection({ title, children }: { title: string; children: React
     );
 }
 
+function ModelSelectionPanel({
+    selectedModelKeys,
+    onToggleModel,
+}: {
+    selectedModelKeys: string[];
+    onToggleModel: (modelKey: string, checked: boolean) => void;
+}) {
+    const providers: ModelProvider[] = ['openai', 'anthropic', 'gemini'];
+
+    return (
+        <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+            {providers.map((provider) => {
+                const providerModels = MODEL_OPTIONS_BY_PROVIDER[provider];
+                const providerKeys = providerModels.map((option) => `${provider}::${option.value}`);
+                const selectedCount = providerKeys.filter((modelKey) => selectedModelKeys.includes(modelKey)).length;
+
+                return (
+                    <div key={provider} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{PROVIDER_LABELS[provider]}</p>
+                                <p className="mt-1 text-sm text-slate-600">
+                                    {selectedCount} of {providerModels.length} selected
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:text-slate-900"
+                                    type="button"
+                                    onClick={() => providerKeys.forEach((modelKey) => onToggleModel(modelKey, true))}
+                                >
+                                    Select all
+                                </button>
+                                <button
+                                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:text-slate-900"
+                                    type="button"
+                                    disabled={selectedCount === 0}
+                                    onClick={() => providerKeys.forEach((modelKey) => onToggleModel(modelKey, false))}
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                        <div className="mt-3 max-h-[180px] overflow-y-auto pr-1">
+                            <div className="space-y-2">
+                                {providerModels.map((option) => {
+                                    const modelKey = `${provider}::${option.value}`;
+                                    const checked = selectedModelKeys.includes(modelKey);
+                                    return (
+                                        <label
+                                            key={modelKey}
+                                            className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
+                                                checked
+                                                    ? 'border-teal-300 bg-teal-50/70'
+                                                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                                                checked={checked}
+                                                onChange={(event) => onToggleModel(modelKey, event.target.checked)}
+                                            />
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold text-slate-900">{option.label}</p>
+                                                <p className="mt-1 text-xs text-slate-500">
+                                                    {provider === 'anthropic' ? 'Standard reasoning profile' : 'Reasoning effort defaults to medium for this model'}
+                                                </p>
+                                            </div>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 function Banner({ tone, text }: { tone: 'info' | 'warning' | 'error'; text: string }) {
     const className = tone === 'error'
         ? 'border-rose-200 bg-rose-50 text-rose-800'
@@ -1659,6 +2458,23 @@ function ReadOnlyTextCard({ title, text }: { title: string; text: string }) {
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{title}</p>
             <pre className="whitespace-pre-wrap text-sm text-slate-700">{text}</pre>
+        </div>
+    );
+}
+
+function ReadOnlyListCard({ title, items, emptyText }: { title: string; items: string[]; emptyText: string }) {
+    return (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{title}</p>
+            {items.length > 0 ? (
+                <ul className="space-y-1 text-sm text-slate-700">
+                    {items.map((item, index) => (
+                        <li key={`${title}_${index}`}>• {item}</li>
+                    ))}
+                </ul>
+            ) : (
+                <p className="text-sm text-slate-500">{emptyText}</p>
+            )}
         </div>
     );
 }
