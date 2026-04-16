@@ -191,6 +191,13 @@ export type FrankSavedPrompt = {
     createdAt: string;
 };
 
+export type FrankGenerationSettings = {
+    model: string;
+    reasoningEffort: ReasoningEffort;
+};
+
+export type PromptGenerationSettingsByKind = Partial<Record<FrankSavedPromptKind, FrankGenerationSettings>>;
+
 export type FrankPacketV2 = {
     schemaVersion: 2;
     id: string;
@@ -212,6 +219,7 @@ export type FrankPacketV2 = {
     reverseEngineeredQuestion: string;
     questionVariance: QuestionVarianceState;
     savedPrompts: FrankSavedPrompt[];
+    generationSettings: PromptGenerationSettingsByKind;
     benchmarkWarnings: string[];
     questionWarnings: string[];
     approvedAt: string | null;
@@ -251,6 +259,7 @@ export type KarthicRubricPackV2 = {
     status: Extract<WorkflowStatus, 'draft' | 'approved'>;
     rows: KarthicRubricRow[];
     savedPrompts: FrankSavedPrompt[];
+    generationSettings: PromptGenerationSettingsByKind;
     comparisonMethodNote: string;
     approvedAt: string | null;
     createdAt: string;
@@ -446,9 +455,4 @@ export type DashaComparisonV2 = {
     errorMessage?: string;
     createdAt: string;
     completedAt: string | null;
-};
-
-export type FrankGenerationSettings = {
-    model: string;
-    reasoningEffort: ReasoningEffort;
 };

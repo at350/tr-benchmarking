@@ -1,4 +1,4 @@
-import type { FrankSofPackId, RubricModuleId, RubricRowKey } from '@/lib/legal-workflow-v2-types';
+import type { FrankSofPackId, PromptGenerationSettingsByKind, RubricModuleId, RubricRowKey } from '@/lib/legal-workflow-v2-types';
 
 export const FRANK_V2_BENCHMARK_HEADINGS = [
     'Jurisdiction assumption:',
@@ -141,4 +141,35 @@ export const FRANK_V2_PACK_LABELS: Record<FrankSofPackId, string> = {
     pack20: 'Pack 20 — Land Contracts',
     pack30: 'Pack 30 — Executor or Administrator Personal Promise',
     pack40: 'Pack 40 — Sale of Goods under UCC § 2-201',
+};
+
+export const DEFAULT_PROMPT_GENERATION_SETTINGS_BY_KIND: PromptGenerationSettingsByKind = {
+    routing_intake_generation: {
+        model: 'gpt-4.1-mini',
+        reasoningEffort: 'medium',
+    },
+    extraction_mapping_generation: {
+        model: 'gpt-4.1-mini',
+        reasoningEffort: 'medium',
+    },
+    benchmark_generation: {
+        model: 'gpt-5.4-mini',
+        reasoningEffort: 'medium',
+    },
+    question_generation: {
+        model: 'gpt-5.4-mini',
+        reasoningEffort: 'medium',
+    },
+    question_variance_routing_menu_generation: {
+        model: 'gpt-4.1-mini',
+        reasoningEffort: 'medium',
+    },
+    question_variance_package_generation: {
+        model: 'gpt-4.1-mini',
+        reasoningEffort: 'medium',
+    },
+    rubric_generation: {
+        model: 'gpt-4.1-mini',
+        reasoningEffort: 'medium',
+    },
 };

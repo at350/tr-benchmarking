@@ -7,7 +7,12 @@ import { DashaComparisonResults } from '@/components/DashaComparisonResults';
 import { DashaResultsExplorer } from '@/components/DashaResultsExplorer';
 import { AppShell } from '@/components/ui/AppShell';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { FRANK_V2_BENCHMARK_HEADINGS, FRANK_V2_PACK_LABELS, RUBRIC_MODULE_LABELS } from '@/lib/legal-workflow-v2-constants';
+import {
+    DEFAULT_PROMPT_GENERATION_SETTINGS_BY_KIND,
+    FRANK_V2_BENCHMARK_HEADINGS,
+    FRANK_V2_PACK_LABELS,
+    RUBRIC_MODULE_LABELS,
+} from '@/lib/legal-workflow-v2-constants';
 import {
     QUESTION_VARIANCE_CONFUSION_LABELS,
     QUESTION_VARIANCE_FINAL_STATUS_LABELS,
@@ -24,13 +29,21 @@ import type {
     DashaRunV2,
     DashaSelectedModel,
     FrankPacketV2,
+    FrankGenerationSettings,
     FrankSofPackId,
     KarthicRubricPackV2,
     KarthicRubricRow,
+    PromptGenerationSettingsByKind,
     QuestionSource,
     ReasoningEffort,
 } from '@/lib/legal-workflow-v2-types';
-import { MODEL_OPTIONS_BY_PROVIDER, PROVIDER_LABELS, type ModelProvider } from '@/lib/model-options';
+import {
+    MODEL_OPTIONS_BY_PROVIDER,
+    PROVIDER_LABELS,
+    REASONING_OPTIONS,
+    supportsReasoningEffortControl,
+    type ModelProvider,
+} from '@/lib/model-options';
 
 type UploadRow = {
     file: File;
@@ -71,6 +84,13 @@ type StagePromptPreview = {
     title: string;
     prompt: string;
 };
+
+type WorkflowGenerationTarget =
+    | 'routing_intake_generation'
+    | 'extraction_mapping_generation'
+    | 'benchmark_generation'
+    | 'question_generation'
+    | 'rubric_generation';
 
 const DEFAULT_SELECTED_MODEL_KEYS = [
     'openai::gpt-5.4',
@@ -216,6 +236,14 @@ const WORKFLOW_STAGE_GUIDES: Record<WorkflowStageId, WorkflowStageGuide> = {
     },
 };
 
+const WORKFLOW_GENERATION_TARGET_LABELS: Record<WorkflowGenerationTarget, string> = {
+    routing_intake_generation: 'Frank Phase 1',
+    extraction_mapping_generation: 'Frank Phase 2',
+    benchmark_generation: 'Frank Phase 3',
+    question_generation: 'Frank Phase 4',
+    rubric_generation: 'Karthic Rubric',
+};
+
 function clone<T>(value: T): T {
     return JSON.parse(JSON.stringify(value)) as T;
 }
@@ -226,14 +254,20 @@ export default function LegalWorkflowPage() {
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [visibleStage, setVisibleStage] = useState<WorkflowStageId>('source');
+    const [isStageGuideOpen, setIsStageGuideOpen] = useState(true);
 
     const [frankPackets, setFrankPackets] = useState<FrankPacketV2[]>([]);
     const [selectedFrankId, setSelectedFrankId] = useState('');
     const [frankEditor, setFrankEditor] = useState<FrankPacketV2 | null>(null);
     const [newPacketTitle, setNewPacketTitle] = useState('');
     const [uploadRows, setUploadRows] = useState<UploadRow[]>([]);
-    const [frankModel] = useState('gpt-5.4-mini');
-    const [frankReasoningEffort] = useState<ReasoningEffort>('medium');
+    const [workflowGenerationSettingsDraft, setWorkflowGenerationSettingsDraft] = useState<PromptGenerationSettingsByKind>(
+        clone(DEFAULT_PROMPT_GENERATION_SETTINGS_BY_KIND),
+    );
+    const [openGenerationTarget, setOpenGenerationTarget] = useState<WorkflowGenerationTarget | null>(null);
+    const [generationSettingsDraft, setGenerationSettingsDraft] = useState<FrankGenerationSettings>(
+        clone(DEFAULT_PROMPT_GENERATION_SETTINGS_BY_KIND.routing_intake_generation!),
+    );
 
     const [rubricPacks, setRubricPacks] = useState<KarthicRubricPackV2[]>([]);
     const [selectedRubricId, setSelectedRubricId] = useState('');
@@ -499,6 +533,53 @@ export default function LegalWorkflowPage() {
         setUploadRows(nextRows);
     }
 
+    function getGenerationSetting(target: WorkflowGenerationTarget): FrankGenerationSettings {
+        if (target === 'rubric_generation' && rubricEditor?.generationSettings?.[target]) {
+            return rubricEditor.generationSettings[target]!;
+        }
+        if (target !== 'rubric_generation' && frankEditor?.generationSettings?.[target]) {
+            return frankEditor.generationSettings[target]!;
+        }
+        return workflowGenerationSettingsDraft[target] ?? DEFAULT_PROMPT_GENERATION_SETTINGS_BY_KIND[target]!;
+    }
+
+    function updateGenerationSetting(target: WorkflowGenerationTarget, nextSetting: FrankGenerationSettings) {
+        setWorkflowGenerationSettingsDraft((current) => ({
+            ...current,
+            [target]: nextSetting,
+        }));
+        if (target === 'rubric_generation') {
+            setRubricEditor((current) => current ? {
+                ...current,
+                generationSettings: {
+                    ...(current.generationSettings ?? {}),
+                    [target]: nextSetting,
+                },
+            } : current);
+            return;
+        }
+        setFrankEditor((current) => current ? {
+            ...current,
+            generationSettings: {
+                ...(current.generationSettings ?? {}),
+                [target]: nextSetting,
+            },
+        } : current);
+    }
+
+    function openGenerationSettings(target: WorkflowGenerationTarget) {
+        setGenerationSettingsDraft(clone(getGenerationSetting(target)));
+        setOpenGenerationTarget(target);
+    }
+
+    function saveGenerationSettings() {
+        if (!openGenerationTarget) {
+            return;
+        }
+        updateGenerationSetting(openGenerationTarget, generationSettingsDraft);
+        setOpenGenerationTarget(null);
+    }
+
     async function createFrankPacket() {
         if (uploadRows.length === 0) {
             setErrorMessage('Upload at least one authority file first.');
@@ -508,7 +589,10 @@ export default function LegalWorkflowPage() {
         setStatusMessage('Creating packet and running Frank Phase 1...');
         try {
             const formData = new FormData();
+            const phaseOneSettings = getGenerationSetting('routing_intake_generation');
             formData.set('title', newPacketTitle.trim());
+            formData.set('model', phaseOneSettings.model);
+            formData.set('reasoningEffort', phaseOneSettings.reasoningEffort);
             uploadRows.forEach((row, index) => {
                 formData.append('files', row.file);
                 formData.set(`role_${index}`, row.role);
@@ -532,6 +616,7 @@ export default function LegalWorkflowPage() {
     }
 
     async function runFrankPhase(input: {
+        target: Exclude<WorkflowGenerationTarget, 'routing_intake_generation' | 'rubric_generation'>;
         endpoint: '/api/frank-packets/extraction-mapping' | '/api/frank-packets/benchmark' | '/api/frank-packets/question';
         inProgressLabel: string;
         successLabel: string;
@@ -544,13 +629,14 @@ export default function LegalWorkflowPage() {
         setErrorMessage(null);
         setStatusMessage(input.inProgressLabel);
         try {
+            const settings = getGenerationSetting(input.target);
             const response = await fetch(input.endpoint, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
                     id: frankEditor.id,
-                    model: frankModel,
-                    reasoningEffort: frankReasoningEffort,
+                    model: settings.model,
+                    reasoningEffort: settings.reasoningEffort,
                 }),
             });
             const json = await response.json();
@@ -633,13 +719,14 @@ export default function LegalWorkflowPage() {
         setErrorMessage(null);
         setStatusMessage('Generating QuestionVariance routing and menu...');
         try {
+            const settings = getGenerationSetting('question_generation');
             const response = await fetch('/api/frank-packets/question-variance', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
                     id: frankEditor.id,
-                    model: frankModel,
-                    reasoningEffort: frankReasoningEffort,
+                    model: settings.model,
+                    reasoningEffort: settings.reasoningEffort,
                 }),
             });
             const json = await response.json();
@@ -692,14 +779,15 @@ export default function LegalWorkflowPage() {
         setErrorMessage(null);
         setStatusMessage('Generating QuestionVariance package...');
         try {
+            const settings = getGenerationSetting('question_generation');
             const response = await fetch('/api/frank-packets/question-variance/package', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
                     id: frankEditor.id,
                     optionId: selectedVariationOptionId,
-                    model: frankModel,
-                    reasoningEffort: frankReasoningEffort,
+                    model: settings.model,
+                    reasoningEffort: settings.reasoningEffort,
                 }),
             });
             const json = await response.json();
@@ -782,6 +870,7 @@ export default function LegalWorkflowPage() {
         setErrorMessage(null);
         setStatusMessage('Generating Karthic rubric pack from the approved Frank packet...');
         try {
+            const settings = getGenerationSetting('rubric_generation');
             const response = await fetch('/api/karthic-rubric-packs/rows', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
@@ -790,8 +879,8 @@ export default function LegalWorkflowPage() {
                     id: rubricEditor?.frankPacketId === frankEditor.id ? rubricEditor.id : undefined,
                     questionSource: currentRubricQuestionSource,
                     questionVariancePackageId: currentRubricQuestionVariancePackageId,
-                    model: frankModel,
-                    reasoningEffort: frankReasoningEffort,
+                    model: settings.model,
+                    reasoningEffort: settings.reasoningEffort,
                 }),
             });
             const json = await response.json();
@@ -1460,9 +1549,15 @@ export default function LegalWorkflowPage() {
                                         ))}
                                     </div>
                                 ) : null}
-                                <button className={primaryButtonClassName} onClick={() => void createFrankPacket()}>
-                                    Create Packet and Run Phase 1
-                                </button>
+                                <div className="flex flex-wrap gap-2">
+                                    <button className={primaryButtonClassName} onClick={() => void createFrankPacket()}>
+                                        Create Packet and Run Phase 1
+                                    </button>
+                                    <GenerationSettingsButton
+                                        setting={getGenerationSetting('routing_intake_generation')}
+                                        onClick={() => openGenerationSettings('routing_intake_generation')}
+                                    />
+                                </div>
                             </div>
 
                             <div className="space-y-3">
@@ -1550,6 +1645,7 @@ export default function LegalWorkflowPage() {
                                     <button
                                         className={primaryButtonClassName}
                                         onClick={() => void runFrankPhase({
+                                            target: 'extraction_mapping_generation',
                                             endpoint: '/api/frank-packets/extraction-mapping',
                                             inProgressLabel: hasExtractionMapping
                                                 ? 'Re-running Frank Phase 2: extraction and mapping...'
@@ -1560,6 +1656,10 @@ export default function LegalWorkflowPage() {
                                     >
                                         {hasExtractionMapping ? 'Re-run Phase 2' : 'Run Phase 2'}
                                     </button>
+                                    <GenerationSettingsButton
+                                        setting={getGenerationSetting('extraction_mapping_generation')}
+                                        onClick={() => openGenerationSettings('extraction_mapping_generation')}
+                                    />
                                 </div>
                                 <div className="grid gap-4 lg:grid-cols-3">
                                     <ReadOnlyJsonCard title="Source extraction sheet" value={frankEditor.sourceExtractionSheet} />
@@ -1594,6 +1694,7 @@ export default function LegalWorkflowPage() {
                                         className={primaryButtonClassName}
                                         disabled={Boolean(benchmarkBlockedReason)}
                                         onClick={() => void runFrankPhase({
+                                            target: 'benchmark_generation',
                                             endpoint: '/api/frank-packets/benchmark',
                                             inProgressLabel: hasBenchmark
                                                 ? 'Re-running Frank Phase 3: benchmark answer...'
@@ -1604,6 +1705,10 @@ export default function LegalWorkflowPage() {
                                     >
                                         {hasBenchmark ? 'Re-run Phase 3' : 'Run Phase 3'}
                                     </button>
+                                    <GenerationSettingsButton
+                                        setting={getGenerationSetting('benchmark_generation')}
+                                        onClick={() => openGenerationSettings('benchmark_generation')}
+                                    />
                                     <button className={secondaryButtonClassName} onClick={() => void saveFrank('draft')}>Save Phase 3 Draft</button>
                                 </div>
                                 {frankEditor.benchmarkWarnings.length > 0 ? (
@@ -1632,6 +1737,7 @@ export default function LegalWorkflowPage() {
                                         className={primaryButtonClassName}
                                         disabled={Boolean(benchmarkBlockedReason) || !frankEditor.benchmarkAnswer.trim()}
                                         onClick={() => void runFrankPhase({
+                                            target: 'question_generation',
                                             endpoint: '/api/frank-packets/question',
                                             inProgressLabel: hasQuestion
                                                 ? 'Re-running Frank Phase 4: reverse-engineered question...'
@@ -1642,11 +1748,16 @@ export default function LegalWorkflowPage() {
                                     >
                                         {hasQuestion ? 'Re-run Phase 4' : 'Run Phase 4'}
                                     </button>
+                                    <GenerationSettingsButton
+                                        setting={getGenerationSetting('question_generation')}
+                                        onClick={() => openGenerationSettings('question_generation')}
+                                    />
                                     <button className={secondaryButtonClassName} onClick={() => void saveFrank('draft')}>Save Phase 4 Draft</button>
                                 </div>
                                 {frankEditor.questionWarnings.length > 0 ? (
                                     <WarningList title="Question warnings" items={frankEditor.questionWarnings} />
                                 ) : null}
+                                <Banner tone="info" text={`QuestionVariance actions reuse the Phase 4 model setting (${formatGenerationSettingInline(getGenerationSetting('question_generation'))}).`} />
                                 {renderQuestionVarianceSection()}
                             </div>
                         ) : <EmptyPanelCopy text="Select a Frank packet to generate or edit the reverse-engineered question." />}
@@ -1675,9 +1786,15 @@ export default function LegalWorkflowPage() {
                                         ))}
                                     </select>
                                 </Field>
-                                <button className={primaryButtonClassName} onClick={() => void generateRubricPack()}>
-                                    {rubricEditor?.frankPacketId === frankEditor?.id ? 'Regenerate Rubric Pack' : 'Generate Rubric Pack'}
-                                </button>
+                                <div className="flex flex-wrap gap-2">
+                                    <button className={primaryButtonClassName} onClick={() => void generateRubricPack()}>
+                                        {rubricEditor?.frankPacketId === frankEditor?.id ? 'Regenerate Rubric Pack' : 'Generate Rubric Pack'}
+                                    </button>
+                                    <GenerationSettingsButton
+                                        setting={getGenerationSetting('rubric_generation')}
+                                        onClick={() => openGenerationSettings('rubric_generation')}
+                                    />
+                                </div>
                                 <Field label="Question source for rubric + Dasha">
                                     <select
                                         className={inputClassName}
@@ -2045,12 +2162,17 @@ export default function LegalWorkflowPage() {
                 </Panel>
 
                 <Panel>
-                    <div className="space-y-4 xl:grid xl:grid-cols-[minmax(0,1fr),320px] xl:items-start xl:gap-4 xl:space-y-0">
+                    <div className="relative min-w-0">
                         <div className="min-w-0">
                             {renderStagePanel()}
                         </div>
-                        <div className="min-w-0 xl:w-full">
-                            <StageGuideCard stageId={visibleStage} promptPreview={activeStagePrompt} />
+                        <div className="mt-4 xl:absolute xl:right-0 xl:top-0 xl:z-20 xl:mt-0 xl:w-[340px]">
+                            <StageGuideOverlay
+                                stageId={visibleStage}
+                                promptPreview={activeStagePrompt}
+                                isOpen={isStageGuideOpen}
+                                onToggle={() => setIsStageGuideOpen((current) => !current)}
+                            />
                         </div>
                     </div>
                     <div className="mt-6 border-t border-slate-200 pt-4">
@@ -2085,6 +2207,15 @@ export default function LegalWorkflowPage() {
                     </div>
                 </Panel>
             </div>
+            {openGenerationTarget ? (
+                <GenerationSettingsModal
+                    targetLabel={WORKFLOW_GENERATION_TARGET_LABELS[openGenerationTarget]}
+                    value={generationSettingsDraft}
+                    onChange={setGenerationSettingsDraft}
+                    onClose={() => setOpenGenerationTarget(null)}
+                    onSave={saveGenerationSettings}
+                />
+            ) : null}
         </AppShell>
     );
 }
@@ -2270,11 +2401,52 @@ function getSavedPromptPreview(
     return match ? { title: match.title, prompt: match.prompt } : null;
 }
 
+function StageGuideOverlay({
+    stageId,
+    promptPreview,
+    isOpen,
+    onToggle,
+}: {
+    stageId: WorkflowStageId;
+    promptPreview: StagePromptPreview | null;
+    isOpen: boolean;
+    onToggle: () => void;
+}) {
+    return (
+        <div className="flex justify-end">
+            <div className="w-full xl:max-w-[340px]">
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-left shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur"
+                    aria-expanded={isOpen}
+                    aria-controls="stage-guide-overlay-panel"
+                >
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Stage Guide</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                            {WORKFLOW_STAGES.find((stage) => stage.id === stageId)?.title ?? 'Workflow Stage'}
+                        </p>
+                    </div>
+                    <span className="rounded-full border border-slate-200 bg-slate-50 p-1 text-slate-600">
+                        {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </span>
+                </button>
+                {isOpen ? (
+                    <div id="stage-guide-overlay-panel" className="mt-3">
+                        <StageGuideCard stageId={stageId} promptPreview={promptPreview} />
+                    </div>
+                ) : null}
+            </div>
+        </div>
+    );
+}
+
 function StageGuideCard({ stageId, promptPreview }: { stageId: WorkflowStageId; promptPreview: StagePromptPreview | null }) {
     const guide = WORKFLOW_STAGE_GUIDES[stageId];
     const phaseNumber = getFrankPhaseNumber(stageId);
     return (
-        <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)] xl:sticky xl:top-24">
+        <aside className="rounded-2xl border border-slate-200 bg-slate-50/95 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Stage Guide</p>
             <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                 {phaseNumber !== null ? `Frank Phase ${phaseNumber}` : stageId === 'source' ? 'Source Setup' : WORKFLOW_STAGES.find((stage) => stage.id === stageId)?.title ?? 'Workflow Stage'}
@@ -2416,6 +2588,109 @@ function ModelSelectionPanel({
             })}
         </div>
     );
+}
+
+function GenerationSettingsButton({
+    setting,
+    onClick,
+}: {
+    setting: FrankGenerationSettings;
+    onClick: () => void;
+}) {
+    return (
+        <button className={secondaryButtonClassName} type="button" onClick={onClick}>
+            Model: {formatGenerationSettingInline(setting)}
+        </button>
+    );
+}
+
+function GenerationSettingsModal({
+    targetLabel,
+    value,
+    onChange,
+    onClose,
+    onSave,
+}: {
+    targetLabel: string;
+    value: FrankGenerationSettings;
+    onChange: (value: FrankGenerationSettings) => void;
+    onClose: () => void;
+    onSave: () => void;
+}) {
+    const modelOptions = MODEL_OPTIONS_BY_PROVIDER.openai;
+    const supportsReasoning = supportsReasoningEffortControl('openai', value.model);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+            <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Model Selection</p>
+                        <p className="mt-1 text-lg font-semibold text-slate-900">{targetLabel}</p>
+                        <p className="mt-2 text-sm text-slate-600">
+                            Choose the OpenAI model used for this step. GPT-5.4 Pro is supported here because the workflow uses the Responses API for both text and structured JSON calls.
+                        </p>
+                    </div>
+                </div>
+                <div className="mt-4 space-y-4">
+                    <Field label="Model">
+                        <select
+                            className={inputClassName}
+                            value={value.model}
+                            onChange={(event) => onChange({
+                                ...value,
+                                model: event.target.value,
+                            })}
+                        >
+                            {modelOptions.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                    </Field>
+                    <Field label="Reasoning effort">
+                        <select
+                            className={inputClassName}
+                            value={supportsReasoning ? value.reasoningEffort : 'medium'}
+                            disabled={!supportsReasoning}
+                            onChange={(event) => onChange({
+                                ...value,
+                                reasoningEffort: event.target.value as ReasoningEffort,
+                            })}
+                        >
+                            {REASONING_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                    </Field>
+                    {!supportsReasoning ? (
+                        <p className="text-sm text-slate-500">
+                            This model uses its default reasoning behavior for this workflow step.
+                        </p>
+                    ) : null}
+                </div>
+                <div className="mt-6 flex justify-end gap-2">
+                    <button className={secondaryButtonClassName} type="button" onClick={onClose}>
+                        Cancel
+                    </button>
+                    <button className={primaryButtonClassName} type="button" onClick={onSave}>
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function formatGenerationSettingInline(setting: FrankGenerationSettings) {
+    const modelLabel = getOpenAiModelLabel(setting.model);
+    const supportsReasoning = supportsReasoningEffortControl('openai', setting.model);
+    return supportsReasoning
+        ? `${modelLabel} · ${setting.reasoningEffort}`
+        : modelLabel;
+}
+
+function getOpenAiModelLabel(model: string) {
+    return MODEL_OPTIONS_BY_PROVIDER.openai.find((option) => option.value === model)?.label ?? model;
 }
 
 function Banner({ tone, text }: { tone: 'info' | 'warning' | 'error'; text: string }) {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { draftFrankPacket } from '@/lib/legal-workflow-v2-server';
-import type { ArtifactRole } from '@/lib/legal-workflow-v2-types';
+import type { ArtifactRole, ReasoningEffort } from '@/lib/legal-workflow-v2-types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -12,6 +12,8 @@ export async function POST(req: Request) {
     try {
         const formData = await req.formData();
         const title = String(formData.get('title') || '').trim();
+        const model = String(formData.get('model') || '').trim() || undefined;
+        const reasoningEffort = String(formData.get('reasoningEffort') || '').trim() as ReasoningEffort | '';
         const files = formData.getAll('files');
         if (files.length === 0) {
             return NextResponse.json({ error: 'At least one uploaded authority file is required.' }, { status: 400 });
@@ -33,6 +35,8 @@ export async function POST(req: Request) {
         const item = await draftFrankPacket({
             title,
             files: normalizedFiles,
+            model,
+            reasoningEffort: reasoningEffort || undefined,
         });
         return NextResponse.json({ item });
     } catch (error) {

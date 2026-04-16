@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "id": "dasha_cmp_1776307017424_078e1616",
-  "status": "draft",
+  "status": "completed",
   "frankPacketId": "frank_v2_1776190359971_eb20a691",
   "rubricPackId": "karthic_v2_1776190478702_75c7bd38",
   "questionVariancePackageId": "qv_pkg_a03fd0ce",
@@ -28,7 +28,79 @@
     }
   ],
   "requestedResponseCount": 30,
-  "summary": null,
+  "summary": {
+    "baselineWeightedScore": 92.8,
+    "variantWeightedScore": 92.4,
+    "weightedScoreDelta": -0.4,
+    "moduleDeltas": [
+      {
+        "moduleId": "module1",
+        "label": "Module 1 — Structural Gatekeeping",
+        "baselineScore": 95,
+        "variantScore": 91.67,
+        "scoreDelta": -3.33
+      },
+      {
+        "moduleId": "module2",
+        "label": "Module 2 — Primary Doctrine Gates",
+        "baselineScore": 92.5,
+        "variantScore": 93.75,
+        "scoreDelta": 1.25
+      },
+      {
+        "moduleId": "module3",
+        "label": "Module 3 — Fallback Doctrines and Defenses",
+        "baselineScore": 91.67,
+        "variantScore": 91.67,
+        "scoreDelta": 0
+      },
+      {
+        "moduleId": "module4",
+        "label": "Module 4 — Cross-Cutting Answer Discipline",
+        "baselineScore": 95,
+        "variantScore": 95,
+        "scoreDelta": 0
+      }
+    ],
+    "modelDeltas": [
+      {
+        "modelKey": "gemini::gemini-3.1-flash-lite-preview",
+        "provider": "gemini",
+        "model": "gemini-3.1-flash-lite-preview",
+        "baselineScore": 91.41,
+        "variantScore": 87.34,
+        "scoreDelta": -4.07,
+        "baselineDominantClusterId": "cluster_1",
+        "variantDominantClusterId": "cluster_3",
+        "baselineValidCount": 10,
+        "variantValidCount": 10
+      },
+      {
+        "modelKey": "anthropic::claude-haiku-4-5",
+        "provider": "anthropic",
+        "model": "claude-haiku-4-5",
+        "baselineScore": 92.45,
+        "variantScore": 91.1,
+        "scoreDelta": -1.35,
+        "baselineDominantClusterId": "cluster_3",
+        "variantDominantClusterId": "cluster_1",
+        "baselineValidCount": 10,
+        "variantValidCount": 10
+      },
+      {
+        "modelKey": "openai::gpt-5.4-nano",
+        "provider": "openai",
+        "model": "gpt-5.4-nano",
+        "baselineScore": 92.2,
+        "variantScore": 92.61,
+        "scoreDelta": 0.41,
+        "baselineDominantClusterId": "cluster_2",
+        "variantDominantClusterId": "cluster_2",
+        "baselineValidCount": 10,
+        "variantValidCount": 10
+      }
+    ]
+  },
   "createdAt": "2026-04-16T02:36:57.425Z",
-  "completedAt": null
+  "completedAt": "2026-04-16T02:39:00.318Z"
 }

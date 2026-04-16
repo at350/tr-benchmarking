@@ -15,6 +15,7 @@ import {
     validateLaneAComparisonCandidate,
 } from '@/lib/dasha-comparison';
 import {
+    DEFAULT_PROMPT_GENERATION_SETTINGS_BY_KIND,
     FRANK_V2_BENCHMARK_HEADING_ALIASES,
     FRANK_V2_BENCHMARK_HEADINGS,
     RUBRIC_MODULE_LABELS,
@@ -52,7 +53,9 @@ import type {
     FrankLikelyFailureModes,
     FrankPacketV2,
     FrankPhase,
+    FrankGenerationSettings,
     FrankSofPackId,
+    FrankSavedPromptKind,
     FrankSourceExtractionSheet,
     FrankSourceIntakeChecklist,
     IntakeRating,
@@ -60,6 +63,7 @@ import type {
     KarthicRubricRow,
     ModelProvider,
     ModuleSummary,
+    PromptGenerationSettingsByKind,
     QuestionSource,
     QuestionVarianceMenu,
     QuestionVarianceMenuOption,
@@ -172,6 +176,8 @@ export async function deleteFrankPacket(id: string) {
 export async function draftFrankPacket(input: {
     title?: string;
     files: UploadFileInput[];
+    model?: string;
+    reasoningEffort?: ReasoningEffort;
 }): Promise<FrankPacketV2> {
     if (input.files.length === 0) {
         throw new Error('At least one uploaded authority file is required.');
@@ -186,6 +192,12 @@ export async function draftFrankPacket(input: {
             throw new Error('Uploaded authority could not be processed because no readable text was extracted.');
         }
 
+        const generationSettings = withUpdatedPromptGenerationSetting(
+            undefined,
+            'routing_intake_generation',
+            input.model,
+            input.reasoningEffort,
+        );
         const parsed = await generateJson({
             operation: 'Frank v2 routing and intake',
             prompt: buildFrankRoutingIntakePrompt({
@@ -193,6 +205,8 @@ export async function draftFrankPacket(input: {
                 fileNames: sourceArtifacts.map((artifact) => artifact.fileName),
                 sourceText,
             }),
+            model: generationSettings.routing_intake_generation?.model,
+            reasoningEffort: generationSettings.routing_intake_generation?.reasoningEffort,
         });
 
         const intakeChecklist = normalizeIntakeChecklist(parsed.intakeChecklist);
@@ -216,6 +230,7 @@ export async function draftFrankPacket(input: {
             benchmarkAnswer: '',
             reverseEngineeredQuestion: '',
             questionVariance: createEmptyQuestionVarianceState(),
+            generationSettings,
             savedPrompts: [{
                 id: `prompt_${randomUUID().slice(0, 8)}`,
                 kind: 'routing_intake_generation',
@@ -262,11 +277,17 @@ export async function generateFrankExtractionMapping(input: {
         assets,
         sourceText,
     });
+    const generationSettings = withUpdatedPromptGenerationSetting(
+        packet.generationSettings,
+        'extraction_mapping_generation',
+        input.model,
+        input.reasoningEffort,
+    );
     const parsed = await generateJson({
         operation: 'Frank v2 extraction and mapping',
         prompt,
-        model: input.model,
-        reasoningEffort: input.reasoningEffort,
+        model: generationSettings.extraction_mapping_generation?.model,
+        reasoningEffort: generationSettings.extraction_mapping_generation?.reasoningEffort,
     });
     const sourceExtractionSheet = normalizeSourceExtractionSheet(parsed.sourceExtractionSheet, packet.selectedPack);
     const goldPacketMapping = normalizeGoldPacketMapping(parsed.goldPacketMapping);
@@ -284,6 +305,7 @@ export async function generateFrankExtractionMapping(input: {
         sourceExtractionSheet,
         goldPacketMapping,
         likelyFailureModes,
+        generationSettings,
         savedPrompts: [
             ...packet.savedPrompts,
             {
@@ -312,11 +334,17 @@ export async function generateFrankBenchmark(input: {
     const assets = await getFrankV2AssetBundle(packet.selectedPack as FrankSofPackId);
     const sourceText = buildSourceText(packet.sourceArtifacts, 22000);
     const prompt = buildFrankBenchmarkPrompt({ packet, assets, sourceText });
+    const generationSettings = withUpdatedPromptGenerationSetting(
+        packet.generationSettings,
+        'benchmark_generation',
+        input.model,
+        input.reasoningEffort,
+    );
     const benchmarkAnswer = normalizeGeneratedText(await generateText({
         operation: 'Frank v2 benchmark answer',
         prompt,
-        model: input.model,
-        reasoningEffort: input.reasoningEffort,
+        model: generationSettings.benchmark_generation?.model,
+        reasoningEffort: generationSettings.benchmark_generation?.reasoningEffort,
     }));
 
     validateBenchmarkAnswerOrThrow(benchmarkAnswer);
@@ -325,6 +353,7 @@ export async function generateFrankBenchmark(input: {
         phase: 'benchmark',
         benchmarkAnswer,
         benchmarkWarnings: collectBenchmarkWarnings(benchmarkAnswer),
+        generationSettings,
         savedPrompts: [
             ...packet.savedPrompts,
             {
@@ -355,11 +384,17 @@ export async function generateFrankQuestion(input: {
     }
     const assets = await getFrankV2AssetBundle(packet.selectedPack as FrankSofPackId);
     const prompt = buildFrankQuestionPrompt({ packet, assets });
+    const generationSettings = withUpdatedPromptGenerationSetting(
+        packet.generationSettings,
+        'question_generation',
+        input.model,
+        input.reasoningEffort,
+    );
     const questionText = normalizeGeneratedText(await generateText({
         operation: 'Frank v2 reverse-engineered question',
         prompt,
-        model: input.model,
-        reasoningEffort: input.reasoningEffort,
+        model: generationSettings.question_generation?.model,
+        reasoningEffort: generationSettings.question_generation?.reasoningEffort,
     }));
 
     validateReverseEngineeredQuestionOrThrow(questionText);
@@ -368,6 +403,7 @@ export async function generateFrankQuestion(input: {
         phase: 'question',
         reverseEngineeredQuestion: questionText,
         questionWarnings: collectQuestionWarnings(questionText),
+        generationSettings,
         savedPrompts: [
             ...packet.savedPrompts,
             {
@@ -394,11 +430,17 @@ export async function generateQuestionVarianceRoutingAndMenu(input: {
 
     const sourceText = buildSourceText(packet.sourceArtifacts, 22000);
     const routingPrompt = await buildQuestionVarianceRoutingPrompt({ packet, sourceText });
+    const generationSettings = withUpdatedPromptGenerationSetting(
+        packet.generationSettings,
+        'question_variance_routing_menu_generation',
+        input.model,
+        input.reasoningEffort,
+    );
     const routingParsed = await generateJson({
         operation: 'QuestionVariance routing and readiness',
         prompt: routingPrompt,
-        model: input.model,
-        reasoningEffort: input.reasoningEffort,
+        model: generationSettings.question_variance_routing_menu_generation?.model,
+        reasoningEffort: generationSettings.question_variance_routing_menu_generation?.reasoningEffort,
     });
     const routingResult = normalizeQuestionVarianceRoutingResult(routingParsed.routingResult);
     validateQuestionVarianceRoutingOrThrow(routingResult);
@@ -444,8 +486,8 @@ export async function generateQuestionVarianceRoutingAndMenu(input: {
         const menuParsed = await generateJson({
             operation: 'QuestionVariance menu generation',
             prompt: menuPrompt,
-            model: input.model,
-            reasoningEffort: input.reasoningEffort,
+            model: generationSettings.question_variance_routing_menu_generation?.model,
+            reasoningEffort: generationSettings.question_variance_routing_menu_generation?.reasoningEffort,
         });
         const menu = normalizeQuestionVarianceMenu(menuParsed.menu);
         validateQuestionVarianceMenuOrThrow(menu);
@@ -479,6 +521,7 @@ export async function generateQuestionVarianceRoutingAndMenu(input: {
     const nextPacket: FrankPacketV2 = {
         ...packet,
         questionVariance: nextQuestionVariance,
+        generationSettings,
         savedPrompts: nextSavedPrompts,
         updatedAt: new Date().toISOString(),
     };
@@ -508,11 +551,17 @@ export async function generateQuestionVariancePackage(input: {
     }
 
     const prompt = await buildQuestionVariancePackagePrompt({ packet, option });
+    const generationSettings = withUpdatedPromptGenerationSetting(
+        packet.generationSettings,
+        'question_variance_package_generation',
+        input.model,
+        input.reasoningEffort,
+    );
     const parsed = await generateJson({
         operation: 'QuestionVariance package generation',
         prompt,
-        model: input.model,
-        reasoningEffort: input.reasoningEffort,
+        model: generationSettings.question_variance_package_generation?.model,
+        reasoningEffort: generationSettings.question_variance_package_generation?.reasoningEffort,
     });
     const normalizedPackage = normalizeQuestionVariancePackage(parsed.package, option.id);
     validateQuestionVariancePackageOrThrow(normalizedPackage);
@@ -536,6 +585,7 @@ export async function generateQuestionVariancePackage(input: {
             packages: sortVariationPackagesByNewest([...existingPackages, nextPackage]),
             activePackageId: nextPackage.id,
         },
+        generationSettings,
         savedPrompts: [
             ...packet.savedPrompts,
             {
@@ -647,6 +697,7 @@ export async function saveFrankPacket(input: Partial<FrankPacketV2> & { id?: str
         reverseEngineeredQuestion: normalizeOptionalString(input.reverseEngineeredQuestion, existing?.reverseEngineeredQuestion ?? ''),
         questionVariance: normalizeQuestionVarianceState(input.questionVariance ?? existing?.questionVariance),
         savedPrompts: Array.isArray(input.savedPrompts) ? input.savedPrompts : existing?.savedPrompts ?? [],
+        generationSettings: normalizePromptGenerationSettings(input.generationSettings ?? existing?.generationSettings),
         benchmarkWarnings: normalizeStringArray(input.benchmarkWarnings ?? existing?.benchmarkWarnings ?? []),
         questionWarnings: normalizeStringArray(input.questionWarnings ?? existing?.questionWarnings ?? []),
         approvedAt: input.status === 'approved' ? (existing?.approvedAt ?? now) : existing?.approvedAt ?? null,
@@ -703,22 +754,28 @@ export async function generateKarthicRubricPack(input: {
         questionSource: resolvedQuestionSource,
         questionVariancePackageId: input.questionVariancePackageId,
     });
+    const existing = input.id ? await getKarthicRubricPack(input.id) : null;
     const prompt = buildKarthicRowsPrompt({
         packet: frankPacket,
         assets,
         questionText: resolvedQuestion.questionText,
         questionSourceLabel: resolvedQuestionSource === 'canonical' ? 'Canonical reverse-engineered question' : 'Active QuestionVariance package',
     });
+    const generationSettings = withUpdatedPromptGenerationSetting(
+        existing?.generationSettings,
+        'rubric_generation',
+        input.model,
+        input.reasoningEffort,
+    );
     const parsed = await generateJson({
         operation: 'Karthic v2 row rubric generation',
         prompt,
-        model: input.model,
-        reasoningEffort: input.reasoningEffort,
+        model: generationSettings.rubric_generation?.model,
+        reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
     });
 
     const rows = normalizeRubricRows(parsed.rows);
     validateRubricRowsOrThrow(rows);
-    const existing = input.id ? await getKarthicRubricPack(input.id) : null;
     const now = new Date().toISOString();
     const pack: KarthicRubricPackV2 = {
         schemaVersion: 2,
@@ -730,6 +787,7 @@ export async function generateKarthicRubricPack(input: {
         questionText: resolvedQuestion.questionText,
         status: existing?.status ?? 'draft',
         rows,
+        generationSettings,
         savedPrompts: [
             ...(existing?.savedPrompts ?? []),
             {
@@ -774,6 +832,7 @@ export async function saveKarthicRubricPack(input: Partial<KarthicRubricPackV2> 
         status: input.status === 'approved' ? 'approved' : existing?.status ?? 'draft',
         rows: normalizeRubricRows(input.rows ?? existing?.rows ?? []),
         savedPrompts: Array.isArray(input.savedPrompts) ? input.savedPrompts : existing?.savedPrompts ?? [],
+        generationSettings: normalizePromptGenerationSettings(input.generationSettings ?? existing?.generationSettings),
         comparisonMethodNote: normalizeOptionalString(
             input.comparisonMethodNote,
             existing?.comparisonMethodNote ?? 'Score each cluster representative against the approved row-level rubric rather than against freeform benchmark prose alone.',
@@ -1326,17 +1385,37 @@ async function generateJson(input: {
     requireOpenAiApiKey(input.operation);
     const model = normalizeOpenAiJsonModel(input.model);
     try {
-        const response = await openai.chat.completions.create({
+        const request: {
+            model: string;
+            input: string;
+            instructions: string;
+            text: {
+                verbosity: 'medium';
+                format: {
+                    type: 'json_object';
+                };
+            };
+            reasoning?: { effort: 'low' | 'medium' | 'high'; summary: 'auto' };
+        } = {
             model,
-            temperature: 0.1,
-            messages: [
-                { role: 'system', content: 'Return valid JSON only. Do not wrap the JSON in markdown.' },
-                { role: 'user', content: input.prompt },
-            ],
-            response_format: { type: 'json_object' },
-        });
-        const content = response.choices[0]?.message?.content ?? '';
-        const parsed = safeJsonParse<Record<string, unknown>>(content);
+            input: input.prompt,
+            instructions: 'Return only a JSON object that satisfies the requested shape. Do not wrap the JSON in markdown.',
+            text: {
+                verbosity: 'medium',
+                format: {
+                    type: 'json_object',
+                },
+            },
+        };
+        const mappedEffort = model.startsWith('gpt-5') ? mapReasoningEffort(input.reasoningEffort) : null;
+        if (mappedEffort) {
+            request.reasoning = {
+                effort: mappedEffort,
+                summary: 'auto',
+            };
+        }
+        const response = await openai.responses.create(request);
+        const parsed = safeJsonParse<Record<string, unknown>>(extractResponsesText(response));
         if (!parsed) {
             throw new Error('Model returned invalid JSON.');
         }
@@ -2147,6 +2226,7 @@ function normalizeFrankPacket(value: unknown): FrankPacketV2 | null {
         reverseEngineeredQuestion: normalizeOptionalString(value.reverseEngineeredQuestion, ''),
         questionVariance: normalizeQuestionVarianceState(value.questionVariance),
         savedPrompts: Array.isArray(value.savedPrompts) ? value.savedPrompts as FrankPacketV2['savedPrompts'] : [],
+        generationSettings: normalizePromptGenerationSettings(value.generationSettings),
         benchmarkWarnings: normalizeStringArray(value.benchmarkWarnings),
         questionWarnings: normalizeStringArray(value.questionWarnings),
         approvedAt: typeof value.approvedAt === 'string' ? value.approvedAt : null,
@@ -2170,6 +2250,7 @@ function normalizeKarthicRubricPack(value: unknown): KarthicRubricPackV2 | null 
         status: value.status === 'approved' ? 'approved' : 'draft',
         rows: normalizeRubricRows(value.rows),
         savedPrompts: Array.isArray(value.savedPrompts) ? value.savedPrompts as KarthicRubricPackV2['savedPrompts'] : [],
+        generationSettings: normalizePromptGenerationSettings(value.generationSettings),
         comparisonMethodNote: normalizeOptionalString(value.comparisonMethodNote, ''),
         approvedAt: typeof value.approvedAt === 'string' ? value.approvedAt : null,
         createdAt: normalizeNonEmptyString(value.createdAt, new Date().toISOString()),
@@ -2495,6 +2576,46 @@ function normalizePhase(value: unknown, fallback: FrankPhase): FrankPhase {
     return value === 'source' || value === 'routing_intake' || value === 'extraction_mapping' || value === 'benchmark' || value === 'question'
         ? value
         : fallback;
+}
+
+function normalizeReasoningEffortValue(value: unknown, fallback: ReasoningEffort): ReasoningEffort {
+    return value === 'none' || value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh'
+        ? value
+        : fallback;
+}
+
+function normalizePromptGenerationSettings(value: unknown): PromptGenerationSettingsByKind {
+    const record = isRecord(value) ? value : {};
+    const entries = Object.entries(DEFAULT_PROMPT_GENERATION_SETTINGS_BY_KIND).map(([kind, defaultSetting]) => [
+        kind,
+        normalizePromptGenerationSetting(record[kind], defaultSetting),
+    ] as const);
+    return Object.fromEntries(entries) as PromptGenerationSettingsByKind;
+}
+
+function normalizePromptGenerationSetting(value: unknown, fallback: FrankGenerationSettings): FrankGenerationSettings {
+    const record = isRecord(value) ? value : {};
+    return {
+        model: normalizeNonEmptyString(record.model, fallback.model),
+        reasoningEffort: normalizeReasoningEffortValue(record.reasoningEffort, fallback.reasoningEffort),
+    };
+}
+
+function withUpdatedPromptGenerationSetting(
+    settings: PromptGenerationSettingsByKind | undefined,
+    kind: FrankSavedPromptKind,
+    model?: string,
+    reasoningEffort?: ReasoningEffort,
+) {
+    const nextSettings = normalizePromptGenerationSettings(settings);
+    nextSettings[kind] = normalizePromptGenerationSetting(
+        {
+            model,
+            reasoningEffort,
+        },
+        nextSettings[kind] ?? DEFAULT_PROMPT_GENERATION_SETTINGS_BY_KIND[kind] ?? DEFAULT_PROMPT_GENERATION_SETTINGS_BY_KIND.routing_intake_generation!,
+    );
+    return nextSettings;
 }
 
 function normalizeRubricRowKeys(value: unknown): RubricRowKey[] {

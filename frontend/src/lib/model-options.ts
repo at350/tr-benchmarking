@@ -21,6 +21,7 @@ export const MODEL_OPTIONS_BY_PROVIDER: Record<ModelProvider, ModelOption[]> = {
         { value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano' },
         { value: 'gpt-5-mini', label: 'GPT-5 Mini' },
         { value: 'gpt-5-nano', label: 'GPT-5 Nano' },
+        { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
     ],
     anthropic: [
         { value: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
