@@ -28,9 +28,16 @@ type ChatMessage = {
     content: string;
 };
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient: OpenAI | null = null;
+
+function getOpenAiClient() {
+    if (!openaiClient) {
+        openaiClient = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+    }
+    return openaiClient;
+}
 
 export async function POST(req: Request) {
     try {
@@ -168,7 +175,7 @@ async function generateModelResponse({ provider, model, systemPrompt, messages, 
             request.temperature = temperature;
         }
 
-        const responsesClient = (openai as unknown as {
+        const responsesClient = (getOpenAiClient() as unknown as {
             responses: {
                 create: (payload: Record<string, unknown>) => Promise<{
                     output_text?: string;
@@ -193,7 +200,7 @@ async function generateModelResponse({ provider, model, systemPrompt, messages, 
         return extractResponsesText(response);
     }
 
-    const chatCompletion = await openai.chat.completions.create({
+    const chatCompletion = await getOpenAiClient().chat.completions.create({
         model,
         messages: [
             { role: 'system', content: systemPrompt },
@@ -475,7 +482,7 @@ async function parseChoiceWithTinyModel(output: string, validLetters: string[]) 
     const validSet = new Set(validLetters);
 
     try {
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAiClient().chat.completions.create({
             model: 'gpt-4o-mini',
             temperature: 0,
             messages: [

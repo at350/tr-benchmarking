@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { generateKarthicRubricPack } from '@/lib/legal-workflow-v2-server';
-import type { QuestionSource, ReasoningEffort } from '@/lib/legal-workflow-v2-types';
+import type { ReasoningEffort } from '@/lib/legal-workflow-v2-types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -9,8 +9,6 @@ export const revalidate = 0;
 type RequestBody = {
     frankPacketId?: string;
     id?: string;
-    questionSource?: QuestionSource;
-    questionVariancePackageId?: string | null;
     model?: string;
     reasoningEffort?: ReasoningEffort;
 };
@@ -24,8 +22,6 @@ export async function POST(req: Request) {
         const item = await generateKarthicRubricPack({
             frankPacketId: body.frankPacketId,
             id: body.id,
-            questionSource: body.questionSource,
-            questionVariancePackageId: body.questionVariancePackageId,
             model: body.model,
             reasoningEffort: body.reasoningEffort,
         });

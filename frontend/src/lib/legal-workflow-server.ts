@@ -207,9 +207,16 @@ type ParsedPdfModule = {
     PDFParse?: PdfParseClassLike;
 };
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient: OpenAI | null = null;
+
+function getOpenAiClient() {
+    if (!openaiClient) {
+        openaiClient = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+    }
+    return openaiClient;
+}
 
 function describeError(error: unknown, fallback: string) {
     if (error instanceof Error && error.message.trim()) {
@@ -466,7 +473,7 @@ export async function searchFrankCaseCandidates(input: SearchFrankCasesInput): P
     requireOpenAiApiKey('Frank case search');
 
     try {
-        const response = await openai.responses.create({
+        const response = await getOpenAiClient().responses.create({
             model: 'gpt-5-mini',
             input: buildFrankCaseSearchPrompt(legalDomain),
             tools: [{
@@ -543,7 +550,7 @@ async function extractFrankUploadedCaseCandidate(input: {
     requireOpenAiApiKey('Frank uploaded anchor-case extraction');
 
     try {
-        const response = await openai.responses.create({
+        const response = await getOpenAiClient().responses.create({
             model: 'gpt-5-mini',
             input: buildFrankUploadedCasePrompt({
                 legalDomain: input.legalDomain,
@@ -614,7 +621,7 @@ export async function draftFrankAnalysisDomains(input: DraftFrankAnalysisDomains
     requireOpenAiApiKey('Frank analysis domain drafting');
 
     try {
-        const response = await openai.responses.create({
+        const response = await getOpenAiClient().responses.create({
             model: 'gpt-5-mini',
             input: buildFrankAnalysisDomainsPrompt({
                 legalDomain,
@@ -738,7 +745,7 @@ export async function runFrankCaseDomainFitCheck(input: RunFrankFitCheckInput): 
                 summary: 'auto',
             };
         }
-        const response = await openai.responses.create(request);
+        const response = await getOpenAiClient().responses.create(request);
 
         const parsed = safeJsonParse<{ results?: unknown }>(extractResponsesText(response));
         fitCheck = normalizeFrankFitCheckResults(parsed?.results, selectedCase, analysisDomains);
@@ -931,7 +938,7 @@ export async function generateFrankGoldenResponse(input: GenerateFrankGoldenResp
                 summary: 'auto',
             };
         }
-        const response = await openai.responses.create(request);
+        const response = await getOpenAiClient().responses.create(request);
 
         const parsed = safeJsonParse<{
             masterIssueStatement?: unknown;
@@ -1097,7 +1104,7 @@ export async function generateFrankQuestionPacket(input: GenerateFrankQuestionPa
                 summary: 'auto',
             };
         }
-        const response = await openai.responses.create(request);
+        const response = await getOpenAiClient().responses.create(request);
 
         const parsed = safeJsonParse<{ benchmarkQuestion?: unknown }>(extractResponsesText(response));
         const rawBenchmarkQuestion = normalizeOptionalString(parsed?.benchmarkQuestion, '').trim();
@@ -1159,7 +1166,7 @@ export async function draftKarthicDomains(input: DraftKarthicDomainsInput): Prom
     requireOpenAiApiKey('Karthic domain drafting');
 
     try {
-        const response = await openai.responses.create({
+        const response = await getOpenAiClient().responses.create({
             model: 'gpt-5-mini',
             input: buildKarthicDomainDraftPrompt({ frankPacket }),
             text: {
@@ -1231,7 +1238,7 @@ export async function generateKarthicGoldenTargets(input: GenerateKarthicGoldenT
     requireOpenAiApiKey('Karthic golden target generation');
     let goldenTargets: KarthicGoldenDomainTarget[];
     try {
-        const response = await openai.responses.create({
+        const response = await getOpenAiClient().responses.create({
             model: 'gpt-5-mini',
             input: buildKarthicGoldenTargetsPrompt({
                 frankPacket,
@@ -3643,7 +3650,7 @@ function normalizeOptionalString(value: unknown, fallback: string) {
 async function tryOpenAiJson(operation: string, systemPrompt: string, userPrompt: string) {
     requireOpenAiApiKey(operation);
     try {
-        const response = await openai.chat.completions.create({
+        const response = await getOpenAiClient().chat.completions.create({
             model: 'gpt-4.1-mini',
             temperature: 0.1,
             messages: [
@@ -3709,11 +3716,11 @@ async function generateModelResponse({ provider, model, systemPrompt, messages, 
             };
         }
 
-        const response = await openai.responses.create(request);
+        const response = await getOpenAiClient().responses.create(request);
         return extractResponsesText(response);
     }
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAiClient().chat.completions.create({
         model,
         messages: [
             { role: 'system', content: systemPrompt },

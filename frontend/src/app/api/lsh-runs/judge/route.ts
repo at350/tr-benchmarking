@@ -10,9 +10,16 @@ import { isValidOutlineFileName } from '@/lib/outlines';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient: OpenAI | null = null;
+
+function getOpenAiClient() {
+    if (!openaiClient) {
+        openaiClient = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+    }
+    return openaiClient;
+}
 
 type Provider = 'openai' | 'anthropic' | 'gemini';
 type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh';
@@ -636,11 +643,11 @@ async function generateModelResponse({ provider, model, systemPrompt, messages, 
             };
         }
 
-        const response = await openai.responses.create(request);
+        const response = await getOpenAiClient().responses.create(request);
         return extractResponsesText(response);
     }
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAiClient().chat.completions.create({
         model,
         messages: [
             { role: 'system', content: systemPrompt },

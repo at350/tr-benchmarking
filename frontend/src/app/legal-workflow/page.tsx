@@ -3,7 +3,6 @@
 import { startTransition, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
-import { DashaComparisonResults } from '@/components/DashaComparisonResults';
 import { DashaResultsExplorer } from '@/components/DashaResultsExplorer';
 import { AppShell } from '@/components/ui/AppShell';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -13,18 +12,8 @@ import {
     FRANK_V2_PACK_LABELS,
     RUBRIC_MODULE_LABELS,
 } from '@/lib/legal-workflow-v2-constants';
-import {
-    QUESTION_VARIANCE_CONFUSION_LABELS,
-    QUESTION_VARIANCE_FINAL_STATUS_LABELS,
-    QUESTION_VARIANCE_LANE_LABELS,
-    QUESTION_VARIANCE_PACKAGE_STATUS_LABELS,
-    QUESTION_VARIANCE_RESULT_TYPE_LABELS,
-    QUESTION_VARIANCE_REUSE_LABELS,
-    QUESTION_VARIANCE_ROUTE_STATUS_LABELS,
-} from '@/lib/question-variance-constants';
 import type {
     ArtifactRole,
-    DashaComparisonV2,
     DashaRunMode,
     DashaRunV2,
     DashaSelectedModel,
@@ -34,7 +23,6 @@ import type {
     KarthicRubricPackV2,
     KarthicRubricRow,
     PromptGenerationSettingsByKind,
-    QuestionSource,
     ReasoningEffort,
 } from '@/lib/legal-workflow-v2-types';
 import {
@@ -57,7 +45,10 @@ type WorkflowStageId =
     | 'benchmark'
     | 'question'
     | 'rubric'
-    | 'judge';
+    | 'judge'
+    | 'zak';
+
+type WorkflowBlockId = 'frank' | 'karthic' | 'dasha' | 'zak';
 
 type WorkflowStageDefinition = {
     id: WorkflowStageId;
@@ -70,6 +61,22 @@ type WorkflowStageView = WorkflowStageDefinition & {
     complete: boolean;
     unlocked: boolean;
     blocked: boolean;
+    statusLabel: string;
+};
+
+type WorkflowBlockDefinition = {
+    id: WorkflowBlockId;
+    title: string;
+    description: string;
+    stageIds: WorkflowStageId[];
+};
+
+type WorkflowBlockView = WorkflowBlockDefinition & {
+    stages: WorkflowStageView[];
+    complete: boolean;
+    unlocked: boolean;
+    blocked: boolean;
+    active: boolean;
     statusLabel: string;
 };
 
@@ -147,6 +154,39 @@ const WORKFLOW_STAGES: WorkflowStageDefinition[] = [
         title: 'Dasha Judge',
         shortLabel: 'Dasha Judge',
         description: 'Dasha stage: run the approved rubric against clustered model responses and inspect row/module scoring.',
+    },
+    {
+        id: 'zak',
+        title: 'Zak Escalation',
+        shortLabel: 'Zak Review',
+        description: 'Zak stage: SME escalation and instability review after Dasha when a packet needs human judgment.',
+    },
+];
+
+const WORKFLOW_BLOCKS: WorkflowBlockDefinition[] = [
+    {
+        id: 'frank',
+        title: 'Frank',
+        description: 'Packet construction and benchmark setup.',
+        stageIds: ['source', 'routing_intake', 'extraction_mapping', 'benchmark', 'question'],
+    },
+    {
+        id: 'karthic',
+        title: 'Karthic',
+        description: 'Rubric construction and refinement.',
+        stageIds: ['rubric'],
+    },
+    {
+        id: 'dasha',
+        title: 'Dasha',
+        description: 'Clustered judging and score inspection.',
+        stageIds: ['judge'],
+    },
+    {
+        id: 'zak',
+        title: 'Zak',
+        description: 'Escalation and SME review when the run is unstable.',
+        stageIds: ['zak'],
     },
 ];
 
@@ -234,6 +274,14 @@ const WORKFLOW_STAGE_GUIDES: Record<WorkflowStageId, WorkflowStageGuide> = {
         ],
         promptNote: 'Dasha uses the approved question from the rubric-linked Frank packet, then scores clustered outputs row by row.',
     },
+    zak: {
+        purpose: 'Review the Dasha run for instability, caps, penalties, or other flags that should escalate the packet for SME inspection.',
+        stopRules: [
+            'Zak is shown as its own top-level block even though auto-triggering is not implemented yet.',
+            'Use this as the manual handoff point when a Dasha run needs human review.',
+        ],
+        promptNote: 'The current branch exposes Zak in the pipeline structure, but escalation is still manual rather than automated.',
+    },
 };
 
 const WORKFLOW_GENERATION_TARGET_LABELS: Record<WorkflowGenerationTarget, string> = {
@@ -273,18 +321,11 @@ export default function LegalWorkflowPage() {
     const [selectedRubricId, setSelectedRubricId] = useState('');
     const [rubricEditor, setRubricEditor] = useState<KarthicRubricPackV2 | null>(null);
     const [collapsedRubricRows, setCollapsedRubricRows] = useState<Record<string, boolean>>({});
-    const [selectedVariationOptionId, setSelectedVariationOptionId] = useState('');
-    const [rubricQuestionSource, setRubricQuestionSource] = useState<QuestionSource>('canonical');
-    const [rubricQuestionVariancePackageId, setRubricQuestionVariancePackageId] = useState<string | null>(null);
 
     const [dashaRuns, setDashaRuns] = useState<DashaRunV2[]>([]);
     const [selectedRunId, setSelectedRunId] = useState('');
     const [dashaRubricPackId, setDashaRubricPackId] = useState('');
     const [dashaRunMode, setDashaRunMode] = useState<DashaRunMode>('score_and_cluster');
-    const [dashaComparisons, setDashaComparisons] = useState<DashaComparisonV2[]>([]);
-    const [selectedComparisonId, setSelectedComparisonId] = useState('');
-    const [dashaComparisonRubricPackId, setDashaComparisonRubricPackId] = useState('');
-    const [dashaComparisonPackageId, setDashaComparisonPackageId] = useState('');
     const [sampleCount, setSampleCount] = useState('120');
     const [selectedModelKeys, setSelectedModelKeys] = useState<string[]>(DEFAULT_SELECTED_MODEL_KEYS);
 
@@ -300,11 +341,6 @@ export default function LegalWorkflowPage() {
         () => dashaRuns.find((run) => run.id === selectedRunId) ?? dashaRuns[0] ?? null,
         [dashaRuns, selectedRunId],
     );
-    const selectedComparison = useMemo(
-        () => dashaComparisons.find((comparison) => comparison.id === selectedComparisonId) ?? null,
-        [dashaComparisons, selectedComparisonId],
-    );
-
     useEffect(() => {
         setHasMounted(true);
     }, []);
@@ -350,35 +386,6 @@ export default function LegalWorkflowPage() {
     }, [dashaRuns, selectedRunId]);
 
     useEffect(() => {
-        if (!selectedComparisonId) {
-            return;
-        }
-        if (!dashaComparisons.some((comparison) => comparison.id === selectedComparisonId)) {
-            setSelectedComparisonId('');
-        }
-    }, [dashaComparisons, selectedComparisonId]);
-
-    useEffect(() => {
-        const optionIds = new Set(frankEditor?.questionVariance.menu?.options.map((option) => option.id) ?? []);
-        if (!selectedVariationOptionId) {
-            return;
-        }
-        if (!optionIds.has(selectedVariationOptionId)) {
-            setSelectedVariationOptionId('');
-        }
-    }, [frankEditor?.questionVariance.menu?.options, selectedVariationOptionId]);
-
-    useEffect(() => {
-        if (rubricEditor && frankEditor && rubricEditor.frankPacketId === frankEditor.id) {
-            setRubricQuestionSource(rubricEditor.questionSource);
-            setRubricQuestionVariancePackageId(rubricEditor.questionVariancePackageId);
-            return;
-        }
-        setRubricQuestionSource('canonical');
-        setRubricQuestionVariancePackageId(frankEditor?.questionVariance.activePackageId ?? null);
-    }, [frankEditor, rubricEditor]);
-
-    useEffect(() => {
         if (!selectedRunId || selectedRun?.status !== 'draft') {
             return;
         }
@@ -386,27 +393,16 @@ export default function LegalWorkflowPage() {
         let cancelled = false;
         const intervalId = window.setInterval(async () => {
             try {
-                const [runResponse, comparisonResponse] = await Promise.all([
-                    fetch('/api/dasha-runs', { cache: 'no-store' }),
-                    fetch('/api/dasha-comparisons', { cache: 'no-store' }),
-                ]);
-                const [runJson, comparisonJson] = await Promise.all([
-                    runResponse.json(),
-                    comparisonResponse.json(),
-                ]);
+                const runResponse = await fetch('/api/dasha-runs', { cache: 'no-store' });
+                const runJson = await runResponse.json();
                 if (!runResponse.ok) {
                     throw new Error(runJson.error || 'Failed to refresh Dasha judge run.');
-                }
-                if (!comparisonResponse.ok) {
-                    throw new Error(comparisonJson.error || 'Failed to refresh Dasha comparisons.');
                 }
                 if (cancelled) {
                     return;
                 }
                 const refreshedRuns = sortRuns(Array.isArray(runJson.items) ? runJson.items as DashaRunV2[] : []);
-                const refreshedComparisons = sortComparisons(Array.isArray(comparisonJson.items) ? comparisonJson.items as DashaComparisonV2[] : []);
                 setDashaRuns(refreshedRuns);
-                setDashaComparisons(refreshedComparisons);
                 const item = refreshedRuns.find((run) => run.id === selectedRunId);
                 if (item?.status === 'completed') {
                     setStatusMessage('Dasha judge run completed.');
@@ -427,75 +423,23 @@ export default function LegalWorkflowPage() {
         };
     }, [selectedRun?.status, selectedRunId]);
 
-    useEffect(() => {
-        if (!selectedComparisonId || selectedComparison?.status !== 'draft') {
-            return;
-        }
-
-        let cancelled = false;
-        const intervalId = window.setInterval(async () => {
-            try {
-                const [runResponse, comparisonResponse] = await Promise.all([
-                    fetch('/api/dasha-runs', { cache: 'no-store' }),
-                    fetch('/api/dasha-comparisons', { cache: 'no-store' }),
-                ]);
-                const [runJson, comparisonJson] = await Promise.all([
-                    runResponse.json(),
-                    comparisonResponse.json(),
-                ]);
-                if (!runResponse.ok) {
-                    throw new Error(runJson.error || 'Failed to refresh Dasha judge runs.');
-                }
-                if (!comparisonResponse.ok) {
-                    throw new Error(comparisonJson.error || 'Failed to refresh Dasha comparisons.');
-                }
-                if (cancelled) {
-                    return;
-                }
-                const refreshedRuns = sortRuns(Array.isArray(runJson.items) ? runJson.items as DashaRunV2[] : []);
-                const refreshedComparisons = sortComparisons(Array.isArray(comparisonJson.items) ? comparisonJson.items as DashaComparisonV2[] : []);
-                setDashaRuns(refreshedRuns);
-                setDashaComparisons(refreshedComparisons);
-                const item = refreshedComparisons.find((comparison) => comparison.id === selectedComparisonId);
-                if (item?.status === 'completed') {
-                    setStatusMessage('Lane A comparison completed.');
-                }
-                if (item?.status === 'failed') {
-                    setErrorMessage(item.errorMessage || 'Lane A comparison failed.');
-                }
-            } catch (error) {
-                if (!cancelled) {
-                    setErrorMessage(error instanceof Error ? error.message : 'Failed to refresh Dasha comparison.');
-                }
-            }
-        }, 4000);
-
-        return () => {
-            cancelled = true;
-            window.clearInterval(intervalId);
-        };
-    }, [selectedComparison?.status, selectedComparisonId]);
-
     async function loadAll() {
         setIsLoading(true);
         setErrorMessage(null);
         try {
-            const [frankRes, rubricRes, runRes, comparisonRes] = await Promise.all([
+            const [frankRes, rubricRes, runRes] = await Promise.all([
                 fetch('/api/frank-packets', { cache: 'no-store' }),
                 fetch('/api/karthic-rubric-packs', { cache: 'no-store' }),
                 fetch('/api/dasha-runs', { cache: 'no-store' }),
-                fetch('/api/dasha-comparisons', { cache: 'no-store' }),
             ]);
-            const [frankJson, rubricJson, runJson, comparisonJson] = await Promise.all([
+            const [frankJson, rubricJson, runJson] = await Promise.all([
                 frankRes.json(),
                 rubricRes.json(),
                 runRes.json(),
-                comparisonRes.json(),
             ]);
             setFrankPackets(sortByUpdated(Array.isArray(frankJson.items) ? frankJson.items as FrankPacketV2[] : []));
             setRubricPacks(sortByUpdated(Array.isArray(rubricJson.items) ? rubricJson.items as KarthicRubricPackV2[] : []));
             setDashaRuns(sortRuns(Array.isArray(runJson.items) ? runJson.items as DashaRunV2[] : []));
-            setDashaComparisons(sortComparisons(Array.isArray(comparisonJson.items) ? comparisonJson.items as DashaComparisonV2[] : []));
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to load workflow data.');
         } finally {
@@ -519,9 +463,6 @@ export default function LegalWorkflowPage() {
         setRubricEditor(clone(pack));
         if (pack.status === 'approved') {
             setDashaRubricPackId(pack.id);
-            if (pack.questionSource === 'canonical') {
-                setDashaComparisonRubricPackId(pack.id);
-            }
         }
     }
 
@@ -711,157 +652,6 @@ export default function LegalWorkflowPage() {
         }
     }
 
-    async function generateQuestionVarianceRoutingAndMenu() {
-        if (!frankEditor?.id) {
-            setErrorMessage('Select a Frank packet first.');
-            return;
-        }
-        setErrorMessage(null);
-        setStatusMessage('Generating QuestionVariance routing and menu...');
-        try {
-            const settings = getGenerationSetting('question_generation');
-            const response = await fetch('/api/frank-packets/question-variance', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    id: frankEditor.id,
-                    model: settings.model,
-                    reasoningEffort: settings.reasoningEffort,
-                }),
-            });
-            const json = await response.json();
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to generate QuestionVariance routing and menu.');
-            }
-            const item = json.item as FrankPacketV2;
-            applyFrankPacket(item);
-            setFrankPackets((current) => sortByUpdated([item, ...current.filter((packet) => packet.id !== item.id)]));
-            setSelectedVariationOptionId('');
-            setStatusMessage('QuestionVariance routing updated.');
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to generate QuestionVariance routing and menu.');
-            setStatusMessage(null);
-        }
-    }
-
-    async function clearQuestionVarianceMenu() {
-        if (!frankEditor?.id) {
-            return;
-        }
-        setErrorMessage(null);
-        setStatusMessage('Clearing QuestionVariance menu and packages...');
-        try {
-            const response = await fetch('/api/frank-packets/question-variance', {
-                method: 'DELETE',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ id: frankEditor.id }),
-            });
-            const json = await response.json();
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to clear QuestionVariance menu.');
-            }
-            const item = json.item as FrankPacketV2;
-            applyFrankPacket(item);
-            setFrankPackets((current) => sortByUpdated([item, ...current.filter((packet) => packet.id !== item.id)]));
-            setSelectedVariationOptionId('');
-            setStatusMessage('QuestionVariance menu cleared.');
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to clear QuestionVariance menu.');
-            setStatusMessage(null);
-        }
-    }
-
-    async function generateQuestionVariancePackage() {
-        if (!frankEditor?.id || !selectedVariationOptionId) {
-            setErrorMessage('Choose a QuestionVariance option first.');
-            return;
-        }
-        setErrorMessage(null);
-        setStatusMessage('Generating QuestionVariance package...');
-        try {
-            const settings = getGenerationSetting('question_generation');
-            const response = await fetch('/api/frank-packets/question-variance/package', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    id: frankEditor.id,
-                    optionId: selectedVariationOptionId,
-                    model: settings.model,
-                    reasoningEffort: settings.reasoningEffort,
-                }),
-            });
-            const json = await response.json();
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to generate QuestionVariance package.');
-            }
-            const item = json.item as FrankPacketV2;
-            applyFrankPacket(item);
-            setFrankPackets((current) => sortByUpdated([item, ...current.filter((packet) => packet.id !== item.id)]));
-            setStatusMessage('QuestionVariance package generated.');
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to generate QuestionVariance package.');
-            setStatusMessage(null);
-        }
-    }
-
-    async function clearQuestionVariancePackage(packageId?: string) {
-        if (!frankEditor?.id) {
-            return;
-        }
-        setErrorMessage(null);
-        setStatusMessage('Clearing QuestionVariance package...');
-        try {
-            const response = await fetch('/api/frank-packets/question-variance/package', {
-                method: 'DELETE',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    id: frankEditor.id,
-                    packageId,
-                }),
-            });
-            const json = await response.json();
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to clear QuestionVariance package.');
-            }
-            const item = json.item as FrankPacketV2;
-            applyFrankPacket(item);
-            setFrankPackets((current) => sortByUpdated([item, ...current.filter((packet) => packet.id !== item.id)]));
-            setStatusMessage('QuestionVariance package cleared.');
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to clear QuestionVariance package.');
-            setStatusMessage(null);
-        }
-    }
-
-    async function setActiveQuestionVariancePackage(packageId: string) {
-        if (!frankEditor?.id) {
-            return;
-        }
-        setErrorMessage(null);
-        setStatusMessage('Setting active QuestionVariance package...');
-        try {
-            const response = await fetch('/api/frank-packets/question-variance/active', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    id: frankEditor.id,
-                    packageId,
-                }),
-            });
-            const json = await response.json();
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to set the active QuestionVariance package.');
-            }
-            const item = json.item as FrankPacketV2;
-            applyFrankPacket(item);
-            setFrankPackets((current) => sortByUpdated([item, ...current.filter((packet) => packet.id !== item.id)]));
-            setStatusMessage('Active QuestionVariance package updated.');
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to set the active QuestionVariance package.');
-            setStatusMessage(null);
-        }
-    }
-
     async function generateRubricPack() {
         if (!frankEditor?.id || frankEditor.status !== 'approved') {
             setErrorMessage('Select an approved Frank packet first.');
@@ -877,8 +667,6 @@ export default function LegalWorkflowPage() {
                 body: JSON.stringify({
                     frankPacketId: frankEditor.id,
                     id: rubricEditor?.frankPacketId === frankEditor.id ? rubricEditor.id : undefined,
-                    questionSource: currentRubricQuestionSource,
-                    questionVariancePackageId: currentRubricQuestionVariancePackageId,
                     model: settings.model,
                     reasoningEffort: settings.reasoningEffort,
                 }),
@@ -912,8 +700,6 @@ export default function LegalWorkflowPage() {
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
                     ...rubricEditor,
-                    questionSource: currentRubricQuestionSource,
-                    questionVariancePackageId: currentRubricQuestionVariancePackageId,
                     status,
                 }),
             });
@@ -962,53 +748,10 @@ export default function LegalWorkflowPage() {
             const item = json.item as DashaRunV2;
             setDashaRuns((current) => sortRuns([item, ...current.filter((run) => run.id !== item.id)]));
             setSelectedRunId(item.id);
-            setSelectedComparisonId('');
             setStatusMessage('Dasha judge run started.');
             goToStage('judge');
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to start Dasha judge run.');
-            setStatusMessage(null);
-        }
-    }
-
-    async function runDashaComparison() {
-        if (!dashaComparisonRubricPackId) {
-            setErrorMessage('Select an approved canonical rubric pack first.');
-            return;
-        }
-        if (!dashaComparisonPackageId) {
-            setErrorMessage('Select a safe Lane A QuestionVariance package first.');
-            return;
-        }
-        if (selectedModelKeys.length === 0) {
-            setErrorMessage('Select at least one model for the comparison.');
-            return;
-        }
-        setErrorMessage(null);
-        setStatusMessage('Starting Lane A comparison...');
-        try {
-            const response = await fetch('/api/dasha-comparisons', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    rubricPackId: dashaComparisonRubricPackId,
-                    questionVariancePackageId: dashaComparisonPackageId,
-                    sampleCount: sampleCount || '120',
-                    selectedModels: buildSelectedModels(selectedModelKeys),
-                }),
-            });
-            const json = await response.json();
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to start Lane A comparison.');
-            }
-            const item = json.item as DashaComparisonV2;
-            setDashaComparisons((current) => sortComparisons([item, ...current.filter((comparison) => comparison.id !== item.id)]));
-            setSelectedComparisonId(item.id);
-            setSelectedRunId('');
-            setStatusMessage('Lane A comparison started.');
-            goToStage('judge');
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to start Lane A comparison.');
             setStatusMessage(null);
         }
     }
@@ -1045,75 +788,9 @@ export default function LegalWorkflowPage() {
     const hasExtractionMapping = Boolean(frankEditor?.sourceExtractionSheet && frankEditor?.goldPacketMapping && frankEditor?.likelyFailureModes);
     const hasBenchmark = Boolean(frankEditor?.benchmarkAnswer.trim());
     const hasQuestion = Boolean(frankEditor?.reverseEngineeredQuestion.trim());
-    const questionVariance = frankEditor?.questionVariance ?? null;
-    const questionVarianceRouting = questionVariance?.routingResult ?? null;
-    const questionVarianceMenu = questionVariance?.menu ?? null;
-    const activeQuestionVariancePackage = questionVariance?.packages.find((item) => item.id === questionVariance.activePackageId) ?? null;
-    const hasActiveQuestionVariancePackage = Boolean(activeQuestionVariancePackage?.variedLegalQuestion.trim());
-    const rubricEditorMatchesFrank = Boolean(rubricEditor && frankEditor && rubricEditor.frankPacketId === frankEditor.id);
-    const currentRubricQuestionSource = rubricEditorMatchesFrank && rubricEditor ? rubricEditor.questionSource : rubricQuestionSource;
-    const currentRubricQuestionVariancePackageId = rubricEditorMatchesFrank && rubricEditor
-        ? rubricEditor.questionVariancePackageId
-        : rubricQuestionVariancePackageId;
     const hasApprovedFrank = frankEditor?.status === 'approved';
     const hasApprovedRubric = rubricEditor?.status === 'approved';
     const hasCompletedRun = selectedRun?.status === 'completed';
-    const comparisonRubricPacks = useMemo(
-        () => approvedRubricPacks.filter((pack) => pack.questionSource === 'canonical'),
-        [approvedRubricPacks],
-    );
-    const selectedComparisonRubricPack = useMemo(
-        () => comparisonRubricPacks.find((pack) => pack.id === dashaComparisonRubricPackId) ?? null,
-        [comparisonRubricPacks, dashaComparisonRubricPackId],
-    );
-    const comparisonFrankPacket = useMemo(
-        () => frankPackets.find((packet) => packet.id === selectedComparisonRubricPack?.frankPacketId) ?? null,
-        [frankPackets, selectedComparisonRubricPack?.frankPacketId],
-    );
-    const eligibleComparisonPackages = useMemo(() => {
-        if (!comparisonFrankPacket) {
-            return [] as Array<{ id: string; label: string; variationType: string }>;
-        }
-        const questionVarianceState = comparisonFrankPacket.questionVariance;
-        return questionVarianceState.packages
-            .filter((pkg) => pkg.lane === 'lane_a' && pkg.status === 'ready' && pkg.variationStatus === 'safe')
-            .map((pkg) => ({
-                id: pkg.id,
-                label: questionVarianceState.menu?.options.find((option) => option.id === pkg.selectedOptionId)?.label ?? pkg.variationType,
-                variationType: pkg.variationType,
-            }))
-            .sort((left, right) => left.label.localeCompare(right.label));
-    }, [comparisonFrankPacket]);
-    const selectedComparisonBaselineRun = useMemo(
-        () => dashaRuns.find((run) => run.id === selectedComparison?.baselineRunId) ?? null,
-        [dashaRuns, selectedComparison?.baselineRunId],
-    );
-    const selectedComparisonVariantRun = useMemo(
-        () => dashaRuns.find((run) => run.id === selectedComparison?.variantRunId) ?? null,
-        [dashaRuns, selectedComparison?.variantRunId],
-    );
-
-    useEffect(() => {
-        const rubricPackIds = new Set(comparisonRubricPacks.map((item) => item.id));
-        if (dashaComparisonRubricPackId && !rubricPackIds.has(dashaComparisonRubricPackId)) {
-            setDashaComparisonRubricPackId('');
-            return;
-        }
-        if (!dashaComparisonRubricPackId && comparisonRubricPacks.length > 0) {
-            setDashaComparisonRubricPackId(comparisonRubricPacks[0].id);
-        }
-    }, [comparisonRubricPacks, dashaComparisonRubricPackId]);
-
-    useEffect(() => {
-        const packageIds = new Set(eligibleComparisonPackages.map((item) => item.id));
-        if (dashaComparisonPackageId && !packageIds.has(dashaComparisonPackageId)) {
-            setDashaComparisonPackageId('');
-            return;
-        }
-        if (!dashaComparisonPackageId && eligibleComparisonPackages.length > 0) {
-            setDashaComparisonPackageId(eligibleComparisonPackages[0].id);
-        }
-    }, [dashaComparisonPackageId, eligibleComparisonPackages]);
 
     const stageViews = useMemo<WorkflowStageView[]>(() => {
         return WORKFLOW_STAGES.map((stage) => {
@@ -1188,6 +865,20 @@ export default function LegalWorkflowPage() {
                                         ? 'Open'
                                         : 'Locked',
                     };
+                case 'zak':
+                    return {
+                        ...stage,
+                        complete: false,
+                        unlocked: Boolean(selectedRun),
+                        blocked: false,
+                        statusLabel: selectedRun
+                            ? selectedRun.status === 'failed'
+                                ? 'Review'
+                                : selectedRun.status === 'completed'
+                                    ? 'Review'
+                                    : 'Pending run'
+                            : 'Locked',
+                    };
                 default:
                     return {
                         ...stage,
@@ -1209,13 +900,44 @@ export default function LegalWorkflowPage() {
         hasFrankPacket,
         hasQuestion,
         hasRoutingIntake,
+        selectedRun,
         selectedRun?.status,
     ]);
+
+    const blockViews = useMemo<WorkflowBlockView[]>(() => {
+        return WORKFLOW_BLOCKS.map((block) => {
+            const stages = block.stageIds
+                .map((stageId) => stageViews.find((stage) => stage.id === stageId))
+                .filter((stage): stage is WorkflowStageView => Boolean(stage));
+            const active = stages.some((stage) => stage.id === visibleStage);
+            const unlocked = stages.some((stage) => stage.unlocked);
+            const blocked = stages.some((stage) => stage.blocked);
+            const complete = stages.length > 0 && stages.every((stage) => stage.complete);
+            return {
+                ...block,
+                stages,
+                active,
+                unlocked,
+                blocked,
+                complete,
+                statusLabel: complete
+                    ? 'Complete'
+                    : blocked
+                        ? 'Attention'
+                        : unlocked
+                            ? 'Open'
+                            : 'Locked',
+            };
+        });
+    }, [stageViews, visibleStage]);
 
     const currentStageIndex = stageViews.findIndex((stage) => stage.id === visibleStage);
     const currentStage = stageViews[currentStageIndex] ?? stageViews[0];
     const previousStage = currentStageIndex > 0 ? stageViews[currentStageIndex - 1] : null;
     const nextStage = currentStageIndex >= 0 && currentStageIndex < stageViews.length - 1 ? stageViews[currentStageIndex + 1] : null;
+    const currentBlockIndex = blockViews.findIndex((block) => block.active);
+    const currentBlock = blockViews[currentBlockIndex] ?? blockViews[0];
+    const currentBlockStepIndex = currentBlock?.stages.findIndex((stage) => stage.id === visibleStage) ?? -1;
     const selectedDashaPack = useMemo(
         () => approvedRubricPacks.find((pack) => pack.id === dashaRubricPackId) ?? null,
         [approvedRubricPacks, dashaRubricPackId],
@@ -1268,6 +990,8 @@ export default function LegalWorkflowPage() {
             case 'rubric':
                 return hasApprovedRubric ? null : 'Approve a rubric pack before continuing to Dasha.';
             case 'judge':
+                return selectedRun ? null : 'Run Dasha before continuing to Zak review.';
+            case 'zak':
                 return null;
             default:
                 return 'This stage is not ready yet.';
@@ -1281,6 +1005,7 @@ export default function LegalWorkflowPage() {
         hasFrankPacket,
         hasQuestion,
         hasRoutingIntake,
+        selectedRun,
         visibleStage,
     ]);
 
@@ -1312,190 +1037,6 @@ export default function LegalWorkflowPage() {
                         </button>
                     </div>
                 </div>
-            </div>
-        );
-    }
-
-    function renderQuestionVarianceSection() {
-        if (!frankEditor) {
-            return null;
-        }
-        const selectedOption = questionVarianceMenu?.options.find((option) => option.id === selectedVariationOptionId) ?? null;
-        return (
-            <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Question Variance</p>
-                        <p className="mt-1 text-sm text-slate-600">
-                            Generate a routing/readiness result, review the safe menu, then produce exactly one selected variation package without changing the canonical Frank question.
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        <button className={primaryButtonClassName} onClick={() => void generateQuestionVarianceRoutingAndMenu()}>
-                            {questionVarianceRouting ? 'Regenerate Variation Menu' : 'Generate Variation Menu'}
-                        </button>
-                        {(questionVarianceMenu || questionVariance?.packages.length) ? (
-                            <button className={secondaryButtonClassName} onClick={() => void clearQuestionVarianceMenu()}>
-                                Clear Variation Menu
-                            </button>
-                        ) : null}
-                    </div>
-                </div>
-
-                {questionVarianceRouting ? (
-                    <div className="grid gap-4 lg:grid-cols-2">
-                        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
-                            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Routing readiness</p>
-                            <p><span className="font-semibold">Status:</span> {QUESTION_VARIANCE_ROUTE_STATUS_LABELS[questionVarianceRouting.routeStatus]}</p>
-                            <p><span className="font-semibold">Controlling doctrine:</span> {questionVarianceRouting.controllingDoctrine}</p>
-                            <p><span className="font-semibold">Variation readiness:</span> {questionVarianceRouting.variationReadiness}</p>
-                            <p><span className="font-semibold">Primary provision:</span> {questionVarianceRouting.primaryProvisionCandidate ?? 'Unresolved'}</p>
-                            {questionVarianceRouting.confusionPattern ? (
-                                <p><span className="font-semibold">Confusion pattern:</span> {QUESTION_VARIANCE_CONFUSION_LABELS[questionVarianceRouting.confusionPattern]}</p>
-                            ) : null}
-                            {questionVarianceRouting.menuRule ? (
-                                <p className="mt-2 text-sm text-slate-600">{questionVarianceRouting.menuRule}</p>
-                            ) : null}
-                        </div>
-                        <div className="rounded-xl border border-slate-200 bg-white p-4">
-                            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Gate order + frozen facts</p>
-                            <ul className="space-y-1 text-sm text-slate-700">
-                                {questionVarianceRouting.mainGateOrder.map((item, index) => (
-                                    <li key={`qv_gate_${index}`}>• {item}</li>
-                                ))}
-                            </ul>
-                            <div className="mt-3">
-                                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">No-silent-change facts</p>
-                                <ul className="space-y-1 text-sm text-slate-700">
-                                    {questionVarianceRouting.mainNoSilentChangeFacts.map((item, index) => (
-                                        <li key={`qv_fact_${index}`}>• {item}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <EmptyPanelCopy text="No QuestionVariance routing result yet. Generate the menu to compute readiness first." />
-                )}
-
-                {questionVariance?.warnings.length ? (
-                    <WarningList title="QuestionVariance warnings" items={questionVariance.warnings} />
-                ) : null}
-
-                {questionVarianceRouting && questionVarianceRouting.routeStatus !== 'stable_route' ? (
-                    <Banner tone="warning" text="QuestionVariance routing is not stable, so no normal variation menu is available for this packet." />
-                ) : null}
-
-                {questionVarianceMenu ? (
-                    <div className="space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Recommended options</p>
-                                <p className="text-sm text-slate-600">
-                                    Select one option first. v1 only generates a package from an existing stored menu option.
-                                </p>
-                            </div>
-                            <button
-                                className={primaryButtonClassName}
-                                disabled={!selectedVariationOptionId}
-                                onClick={() => void generateQuestionVariancePackage()}
-                            >
-                                Generate Variation Package
-                            </button>
-                        </div>
-                        {questionVarianceMenu.options.length > 0 ? (
-                            <div className="grid gap-3 lg:grid-cols-2">
-                                {questionVarianceMenu.options.map((option) => {
-                                    const isSelected = option.id === selectedVariationOptionId;
-                                    return (
-                                        <button
-                                            key={option.id}
-                                            type="button"
-                                            className={isSelected
-                                                ? 'rounded-xl border border-teal-300 bg-teal-50 p-4 text-left text-teal-900'
-                                                : 'rounded-xl border border-slate-200 bg-white p-4 text-left text-slate-700'}
-                                            onClick={() => setSelectedVariationOptionId(option.id)}
-                                        >
-                                            <p className="text-sm font-semibold">{option.label}</p>
-                                            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em]">{QUESTION_VARIANCE_LANE_LABELS[option.lane]}</p>
-                                            <p className="mt-2 text-sm"><span className="font-semibold">What changes:</span> {option.whatChanges}</p>
-                                            <p className="mt-1 text-sm"><span className="font-semibold">Why it fits:</span> {option.whyItFits}</p>
-                                            <p className="mt-1 text-sm"><span className="font-semibold">Answer reuse:</span> {QUESTION_VARIANCE_REUSE_LABELS[option.expectedAnswerReuse]}</p>
-                                            <p className="mt-1 text-sm"><span className="font-semibold">Main red flag:</span> {option.mainRedFlag}</p>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <EmptyPanelCopy text="No safe variation options are currently stored for this packet." />
-                        )}
-                        {selectedOption ? (
-                            <div className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900">
-                                Selected option: <span className="font-semibold">{selectedOption.label}</span>
-                            </div>
-                        ) : null}
-                    </div>
-                ) : null}
-
-                {questionVariance?.packages.length ? (
-                    <div className="space-y-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Generated packages</p>
-                                <p className="text-sm text-slate-600">Set one package active to make it available as an alternate rubric and Dasha question source.</p>
-                            </div>
-                            <button className={secondaryButtonClassName} onClick={() => void clearQuestionVariancePackage()}>
-                                Clear Packages
-                            </button>
-                        </div>
-                        {questionVariance.packages.map((pkg) => {
-                            const isActive = pkg.id === questionVariance.activePackageId;
-                            return (
-                                <div key={pkg.id} className={isActive ? 'rounded-xl border border-emerald-300 bg-emerald-50 p-4' : 'rounded-xl border border-slate-200 bg-white p-4'}>
-                                    <div className="flex flex-wrap items-start justify-between gap-3">
-                                        <div className="space-y-1 text-sm text-slate-700">
-                                            <p className="font-semibold text-slate-900">{pkg.variationType}</p>
-                                            <p><span className="font-semibold">Lane:</span> {QUESTION_VARIANCE_LANE_LABELS[pkg.lane]}</p>
-                                            <p><span className="font-semibold">Expected result:</span> {QUESTION_VARIANCE_RESULT_TYPE_LABELS[pkg.expectedResultType]}</p>
-                                            <p><span className="font-semibold">Variation status:</span> {QUESTION_VARIANCE_PACKAGE_STATUS_LABELS[pkg.variationStatus]}</p>
-                                            <p><span className="font-semibold">Final status:</span> {QUESTION_VARIANCE_FINAL_STATUS_LABELS[pkg.status]}</p>
-                                            <p><span className="font-semibold">Answer reuse:</span> {QUESTION_VARIANCE_REUSE_LABELS[pkg.answerReuseLevel]}</p>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            <button
-                                                className={secondaryButtonClassName}
-                                                disabled={isActive}
-                                                onClick={() => void setActiveQuestionVariancePackage(pkg.id)}
-                                            >
-                                                {isActive ? 'Active Package' : 'Set Active'}
-                                            </button>
-                                            <button className={secondaryButtonClassName} onClick={() => void clearQuestionVariancePackage(pkg.id)}>
-                                                Remove Package
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                                        <ReadOnlyTextCard title="Canonical question" text={frankEditor.reverseEngineeredQuestion} />
-                                        <ReadOnlyTextCard title="Varied legal question" text={pkg.variedLegalQuestion} />
-                                    </div>
-                                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                                        <ReadOnlyTextCard title="Updated model answer" text={pkg.updatedModelAnswer} />
-                                        <ReadOnlyListCard
-                                            title="Swap log"
-                                            items={pkg.swapLog.map((entry) => `${entry.from} -> ${entry.to}`)}
-                                            emptyText="No swap log entries."
-                                        />
-                                    </div>
-                                    <div className="mt-4 grid gap-4 lg:grid-cols-3">
-                                        <ReadOnlyListCard title="Rubric patch notes" items={pkg.rubricPatchNotes} emptyText="None." />
-                                        <ReadOnlyListCard title="Red flags" items={pkg.redFlags} emptyText="None." />
-                                        <ReadOnlyTextCard title="Why the answer should stay the same or change" text={pkg.whyTheAnswerShouldStayTheSameOrChange} />
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                ) : null}
             </div>
         );
     }
@@ -1757,8 +1298,6 @@ export default function LegalWorkflowPage() {
                                 {frankEditor.questionWarnings.length > 0 ? (
                                     <WarningList title="Question warnings" items={frankEditor.questionWarnings} />
                                 ) : null}
-                                <Banner tone="info" text={`QuestionVariance actions reuse the Phase 4 model setting (${formatGenerationSettingInline(getGenerationSetting('question_generation'))}).`} />
-                                {renderQuestionVarianceSection()}
                             </div>
                         ) : <EmptyPanelCopy text="Select a Frank packet to generate or edit the reverse-engineered question." />}
                     </>
@@ -1795,35 +1334,6 @@ export default function LegalWorkflowPage() {
                                         onClick={() => openGenerationSettings('rubric_generation')}
                                     />
                                 </div>
-                                <Field label="Question source for rubric + Dasha">
-                                    <select
-                                        className={inputClassName}
-                                        value={currentRubricQuestionSource}
-                                        onChange={(event) => {
-                                            const nextSource = event.target.value as QuestionSource;
-                                            const nextPackageId = nextSource === 'question_variance_active_package'
-                                                ? frankEditor?.questionVariance.activePackageId ?? null
-                                                : null;
-                                            setRubricQuestionSource(nextSource);
-                                            setRubricQuestionVariancePackageId(nextPackageId);
-                                            setRubricEditor((current) => current && current.frankPacketId === frankEditor?.id
-                                                ? {
-                                                    ...current,
-                                                    questionSource: nextSource,
-                                                    questionVariancePackageId: nextPackageId,
-                                                }
-                                                : current);
-                                        }}
-                                    >
-                                        <option value="canonical">Canonical reverse-engineered question</option>
-                                        <option value="question_variance_active_package" disabled={!hasActiveQuestionVariancePackage}>
-                                            Active QuestionVariance package
-                                        </option>
-                                    </select>
-                                </Field>
-                                {currentRubricQuestionSource === 'question_variance_active_package' && !hasActiveQuestionVariancePackage ? (
-                                    <Banner tone="warning" text="Set an active QuestionVariance package in the question stage before using it as the rubric question source." />
-                                ) : null}
                                 <Field label="Saved rubric packs">
                                     <select
                                         className={inputClassName}
@@ -1859,10 +1369,8 @@ export default function LegalWorkflowPage() {
                                 {rubricEditor ? (
                                     <div className="space-y-4">
                                         <ReadOnlyTextCard
-                                            title="Current question source"
-                                            text={currentRubricQuestionSource === 'canonical'
-                                                ? frankEditor?.reverseEngineeredQuestion ?? rubricEditor.questionText
-                                                : activeQuestionVariancePackage?.variedLegalQuestion ?? rubricEditor.questionText}
+                                            title="Current question"
+                                            text={frankEditor?.reverseEngineeredQuestion ?? rubricEditor.questionText}
                                         />
                                         <Field label="Comparison method note">
                                             <textarea
@@ -1918,7 +1426,7 @@ export default function LegalWorkflowPage() {
                                         <div>
                                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Shared Dasha Configuration</p>
                                             <p className="mt-1 text-sm text-slate-600">
-                                                Set the sample count and model pool once here. Both the Lane A comparison and the standalone Dasha run reuse this configuration.
+                                                Set the sample count and model pool once here for the Dasha scoring and clustering run.
                                             </p>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
@@ -1947,7 +1455,7 @@ export default function LegalWorkflowPage() {
                                             <div>
                                                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Model configuration</p>
                                                 <p className="mt-1 text-sm text-slate-600">
-                                                    {selectedModelKeys.length} model{selectedModelKeys.length === 1 ? '' : 's'} selected for both Dasha entry points.
+                                                    {selectedModelKeys.length} model{selectedModelKeys.length === 1 ? '' : 's'} selected for Dasha.
                                                 </p>
                                             </div>
                                             <div className="mt-4">
@@ -1964,70 +1472,11 @@ export default function LegalWorkflowPage() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                    <div>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Lane A Comparison</p>
-                                        <p className="mt-1 text-sm text-slate-600">
-                                            Reuse the approved canonical rubric, run the canonical question and one safe Lane A variation as a linked pair, then compare score deltas without matching clusters across runs.
-                                        </p>
-                                    </div>
-                                    <Banner tone="info" text="This flow reuses the canonical Karthic rubric as-is for safe Lane A swaps. It does not regenerate Karthic." />
-                                    <div className="grid gap-4 lg:grid-cols-2">
-                                        <Field label="Approved canonical rubric pack">
-                                            <select
-                                                className={inputClassName}
-                                                value={dashaComparisonRubricPackId}
-                                                onChange={(event) => setDashaComparisonRubricPackId(event.target.value)}
-                                            >
-                                                <option value="">Select canonical rubric pack</option>
-                                                {comparisonRubricPacks.map((pack) => (
-                                                    <option key={pack.id} value={pack.id}>{FRANK_V2_PACK_LABELS[pack.selectedPack]} · {pack.id}</option>
-                                                ))}
-                                            </select>
-                                        </Field>
-                                        <Field label="Safe Lane A QuestionVariance package">
-                                            <select
-                                                className={inputClassName}
-                                                value={dashaComparisonPackageId}
-                                                onChange={(event) => setDashaComparisonPackageId(event.target.value)}
-                                                disabled={!selectedComparisonRubricPack}
-                                            >
-                                                <option value="">{selectedComparisonRubricPack ? 'Select Lane A package' : 'Choose a canonical rubric pack first'}</option>
-                                                {eligibleComparisonPackages.map((pkg) => (
-                                                    <option key={pkg.id} value={pkg.id}>{pkg.label} · {pkg.variationType}</option>
-                                                ))}
-                                            </select>
-                                        </Field>
-                                    </div>
-                                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr),220px]">
-                                        <Field label="Saved comparisons">
-                                            <select
-                                                className={inputClassName}
-                                                value={selectedComparison?.id ?? ''}
-                                                onChange={(event) => {
-                                                    setSelectedComparisonId(event.target.value);
-                                                    setSelectedRunId('');
-                                                }}
-                                            >
-                                                <option value="">Select comparison</option>
-                                                {dashaComparisons.map((comparison) => (
-                                                    <option key={comparison.id} value={comparison.id}>{comparison.variationLabel} · {comparison.status}</option>
-                                                ))}
-                                            </select>
-                                        </Field>
-                                        <div className="flex items-end">
-                                            <button className={`${primaryButtonClassName} w-full`} onClick={() => void runDashaComparison()}>
-                                                Start Lane A Comparison
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
                                 <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
                                     <div>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Single Dasha Run</p>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Dasha Run</p>
                                         <p className="mt-1 text-sm text-slate-600">
-                                            Keep the original one-run Dasha workflow available for standalone inspection and debugging.
+                                            Judge clustered model responses against the approved rubric and inspect row-level scoring.
                                         </p>
                                     </div>
                                     <div className="grid gap-4 lg:grid-cols-2">
@@ -2055,10 +1504,7 @@ export default function LegalWorkflowPage() {
                                             <select
                                                 className={inputClassName}
                                                 value={selectedRun?.id ?? ''}
-                                                onChange={(event) => {
-                                                    setSelectedRunId(event.target.value);
-                                                    setSelectedComparisonId('');
-                                                }}
+                                                onChange={(event) => setSelectedRunId(event.target.value)}
                                             >
                                                 <option value="">Select run</option>
                                                 {dashaRuns.map((run) => (
@@ -2076,21 +1522,48 @@ export default function LegalWorkflowPage() {
                             </div>
 
                             <div className="min-w-0 space-y-4">
-                                {selectedComparison ? (
-                                    <DashaComparisonResults
-                                        comparison={selectedComparison}
-                                        baselineRun={selectedComparisonBaselineRun}
-                                        variantRun={selectedComparisonVariantRun}
-                                        onOpenRun={(runId) => {
-                                            setSelectedRunId(runId);
-                                            setSelectedComparisonId('');
-                                        }}
-                                    />
-                                ) : selectedRun ? (
+                                {selectedRun ? (
                                     <DashaResultsExplorer key={selectedRun.id} run={selectedRun} />
                                 ) : (
-                                    <EmptyPanelCopy text="Start a Lane A comparison or a single Dasha run to inspect saved results." />
+                                    <EmptyPanelCopy text="Start or select a Dasha run to inspect saved results." />
                                 )}
+                            </div>
+                        </div>
+                    </>
+                );
+            case 'zak':
+                return (
+                    <>
+                        <SectionHeader title={currentStage.title} description={currentStage.description} />
+                        <div className="mt-4 space-y-4">
+                            <Banner tone="info" text="Zak is represented as its own top-level block now, but automated escalation triggers are not implemented in this branch yet." />
+                            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr),320px]">
+                                <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Manual Escalation Point</p>
+                                        <p className="mt-2 text-sm text-slate-600">
+                                            This is where unstable Dasha outcomes should hand off for SME review. For now, the block is structural: it makes the full FKDZ pipeline visible without pretending Zak automation already exists.
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                                        <p className="font-semibold text-slate-900">Planned Zak triggers</p>
+                                        <ul className="mt-3 space-y-2">
+                                            <li>Unstable clustered scoring or obvious disagreement between strong clusters and the benchmark answer.</li>
+                                            <li>Caps, penalties, or other scoring behavior that suggests the rubric is underspecified.</li>
+                                            <li>Any packet where Dasha looks directionally wrong even though the pipeline completed.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    {selectedRun ? (
+                                        <>
+                                            <ReadOnlyTextCard title="Selected Dasha run" text={`${selectedRun.id}\nStatus: ${selectedRun.status}\nRun mode: ${selectedRun.runMode}`} />
+                                            <ReadOnlyTextCard title="Clustering notes" text={selectedRun.clusteringNotes ?? 'No clustering notes saved for this run.'} />
+                                        </>
+                                    ) : (
+                                        <EmptyPanelCopy text="Run Dasha first, then use Zak as the review handoff block for unstable or questionable outcomes." />
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </>
@@ -2104,8 +1577,8 @@ export default function LegalWorkflowPage() {
         return (
             <AppShell
                 eyebrow="Workflow v2"
-                title="Frank V2 SoF Pipeline"
-                subtitle="Strict Statute-of-Frauds packet generation with phase-based Frank drafting, row-based Karthic rubrics, and row/module Dasha scoring."
+                title="FKD Pipeline Redo"
+                subtitle="A grouped Frank / Karthic / Dasha / Zak workflow with smaller substeps inside each block."
             >
                 <div className="space-y-6">
                     <Banner tone="info" text="Loading Frank v2 workflow data..." />
@@ -2117,8 +1590,8 @@ export default function LegalWorkflowPage() {
     return (
         <AppShell
             eyebrow="Workflow v2"
-            title="Frank V2 SoF Pipeline"
-            subtitle="Strict Statute-of-Frauds packet generation with phase-based Frank drafting, row-based Karthic rubrics, and row/module Dasha scoring."
+            title="FKD Pipeline Redo"
+            subtitle="A grouped Frank / Karthic / Dasha / Zak workflow with smaller substeps inside each block."
         >
             <div className="space-y-6">
                 {isLoading ? <Banner tone="info" text="Loading Frank v2 workflow data..." /> : null}
@@ -2130,11 +1603,14 @@ export default function LegalWorkflowPage() {
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Pipeline Navigator</p>
                             <p className="mt-2 text-sm text-slate-600">
-                                One workflow stage is visible at a time. The Next button stays gated by the same packet validation and stop rules enforced on the server.
+                                One substep is visible at a time, but the navigator is grouped into the larger FKDZ blocks so the overall pipeline shape is easier to see.
                             </p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                            <p className="font-semibold text-slate-900">Workflow Stage {currentStageIndex + 1} of {stageViews.length}</p>
+                            <p className="font-semibold text-slate-900">Pipeline Block {currentBlockIndex + 1} of {blockViews.length}</p>
+                            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                Step {Math.max(currentBlockStepIndex + 1, 1)} of {currentBlock?.stages.length ?? 1} in {currentBlock?.title ?? 'Pipeline'}
+                            </p>
                             {getFrankPhaseNumber(currentStage.id) !== null ? (
                                 <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                                     Frank Phase {getFrankPhaseNumber(currentStage.id)} of {FRANK_PHASE_ORDER.length}
@@ -2143,20 +1619,39 @@ export default function LegalWorkflowPage() {
                             <p>{currentStage.title}</p>
                         </div>
                     </div>
-                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
-                        {stageViews.map((stage) => (
-                            <button
-                                key={stage.id}
-                                type="button"
-                                aria-current={stage.id === visibleStage ? 'step' : undefined}
-                                disabled={!stage.unlocked}
-                                className={buildStageButtonClassName(stage, stage.id === visibleStage)}
-                                onClick={() => goToStage(stage.id)}
+                    <div className="mt-4 grid gap-4 xl:grid-cols-4">
+                        {blockViews.map((block, index) => (
+                            <div
+                                key={block.id}
+                                className={buildBlockCardClassName(block, block.active)}
                             >
-                                <span className="text-xs font-semibold uppercase tracking-[0.12em]">{getNavigatorBadge(stage.id)}</span>
-                                <span className="mt-2 block text-sm font-semibold">{stage.shortLabel}</span>
-                                <span className="mt-1 block text-xs">{stage.statusLabel}</span>
-                            </button>
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Block {index + 1}</p>
+                                        <p className="mt-1 text-sm font-semibold">{block.title}</p>
+                                        <p className="mt-1 text-xs">{block.statusLabel}</p>
+                                    </div>
+                                </div>
+                                <p className="mt-3 text-sm text-slate-600">{block.description}</p>
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                    {block.stages.map((stage) => (
+                                        <button
+                                            key={stage.id}
+                                            type="button"
+                                            aria-current={stage.id === visibleStage ? 'step' : undefined}
+                                            disabled={!stage.unlocked}
+                                            className={buildBlockStepButtonClassName(stage, stage.id === visibleStage)}
+                                            onClick={() => goToStage(stage.id)}
+                                        >
+                                            <span className="block text-[11px] font-semibold uppercase tracking-[0.12em]">
+                                                {getNavigatorBadge(stage.id)}
+                                            </span>
+                                            <span className="mt-1 block text-sm font-semibold">{stage.shortLabel}</span>
+                                            <span className="mt-1 block text-xs">{stage.statusLabel}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         ))}
                     </div>
                 </Panel>
@@ -2246,6 +1741,8 @@ function getNavigatorBadge(stageId: WorkflowStageId) {
             return 'Rubric';
         case 'judge':
             return 'Judge';
+        case 'zak':
+            return 'Zak';
         default:
             return 'Stage';
     }
@@ -2326,10 +1823,6 @@ function sortRuns(items: DashaRunV2[]) {
     return [...items].sort((left, right) => String(right.completedAt ?? right.createdAt).localeCompare(String(left.completedAt ?? left.createdAt)));
 }
 
-function sortComparisons(items: DashaComparisonV2[]) {
-    return [...items].sort((left, right) => String(right.completedAt ?? right.createdAt).localeCompare(String(left.completedAt ?? left.createdAt)));
-}
-
 function splitLines(value: string) {
     return value
         .split('\n')
@@ -2337,20 +1830,36 @@ function splitLines(value: string) {
         .filter(Boolean);
 }
 
-function buildStageButtonClassName(stage: WorkflowStageView, isCurrent: boolean) {
+function buildBlockCardClassName(block: WorkflowBlockView, isCurrent: boolean) {
     if (isCurrent) {
-        return 'rounded-2xl border border-teal-300 bg-teal-50 px-4 py-4 text-left text-teal-900 shadow-[0_10px_25px_rgba(13,148,136,0.12)]';
+        return 'rounded-2xl border border-teal-300 bg-teal-50 p-4 text-left text-teal-900 shadow-[0_10px_25px_rgba(13,148,136,0.12)]';
+    }
+    if (!block.unlocked) {
+        return 'rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left text-slate-400';
+    }
+    if (block.complete) {
+        return 'rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-left text-emerald-900';
+    }
+    if (block.blocked) {
+        return 'rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left text-amber-900';
+    }
+    return 'rounded-2xl border border-slate-200 bg-white p-4 text-left text-slate-700';
+}
+
+function buildBlockStepButtonClassName(stage: WorkflowStageView, isCurrent: boolean) {
+    if (isCurrent) {
+        return 'min-w-[132px] rounded-xl border border-teal-300 bg-white px-3 py-3 text-left text-teal-900 shadow-[0_8px_20px_rgba(13,148,136,0.12)]';
     }
     if (!stage.unlocked) {
-        return 'rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-left text-slate-400';
+        return 'min-w-[132px] rounded-xl border border-slate-200 bg-slate-100 px-3 py-3 text-left text-slate-400';
     }
     if (stage.complete) {
-        return 'rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-left text-emerald-900';
+        return 'min-w-[132px] rounded-xl border border-emerald-200 bg-white px-3 py-3 text-left text-emerald-900';
     }
     if (stage.blocked) {
-        return 'rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-left text-amber-900';
+        return 'min-w-[132px] rounded-xl border border-amber-200 bg-white px-3 py-3 text-left text-amber-900';
     }
-    return 'rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left text-slate-700';
+    return 'min-w-[132px] rounded-xl border border-slate-200 bg-white px-3 py-3 text-left text-slate-700';
 }
 
 function buildStagePromptPreview(input: {
@@ -2388,6 +1897,8 @@ function buildStagePromptPreview(input: {
                 ].join('\n'),
             };
         }
+        case 'zak':
+            return null;
         default:
             return null;
     }
@@ -2733,23 +2244,6 @@ function ReadOnlyTextCard({ title, text }: { title: string; text: string }) {
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{title}</p>
             <pre className="whitespace-pre-wrap text-sm text-slate-700">{text}</pre>
-        </div>
-    );
-}
-
-function ReadOnlyListCard({ title, items, emptyText }: { title: string; items: string[]; emptyText: string }) {
-    return (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{title}</p>
-            {items.length > 0 ? (
-                <ul className="space-y-1 text-sm text-slate-700">
-                    {items.map((item, index) => (
-                        <li key={`${title}_${index}`}>• {item}</li>
-                    ))}
-                </ul>
-            ) : (
-                <p className="text-sm text-slate-500">{emptyText}</p>
-            )}
         </div>
     );
 }

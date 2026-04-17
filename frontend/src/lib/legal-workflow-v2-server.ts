@@ -9,11 +9,7 @@ import { promisify } from 'util';
 
 import OpenAI from 'openai';
 
-import {
-    buildDashaComparisonSummary,
-    buildDashaModelSummaries,
-    validateLaneAComparisonCandidate,
-} from '@/lib/dasha-comparison';
+import { buildDashaModelSummaries } from '@/lib/dasha-comparison';
 import {
     DEFAULT_PROMPT_GENERATION_SETTINGS_BY_KIND,
     FRANK_V2_BENCHMARK_HEADING_ALIASES,
@@ -42,8 +38,6 @@ import type {
     ConfusionPattern,
     DashaClusterRecord,
     DashaComparisonRole,
-    DashaComparisonSummary,
-    DashaComparisonV2,
     DashaModelSummary,
     DashaResponseRecord,
     DashaRunMode,
@@ -89,18 +83,14 @@ import type {
     WeightedSummary,
 } from '@/lib/legal-workflow-v2-types';
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-
 const execFileAsync = promisify(execFile);
 let pdfWorkerConfigured = false;
+let openaiClient: OpenAI | null = null;
 
 const DATA_DIRECTORIES = {
     frank: 'frank-v2-packets',
     karthic: 'karthic-v2-rubric-packs',
     dasha: 'dasha-v2-runs',
-    dashaComparisons: 'dasha-v2-comparisons',
     artifacts: 'artifacts-v2',
 } as const;
 
@@ -118,8 +108,6 @@ const VARIATION_PACKAGE_STATUSES = new Set<VariationPackageStatus>(['safe', 'uns
 const VARIATION_EXPECTED_RESULT_TYPES = new Set<VariationExpectedResultType>(['same_likely_outcome', 'same_doctrine_different_fact_salience', 'missing_facts_bounded_uncertainty', 'unsafe_to_vary']);
 const VARIATION_CONFUSION_PATTERNS = new Set<ConfusionPattern>(['dual_trigger', 'priority', 'split_transaction', 'needs_classification_first']);
 const RUBRIC_QUESTION_SOURCES = new Set<QuestionSource>(['canonical', 'question_variance_active_package']);
-const DASHA_COMPARISON_ROLES = new Set<DashaComparisonRole>(['baseline', 'variant']);
-
 const VALID_BENCHMARK_POSTURES = new Set<BenchmarkPosture>([
     'narrow_source_grounded_benchmark_only',
     'generalizable_only_with_supporting_authority',
@@ -734,8 +722,6 @@ export async function getKarthicRubricPack(id: string) {
 export async function generateKarthicRubricPack(input: {
     frankPacketId: string;
     id?: string;
-    questionSource?: QuestionSource;
-    questionVariancePackageId?: string | null;
     model?: string;
     reasoningEffort?: ReasoningEffort;
 }) {
@@ -748,18 +734,12 @@ export async function generateKarthicRubricPack(input: {
     }
 
     const assets = await getFrankV2AssetBundle(frankPacket.selectedPack);
-    const resolvedQuestionSource = normalizeQuestionSource(input.questionSource, 'canonical');
-    const resolvedQuestion = resolveRubricQuestionSource({
-        packet: frankPacket,
-        questionSource: resolvedQuestionSource,
-        questionVariancePackageId: input.questionVariancePackageId,
-    });
     const existing = input.id ? await getKarthicRubricPack(input.id) : null;
     const prompt = buildKarthicRowsPrompt({
         packet: frankPacket,
         assets,
-        questionText: resolvedQuestion.questionText,
-        questionSourceLabel: resolvedQuestionSource === 'canonical' ? 'Canonical reverse-engineered question' : 'Active QuestionVariance package',
+        questionText: frankPacket.reverseEngineeredQuestion,
+        questionSourceLabel: 'Canonical reverse-engineered question',
     });
     const generationSettings = withUpdatedPromptGenerationSetting(
         existing?.generationSettings,
@@ -782,9 +762,9 @@ export async function generateKarthicRubricPack(input: {
         id: existing?.id ?? `karthic_v2_${Date.now()}_${randomUUID().slice(0, 8)}`,
         frankPacketId: frankPacket.id,
         selectedPack: frankPacket.selectedPack,
-        questionSource: resolvedQuestionSource,
-        questionVariancePackageId: resolvedQuestion.questionVariancePackageId,
-        questionText: resolvedQuestion.questionText,
+        questionSource: 'canonical',
+        questionVariancePackageId: null,
+        questionText: frankPacket.reverseEngineeredQuestion,
         status: existing?.status ?? 'draft',
         rows,
         generationSettings,
@@ -814,21 +794,15 @@ export async function saveKarthicRubricPack(input: Partial<KarthicRubricPackV2> 
     const existing = input.id ? await getKarthicRubricPack(input.id) : null;
     const frankPacket = await getRequiredFrankPacket(input.frankPacketId);
     const now = new Date().toISOString();
-    const questionSource = normalizeQuestionSource(input.questionSource ?? existing?.questionSource, 'canonical');
-    const resolvedQuestion = resolveRubricQuestionSource({
-        packet: frankPacket,
-        questionSource,
-        questionVariancePackageId: input.questionVariancePackageId ?? existing?.questionVariancePackageId ?? null,
-        fallbackQuestionText: normalizeOptionalString(input.questionText, existing?.questionText ?? frankPacket.reverseEngineeredQuestion),
-    });
+    const questionText = normalizeOptionalString(input.questionText, existing?.questionText ?? frankPacket.reverseEngineeredQuestion);
     const pack: KarthicRubricPackV2 = {
         schemaVersion: 2,
         id: existing?.id ?? normalizeNonEmptyString(input.id, `karthic_v2_${Date.now()}_${randomUUID().slice(0, 8)}`),
         frankPacketId: frankPacket.id,
         selectedPack: frankPacket.selectedPack as FrankSofPackId,
-        questionSource,
-        questionVariancePackageId: resolvedQuestion.questionVariancePackageId,
-        questionText: resolvedQuestion.questionText,
+        questionSource: 'canonical',
+        questionVariancePackageId: null,
+        questionText,
         status: input.status === 'approved' ? 'approved' : existing?.status ?? 'draft',
         rows: normalizeRubricRows(input.rows ?? existing?.rows ?? []),
         savedPrompts: Array.isArray(input.savedPrompts) ? input.savedPrompts : existing?.savedPrompts ?? [],
@@ -864,18 +838,6 @@ export async function getDashaRun(id: string) {
     return item ? normalizeDashaRun(item) : null;
 }
 
-export async function listDashaComparisons() {
-    const items = await listArtifacts<Record<string, unknown>>(DATA_DIRECTORIES.dashaComparisons);
-    return items
-        .map((item) => normalizeDashaComparison(item))
-        .filter((item): item is DashaComparisonV2 => Boolean(item));
-}
-
-export async function getDashaComparison(id: string) {
-    const item = await readArtifact<Record<string, unknown>>(DATA_DIRECTORIES.dashaComparisons, id);
-    return item ? normalizeDashaComparison(item) : null;
-}
-
 export async function runDashaEvaluation(input: {
     rubricPackId: string;
     runMode: DashaRunMode;
@@ -883,10 +845,6 @@ export async function runDashaEvaluation(input: {
     selectedModels: DashaSelectedModel[];
     sampleCount: number;
     questionText?: string;
-    questionSource?: QuestionSource;
-    questionVariancePackageId?: string | null;
-    comparisonId?: string | null;
-    comparisonRole?: DashaComparisonRole | null;
 }) {
     const pack = await getRequiredKarthicPack(input.rubricPackId);
     if (pack.status !== 'approved') {
@@ -899,10 +857,6 @@ export async function runDashaEvaluation(input: {
         selectedModels: input.selectedModels,
         sampleCount: input.sampleCount,
         questionText: input.questionText,
-        questionSource: input.questionSource,
-        questionVariancePackageId: input.questionVariancePackageId,
-        comparisonId: input.comparisonId,
-        comparisonRole: input.comparisonRole,
     });
 }
 
@@ -916,113 +870,6 @@ export async function executeDashaRun(id: string) {
         run,
         pack,
     });
-}
-
-export async function runDashaComparison(input: {
-    rubricPackId: string;
-    questionVariancePackageId: string;
-    selectedModels: DashaSelectedModel[];
-    sampleCount: number;
-}) {
-    const pack = await getRequiredKarthicPack(input.rubricPackId);
-    if (pack.status !== 'approved') {
-        throw new Error('Rubric pack must be approved before Dasha comparison can start.');
-    }
-
-    const frankPacket = await getRequiredFrankPacket(pack.frankPacketId);
-    const questionVariance = normalizeQuestionVarianceState(frankPacket.questionVariance);
-    const targetPackage = questionVariance.packages.find((item) => item.id === input.questionVariancePackageId);
-    validateLaneAComparisonCandidate({
-        rubricPack: pack,
-        questionVariancePackage: targetPackage ?? null,
-    });
-    const comparisonPackage = targetPackage as NonNullable<typeof targetPackage>;
-
-    const selectedOption = questionVariance.menu?.options.find((item) => item.id === comparisonPackage.selectedOptionId) ?? null;
-    const id = `dasha_cmp_${Date.now()}_${randomUUID().slice(0, 8)}`;
-    const baselineRun = await createDraftDashaRun({
-        pack,
-        runMode: 'score_and_cluster',
-        files: [],
-        selectedModels: input.selectedModels,
-        sampleCount: input.sampleCount,
-        questionText: pack.questionText,
-        questionSource: 'canonical',
-        questionVariancePackageId: null,
-        comparisonId: id,
-        comparisonRole: 'baseline',
-    });
-    const variantRun = await createDraftDashaRun({
-        pack,
-        runMode: 'score_and_cluster',
-        files: [],
-        selectedModels: input.selectedModels,
-        sampleCount: input.sampleCount,
-        questionText: comparisonPackage.variedLegalQuestion,
-        questionSource: 'question_variance_active_package',
-        questionVariancePackageId: comparisonPackage.id,
-        comparisonId: id,
-        comparisonRole: 'variant',
-    });
-
-    const now = new Date().toISOString();
-    const comparison: DashaComparisonV2 = {
-        schemaVersion: 2,
-        id,
-        status: 'draft',
-        frankPacketId: frankPacket.id,
-        rubricPackId: pack.id,
-        questionVariancePackageId: comparisonPackage.id,
-        variationLabel: selectedOption?.label ?? comparisonPackage.variationType,
-        variationType: comparisonPackage.variationType,
-        baselineQuestionText: pack.questionText,
-        variantQuestionText: comparisonPackage.variedLegalQuestion,
-        baselineRunId: baselineRun.id,
-        variantRunId: variantRun.id,
-        selectedModels: input.selectedModels,
-        requestedResponseCount: clampNumber(Math.floor(toNumber(input.sampleCount, 120)), 1, 400),
-        summary: null,
-        createdAt: now,
-        completedAt: null,
-    };
-    await writeArtifact(DATA_DIRECTORIES.dashaComparisons, comparison.id, comparison);
-    return comparison;
-}
-
-export async function executeDashaComparison(id: string) {
-    const comparison = await getRequiredDashaComparison(id);
-    if (comparison.status !== 'draft') {
-        return comparison;
-    }
-
-    const baselineRun = await executeDashaRun(comparison.baselineRunId);
-    const variantRun = await executeDashaRun(comparison.variantRunId);
-
-    if (baselineRun.status === 'failed' || variantRun.status === 'failed') {
-        const failedComparison: DashaComparisonV2 = {
-            ...comparison,
-            status: 'failed',
-            summary: null,
-            errorMessage: baselineRun.status === 'failed'
-                ? baselineRun.errorMessage || 'Baseline run failed during Lane A comparison.'
-                : variantRun.errorMessage || 'Variant run failed during Lane A comparison.',
-            completedAt: new Date().toISOString(),
-        };
-        await writeArtifact(DATA_DIRECTORIES.dashaComparisons, failedComparison.id, failedComparison);
-        return failedComparison;
-    }
-
-    const completedComparison: DashaComparisonV2 = {
-        ...comparison,
-        status: 'completed',
-        summary: buildDashaComparisonSummary({
-            baselineRun,
-            variantRun,
-        }),
-        completedAt: new Date().toISOString(),
-    };
-    await writeArtifact(DATA_DIRECTORIES.dashaComparisons, completedComparison.id, completedComparison);
-    return completedComparison;
 }
 
 export function buildJudgeRubricFromPack(pack: KarthicRubricPackV2) {
@@ -1051,10 +898,6 @@ async function createDraftDashaRun(input: {
     selectedModels: DashaSelectedModel[];
     sampleCount: number;
     questionText?: string;
-    questionSource?: QuestionSource;
-    questionVariancePackageId?: string | null;
-    comparisonId?: string | null;
-    comparisonRole?: DashaComparisonRole | null;
 }) {
     const id = `dasha_v2_${Date.now()}_${randomUUID().slice(0, 8)}`;
     const now = new Date().toISOString();
@@ -1067,12 +910,10 @@ async function createDraftDashaRun(input: {
         status: 'draft',
         inputArtifacts,
         questionText: normalizeNonEmptyString(input.questionText, input.pack.questionText),
-        questionSource: normalizeQuestionSource(input.questionSource, input.pack.questionSource),
-        questionVariancePackageId: input.questionVariancePackageId === undefined
-            ? normalizeNullableString(input.pack.questionVariancePackageId)
-            : normalizeNullableString(input.questionVariancePackageId),
-        comparisonId: normalizeNullableString(input.comparisonId),
-        comparisonRole: normalizeDashaComparisonRole(input.comparisonRole),
+        questionSource: 'canonical',
+        questionVariancePackageId: null,
+        comparisonId: null,
+        comparisonRole: null,
         selectedModels: input.selectedModels,
         requestedResponseCount: clampNumber(Math.floor(toNumber(input.sampleCount, 120)), 1, 400),
         validResponseCount: 0,
@@ -1414,7 +1255,7 @@ async function generateJson(input: {
                 summary: 'auto',
             };
         }
-        const response = await openai.responses.create(request);
+        const response = await getOpenAiClient().responses.create(request);
         const parsed = safeJsonParse<Record<string, unknown>>(extractResponsesText(response));
         if (!parsed) {
             throw new Error('Model returned invalid JSON.');
@@ -2161,35 +2002,6 @@ function sortVariationPackagesByNewest(packages: QuestionVariancePackage[]) {
     return [...packages].sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)));
 }
 
-function resolveRubricQuestionSource(input: {
-    packet: FrankPacketV2;
-    questionSource: QuestionSource;
-    questionVariancePackageId?: string | null;
-    fallbackQuestionText?: string;
-}) {
-    if (input.questionSource === 'canonical') {
-        return {
-            questionSource: input.questionSource,
-            questionVariancePackageId: null,
-            questionText: normalizeNonEmptyString(input.packet.reverseEngineeredQuestion, input.fallbackQuestionText ?? ''),
-        };
-    }
-    const questionVariance = normalizeQuestionVarianceState(input.packet.questionVariance);
-    const targetPackageId = normalizeNullableString(input.questionVariancePackageId) ?? questionVariance.activePackageId;
-    if (!targetPackageId) {
-        throw new Error('Select an active QuestionVariance package before using it as the rubric question source.');
-    }
-    const targetPackage = questionVariance.packages.find((item) => item.id === targetPackageId);
-    if (!targetPackage || !targetPackage.variedLegalQuestion.trim()) {
-        throw new Error('The selected QuestionVariance package is not available on this Frank packet.');
-    }
-    return {
-        questionSource: input.questionSource,
-        questionVariancePackageId: targetPackage.id,
-        questionText: targetPackage.variedLegalQuestion,
-    };
-}
-
 function buildQuestionVarianceOptionId(input: {
     id: string | null;
     lane: VariationLane;
@@ -2291,32 +2103,6 @@ function normalizeDashaRun(value: unknown): DashaRunV2 | null {
         modelSummaries: normalizeDashaModelSummaries(value.modelSummaries),
         clusteringMethod: normalizeOptionalString(value.clusteringMethod, 'unknown'),
         clusteringNotes: typeof value.clusteringNotes === 'string' ? value.clusteringNotes : null,
-        errorMessage: typeof value.errorMessage === 'string' ? value.errorMessage : undefined,
-        createdAt: normalizeNonEmptyString(value.createdAt, new Date().toISOString()),
-        completedAt: typeof value.completedAt === 'string' ? value.completedAt : null,
-    };
-}
-
-function normalizeDashaComparison(value: unknown): DashaComparisonV2 | null {
-    if (!isRecord(value) || value.schemaVersion !== 2) {
-        return null;
-    }
-    return {
-        schemaVersion: 2,
-        id: normalizeNonEmptyString(value.id, `dasha_cmp_${randomUUID().slice(0, 8)}`),
-        status: value.status === 'completed' || value.status === 'failed' ? value.status : 'draft',
-        frankPacketId: normalizeNonEmptyString(value.frankPacketId, ''),
-        rubricPackId: normalizeNonEmptyString(value.rubricPackId, ''),
-        questionVariancePackageId: normalizeNonEmptyString(value.questionVariancePackageId, ''),
-        variationLabel: normalizeNonEmptyString(value.variationLabel, 'Lane A variation'),
-        variationType: normalizeNonEmptyString(value.variationType, 'Variation type unavailable'),
-        baselineQuestionText: normalizeOptionalString(value.baselineQuestionText, ''),
-        variantQuestionText: normalizeOptionalString(value.variantQuestionText, ''),
-        baselineRunId: normalizeNonEmptyString(value.baselineRunId, ''),
-        variantRunId: normalizeNonEmptyString(value.variantRunId, ''),
-        selectedModels: Array.isArray(value.selectedModels) ? value.selectedModels as DashaSelectedModel[] : [],
-        requestedResponseCount: clampNumber(Math.floor(toNumber(value.requestedResponseCount, 120)), 1, 400),
-        summary: normalizeDashaComparisonSummary(value.summary),
         errorMessage: typeof value.errorMessage === 'string' ? value.errorMessage : undefined,
         createdAt: normalizeNonEmptyString(value.createdAt, new Date().toISOString()),
         completedAt: typeof value.completedAt === 'string' ? value.completedAt : null,
@@ -2563,9 +2349,7 @@ function normalizeQuestionSource(value: unknown, fallback: QuestionSource): Ques
 }
 
 function normalizeDashaComparisonRole(value: unknown): DashaComparisonRole | null {
-    return typeof value === 'string' && DASHA_COMPARISON_ROLES.has(value as DashaComparisonRole)
-        ? value as DashaComparisonRole
-        : null;
+    return value === 'baseline' || value === 'variant' ? value : null;
 }
 
 function normalizeRoutingConfidence(value: unknown): RoutingConfidence | null {
@@ -2717,65 +2501,6 @@ function normalizeDashaModelSummary(value: unknown): DashaModelSummary | null {
     };
 }
 
-function normalizeDashaComparisonSummary(value: unknown): DashaComparisonSummary | null {
-    if (!isRecord(value)) {
-        return null;
-    }
-    return {
-        baselineWeightedScore: typeof value.baselineWeightedScore === 'number' ? value.baselineWeightedScore : null,
-        variantWeightedScore: typeof value.variantWeightedScore === 'number' ? value.variantWeightedScore : null,
-        weightedScoreDelta: typeof value.weightedScoreDelta === 'number' ? value.weightedScoreDelta : null,
-        moduleDeltas: Array.isArray(value.moduleDeltas)
-            ? value.moduleDeltas
-                .map((item) => {
-                    if (!isRecord(item)) {
-                        return null;
-                    }
-                    const moduleId = typeof item.moduleId === 'string' && MODULE_IDS.has(item.moduleId as RubricModuleId)
-                        ? item.moduleId as RubricModuleId
-                        : null;
-                    if (!moduleId) {
-                        return null;
-                    }
-                    return {
-                        moduleId,
-                        label: normalizeNonEmptyString(item.label, moduleId),
-                        baselineScore: typeof item.baselineScore === 'number' ? item.baselineScore : null,
-                        variantScore: typeof item.variantScore === 'number' ? item.variantScore : null,
-                        scoreDelta: typeof item.scoreDelta === 'number' ? item.scoreDelta : null,
-                    };
-                })
-                .filter((item): item is NonNullable<DashaComparisonSummary['moduleDeltas'][number]> => Boolean(item))
-            : [],
-        modelDeltas: Array.isArray(value.modelDeltas)
-            ? value.modelDeltas
-                .map((item) => {
-                    if (!isRecord(item)) {
-                        return null;
-                    }
-                    const modelKey = normalizeNonEmptyString(item.modelKey, '');
-                    if (!modelKey) {
-                        return null;
-                    }
-                    const parsed = parseModelKey(modelKey);
-                    return {
-                        modelKey,
-                        provider: typeof item.provider === 'string' ? item.provider as ModelProvider : parsed.provider,
-                        model: normalizeNonEmptyString(item.model, parsed.model),
-                        baselineScore: typeof item.baselineScore === 'number' ? item.baselineScore : null,
-                        variantScore: typeof item.variantScore === 'number' ? item.variantScore : null,
-                        scoreDelta: typeof item.scoreDelta === 'number' ? item.scoreDelta : null,
-                        baselineDominantClusterId: normalizeNullableString(item.baselineDominantClusterId),
-                        variantDominantClusterId: normalizeNullableString(item.variantDominantClusterId),
-                        baselineValidCount: clampNumber(Math.floor(toNumber(item.baselineValidCount, 0)), 0, 400),
-                        variantValidCount: clampNumber(Math.floor(toNumber(item.variantValidCount, 0)), 0, 400),
-                    };
-                })
-                .filter((item): item is NonNullable<DashaComparisonSummary['modelDeltas'][number]> => Boolean(item))
-            : [],
-    };
-}
-
 function normalizeNonEmptyString(value: unknown, fallback: string) {
     return typeof value === 'string' && value.trim() ? value.trim() : fallback;
 }
@@ -2856,6 +2581,15 @@ function requireOpenAiApiKey(operation: string) {
     if (!process.env.OPENAI_API_KEY?.trim()) {
         throw new Error(`${operation} failed: OPENAI_API_KEY is not set.`);
     }
+}
+
+function getOpenAiClient() {
+    if (!openaiClient) {
+        openaiClient = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+    }
+    return openaiClient;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -2960,14 +2694,6 @@ async function getRequiredDashaRun(id: string) {
     return run;
 }
 
-async function getRequiredDashaComparison(id: string) {
-    const comparison = await getDashaComparison(id);
-    if (!comparison) {
-        throw new Error('Dasha comparison not found.');
-    }
-    return comparison;
-}
-
 async function generateModelResponse({ provider, model, systemPrompt, messages, temperature, reasoningEffort }: GenerateModelOptions) {
     if (provider === 'anthropic') {
         return await generateAnthropicResponse({ model, systemPrompt, messages, temperature });
@@ -2999,10 +2725,10 @@ async function generateModelResponse({ provider, model, systemPrompt, messages, 
                 summary: 'auto',
             };
         }
-        const response = await openai.responses.create(request);
+        const response = await getOpenAiClient().responses.create(request);
         return extractResponsesText(response);
     }
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAiClient().chat.completions.create({
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
         temperature,
