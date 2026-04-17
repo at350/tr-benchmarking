@@ -21,11 +21,14 @@ export function DashaComparisonResults({
     variantRun,
     onOpenRun,
 }: DashaComparisonResultsProps) {
+    const comparisonLabel = comparison?.comparisonKind === 'lane_b' ? 'Lane B evaluation' : 'Lane A comparison';
+    const variantLabel = comparison?.comparisonKind === 'lane_b' ? 'Lane B variant' : 'Lane A variant';
+
     if (!comparison) {
         return (
             <EmptyState
-                title="No Lane A comparison selected"
-                description="Start a paired comparison or select a saved one to inspect baseline-vs-variant score deltas."
+                title="No Dasha comparison selected"
+                description="Start a Lane A comparison or a Lane B evaluation to inspect baseline-vs-variant scoring."
                 icon={<GitCompareArrows className="h-5 w-5" />}
             />
         );
@@ -40,14 +43,21 @@ export function DashaComparisonResults({
             ) : null}
             {comparison.status === 'draft' ? (
                 <Notice tone="info" title="Comparison in progress">
-                    Dasha is running the canonical baseline first and the Lane A variant second.
+                    {comparison.comparisonKind === 'lane_b'
+                        ? 'Dasha is running the canonical baseline first and the Lane B variant second, using a variant-specific rubric for the second run.'
+                        : 'Dasha is running the canonical baseline first and the Lane A variant second.'}
+                </Notice>
+            ) : null}
+            {comparison.summaryComparability === 'directional_only' ? (
+                <Notice tone="info" title="Directional comparison">
+                    Lane B uses a variant-specific rubric for the varied question. Weighted, module, and model deltas are directional signals rather than strict apples-to-apples scores.
                 </Notice>
             ) : null}
 
             <section className="rounded-[28px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.12),_transparent_42%),radial-gradient(circle_at_bottom_right,_rgba(30,64,175,0.10),_transparent_40%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-[0_16px_36px_rgba(15,23,42,0.06)]">
                 <div className="grid gap-4 xl:grid-cols-[1.4fr_repeat(3,minmax(0,1fr))]">
                     <div className="rounded-2xl border border-slate-200 bg-white/90 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Lane A comparison</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{comparisonLabel}</p>
                         <p className="mt-2 text-lg font-semibold text-slate-900">{comparison.variationLabel}</p>
                         <p className="mt-1 text-sm text-slate-600">{comparison.variationType}</p>
                         <div className="mt-4 flex flex-wrap gap-2">
@@ -81,19 +91,27 @@ export function DashaComparisonResults({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Underlying runs</p>
-                        <p className="mt-1 text-sm text-slate-600">Both child runs remain inspectable through the existing Dasha explorer.</p>
+                        <p className="mt-1 text-sm text-slate-600">
+                            {comparison.comparisonKind === 'lane_b'
+                                ? 'Both child runs remain inspectable through the existing Dasha explorer, with the variant run scored against its variant-specific rubric.'
+                                : 'Both child runs remain inspectable through the existing Dasha explorer.'}
+                        </p>
                     </div>
                 </div>
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
                     <RunCard title="Canonical baseline" run={baselineRun} fallbackId={comparison.baselineRunId} onOpenRun={onOpenRun} />
-                    <RunCard title="Lane A variant" run={variantRun} fallbackId={comparison.variantRunId} onOpenRun={onOpenRun} />
+                    <RunCard title={variantLabel} run={variantRun} fallbackId={comparison.variantRunId} onOpenRun={onOpenRun} />
                 </div>
             </section>
 
             <section className={panelClassName}>
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Module deltas</p>
-                    <p className="mt-1 text-sm text-slate-600">Each row shows the module average for the baseline run versus the varied-question run.</p>
+                    <p className="mt-1 text-sm text-slate-600">
+                        {comparison.summaryComparability === 'directional_only'
+                            ? 'Each row shows the module average for the baseline run versus the varied-question run, but interpret the delta directionally because the rubrics differ.'
+                            : 'Each row shows the module average for the baseline run versus the varied-question run.'}
+                    </p>
                 </div>
                 {comparison.summary?.moduleDeltas.length ? (
                     <div className="mt-4 overflow-x-auto">
@@ -126,7 +144,11 @@ export function DashaComparisonResults({
             <section className={panelClassName}>
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Per-model deltas</p>
-                    <p className="mt-1 text-sm text-slate-600">The score delta is based on propagated cluster scores inside each completed run, not direct cluster matching across runs.</p>
+                    <p className="mt-1 text-sm text-slate-600">
+                        {comparison.summaryComparability === 'directional_only'
+                            ? 'The score delta is based on propagated cluster scores inside each completed run. Because Lane B uses a different rubric for the variant, read these as directional shifts rather than direct cluster-to-cluster matches.'
+                            : 'The score delta is based on propagated cluster scores inside each completed run, not direct cluster matching across runs.'}
+                    </p>
                 </div>
                 {comparison.summary?.modelDeltas.length ? (
                     <div className="mt-4 overflow-x-auto">

@@ -13,6 +13,7 @@ import {
     buildDashaComparisonSummary,
     buildDashaModelSummaries,
     validateLaneAComparisonCandidate,
+    validateLaneBComparisonCandidate,
 } from '@/lib/dasha-comparison';
 import {
     DEFAULT_PROMPT_GENERATION_SETTINGS_BY_KIND,
@@ -41,7 +42,9 @@ import type {
     BenchmarkPosture,
     ConfusionPattern,
     DashaClusterRecord,
+    DashaComparisonKind,
     DashaComparisonRole,
+    DashaComparisonSummaryComparability,
     DashaComparisonSummary,
     DashaComparisonV2,
     DashaModelSummary,
@@ -119,6 +122,8 @@ const VARIATION_EXPECTED_RESULT_TYPES = new Set<VariationExpectedResultType>(['s
 const VARIATION_CONFUSION_PATTERNS = new Set<ConfusionPattern>(['dual_trigger', 'priority', 'split_transaction', 'needs_classification_first']);
 const RUBRIC_QUESTION_SOURCES = new Set<QuestionSource>(['canonical', 'question_variance_active_package']);
 const DASHA_COMPARISON_ROLES = new Set<DashaComparisonRole>(['baseline', 'variant']);
+const DASHA_COMPARISON_KINDS = new Set<DashaComparisonKind>(['lane_a', 'lane_b']);
+const DASHA_COMPARISON_SUMMARY_COMPARABILITIES = new Set<DashaComparisonSummaryComparability>(['same_rubric', 'directional_only']);
 
 const VALID_BENCHMARK_POSTURES = new Set<BenchmarkPosture>([
     'narrow_source_grounded_benchmark_only',
@@ -731,6 +736,63 @@ export async function getKarthicRubricPack(id: string) {
     return item ? normalizeKarthicRubricPack(item) : null;
 }
 
+function sortRubricPacksByNewest(packs: KarthicRubricPackV2[]) {
+    return [...packs].sort((left, right) => String(right.updatedAt ?? right.createdAt).localeCompare(String(left.updatedAt ?? left.createdAt)));
+}
+
+function findMatchingLaneBVariantRubricPacks(input: {
+    rubricPacks: KarthicRubricPackV2[];
+    frankPacketId: string;
+    questionVariancePackageId: string;
+}) {
+    const matching = sortRubricPacksByNewest(
+        input.rubricPacks.filter((pack) =>
+            pack.frankPacketId === input.frankPacketId
+            && pack.questionSource === 'question_variance_active_package'
+            && pack.questionVariancePackageId === input.questionVariancePackageId,
+        ),
+    );
+
+    return {
+        draft: matching.find((pack) => pack.status === 'draft') ?? null,
+        approved: matching.find((pack) => pack.status === 'approved') ?? null,
+        all: matching,
+    };
+}
+
+export async function prepareLaneBVariantRubricPack(input: {
+    frankPacketId: string;
+    questionVariancePackageId: string;
+    model?: string;
+    reasoningEffort?: ReasoningEffort;
+}) {
+    const frankPacket = await getRequiredFrankPacket(input.frankPacketId);
+    const questionVariance = normalizeQuestionVarianceState(frankPacket.questionVariance);
+    const targetPackage = questionVariance.packages.find((item) => item.id === input.questionVariancePackageId);
+    if (!targetPackage) {
+        throw new Error('Selected QuestionVariance package is not available on this Frank packet.');
+    }
+    if (targetPackage.lane !== 'lane_b') {
+        throw new Error('Lane B rubric preparation only supports QuestionVariance packages from lane_b.');
+    }
+
+    const rubricPacks = await listKarthicRubricPacks();
+    const matching = findMatchingLaneBVariantRubricPacks({
+        rubricPacks,
+        frankPacketId: frankPacket.id,
+        questionVariancePackageId: targetPackage.id,
+    });
+
+    return await generateKarthicRubricPack({
+        frankPacketId: frankPacket.id,
+        id: matching.draft?.id,
+        questionSource: 'question_variance_active_package',
+        questionVariancePackageId: targetPackage.id,
+        model: input.model,
+        reasoningEffort: input.reasoningEffort,
+    });
+}
+
 export async function generateKarthicRubricPack(input: {
     frankPacketId: string;
     id?: string;
@@ -760,6 +822,8 @@ export async function generateKarthicRubricPack(input: {
         assets,
         questionText: resolvedQuestion.questionText,
         questionSourceLabel: resolvedQuestionSource === 'canonical' ? 'Canonical reverse-engineered question' : 'Active QuestionVariance package',
+        questionVariancePackage: resolvedQuestion.questionVariancePackage,
+        canonicalQuestionText: frankPacket.reverseEngineeredQuestion,
     });
     const generationSettings = withUpdatedPromptGenerationSetting(
         existing?.generationSettings,
@@ -919,41 +983,59 @@ export async function executeDashaRun(id: string) {
 }
 
 export async function runDashaComparison(input: {
-    rubricPackId: string;
+    comparisonKind?: DashaComparisonKind;
+    baselineRubricPackId: string;
     questionVariancePackageId: string;
+    variantRubricPackId?: string;
     selectedModels: DashaSelectedModel[];
     sampleCount: number;
 }) {
-    const pack = await getRequiredKarthicPack(input.rubricPackId);
-    if (pack.status !== 'approved') {
-        throw new Error('Rubric pack must be approved before Dasha comparison can start.');
+    const comparisonKind = normalizeDashaComparisonKind(input.comparisonKind, 'lane_a');
+    const baselinePack = await getRequiredKarthicPack(input.baselineRubricPackId);
+    if (baselinePack.status !== 'approved') {
+        throw new Error('Baseline rubric pack must be approved before Dasha comparison can start.');
     }
 
-    const frankPacket = await getRequiredFrankPacket(pack.frankPacketId);
+    const frankPacket = await getRequiredFrankPacket(baselinePack.frankPacketId);
     const questionVariance = normalizeQuestionVarianceState(frankPacket.questionVariance);
     const targetPackage = questionVariance.packages.find((item) => item.id === input.questionVariancePackageId);
-    validateLaneAComparisonCandidate({
-        rubricPack: pack,
-        questionVariancePackage: targetPackage ?? null,
-    });
     const comparisonPackage = targetPackage as NonNullable<typeof targetPackage>;
+    const variantPack = comparisonKind === 'lane_b'
+        ? await getRequiredKarthicPack(normalizeNonEmptyString(input.variantRubricPackId, ''))
+        : baselinePack;
+
+    if (comparisonKind === 'lane_a') {
+        validateLaneAComparisonCandidate({
+            rubricPack: baselinePack,
+            questionVariancePackage: targetPackage ?? null,
+        });
+    } else {
+        validateLaneBComparisonCandidate({
+            baselineRubricPack: baselinePack,
+            variantRubricPack: variantPack,
+            questionVariancePackage: targetPackage ?? null,
+        });
+        if (variantPack.frankPacketId !== frankPacket.id) {
+            throw new Error('Lane B variant rubric pack is not linked to the same Frank packet as the baseline rubric.');
+        }
+    }
 
     const selectedOption = questionVariance.menu?.options.find((item) => item.id === comparisonPackage.selectedOptionId) ?? null;
     const id = `dasha_cmp_${Date.now()}_${randomUUID().slice(0, 8)}`;
     const baselineRun = await createDraftDashaRun({
-        pack,
+        pack: baselinePack,
         runMode: 'score_and_cluster',
         files: [],
         selectedModels: input.selectedModels,
         sampleCount: input.sampleCount,
-        questionText: pack.questionText,
+        questionText: baselinePack.questionText,
         questionSource: 'canonical',
         questionVariancePackageId: null,
         comparisonId: id,
         comparisonRole: 'baseline',
     });
     const variantRun = await createDraftDashaRun({
-        pack,
+        pack: variantPack,
         runMode: 'score_and_cluster',
         files: [],
         selectedModels: input.selectedModels,
@@ -970,17 +1052,20 @@ export async function runDashaComparison(input: {
         schemaVersion: 2,
         id,
         status: 'draft',
+        comparisonKind,
         frankPacketId: frankPacket.id,
-        rubricPackId: pack.id,
+        baselineRubricPackId: baselinePack.id,
+        variantRubricPackId: variantPack.id,
         questionVariancePackageId: comparisonPackage.id,
         variationLabel: selectedOption?.label ?? comparisonPackage.variationType,
         variationType: comparisonPackage.variationType,
-        baselineQuestionText: pack.questionText,
+        baselineQuestionText: baselinePack.questionText,
         variantQuestionText: comparisonPackage.variedLegalQuestion,
         baselineRunId: baselineRun.id,
         variantRunId: variantRun.id,
         selectedModels: input.selectedModels,
         requestedResponseCount: clampNumber(Math.floor(toNumber(input.sampleCount, 120)), 1, 400),
+        summaryComparability: comparisonKind === 'lane_b' ? 'directional_only' : 'same_rubric',
         summary: null,
         createdAt: now,
         completedAt: null,
@@ -1004,8 +1089,8 @@ export async function executeDashaComparison(id: string) {
             status: 'failed',
             summary: null,
             errorMessage: baselineRun.status === 'failed'
-                ? baselineRun.errorMessage || 'Baseline run failed during Lane A comparison.'
-                : variantRun.errorMessage || 'Variant run failed during Lane A comparison.',
+                ? baselineRun.errorMessage || `Baseline run failed during ${comparison.comparisonKind === 'lane_b' ? 'Lane B evaluation' : 'Lane A comparison'}.`
+                : variantRun.errorMessage || `Variant run failed during ${comparison.comparisonKind === 'lane_b' ? 'Lane B evaluation' : 'Lane A comparison'}.`,
             completedAt: new Date().toISOString(),
         };
         await writeArtifact(DATA_DIRECTORIES.dashaComparisons, failedComparison.id, failedComparison);
@@ -2172,6 +2257,7 @@ function resolveRubricQuestionSource(input: {
             questionSource: input.questionSource,
             questionVariancePackageId: null,
             questionText: normalizeNonEmptyString(input.packet.reverseEngineeredQuestion, input.fallbackQuestionText ?? ''),
+            questionVariancePackage: null,
         };
     }
     const questionVariance = normalizeQuestionVarianceState(input.packet.questionVariance);
@@ -2187,6 +2273,7 @@ function resolveRubricQuestionSource(input: {
         questionSource: input.questionSource,
         questionVariancePackageId: targetPackage.id,
         questionText: targetPackage.variedLegalQuestion,
+        questionVariancePackage: targetPackage,
     };
 }
 
@@ -2301,12 +2388,23 @@ function normalizeDashaComparison(value: unknown): DashaComparisonV2 | null {
     if (!isRecord(value) || value.schemaVersion !== 2) {
         return null;
     }
+    const comparisonKind = normalizeDashaComparisonKind(value.comparisonKind, 'lane_a');
+    const baselineRubricPackId = normalizeNonEmptyString(
+        value.baselineRubricPackId,
+        normalizeNonEmptyString(value.rubricPackId, ''),
+    );
+    const variantRubricPackId = normalizeNonEmptyString(
+        value.variantRubricPackId,
+        baselineRubricPackId,
+    );
     return {
         schemaVersion: 2,
         id: normalizeNonEmptyString(value.id, `dasha_cmp_${randomUUID().slice(0, 8)}`),
         status: value.status === 'completed' || value.status === 'failed' ? value.status : 'draft',
+        comparisonKind,
         frankPacketId: normalizeNonEmptyString(value.frankPacketId, ''),
-        rubricPackId: normalizeNonEmptyString(value.rubricPackId, ''),
+        baselineRubricPackId,
+        variantRubricPackId,
         questionVariancePackageId: normalizeNonEmptyString(value.questionVariancePackageId, ''),
         variationLabel: normalizeNonEmptyString(value.variationLabel, 'Lane A variation'),
         variationType: normalizeNonEmptyString(value.variationType, 'Variation type unavailable'),
@@ -2316,6 +2414,10 @@ function normalizeDashaComparison(value: unknown): DashaComparisonV2 | null {
         variantRunId: normalizeNonEmptyString(value.variantRunId, ''),
         selectedModels: Array.isArray(value.selectedModels) ? value.selectedModels as DashaSelectedModel[] : [],
         requestedResponseCount: clampNumber(Math.floor(toNumber(value.requestedResponseCount, 120)), 1, 400),
+        summaryComparability: normalizeDashaComparisonSummaryComparability(
+            value.summaryComparability,
+            comparisonKind === 'lane_b' ? 'directional_only' : 'same_rubric',
+        ),
         summary: normalizeDashaComparisonSummary(value.summary),
         errorMessage: typeof value.errorMessage === 'string' ? value.errorMessage : undefined,
         createdAt: normalizeNonEmptyString(value.createdAt, new Date().toISOString()),
@@ -2566,6 +2668,21 @@ function normalizeDashaComparisonRole(value: unknown): DashaComparisonRole | nul
     return typeof value === 'string' && DASHA_COMPARISON_ROLES.has(value as DashaComparisonRole)
         ? value as DashaComparisonRole
         : null;
+}
+
+function normalizeDashaComparisonKind(value: unknown, fallback: DashaComparisonKind): DashaComparisonKind {
+    return typeof value === 'string' && DASHA_COMPARISON_KINDS.has(value as DashaComparisonKind)
+        ? value as DashaComparisonKind
+        : fallback;
+}
+
+function normalizeDashaComparisonSummaryComparability(
+    value: unknown,
+    fallback: DashaComparisonSummaryComparability,
+): DashaComparisonSummaryComparability {
+    return typeof value === 'string' && DASHA_COMPARISON_SUMMARY_COMPARABILITIES.has(value as DashaComparisonSummaryComparability)
+        ? value as DashaComparisonSummaryComparability
+        : fallback;
 }
 
 function normalizeRoutingConfidence(value: unknown): RoutingConfidence | null {

@@ -4,7 +4,7 @@ import { spawn } from 'child_process';
 import { NextResponse } from 'next/server';
 
 import { listDashaComparisons, runDashaComparison } from '@/lib/legal-workflow-v2-server';
-import type { DashaSelectedModel } from '@/lib/legal-workflow-v2-types';
+import type { DashaComparisonKind, DashaSelectedModel } from '@/lib/legal-workflow-v2-types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -25,7 +25,13 @@ export async function GET() {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const rubricPackId = typeof body.rubricPackId === 'string' ? body.rubricPackId.trim() : '';
+        const comparisonKind = body.comparisonKind === 'lane_b' ? 'lane_b' : 'lane_a';
+        const baselineRubricPackId = typeof body.baselineRubricPackId === 'string'
+            ? body.baselineRubricPackId.trim()
+            : typeof body.rubricPackId === 'string'
+                ? body.rubricPackId.trim()
+                : '';
+        const variantRubricPackId = typeof body.variantRubricPackId === 'string' ? body.variantRubricPackId.trim() : '';
         const questionVariancePackageId = typeof body.questionVariancePackageId === 'string'
             ? body.questionVariancePackageId.trim()
             : '';
@@ -34,11 +40,14 @@ export async function POST(req: Request) {
             ? Math.min(400, Math.max(1, parsedSampleCount))
             : 120;
 
-        if (!rubricPackId) {
-            return NextResponse.json({ error: 'rubricPackId is required.' }, { status: 400 });
+        if (!baselineRubricPackId) {
+            return NextResponse.json({ error: 'baselineRubricPackId is required.' }, { status: 400 });
         }
         if (!questionVariancePackageId) {
             return NextResponse.json({ error: 'questionVariancePackageId is required.' }, { status: 400 });
+        }
+        if (comparisonKind === 'lane_b' && !variantRubricPackId) {
+            return NextResponse.json({ error: 'variantRubricPackId is required for Lane B.' }, { status: 400 });
         }
         if (!Array.isArray(body.selectedModels)) {
             return NextResponse.json({ error: 'selectedModels is required.' }, { status: 400 });
@@ -46,8 +55,10 @@ export async function POST(req: Request) {
 
         const selectedModels = body.selectedModels as DashaSelectedModel[];
         const item = await runDashaComparison({
-            rubricPackId,
+            comparisonKind: comparisonKind as DashaComparisonKind,
+            baselineRubricPackId,
             questionVariancePackageId,
+            variantRubricPackId,
             selectedModels,
             sampleCount,
         });

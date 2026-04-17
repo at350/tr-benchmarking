@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 2,
+  "id": "dasha_cmp_1776316038154_01d19938",
+  "status": "completed",
+  "frankPacketId": "frank_v2_1776190359971_eb20a691",
+  "rubricPackId": "karthic_v2_1776190478702_75c7bd38",
+  "questionVariancePackageId": "qv_pkg_75cc895b",
+  "variationLabel": "Benefit-label specificity shift",
+  "variationType": "Specificity shift",
+  "baselineQuestionText": "Before marrying Dana, Lee, a member of a fraternal insurance association, orally told Dana that if she married him, he would make her the beneficiary of his life-insurance certificate. Dana married Lee. No written agreement memorializing that promise was ever signed by Lee. After the marriage, Lee filed the association’s standard form naming Dana as beneficiary. The association’s by-laws allowed a member to change beneficiaries later by filing a sworn request, and several years afterward Lee followed that procedure and named his two children from an earlier marriage as the new beneficiaries. When Lee died, Dana claimed the proceeds based on Lee’s pre-marriage promise and his earlier designation of her after the wedding. The children claimed the proceeds under the later beneficiary change. Who has the better claim to the insurance proceeds? Analyze.",
+  "variantQuestionText": "Before marrying Dana, Lee, a member of a fraternal benefit association, orally told Dana that if she married him, he would make her the beneficiary of his benefit certificate. Dana married Lee. No written agreement memorializing that promise was ever signed by Lee. After the marriage, Lee filed the association’s standard form naming Dana as beneficiary of the certificate’s death benefit. The association’s by-laws allowed a member to change beneficiaries later by filing a sworn request, and several years afterward Lee followed that procedure and named his two children from an earlier marriage as the new beneficiaries. When Lee died, Dana claimed the death benefits based on Lee’s pre-marriage promise and his earlier designation of her after the wedding. The children claimed the death benefits under the later beneficiary change. Who has the better claim to the death benefits? Analyze.",
+  "baselineRunId": "dasha_v2_1776316038154_90c71515",
+  "variantRunId": "dasha_v2_1776316038160_f3a15c0c",
+  "selectedModels": [
+    {
+      "provider": "openai",
+      "model": "gpt-5.4-nano",
+      "reasoningEffort": "medium"
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-3.1-flash-lite-preview",
+      "reasoningEffort": "medium"
+    }
+  ],
+  "requestedResponseCount": 30,
+  "summary": {
+    "baselineWeightedScore": 92.7,
+    "variantWeightedScore": 93.6,
+    "weightedScoreDelta": 0.9,
+    "moduleDeltas": [
+      {
+        "moduleId": "module1",
+        "label": "Module 1 — Structural Gatekeeping",
+        "baselineScore": 93.33,
+        "variantScore": 93.33,
+        "scoreDelta": 0
+      },
+      {
+        "moduleId": "module2",
+        "label": "Module 2 — Primary Doctrine Gates",
+        "baselineScore": 92.5,
+        "variantScore": 93.75,
+        "scoreDelta": 1.25
+      },
+      {
+        "moduleId": "module3",
+        "label": "Module 3 — Fallback Doctrines and Defenses",
+        "baselineScore": 91.67,
+        "variantScore": 91.67,
+        "scoreDelta": 0
+      },
+      {
+        "moduleId": "module4",
+        "label": "Module 4 — Cross-Cutting Answer Discipline",
+        "baselineScore": 95,
+        "variantScore": 95,
+        "scoreDelta": 0
+      }
+    ],
+    "modelDeltas": [
+      {
+        "modelKey": "openai::gpt-5.4-nano",
+        "provider": "openai",
+        "model": "gpt-5.4-nano",
+        "baselineScore": 91.15,
+        "variantScore": 91.7,
+        "scoreDelta": 0.55,
+        "baselineDominantClusterId": "cluster_2",
+        "variantDominantClusterId": "cluster_1",
+        "baselineValidCount": 10,
+        "variantValidCount": 10
+      },
+      {
+        "modelKey": "anthropic::claude-haiku-4-5",
+        "provider": "anthropic",
+        "model": "claude-haiku-4-5",
+        "baselineScore": 91.05,
+        "variantScore": 93.05,
+        "scoreDelta": 2,
+        "baselineDominantClusterId": "cluster_1",
+        "variantDominantClusterId": "cluster_3",
+        "baselineValidCount": 10,
+        "variantValidCount": 10
+      },
+      {
+        "modelKey": "gemini::gemini-3.1-flash-lite-preview",
+        "provider": "gemini",
+        "model": "gemini-3.1-flash-lite-preview",
+        "baselineScore": 87.85,
+        "variantScore": 91.5,
+        "scoreDelta": 3.65,
+        "baselineDominantClusterId": "cluster_3",
+        "variantDominantClusterId": "cluster_2",
+        "baselineValidCount": 10,
+        "variantValidCount": 10
+      }
+    ]
+  },
+  "createdAt": "2026-04-16T05:07:18.160Z",
+  "completedAt": "2026-04-16T05:09:22.751Z"
+}

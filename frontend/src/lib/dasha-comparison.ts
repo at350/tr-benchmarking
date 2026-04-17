@@ -202,6 +202,37 @@ export function validateLaneAComparisonCandidate(input: {
     }
 }
 
+export function validateLaneBComparisonCandidate(input: {
+    baselineRubricPack: Pick<KarthicRubricPackV2, 'questionSource' | 'status'>;
+    variantRubricPack: Pick<KarthicRubricPackV2, 'questionSource' | 'questionVariancePackageId' | 'status'> | null;
+    questionVariancePackage: Pick<QuestionVariancePackage, 'id' | 'lane' | 'status'> | null;
+}) {
+    if (input.baselineRubricPack.questionSource !== 'canonical' || input.baselineRubricPack.status !== 'approved') {
+        throw new Error('Lane B evaluation requires an approved canonical baseline rubric pack.');
+    }
+    if (!input.questionVariancePackage) {
+        throw new Error('Selected QuestionVariance package is not available on the baseline rubric pack Frank packet.');
+    }
+    if (input.questionVariancePackage.lane !== 'lane_b') {
+        throw new Error('Lane B evaluation only supports QuestionVariance packages from lane_b.');
+    }
+    if (input.questionVariancePackage.status !== 'ready') {
+        throw new Error('Lane B evaluation requires a ready QuestionVariance package.');
+    }
+    if (!input.variantRubricPack) {
+        throw new Error('Prepare and approve a variant-specific Lane B rubric pack before starting Dasha.');
+    }
+    if (input.variantRubricPack.status !== 'approved') {
+        throw new Error('Lane B evaluation requires an approved variant-specific rubric pack.');
+    }
+    if (input.variantRubricPack.questionSource !== 'question_variance_active_package') {
+        throw new Error('Lane B evaluation requires a variant rubric pack generated from the active QuestionVariance package source.');
+    }
+    if (input.variantRubricPack.questionVariancePackageId !== input.questionVariancePackage.id) {
+        throw new Error('Lane B variant rubric pack does not match the selected QuestionVariance package.');
+    }
+}
+
 function buildClusterWeightedScoreMap(rowResults: RubricRowResult[]) {
     const byCluster = new Map<string, { weightedTotal: number; weightTotal: number }>();
 

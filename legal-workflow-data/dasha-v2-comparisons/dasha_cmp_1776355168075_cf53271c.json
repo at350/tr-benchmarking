@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 2,
+  "id": "dasha_cmp_1776355168075_cf53271c",
+  "status": "completed",
+  "comparisonKind": "lane_b",
+  "frankPacketId": "frank_v2_1776190359971_eb20a691",
+  "baselineRubricPackId": "karthic_v2_1776190478702_75c7bd38",
+  "variantRubricPackId": "karthic_v2_1776353940574_3527fca3",
+  "questionVariancePackageId": "qv_pkg_932eb0db",
+  "variationLabel": "Writing-status ambiguity test",
+  "variationType": "Fact omission / ambiguity test",
+  "baselineQuestionText": "Before marrying Dana, Lee, a member of a fraternal insurance association, orally told Dana that if she married him, he would make her the beneficiary of his life-insurance certificate. Dana married Lee. No written agreement memorializing that promise was ever signed by Lee. After the marriage, Lee filed the association’s standard form naming Dana as beneficiary. The association’s by-laws allowed a member to change beneficiaries later by filing a sworn request, and several years afterward Lee followed that procedure and named his two children from an earlier marriage as the new beneficiaries. When Lee died, Dana claimed the proceeds based on Lee’s pre-marriage promise and his earlier designation of her after the wedding. The children claimed the proceeds under the later beneficiary change. Who has the better claim to the insurance proceeds? Analyze.",
+  "variantQuestionText": "Before marrying Dana, Lee, a member of a fraternal insurance association, orally told Dana that if she married him, he would make her the beneficiary of his life-insurance certificate. The promise was discussed informally before the wedding. Dana married Lee. After the marriage, Lee filed the association's standard form naming Dana as beneficiary. The association's by-laws allowed a member to change beneficiaries later by filing a sworn request, and several years afterward Lee followed that procedure and named his two children from an earlier marriage as the new beneficiaries. When Lee died, Dana claimed the proceeds based on Lee's pre-marriage promise and his earlier designation of her after the wedding. The children claimed the proceeds under the later beneficiary change. Who has the better claim to the insurance proceeds? Analyze.",
+  "baselineRunId": "dasha_v2_1776355168075_e8626491",
+  "variantRunId": "dasha_v2_1776355168076_669fc108",
+  "selectedModels": [
+    {
+      "provider": "openai",
+      "model": "gpt-5.4",
+      "reasoningEffort": "medium"
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-opus-4-6"
+    },
+    {
+      "provider": "gemini",
+      "model": "gemini-3.1-pro-preview",
+      "reasoningEffort": "medium"
+    }
+  ],
+  "requestedResponseCount": 120,
+  "summaryComparability": "directional_only",
+  "summary": {
+    "baselineWeightedScore": 95,
+    "variantWeightedScore": 95,
+    "weightedScoreDelta": 0,
+    "moduleDeltas": [
+      {
+        "moduleId": "module1",
+        "label": "Module 1 — Structural Gatekeeping",
+        "baselineScore": 95,
+        "variantScore": 95,
+        "scoreDelta": 0
+      },
+      {
+        "moduleId": "module2",
+        "label": "Module 2 — Primary Doctrine Gates",
+        "baselineScore": 95,
+        "variantScore": 95,
+        "scoreDelta": 0
+      },
+      {
+        "moduleId": "module3",
+        "label": "Module 3 — Fallback Doctrines and Defenses",
+        "baselineScore": 95,
+        "variantScore": 95,
+        "scoreDelta": 0
+      },
+      {
+        "moduleId": "module4",
+        "label": "Module 4 — Cross-Cutting Answer Discipline",
+        "baselineScore": 95,
+        "variantScore": 95,
+        "scoreDelta": 0
+      }
+    ],
+    "modelDeltas": [
+      {
+        "modelKey": "openai::gpt-5.4",
+        "provider": "openai",
+        "model": "gpt-5.4",
+        "baselineScore": 91.45,
+        "variantScore": 92.3,
+        "scoreDelta": 0.85,
+        "baselineDominantClusterId": "cluster_1",
+        "variantDominantClusterId": "cluster_1",
+        "baselineValidCount": 40,
+        "variantValidCount": 40
+      },
+      {
+        "modelKey": "anthropic::claude-opus-4-6",
+        "provider": "anthropic",
+        "model": "claude-opus-4-6",
+        "baselineScore": 93.24,
+        "variantScore": 94.16,
+        "scoreDelta": 0.92,
+        "baselineDominantClusterId": "cluster_4",
+        "variantDominantClusterId": "cluster_2",
+        "baselineValidCount": 40,
+        "variantValidCount": 40
+      },
+      {
+        "modelKey": "gemini::gemini-3.1-pro-preview",
+        "provider": "gemini",
+        "model": "gemini-3.1-pro-preview",
+        "baselineScore": 90.78,
+        "variantScore": 91.81,
+        "scoreDelta": 1.03,
+        "baselineDominantClusterId": "cluster_2",
+        "variantDominantClusterId": "cluster_3",
+        "baselineValidCount": 39,
+        "variantValidCount": 40
+      }
+    ]
+  },
+  "createdAt": "2026-04-16T15:59:28.077Z",
+  "completedAt": "2026-04-16T17:18:51.933Z"
+}

@@ -1,8 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 
-import { FRANK_V2_BENCHMARK_HEADINGS, FRANK_V2_PACK_LABELS, RUBRIC_MODULE_LABELS, RUBRIC_ROW_SPECS } from '@/lib/legal-workflow-v2-constants';
-import type { FrankPacketV2, FrankSofPackId, KarthicRubricRow } from '@/lib/legal-workflow-v2-types';
+import { FRANK_V2_BENCHMARK_HEADINGS, FRANK_V2_PACK_LABELS, RUBRIC_MODULE_LABELS, RUBRIC_ROW_SPECS } from './legal-workflow-v2-constants.ts';
+import type { FrankPacketV2, FrankSofPackId, KarthicRubricRow, QuestionVariancePackage } from './legal-workflow-v2-types.ts';
 
 type AssetKey =
     | 'main'
@@ -277,7 +277,27 @@ export function buildKarthicRowsPrompt(input: {
     assets: Awaited<ReturnType<typeof getFrankV2AssetBundle>>;
     questionText: string;
     questionSourceLabel: string;
+    questionVariancePackage?: Pick<QuestionVariancePackage, 'id' | 'lane' | 'variationType' | 'updatedModelAnswer' | 'rubricPatchNotes' | 'whyTheAnswerShouldStayTheSameOrChange'> | null;
+    canonicalQuestionText?: string;
 }) {
+    const laneBContext = input.questionVariancePackage?.lane === 'lane_b'
+        ? [
+            'Lane B QuestionVariance context:',
+            'Use the canonical benchmark answer as the source-of-truth anchor, but adapt the rubric rows to the varied question\'s ambiguity / missing-facts posture.',
+            'Apply the QuestionVariance patch guidance directly instead of blindly reusing the canonical rubric.',
+            `Canonical reverse-engineered question:\n${input.canonicalQuestionText || input.packet.reverseEngineeredQuestion}`,
+            `Selected Lane B package:\n${JSON.stringify({
+                id: input.questionVariancePackage.id,
+                lane: input.questionVariancePackage.lane,
+                variationType: input.questionVariancePackage.variationType,
+            })}`,
+            `Variant-specific updated model answer:\n${input.questionVariancePackage.updatedModelAnswer}`,
+            `Variant rubric patch notes:\n${JSON.stringify(input.questionVariancePackage.rubricPatchNotes)}`,
+            `Why the answer should stay the same or change:\n${input.questionVariancePackage.whyTheAnswerShouldStayTheSameOrChange}`,
+            '',
+        ]
+        : [];
+
     return [
         input.assets.sharedModuleSkeleton,
         '',
@@ -296,6 +316,7 @@ export function buildKarthicRowsPrompt(input: {
         '',
         `Likely failure modes:\n${JSON.stringify(input.packet.likelyFailureModes)}`,
         '',
+        ...laneBContext,
         'Draft one rubric row object for each of these row keys in order:',
         RUBRIC_ROW_SPECS.map((row) => `${row.key} (${RUBRIC_MODULE_LABELS[row.moduleId]}): ${row.title}`).join('\n'),
         '',

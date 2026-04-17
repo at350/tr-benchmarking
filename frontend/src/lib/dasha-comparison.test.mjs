@@ -5,6 +5,7 @@ import {
     buildDashaComparisonSummary,
     buildDashaModelSummaries,
     validateLaneAComparisonCandidate,
+    validateLaneBComparisonCandidate,
 } from './dasha-comparison.ts';
 
 test('buildDashaModelSummaries propagates cluster scores back to each model', () => {
@@ -228,5 +229,34 @@ test('validateLaneAComparisonCandidate rejects non-canonical rubrics and unsafe 
             questionVariancePackage: { lane: 'lane_a', status: 'needs_targeted_revision', variationStatus: 'ambiguity_test' },
         }),
         /safe, ready/,
+    );
+});
+
+test('validateLaneBComparisonCandidate rejects mismatched or unapproved variant rubric packs', () => {
+    assert.throws(
+        () => validateLaneBComparisonCandidate({
+            baselineRubricPack: { questionSource: 'canonical', status: 'approved' },
+            variantRubricPack: { questionSource: 'canonical', questionVariancePackageId: 'pkg_lane_b', status: 'approved' },
+            questionVariancePackage: { id: 'pkg_lane_b', lane: 'lane_b', status: 'ready' },
+        }),
+        /active QuestionVariance package source/,
+    );
+
+    assert.throws(
+        () => validateLaneBComparisonCandidate({
+            baselineRubricPack: { questionSource: 'canonical', status: 'approved' },
+            variantRubricPack: { questionSource: 'question_variance_active_package', questionVariancePackageId: 'pkg_lane_b', status: 'draft' },
+            questionVariancePackage: { id: 'pkg_lane_b', lane: 'lane_b', status: 'ready' },
+        }),
+        /approved variant-specific rubric pack/,
+    );
+
+    assert.throws(
+        () => validateLaneBComparisonCandidate({
+            baselineRubricPack: { questionSource: 'canonical', status: 'approved' },
+            variantRubricPack: { questionSource: 'question_variance_active_package', questionVariancePackageId: 'other_pkg', status: 'approved' },
+            questionVariancePackage: { id: 'pkg_lane_b', lane: 'lane_b', status: 'ready' },
+        }),
+        /does not match/,
     );
 });

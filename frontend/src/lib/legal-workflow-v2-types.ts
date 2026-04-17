@@ -268,6 +268,8 @@ export type KarthicRubricPackV2 = {
 
 export type DashaRunMode = 'score_and_cluster' | 'cluster_only';
 export type DashaComparisonRole = 'baseline' | 'variant';
+export type DashaComparisonKind = 'lane_a' | 'lane_b';
+export type DashaComparisonSummaryComparability = 'same_rubric' | 'directional_only';
 
 export type DashaSelectedModel = {
     provider: ModelProvider;
@@ -440,8 +442,10 @@ export type DashaComparisonV2 = {
     schemaVersion: 2;
     id: string;
     status: Extract<WorkflowStatus, 'draft' | 'completed' | 'failed'>;
+    comparisonKind: DashaComparisonKind;
     frankPacketId: string;
-    rubricPackId: string;
+    baselineRubricPackId: string;
+    variantRubricPackId: string;
     questionVariancePackageId: string;
     variationLabel: string;
     variationType: string;
@@ -451,6 +455,7 @@ export type DashaComparisonV2 = {
     variantRunId: string;
     selectedModels: DashaSelectedModel[];
     requestedResponseCount: number;
+    summaryComparability: DashaComparisonSummaryComparability;
     summary: DashaComparisonSummary | null;
     errorMessage?: string;
     createdAt: string;

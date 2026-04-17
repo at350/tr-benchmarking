@@ -285,6 +285,9 @@ export default function LegalWorkflowPage() {
     const [selectedComparisonId, setSelectedComparisonId] = useState('');
     const [dashaComparisonRubricPackId, setDashaComparisonRubricPackId] = useState('');
     const [dashaComparisonPackageId, setDashaComparisonPackageId] = useState('');
+    const [dashaLaneBRubricPackId, setDashaLaneBRubricPackId] = useState('');
+    const [dashaLaneBPackageId, setDashaLaneBPackageId] = useState('');
+    const [dashaLaneBVariantRubricPackId, setDashaLaneBVariantRubricPackId] = useState('');
     const [sampleCount, setSampleCount] = useState('120');
     const [selectedModelKeys, setSelectedModelKeys] = useState<string[]>(DEFAULT_SELECTED_MODEL_KEYS);
 
@@ -303,6 +306,14 @@ export default function LegalWorkflowPage() {
     const selectedComparison = useMemo(
         () => dashaComparisons.find((comparison) => comparison.id === selectedComparisonId) ?? null,
         [dashaComparisons, selectedComparisonId],
+    );
+    const laneAComparisons = useMemo(
+        () => dashaComparisons.filter((comparison) => comparison.comparisonKind === 'lane_a'),
+        [dashaComparisons],
+    );
+    const laneBComparisons = useMemo(
+        () => dashaComparisons.filter((comparison) => comparison.comparisonKind === 'lane_b'),
+        [dashaComparisons],
     );
 
     useEffect(() => {
@@ -458,10 +469,10 @@ export default function LegalWorkflowPage() {
                 setDashaComparisons(refreshedComparisons);
                 const item = refreshedComparisons.find((comparison) => comparison.id === selectedComparisonId);
                 if (item?.status === 'completed') {
-                    setStatusMessage('Lane A comparison completed.');
+                    setStatusMessage(item.comparisonKind === 'lane_b' ? 'Lane B evaluation completed.' : 'Lane A comparison completed.');
                 }
                 if (item?.status === 'failed') {
-                    setErrorMessage(item.errorMessage || 'Lane A comparison failed.');
+                    setErrorMessage(item.errorMessage || (item.comparisonKind === 'lane_b' ? 'Lane B evaluation failed.' : 'Lane A comparison failed.'));
                 }
             } catch (error) {
                 if (!cancelled) {
@@ -521,8 +532,21 @@ export default function LegalWorkflowPage() {
             setDashaRubricPackId(pack.id);
             if (pack.questionSource === 'canonical') {
                 setDashaComparisonRubricPackId(pack.id);
+                setDashaLaneBRubricPackId(pack.id);
             }
         }
+        if (pack.questionSource === 'question_variance_active_package' && pack.questionVariancePackageId) {
+            setDashaLaneBVariantRubricPackId(pack.id);
+        }
+    }
+
+    function openRubricPackInKarthic(pack: KarthicRubricPackV2) {
+        const linkedFrankPacket = frankPackets.find((item) => item.id === pack.frankPacketId);
+        if (linkedFrankPacket) {
+            applyFrankPacket(linkedFrankPacket);
+        }
+        applyRubricPack(pack);
+        goToStage('rubric');
     }
 
     function onUploadFilesSelected(files: FileList | null) {
@@ -991,7 +1015,8 @@ export default function LegalWorkflowPage() {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
-                    rubricPackId: dashaComparisonRubricPackId,
+                    comparisonKind: 'lane_a',
+                    baselineRubricPackId: dashaComparisonRubricPackId,
                     questionVariancePackageId: dashaComparisonPackageId,
                     sampleCount: sampleCount || '120',
                     selectedModels: buildSelectedModels(selectedModelKeys),
@@ -1009,6 +1034,92 @@ export default function LegalWorkflowPage() {
             goToStage('judge');
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to start Lane A comparison.');
+            setStatusMessage(null);
+        }
+    }
+
+    async function prepareLaneBRubric() {
+        if (!selectedLaneBRubricPack) {
+            setErrorMessage('Select an approved canonical rubric pack first.');
+            return;
+        }
+        if (!dashaLaneBPackageId) {
+            setErrorMessage('Select a Lane B QuestionVariance package first.');
+            return;
+        }
+        setErrorMessage(null);
+        setStatusMessage('Preparing Lane B rubric pack...');
+        try {
+            const settings = getGenerationSetting('rubric_generation');
+            const response = await fetch('/api/karthic-rubric-packs/lane-b/prepare', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    frankPacketId: selectedLaneBRubricPack.frankPacketId,
+                    questionVariancePackageId: dashaLaneBPackageId,
+                    model: settings.model,
+                    reasoningEffort: settings.reasoningEffort,
+                }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to prepare Lane B rubric pack.');
+            }
+            const item = json.item as KarthicRubricPackV2;
+            setRubricPacks((current) => sortByUpdated([item, ...current.filter((pack) => pack.id !== item.id)]));
+            setDashaLaneBVariantRubricPackId(item.id);
+            openRubricPackInKarthic(item);
+            setStatusMessage('Lane B rubric pack prepared and opened in Karthic.');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to prepare Lane B rubric pack.');
+            setStatusMessage(null);
+        }
+    }
+
+    async function runLaneBEvaluation() {
+        if (!dashaLaneBRubricPackId) {
+            setErrorMessage('Select an approved canonical rubric pack first.');
+            return;
+        }
+        if (!dashaLaneBPackageId) {
+            setErrorMessage('Select a Lane B QuestionVariance package first.');
+            return;
+        }
+        if (!dashaLaneBVariantRubricPackId) {
+            setErrorMessage('Prepare and approve the Lane B variant rubric pack first.');
+            return;
+        }
+        if (selectedModelKeys.length === 0) {
+            setErrorMessage('Select at least one model for the evaluation.');
+            return;
+        }
+        setErrorMessage(null);
+        setStatusMessage('Starting Lane B evaluation...');
+        try {
+            const response = await fetch('/api/dasha-comparisons', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    comparisonKind: 'lane_b',
+                    baselineRubricPackId: dashaLaneBRubricPackId,
+                    variantRubricPackId: dashaLaneBVariantRubricPackId,
+                    questionVariancePackageId: dashaLaneBPackageId,
+                    sampleCount: sampleCount || '120',
+                    selectedModels: buildSelectedModels(selectedModelKeys),
+                }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to start Lane B evaluation.');
+            }
+            const item = json.item as DashaComparisonV2;
+            setDashaComparisons((current) => sortComparisons([item, ...current.filter((comparison) => comparison.id !== item.id)]));
+            setSelectedComparisonId(item.id);
+            setSelectedRunId('');
+            setStatusMessage('Lane B evaluation started.');
+            goToStage('judge');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to start Lane B evaluation.');
             setStatusMessage(null);
         }
     }
@@ -1084,6 +1195,44 @@ export default function LegalWorkflowPage() {
             }))
             .sort((left, right) => left.label.localeCompare(right.label));
     }, [comparisonFrankPacket]);
+    const selectedLaneBRubricPack = useMemo(
+        () => comparisonRubricPacks.find((pack) => pack.id === dashaLaneBRubricPackId) ?? null,
+        [comparisonRubricPacks, dashaLaneBRubricPackId],
+    );
+    const laneBFrankPacket = useMemo(
+        () => frankPackets.find((packet) => packet.id === selectedLaneBRubricPack?.frankPacketId) ?? null,
+        [frankPackets, selectedLaneBRubricPack?.frankPacketId],
+    );
+    const eligibleLaneBPackages = useMemo(() => {
+        if (!laneBFrankPacket) {
+            return [] as Array<{ id: string; label: string; variationType: string }>;
+        }
+        const questionVarianceState = laneBFrankPacket.questionVariance;
+        return questionVarianceState.packages
+            .filter((pkg) => pkg.lane === 'lane_b' && pkg.status === 'ready')
+            .map((pkg) => ({
+                id: pkg.id,
+                label: questionVarianceState.menu?.options.find((option) => option.id === pkg.selectedOptionId)?.label ?? pkg.variationType,
+                variationType: pkg.variationType,
+            }))
+            .sort((left, right) => left.label.localeCompare(right.label));
+    }, [laneBFrankPacket]);
+    const laneBMatchingVariantRubricPacks = useMemo(() => {
+        if (!selectedLaneBRubricPack || !dashaLaneBPackageId) {
+            return [] as KarthicRubricPackV2[];
+        }
+        return rubricPacks
+            .filter((pack) =>
+                pack.frankPacketId === selectedLaneBRubricPack.frankPacketId
+                && pack.questionSource === 'question_variance_active_package'
+                && pack.questionVariancePackageId === dashaLaneBPackageId,
+            )
+            .sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)));
+    }, [dashaLaneBPackageId, rubricPacks, selectedLaneBRubricPack]);
+    const selectedLaneBVariantRubricPack = useMemo(
+        () => laneBMatchingVariantRubricPacks.find((pack) => pack.id === dashaLaneBVariantRubricPackId) ?? null,
+        [dashaLaneBVariantRubricPackId, laneBMatchingVariantRubricPacks],
+    );
     const selectedComparisonBaselineRun = useMemo(
         () => dashaRuns.find((run) => run.id === selectedComparison?.baselineRunId) ?? null,
         [dashaRuns, selectedComparison?.baselineRunId],
@@ -1114,6 +1263,41 @@ export default function LegalWorkflowPage() {
             setDashaComparisonPackageId(eligibleComparisonPackages[0].id);
         }
     }, [dashaComparisonPackageId, eligibleComparisonPackages]);
+
+    useEffect(() => {
+        const rubricPackIds = new Set(comparisonRubricPacks.map((item) => item.id));
+        if (dashaLaneBRubricPackId && !rubricPackIds.has(dashaLaneBRubricPackId)) {
+            setDashaLaneBRubricPackId('');
+            return;
+        }
+        if (!dashaLaneBRubricPackId && comparisonRubricPacks.length > 0) {
+            setDashaLaneBRubricPackId(comparisonRubricPacks[0].id);
+        }
+    }, [comparisonRubricPacks, dashaLaneBRubricPackId]);
+
+    useEffect(() => {
+        const packageIds = new Set(eligibleLaneBPackages.map((item) => item.id));
+        if (dashaLaneBPackageId && !packageIds.has(dashaLaneBPackageId)) {
+            setDashaLaneBPackageId('');
+            return;
+        }
+        if (!dashaLaneBPackageId && eligibleLaneBPackages.length > 0) {
+            setDashaLaneBPackageId(eligibleLaneBPackages[0].id);
+        }
+    }, [dashaLaneBPackageId, eligibleLaneBPackages]);
+
+    useEffect(() => {
+        const preferredPack = laneBMatchingVariantRubricPacks.find((pack) => pack.status === 'draft')
+            ?? laneBMatchingVariantRubricPacks.find((pack) => pack.status === 'approved')
+            ?? null;
+        if (dashaLaneBVariantRubricPackId && !laneBMatchingVariantRubricPacks.some((pack) => pack.id === dashaLaneBVariantRubricPackId)) {
+            setDashaLaneBVariantRubricPackId(preferredPack?.id ?? '');
+            return;
+        }
+        if (!dashaLaneBVariantRubricPackId && preferredPack) {
+            setDashaLaneBVariantRubricPackId(preferredPack.id);
+        }
+    }, [dashaLaneBVariantRubricPackId, laneBMatchingVariantRubricPacks]);
 
     const stageViews = useMemo<WorkflowStageView[]>(() => {
         return WORKFLOW_STAGES.map((stage) => {
@@ -2003,14 +2187,14 @@ export default function LegalWorkflowPage() {
                                         <Field label="Saved comparisons">
                                             <select
                                                 className={inputClassName}
-                                                value={selectedComparison?.id ?? ''}
+                                                value={selectedComparison?.comparisonKind === 'lane_a' ? selectedComparison.id : ''}
                                                 onChange={(event) => {
                                                     setSelectedComparisonId(event.target.value);
                                                     setSelectedRunId('');
                                                 }}
                                             >
                                                 <option value="">Select comparison</option>
-                                                {dashaComparisons.map((comparison) => (
+                                                {laneAComparisons.map((comparison) => (
                                                     <option key={comparison.id} value={comparison.id}>{comparison.variationLabel} · {comparison.status}</option>
                                                 ))}
                                             </select>
@@ -2018,6 +2202,111 @@ export default function LegalWorkflowPage() {
                                         <div className="flex items-end">
                                             <button className={`${primaryButtonClassName} w-full`} onClick={() => void runDashaComparison()}>
                                                 Start Lane A Comparison
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Lane B Evaluation</p>
+                                        <p className="mt-1 text-sm text-slate-600">
+                                            Pair the canonical baseline with a Lane B ambiguity test, but generate and approve a variant-specific Karthic rubric before Dasha runs the varied question.
+                                        </p>
+                                    </div>
+                                    <Banner tone="info" text="Lane B uses two rubric packs: the approved canonical baseline rubric and a variant-specific rubric generated from the selected Lane B package." />
+                                    <div className="grid gap-4 lg:grid-cols-2">
+                                        <Field label="Approved canonical rubric pack">
+                                            <select
+                                                className={inputClassName}
+                                                value={dashaLaneBRubricPackId}
+                                                onChange={(event) => setDashaLaneBRubricPackId(event.target.value)}
+                                            >
+                                                <option value="">Select canonical rubric pack</option>
+                                                {comparisonRubricPacks.map((pack) => (
+                                                    <option key={pack.id} value={pack.id}>{FRANK_V2_PACK_LABELS[pack.selectedPack]} · {pack.id}</option>
+                                                ))}
+                                            </select>
+                                        </Field>
+                                        <Field label="Lane B QuestionVariance package">
+                                            <select
+                                                className={inputClassName}
+                                                value={dashaLaneBPackageId}
+                                                onChange={(event) => setDashaLaneBPackageId(event.target.value)}
+                                                disabled={!selectedLaneBRubricPack}
+                                            >
+                                                <option value="">{selectedLaneBRubricPack ? 'Select Lane B package' : 'Choose a canonical rubric pack first'}</option>
+                                                {eligibleLaneBPackages.map((pkg) => (
+                                                    <option key={pkg.id} value={pkg.id}>{pkg.label} · {pkg.variationType}</option>
+                                                ))}
+                                            </select>
+                                        </Field>
+                                    </div>
+                                    <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Variant Rubric Status</p>
+                                        {selectedLaneBVariantRubricPack ? (
+                                            <>
+                                                <p className="mt-2 font-semibold text-slate-900">{selectedLaneBVariantRubricPack.id}</p>
+                                                <p className="mt-1">
+                                                    Status: {selectedLaneBVariantRubricPack.status}
+                                                    {' · '}
+                                                    Source: {selectedLaneBVariantRubricPack.questionSource === 'question_variance_active_package' ? 'QuestionVariance package' : 'Canonical'}
+                                                </p>
+                                                <p className="mt-1 text-slate-600">
+                                                    {selectedLaneBVariantRubricPack.status === 'approved'
+                                                        ? 'This variant rubric is approved and can be used for Lane B Dasha evaluation.'
+                                                        : 'This variant rubric is still draft. Approve it in Karthic before starting Lane B evaluation.'}
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <p className="mt-2 text-slate-600">No variant-specific Lane B rubric has been prepared for this package yet.</p>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            className={secondaryButtonClassName}
+                                            type="button"
+                                            onClick={() => void prepareLaneBRubric()}
+                                            disabled={!selectedLaneBRubricPack || !dashaLaneBPackageId}
+                                        >
+                                            {selectedLaneBVariantRubricPack ? 'Refresh Lane B Rubric' : 'Prepare Lane B Rubric'}
+                                        </button>
+                                        <button
+                                            className={secondaryButtonClassName}
+                                            type="button"
+                                            disabled={!selectedLaneBVariantRubricPack}
+                                            onClick={() => {
+                                                if (selectedLaneBVariantRubricPack) {
+                                                    openRubricPackInKarthic(selectedLaneBVariantRubricPack);
+                                                }
+                                            }}
+                                        >
+                                            Open Variant Rubric in Karthic
+                                        </button>
+                                    </div>
+                                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr),220px]">
+                                        <Field label="Saved Lane B evaluations">
+                                            <select
+                                                className={inputClassName}
+                                                value={selectedComparison?.comparisonKind === 'lane_b' ? selectedComparison.id : ''}
+                                                onChange={(event) => {
+                                                    setSelectedComparisonId(event.target.value);
+                                                    setSelectedRunId('');
+                                                }}
+                                            >
+                                                <option value="">Select Lane B evaluation</option>
+                                                {laneBComparisons.map((comparison) => (
+                                                    <option key={comparison.id} value={comparison.id}>{comparison.variationLabel} · {comparison.status}</option>
+                                                ))}
+                                            </select>
+                                        </Field>
+                                        <div className="flex items-end">
+                                            <button
+                                                className={`${primaryButtonClassName} w-full`}
+                                                onClick={() => void runLaneBEvaluation()}
+                                                disabled={!selectedLaneBVariantRubricPack || selectedLaneBVariantRubricPack.status !== 'approved'}
+                                            >
+                                                Start Lane B Evaluation
                                             </button>
                                         </div>
                                     </div>
@@ -2089,7 +2378,7 @@ export default function LegalWorkflowPage() {
                                 ) : selectedRun ? (
                                     <DashaResultsExplorer key={selectedRun.id} run={selectedRun} />
                                 ) : (
-                                    <EmptyPanelCopy text="Start a Lane A comparison or a single Dasha run to inspect saved results." />
+                                    <EmptyPanelCopy text="Start a Lane A comparison, a Lane B evaluation, or a single Dasha run to inspect saved results." />
                                 )}
                             </div>
                         </div>

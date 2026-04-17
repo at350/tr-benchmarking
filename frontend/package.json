@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test:dasha-comparison": "node --test --experimental-strip-types src/lib/dasha-comparison.test.mjs"
+    "test:dasha-comparison": "node --test --experimental-strip-types src/lib/dasha-comparison.test.mjs src/lib/legal-workflow-v2-prompts.test.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
