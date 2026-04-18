@@ -1,0 +1,122 @@
+UCC + LAND — FIXTURES / SEVERANCE CONFUSION SET
+
+Purpose:
+This file helps the GPT handle fact patterns involving assets attached to realty, severance rights, or removable property, where the key issue is whether the transaction should be routed as:
+1. a sale of goods under UCC Article 2, or
+2. a transfer of an interest in land or realty-linked asset under the land pack.
+
+Why this confusion case matters:
+This is the kind of problem where a model should often stop and classify before offering a confident benchmark answer.
+Forcing UCC or land too early can silently change doctrine.
+
+Primary routing lesson:
+If the asset's classification depends on severance facts, attachment facts, or source-specific treatment, mark the problem as Needs classification first unless those facts are stable.
+Do not offer a normal Lane A variation menu while that classification issue remains unresolved.
+
+Competing route map:
+Candidate route A:
+UCC Article 2 / Section 2-201
+
+Candidate route B:
+Land sale / interest in land provision
+
+Relationship between routes:
+Needs classification first.
+The deciding facts concern the status of the asset and the severance setup.
+
+Routing snapshot:
+Input type: Cross-pack confusion benchmark
+Confusion pattern: Needs classification first
+Governing-law candidate: UCC or land, depending on asset classification
+Primary SoF provision candidate: Unresolved
+Secondary candidate(s): UCC Article 2 / Section 2-201; Land sale / interest in land provision
+Controlling doctrine: Asset classification must be resolved before a stable writing-analysis route can be selected
+Main gate order:
+identify the asset -> identify how it is attached to realty -> identify who will sever it and whether the source materials treat that fact as controlling -> select UCC or land route -> only then assess writing
+Variation readiness: Needs classification first
+Main no-silent-change facts:
+- what the asset is
+- how firmly it is attached to the realty
+- who will sever or remove it
+- whether removal materially alters the realty under the assigned source path
+- whether any writing exists
+
+Benchmark packet
+
+Source-style fact core:
+Olive owns a warehouse with a massive industrial generator bolted to the floor and connected to the building's electrical system. Olive orally agrees to sell the generator to Reed, who plans to remove it within thirty days after payment. No signed writing memorializes the agreement. Olive later refuses to proceed.
+
+Neutral legal question:
+Olive orally agrees to sell Reed a large industrial generator that is bolted to the floor of Olive's warehouse and connected to the building's electrical system. Reed is expected to remove the generator after payment. There is no signed writing. Olive later refuses to proceed. How should the enforceability issue be routed?
+
+Gold routing + benchmark answer:
+
+Jurisdiction / Governing-law assumption
+Assume baseline Statute of Frauds principles only. Do not assume a specific severance rule beyond what the source materials supply.
+
+Bottom-line routing outcome
+The safest routing output is Needs classification first. The current facts indicate a serious UCC-versus-land classification issue, but they do not conclusively settle it under every source path. A strong answer should identify the classification facts that control before selecting the final writing-analysis route.
+
+Controlling doctrine
+The controlling issue is whether the generator should be treated, on this benchmark, as goods to be sold and removed or as part of the realty such that land-centered analysis controls.
+
+Competing route analysis
+Possible UCC route:
+If the source materials treat the generator as removable goods in this severance posture, then Article 2 may govern.
+
+Possible land route:
+If the source materials treat the generator as part of the realty or as sufficiently bound up with the building, then the land pack may be the better route.
+
+Relationship between the routes
+This is not a stable dual-trigger case and not a clean priority case. It is a classification-first case. The correct next move is to identify the deciding facts or source rule, not to guess.
+
+Main gate order
+classify the asset -> identify attachment and severance facts -> consult the source-specific rule that decides UCC versus land treatment -> select the final route -> assess writing or substitute compliance only after route selection
+
+Transaction characterization
+The asset is not obviously ordinary movable inventory, but neither is it automatically pure land for all source paths. Its attached-to-realty status is the exact reason classification must come first.
+
+Writing / compliance analysis
+A disciplined benchmark answer should not jump into UCC quantity analysis or land-description analysis before deciding the asset classification question. The missing step is route selection, not immediate compliance.
+
+Other possible routes and why they do or do not control
+This is not a one-year or suretyship problem on the stated facts. The real risk is false certainty about UCC versus land treatment.
+
+Strongest counterargument
+A party seeking immediate routing certainty will argue that the asset is obviously goods or obviously part of the realty. The better benchmark response is to explain what fact or rule would make one route control.
+
+Bounded uncertainty
+The answer should say plainly that the route depends on how the source materials treat an attached, removable asset in this severance posture. Missing or unstable classification facts include the degree of annexation, the removal setup, and any source-specific rule about severance.
+
+Carry-forward routing notes:
+Core answer reuse:
+- Ambiguity rewrite required unless the source materials clearly classify the asset.
+
+Safest Lane A zones after routing is fixed:
+- only after the asset is clearly classified
+- names
+- industry context
+- neutral details about the warehouse or buyer
+- minor salience facts that do not affect attachment or severance
+
+Best Lane B ambiguity targets:
+- who is responsible for removal
+- whether removal will materially affect the building
+- whether the asset is independently movable under the source path
+- whether any signed bill of sale, email, or property schedule exists
+
+Unsafe drifts:
+- pretending the current facts already resolve UCC versus land treatment when they do not
+- changing the asset into ordinary loose inventory or into the building itself without labeling the shift
+- offering a standard Lane A menu before the classification issue is resolved
+
+Rubric focus points:
+A strong answer should:
+- identify the classification problem before discussing enforceability
+- name the missing or decisive facts
+- avoid silently selecting UCC or land without justification
+- preserve specific uncertainty under "Strongest counterargument:" rather than forcing a definitive route
+
+Why this is a good anchor:
+This file teaches the router to stop at the right place.
+That matters because the best legal answer in some SoF problems is not immediate enforcement analysis, but disciplined identification of the classification fact that controls the route.

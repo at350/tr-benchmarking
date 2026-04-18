@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 import { FRANK_V2_BENCHMARK_HEADINGS, FRANK_V2_PACK_LABELS, RUBRIC_MODULE_LABELS, RUBRIC_ROW_SPECS } from '@/lib/legal-workflow-v2-constants';
-import type { FrankPacketV2, FrankSofPackId, KarthicRubricRow } from '@/lib/legal-workflow-v2-types';
+import type { FrankPacketV2, FrankSofPackId, KarthicPreClusterRunV2, KarthicRubricRow } from '@/lib/legal-workflow-v2-types';
 
 type AssetKey =
     | 'main'
@@ -277,6 +277,7 @@ export function buildKarthicRowsPrompt(input: {
     assets: Awaited<ReturnType<typeof getFrankV2AssetBundle>>;
     questionText: string;
     questionSourceLabel: string;
+    clusterContext?: string;
 }) {
     return [
         input.assets.sharedModuleSkeleton,
@@ -295,12 +296,98 @@ export function buildKarthicRowsPrompt(input: {
         `Gold packet mapping:\n${JSON.stringify(input.packet.goldPacketMapping)}`,
         '',
         `Likely failure modes:\n${JSON.stringify(input.packet.likelyFailureModes)}`,
+        input.clusterContext ? `\nSample response clusters:\n${input.clusterContext}` : '',
         '',
         'Draft one rubric row object for each of these row keys in order:',
         RUBRIC_ROW_SPECS.map((row) => `${row.key} (${RUBRIC_MODULE_LABELS[row.moduleId]}): ${row.title}`).join('\n'),
         '',
         'Preserve the fixed row keys, module assignments, and default weights unless a pack-specific reason requires a modest adjustment.',
         'Return JSON only of the form {"rows":[...],"comparisonMethodNote":"..."}',
+    ].join('\n');
+}
+
+export function buildKarthicSeedRowsPrompt(input: {
+    packet: FrankPacketV2;
+    assets: Awaited<ReturnType<typeof getFrankV2AssetBundle>>;
+    questionText: string;
+    questionSourceLabel: string;
+    preClusterRun: KarthicPreClusterRunV2;
+}) {
+    return buildKarthicRowsPrompt({
+        packet: input.packet,
+        assets: input.assets,
+        questionText: input.questionText,
+        questionSourceLabel: input.questionSourceLabel,
+        clusterContext: [
+            input.preClusterRun.clusters.map((cluster) => [
+                `${cluster.id} (${cluster.size} responses)`,
+                `Representative: ${cluster.representativeText}`,
+                `Models: ${cluster.modelBreakdown.map((entry) => `${entry.modelKey} x${entry.count}`).join(', ') || 'Unknown'}`,
+            ].join('\n')).join('\n\n'),
+            input.preClusterRun.clusterFailureModes.length > 0
+                ? `Cluster failure modes:\n${input.preClusterRun.clusterFailureModes.join('\n')}`
+                : '',
+        ].filter(Boolean).join('\n\n'),
+    });
+}
+
+export function buildKarthicRefineRowsPrompt(input: {
+    packet: FrankPacketV2;
+    assets: Awaited<ReturnType<typeof getFrankV2AssetBundle>>;
+    questionText: string;
+    preClusterRun: KarthicPreClusterRunV2;
+    currentRows: KarthicRubricRow[];
+}) {
+    return [
+        input.assets.sharedModuleSkeleton,
+        '',
+        input.assets.doctrinePack,
+        '',
+        input.assets.failureBank,
+        '',
+        `Selected pack: ${input.packet.selectedPack ? FRANK_V2_PACK_LABELS[input.packet.selectedPack] : 'Unrouted'}`,
+        `Question:\n${input.questionText}`,
+        '',
+        `Benchmark answer:\n${input.packet.benchmarkAnswer}`,
+        '',
+        `Likely failure modes:\n${JSON.stringify(input.packet.likelyFailureModes)}`,
+        '',
+        `Current rubric rows:\n${JSON.stringify(input.currentRows, null, 2)}`,
+        '',
+        `Cluster representatives:\n${input.preClusterRun.clusters.map((cluster) => JSON.stringify({
+            id: cluster.id,
+            size: cluster.size,
+            representativeText: cluster.representativeText,
+            modelBreakdown: cluster.modelBreakdown,
+        }, null, 2)).join('\n\n')}`,
+        '',
+        `Cluster failure modes:\n${input.preClusterRun.clusterFailureModes.join('\n') || 'None recorded.'}`,
+        '',
+        'Refine the rubric using RRD-lite rules.',
+        'Keep or rewrite a row only if it distinguishes benchmark-aligned reasoning from wrong or incomplete centroid reasoning, captures an important missed failure mode, or sharpens a too-broad row.',
+        'Rewrite or conceptually drop a row if it scores benchmark and wrong centroids similarly, rewards wrong centroids more than benchmark-aligned ones, or duplicates another row.',
+        'Preserve the fixed row keys and module assignments. Do not invent extra rows beyond the existing row-key framework.',
+        'Return JSON only with shape {"rows":[...],"refinementLog":[...],"comparisonMethodNote":"..."} where refinementLog items contain iteration, action, rowKey, rationale, and sourceClusterIds.',
+    ].join('\n');
+}
+
+export function buildDashaClusterFailureModesPrompt(input: {
+    benchmarkAnswer: string;
+    likelyFailureModes: string;
+    clusterContext: string;
+}) {
+    return [
+        'You are summarizing pre-Karthic cluster failure modes.',
+        'Compare each cluster representative against the benchmark answer and the stored likely failure modes.',
+        'Return JSON only with shape {"clusterFailureModes":["string"]}.',
+        '',
+        `Benchmark answer:\n${input.benchmarkAnswer}`,
+        '',
+        `Stored likely failure modes:\n${input.likelyFailureModes}`,
+        '',
+        `Cluster representatives:\n${input.clusterContext}`,
+        '',
+        'Each output item should be concise and tie a cluster to a likely error pattern or missing benchmark feature.',
     ].join('\n');
 }
 

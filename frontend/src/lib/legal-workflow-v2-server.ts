@@ -18,11 +18,14 @@ import {
     RUBRIC_ROW_SPECS,
 } from '@/lib/legal-workflow-v2-constants';
 import {
+    buildDashaClusterFailureModesPrompt,
     buildDashaRowEvaluationPrompt,
     buildFrankBenchmarkPrompt,
     buildFrankExtractionMappingPrompt,
     buildFrankQuestionPrompt,
     buildFrankRoutingIntakePrompt,
+    buildKarthicRefineRowsPrompt,
+    buildKarthicSeedRowsPrompt,
     buildKarthicRowsPrompt,
     getFrankV2AssetBundle,
 } from '@/lib/legal-workflow-v2-prompts';
@@ -38,6 +41,7 @@ import type {
     ConfusionPattern,
     DashaClusterRecord,
     DashaComparisonRole,
+    DashaJudgeSettings,
     DashaModelSummary,
     DashaResponseRecord,
     DashaRunMode,
@@ -53,6 +57,8 @@ import type {
     FrankSourceExtractionSheet,
     FrankSourceIntakeChecklist,
     IntakeRating,
+    KarthicPreClusterRunV2,
+    KarthicRefinementLogEntry,
     KarthicRubricPackV2,
     KarthicRubricRow,
     ModelProvider,
@@ -89,6 +95,7 @@ let openaiClient: OpenAI | null = null;
 
 const DATA_DIRECTORIES = {
     frank: 'frank-v2-packets',
+    karthicPreCluster: 'karthic-v2-pre-cluster-runs',
     karthic: 'karthic-v2-rubric-packs',
     dasha: 'dasha-v2-runs',
     artifacts: 'artifacts-v2',
@@ -96,6 +103,11 @@ const DATA_DIRECTORIES = {
 
 const DEFAULT_OPENAI_JSON_MODEL = 'gpt-4.1-mini';
 const DEFAULT_OPENAI_TEXT_MODEL = 'gpt-5.4-mini';
+const DEFAULT_DASHA_JUDGE_SETTINGS: DashaJudgeSettings = {
+    provider: 'openai',
+    model: DEFAULT_OPENAI_JSON_MODEL,
+    reasoningEffort: 'medium',
+};
 const PACK_IDS = new Set<FrankSofPackId>(['pack10', 'pack20', 'pack30', 'pack40']);
 const ROW_KEYS = new Set<RubricRowKey>(RUBRIC_ROW_SPECS.map((row) => row.key));
 const MODULE_IDS = new Set<RubricModuleId>(['module0', 'module1', 'module2', 'module3', 'module4']);
@@ -719,6 +731,260 @@ export async function getKarthicRubricPack(id: string) {
     return item ? normalizeKarthicRubricPack(item) : null;
 }
 
+export async function listKarthicPreClusterRuns() {
+    const items = await listArtifacts<Record<string, unknown>>(DATA_DIRECTORIES.karthicPreCluster);
+    return items
+        .map((item) => normalizeKarthicPreClusterRun(item))
+        .filter((item): item is KarthicPreClusterRunV2 => Boolean(item));
+}
+
+export async function getKarthicPreClusterRun(id: string) {
+    const item = await readArtifact<Record<string, unknown>>(DATA_DIRECTORIES.karthicPreCluster, id);
+    return item ? normalizeKarthicPreClusterRun(item) : null;
+}
+
+export async function runKarthicPreCluster(input: {
+    frankPacketId: string;
+    selectedModels: DashaSelectedModel[];
+    sampleCount: number;
+}) {
+    const frankPacket = await getRequiredFrankPacket(input.frankPacketId);
+    if (frankPacket.status !== 'approved') {
+        throw new Error('Frank packet must be approved before pre-Karthic clustering can start.');
+    }
+    if (!frankPacket.reverseEngineeredQuestion.trim()) {
+        throw new Error('Frank packet is missing the reverse-engineered question.');
+    }
+
+    const id = `karthic_precluster_${Date.now()}_${randomUUID().slice(0, 8)}`;
+    const now = new Date().toISOString();
+    const draftRun: KarthicPreClusterRunV2 = {
+        schemaVersion: 2,
+        id,
+        frankPacketId: frankPacket.id,
+        questionText: frankPacket.reverseEngineeredQuestion,
+        status: 'draft',
+        selectedModels: input.selectedModels,
+        requestedResponseCount: clampNumber(Math.floor(toNumber(input.sampleCount, 24)), 1, 120),
+        validResponseCount: 0,
+        responses: [],
+        clusters: [],
+        clusterFailureModes: [],
+        clusteringMethod: 'pending',
+        clusteringNotes: 'Pre-Karthic clustering started.',
+        createdAt: now,
+        completedAt: null,
+    };
+    await writeArtifact(DATA_DIRECTORIES.karthicPreCluster, draftRun.id, draftRun);
+
+    try {
+        const responses = await generateDashaResponses(
+            frankPacket.reverseEngineeredQuestion,
+            input.selectedModels,
+            draftRun.requestedResponseCount,
+        );
+        const validResponses = responses.filter((response) => !response.error && response.responseText.trim());
+        if (validResponses.length === 0) {
+            const failedRun: KarthicPreClusterRunV2 = {
+                ...draftRun,
+                status: 'failed',
+                errorMessage: 'No valid model responses were generated during pre-Karthic clustering.',
+                clusteringMethod: 'not_run',
+                clusteringNotes: 'Pre-Karthic clustering terminated before any clusters were generated.',
+                completedAt: new Date().toISOString(),
+            };
+            await writeArtifact(DATA_DIRECTORIES.karthicPreCluster, failedRun.id, failedRun);
+            return failedRun;
+        }
+
+        const clusteringResult = await clusterResponses(validResponses);
+        const clusterFailureModes = await deriveClusterFailureModes({
+            benchmarkAnswer: frankPacket.benchmarkAnswer,
+            likelyFailureModes: frankPacket.likelyFailureModes,
+            clusters: clusteringResult.clusters,
+        });
+
+        const completedRun: KarthicPreClusterRunV2 = {
+            ...draftRun,
+            status: 'completed',
+            validResponseCount: validResponses.length,
+            responses,
+            clusters: clusteringResult.clusters,
+            clusterFailureModes,
+            clusteringMethod: clusteringResult.method,
+            clusteringNotes: clusteringResult.notes,
+            completedAt: new Date().toISOString(),
+        };
+        await writeArtifact(DATA_DIRECTORIES.karthicPreCluster, completedRun.id, completedRun);
+        return completedRun;
+    } catch (error) {
+        const failedRun: KarthicPreClusterRunV2 = {
+            ...draftRun,
+            status: 'failed',
+            errorMessage: error instanceof Error ? error.message : 'Failed to complete pre-Karthic clustering.',
+            clusteringMethod: 'failed',
+            clusteringNotes: 'Pre-Karthic clustering failed before completion.',
+            completedAt: new Date().toISOString(),
+        };
+        await writeArtifact(DATA_DIRECTORIES.karthicPreCluster, failedRun.id, failedRun);
+        return failedRun;
+    }
+}
+
+export async function seedKarthicRubricPack(input: {
+    frankPacketId: string;
+    preClusterRunId: string;
+    id?: string;
+    model?: string;
+    reasoningEffort?: ReasoningEffort;
+}) {
+    const frankPacket = await getRequiredFrankPacket(input.frankPacketId);
+    if (frankPacket.status !== 'approved') {
+        throw new Error('Frank packet must be approved before generating a seed rubric pack.');
+    }
+    if (!frankPacket.selectedPack) {
+        throw new Error('Frank packet is missing a selected pack.');
+    }
+    const preClusterRun = await getRequiredKarthicPreClusterRun(input.preClusterRunId);
+    if (preClusterRun.frankPacketId !== frankPacket.id) {
+        throw new Error('Selected pre-Karthic cluster run does not belong to this Frank packet.');
+    }
+    if (preClusterRun.status !== 'completed') {
+        throw new Error('Pre-Karthic clustering must be completed before seed rubric generation can start.');
+    }
+
+    const assets = await getFrankV2AssetBundle(frankPacket.selectedPack);
+    const existing = input.id ? await getKarthicRubricPack(input.id) : null;
+    const prompt = buildKarthicSeedRowsPrompt({
+        packet: frankPacket,
+        assets,
+        questionText: frankPacket.reverseEngineeredQuestion,
+        questionSourceLabel: 'Canonical reverse-engineered question',
+        preClusterRun,
+    });
+    const generationSettings = withUpdatedPromptGenerationSetting(
+        existing?.generationSettings,
+        'rubric_generation',
+        input.model,
+        input.reasoningEffort,
+    );
+    const parsed = await generateJson({
+        operation: 'Karthic v2 seed rubric generation',
+        prompt,
+        model: generationSettings.rubric_generation?.model,
+        reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
+    });
+    const rows = normalizeRubricRows(parsed.rows);
+    validateRubricRowsOrThrow(rows);
+
+    const now = new Date().toISOString();
+    const pack: KarthicRubricPackV2 = {
+        schemaVersion: 2,
+        id: existing?.id ?? `karthic_v2_${Date.now()}_${randomUUID().slice(0, 8)}`,
+        frankPacketId: frankPacket.id,
+        preClusterRunId: preClusterRun.id,
+        selectedPack: frankPacket.selectedPack,
+        questionSource: 'canonical',
+        questionVariancePackageId: null,
+        questionText: frankPacket.reverseEngineeredQuestion,
+        status: existing?.status ?? 'draft',
+        seedRows: rows,
+        rows,
+        clusterFailureModes: preClusterRun.clusterFailureModes,
+        refinementLog: existing?.refinementLog ?? [],
+        refinementStatus: 'seeded',
+        generationSettings,
+        savedPrompts: [
+            ...(existing?.savedPrompts ?? []),
+            {
+                id: `prompt_${randomUUID().slice(0, 8)}`,
+                kind: 'rubric_generation',
+                title: `Seed rubric prompt · ${new Date().toLocaleString()}`,
+                prompt,
+                createdAt: now,
+            },
+        ],
+        comparisonMethodNote: normalizeNonEmptyString(
+            parsed.comparisonMethodNote,
+            existing?.comparisonMethodNote ?? 'Use benchmark-vs-centroid contrasts to keep only discriminative rubric rows.',
+        ),
+        approvedAt: existing?.approvedAt ?? null,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+    };
+    await writeArtifact(DATA_DIRECTORIES.karthic, pack.id, pack);
+    return pack;
+}
+
+export async function refineKarthicRubricPack(input: {
+    id: string;
+    model?: string;
+    reasoningEffort?: ReasoningEffort;
+}) {
+    const existing = await getRequiredKarthicPack(input.id);
+    const frankPacket = await getRequiredFrankPacket(existing.frankPacketId);
+    if (!frankPacket.selectedPack) {
+        throw new Error('Frank packet is missing a selected pack.');
+    }
+    const preClusterRunId = normalizeNonEmptyString(existing.preClusterRunId, '');
+    if (!preClusterRunId) {
+        throw new Error('Seed rubric pack is missing its pre-Karthic cluster run.');
+    }
+    const preClusterRun = await getRequiredKarthicPreClusterRun(preClusterRunId);
+    if (preClusterRun.status !== 'completed') {
+        throw new Error('Pre-Karthic clustering must be completed before rubric refinement can run.');
+    }
+    const assets = await getFrankV2AssetBundle(frankPacket.selectedPack);
+    const prompt = buildKarthicRefineRowsPrompt({
+        packet: frankPacket,
+        assets,
+        questionText: existing.questionText,
+        preClusterRun,
+        currentRows: existing.rows,
+    });
+    const generationSettings = withUpdatedPromptGenerationSetting(
+        existing.generationSettings,
+        'rubric_generation',
+        input.model,
+        input.reasoningEffort,
+    );
+    const parsed = await generateJson({
+        operation: 'Karthic v2 rubric refinement',
+        prompt,
+        model: generationSettings.rubric_generation?.model,
+        reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
+    });
+    const rows = normalizeRubricRows(parsed.rows);
+    validateRubricRowsOrThrow(rows);
+    const refinementLog = normalizeKarthicRefinementLog(parsed.refinementLog);
+    const now = new Date().toISOString();
+    const pack: KarthicRubricPackV2 = {
+        ...existing,
+        rows,
+        clusterFailureModes: preClusterRun.clusterFailureModes,
+        refinementLog: refinementLog.length > 0 ? refinementLog : buildFallbackRefinementLog(existing.rows, rows),
+        refinementStatus: 'refined',
+        generationSettings,
+        savedPrompts: [
+            ...existing.savedPrompts,
+            {
+                id: `prompt_${randomUUID().slice(0, 8)}`,
+                kind: 'rubric_generation',
+                title: `Refine rubric prompt · ${new Date().toLocaleString()}`,
+                prompt,
+                createdAt: now,
+            },
+        ],
+        comparisonMethodNote: normalizeNonEmptyString(
+            parsed.comparisonMethodNote,
+            existing.comparisonMethodNote || 'Use benchmark-vs-centroid contrasts to keep only discriminative rubric rows.',
+        ),
+        updatedAt: now,
+    };
+    await writeArtifact(DATA_DIRECTORIES.karthic, pack.id, pack);
+    return pack;
+}
+
 export async function generateKarthicRubricPack(input: {
     frankPacketId: string;
     id?: string;
@@ -761,12 +1027,17 @@ export async function generateKarthicRubricPack(input: {
         schemaVersion: 2,
         id: existing?.id ?? `karthic_v2_${Date.now()}_${randomUUID().slice(0, 8)}`,
         frankPacketId: frankPacket.id,
+        preClusterRunId: existing?.preClusterRunId ?? null,
         selectedPack: frankPacket.selectedPack,
         questionSource: 'canonical',
         questionVariancePackageId: null,
         questionText: frankPacket.reverseEngineeredQuestion,
         status: existing?.status ?? 'draft',
+        seedRows: existing?.seedRows ?? rows,
         rows,
+        clusterFailureModes: existing?.clusterFailureModes ?? [],
+        refinementLog: existing?.refinementLog ?? [],
+        refinementStatus: existing?.refinementStatus ?? 'seeded',
         generationSettings,
         savedPrompts: [
             ...(existing?.savedPrompts ?? []),
@@ -799,12 +1070,17 @@ export async function saveKarthicRubricPack(input: Partial<KarthicRubricPackV2> 
         schemaVersion: 2,
         id: existing?.id ?? normalizeNonEmptyString(input.id, `karthic_v2_${Date.now()}_${randomUUID().slice(0, 8)}`),
         frankPacketId: frankPacket.id,
+        preClusterRunId: normalizeNullableString(input.preClusterRunId) ?? existing?.preClusterRunId ?? null,
         selectedPack: frankPacket.selectedPack as FrankSofPackId,
         questionSource: 'canonical',
         questionVariancePackageId: null,
         questionText,
         status: input.status === 'approved' ? 'approved' : existing?.status ?? 'draft',
+        seedRows: normalizeRubricRows(input.seedRows ?? existing?.seedRows ?? input.rows ?? existing?.rows ?? []),
         rows: normalizeRubricRows(input.rows ?? existing?.rows ?? []),
+        clusterFailureModes: normalizeStringArray(input.clusterFailureModes ?? existing?.clusterFailureModes ?? []),
+        refinementLog: normalizeKarthicRefinementLog(input.refinementLog ?? existing?.refinementLog ?? []),
+        refinementStatus: normalizeKarthicRefinementStatus(input.refinementStatus, existing?.refinementStatus ?? 'not_started'),
         savedPrompts: Array.isArray(input.savedPrompts) ? input.savedPrompts : existing?.savedPrompts ?? [],
         generationSettings: normalizePromptGenerationSettings(input.generationSettings ?? existing?.generationSettings),
         comparisonMethodNote: normalizeOptionalString(
@@ -817,10 +1093,17 @@ export async function saveKarthicRubricPack(input: Partial<KarthicRubricPackV2> 
     };
     validateRubricRowsOrThrow(pack.rows);
     if (pack.status === 'approved') {
+        if (!pack.preClusterRunId) {
+            throw new Error('A completed pre-Karthic cluster run is required before rubric approval.');
+        }
+        if (pack.refinementStatus !== 'refined' && pack.refinementStatus !== 'approved') {
+            throw new Error('Rubric refinement must be completed before approval.');
+        }
         if (!pack.questionText.trim()) {
             throw new Error('Question text is required before approving the rubric pack.');
         }
         validateReverseEngineeredQuestionOrThrow(pack.questionText);
+        pack.refinementStatus = 'approved';
     }
     await writeArtifact(DATA_DIRECTORIES.karthic, pack.id, pack);
     return pack;
@@ -845,10 +1128,15 @@ export async function runDashaEvaluation(input: {
     selectedModels: DashaSelectedModel[];
     sampleCount: number;
     questionText?: string;
+    judgeModel?: string;
+    judgeReasoningEffort?: ReasoningEffort;
 }) {
     const pack = await getRequiredKarthicPack(input.rubricPackId);
     if (pack.status !== 'approved') {
         throw new Error('Rubric pack must be approved before Dasha can start.');
+    }
+    if (pack.refinementStatus !== 'approved' && pack.refinementStatus !== 'refined') {
+        throw new Error('Rubric pack must be refined before Dasha can start.');
     }
     return await createDraftDashaRun({
         pack,
@@ -857,18 +1145,37 @@ export async function runDashaEvaluation(input: {
         selectedModels: input.selectedModels,
         sampleCount: input.sampleCount,
         questionText: input.questionText,
+        judgeModel: input.judgeModel,
+        judgeReasoningEffort: input.judgeReasoningEffort,
     });
 }
 
 export async function executeDashaRun(id: string) {
     const run = await getRequiredDashaRun(id);
-    if (run.status !== 'draft') {
+    if (run.status !== 'draft' || run.workflowStage !== 'cluster_pending') {
         return run;
     }
     const pack = await getRequiredKarthicPack(run.rubricPackId);
-    return await finalizeDashaRun({
+    return await finalizeDashaClustering({
         run,
         pack,
+    });
+}
+
+export async function judgeDashaRun(id: string, input?: {
+    judgeModel?: string;
+    judgeReasoningEffort?: ReasoningEffort;
+}) {
+    const run = await getRequiredDashaRun(id);
+    if (run.status !== 'draft' || run.workflowStage !== 'clustered') {
+        return run;
+    }
+    const pack = await getRequiredKarthicPack(run.rubricPackId);
+    return await finalizeDashaJudging({
+        run,
+        pack,
+        judgeModel: input?.judgeModel,
+        judgeReasoningEffort: input?.judgeReasoningEffort,
     });
 }
 
@@ -898,6 +1205,8 @@ async function createDraftDashaRun(input: {
     selectedModels: DashaSelectedModel[];
     sampleCount: number;
     questionText?: string;
+    judgeModel?: string;
+    judgeReasoningEffort?: ReasoningEffort;
 }) {
     const id = `dasha_v2_${Date.now()}_${randomUUID().slice(0, 8)}`;
     const now = new Date().toISOString();
@@ -908,6 +1217,7 @@ async function createDraftDashaRun(input: {
         rubricPackId: input.pack.id,
         runMode: input.runMode,
         status: 'draft',
+        workflowStage: 'cluster_pending',
         inputArtifacts,
         questionText: normalizeNonEmptyString(input.questionText, input.pack.questionText),
         questionSource: 'canonical',
@@ -915,6 +1225,10 @@ async function createDraftDashaRun(input: {
         comparisonId: null,
         comparisonRole: null,
         selectedModels: input.selectedModels,
+        judgeSettings: normalizeDashaJudgeSettings({
+            model: input.judgeModel,
+            reasoningEffort: input.judgeReasoningEffort,
+        }),
         requestedResponseCount: clampNumber(Math.floor(toNumber(input.sampleCount, 120)), 1, 400),
         validResponseCount: 0,
         responses: [],
@@ -936,7 +1250,7 @@ async function createDraftDashaRun(input: {
     return draftRun;
 }
 
-async function finalizeDashaRun(input: {
+async function finalizeDashaClustering(input: {
     run: DashaRunV2;
     pack: KarthicRubricPackV2;
 }) {
@@ -952,43 +1266,96 @@ async function finalizeDashaRun(input: {
         }
 
         const clusteringResult = await clusterResponses(validResponses);
-        const rowResults: RubricRowResult[] = input.run.runMode === 'score_and_cluster'
-            ? await evaluateClustersAgainstRows({
-                questionText: input.run.questionText,
-                pack: input.pack,
+        if (input.run.runMode === 'cluster_only') {
+            const completedRun: DashaRunV2 = {
+                ...input.run,
+                status: 'completed',
+                workflowStage: 'clustered',
+                validResponseCount: validResponses.length,
+                responses,
                 clusters: clusteringResult.clusters,
-                responses: validResponses,
-            })
-            : [];
+                rowResults: [],
+                moduleSummaries: [],
+                weightedSummary: {
+                    applicableWeightTotal: 0,
+                    weightedScore: null,
+                    notApplicableRowKeys: [],
+                },
+                modelSummaries: buildDashaModelSummaries({
+                    selectedModels: input.run.selectedModels,
+                    responses,
+                    clusters: clusteringResult.clusters,
+                    rowResults: [],
+                }),
+                clusteringMethod: clusteringResult.method,
+                clusteringNotes: `${clusteringResult.notes} Row scoring was skipped because this run was started in clustering-only mode.`,
+                completedAt: new Date().toISOString(),
+            };
+            await writeArtifact(DATA_DIRECTORIES.dasha, completedRun.id, completedRun);
+            return completedRun;
+        }
+
+        const clusteredRun: DashaRunV2 = {
+            ...input.run,
+            status: 'draft',
+            workflowStage: 'clustered',
+            validResponseCount: validResponses.length,
+            responses,
+            clusters: clusteringResult.clusters,
+            clusteringMethod: clusteringResult.method,
+            clusteringNotes: clusteringResult.notes,
+            completedAt: null,
+        };
+        await writeArtifact(DATA_DIRECTORIES.dasha, clusteredRun.id, clusteredRun);
+        return clusteredRun;
+    } catch (error) {
+        return await finalizeFailedRun(input.run, error instanceof Error ? error.message : 'Failed to run Dasha evaluation.');
+    }
+}
+
+async function finalizeDashaJudging(input: {
+    run: DashaRunV2;
+    pack: KarthicRubricPackV2;
+    judgeModel?: string;
+    judgeReasoningEffort?: ReasoningEffort;
+}) {
+    try {
+        const validResponses = input.run.responses.filter((response) => !response.error && response.responseText.trim());
+        const judgeSettings = normalizeDashaJudgeSettings({
+            model: input.judgeModel ?? input.run.judgeSettings.model,
+            reasoningEffort: input.judgeReasoningEffort ?? input.run.judgeSettings.reasoningEffort,
+        });
+        const rowResults: RubricRowResult[] = await evaluateClustersAgainstRows({
+            questionText: input.run.questionText,
+            pack: input.pack,
+            clusters: input.run.clusters,
+            responses: validResponses,
+            judgeSettings,
+        });
         const moduleSummaries = buildModuleSummaries(rowResults);
         const weightedSummary = summarizeRowResults(rowResults);
         const modelSummaries = buildDashaModelSummaries({
             selectedModels: input.run.selectedModels,
-            responses,
-            clusters: clusteringResult.clusters,
+            responses: input.run.responses,
+            clusters: input.run.clusters,
             rowResults,
         });
 
         const completedRun: DashaRunV2 = {
             ...input.run,
             status: 'completed',
-            validResponseCount: validResponses.length,
-            responses,
-            clusters: clusteringResult.clusters,
+            workflowStage: 'judged',
+            judgeSettings,
             rowResults,
             moduleSummaries,
             weightedSummary,
             modelSummaries,
-            clusteringMethod: clusteringResult.method,
-            clusteringNotes: input.run.runMode === 'cluster_only'
-                ? `${clusteringResult.notes} Row scoring was skipped because this run was started in clustering-only mode.`
-                : clusteringResult.notes,
             completedAt: new Date().toISOString(),
         };
         await writeArtifact(DATA_DIRECTORIES.dasha, completedRun.id, completedRun);
         return completedRun;
     } catch (error) {
-        return await finalizeFailedRun(input.run, error instanceof Error ? error.message : 'Failed to run Dasha evaluation.');
+        return await finalizeFailedRun(input.run, error instanceof Error ? error.message : 'Failed to judge clustered Dasha run.');
     }
 }
 
@@ -996,6 +1363,7 @@ async function finalizeFailedRun(run: DashaRunV2, errorMessage: string) {
     const failedRun: DashaRunV2 = {
         ...run,
         status: 'failed',
+        workflowStage: run.workflowStage,
         responses: [],
         clusters: [],
         rowResults: [],
@@ -1020,6 +1388,7 @@ async function evaluateClustersAgainstRows(input: {
     pack: KarthicRubricPackV2;
     clusters: DashaClusterRecord[];
     responses: DashaResponseRecord[];
+    judgeSettings: DashaJudgeSettings;
 }): Promise<RubricRowResult[]> {
     const responseById = new Map(input.responses.map((response) => [response.id, response]));
     return await Promise.all(input.pack.rows.map(async (row) => {
@@ -1032,6 +1401,7 @@ async function evaluateClustersAgainstRows(input: {
                 row,
                 questionText: input.questionText,
                 responseText: representative.responseText,
+                judgeSettings: input.judgeSettings,
             });
             return {
                 clusterId: cluster.id,
@@ -1067,6 +1437,7 @@ async function evaluateRowAgainstResponse(input: {
     row: KarthicRubricRow;
     questionText: string;
     responseText: string;
+    judgeSettings: DashaJudgeSettings;
 }) {
     const prompt = buildDashaRowEvaluationPrompt(input);
     const fallback = heuristicRowEvaluation(input);
@@ -1074,6 +1445,8 @@ async function evaluateRowAgainstResponse(input: {
         const parsed = await generateJson({
             operation: `Dasha row evaluation ${input.row.key}`,
             prompt,
+            model: input.judgeSettings.model,
+            reasoningEffort: input.judgeSettings.reasoningEffort,
         });
         return normalizeRowEvaluation(parsed, fallback);
     } catch {
@@ -2055,18 +2428,48 @@ function normalizeKarthicRubricPack(value: unknown): KarthicRubricPackV2 | null 
         schemaVersion: 2,
         id: normalizeNonEmptyString(value.id, `karthic_v2_${randomUUID().slice(0, 8)}`),
         frankPacketId: normalizeNonEmptyString(value.frankPacketId, ''),
+        preClusterRunId: normalizeNullableString(value.preClusterRunId),
         selectedPack: normalizePackId(value.selectedPack) ?? 'pack10',
         questionSource: normalizeQuestionSource(value.questionSource, 'canonical'),
         questionVariancePackageId: normalizeNullableString(value.questionVariancePackageId),
         questionText: normalizeOptionalString(value.questionText, ''),
         status: value.status === 'approved' ? 'approved' : 'draft',
+        seedRows: normalizeRubricRows(value.seedRows ?? value.rows),
         rows: normalizeRubricRows(value.rows),
+        clusterFailureModes: normalizeStringArray(value.clusterFailureModes),
+        refinementLog: normalizeKarthicRefinementLog(value.refinementLog),
+        refinementStatus: normalizeKarthicRefinementStatus(value.refinementStatus, value.status === 'approved' ? 'approved' : 'not_started'),
         savedPrompts: Array.isArray(value.savedPrompts) ? value.savedPrompts as KarthicRubricPackV2['savedPrompts'] : [],
         generationSettings: normalizePromptGenerationSettings(value.generationSettings),
         comparisonMethodNote: normalizeOptionalString(value.comparisonMethodNote, ''),
         approvedAt: typeof value.approvedAt === 'string' ? value.approvedAt : null,
         createdAt: normalizeNonEmptyString(value.createdAt, new Date().toISOString()),
         updatedAt: normalizeNonEmptyString(value.updatedAt, new Date().toISOString()),
+    };
+}
+
+function normalizeKarthicPreClusterRun(value: unknown): KarthicPreClusterRunV2 | null {
+    if (!isRecord(value) || value.schemaVersion !== 2) {
+        return null;
+    }
+    const status = value.status === 'completed' || value.status === 'failed' ? value.status : 'draft';
+    return {
+        schemaVersion: 2,
+        id: normalizeNonEmptyString(value.id, `karthic_precluster_${randomUUID().slice(0, 8)}`),
+        frankPacketId: normalizeNonEmptyString(value.frankPacketId, ''),
+        questionText: normalizeOptionalString(value.questionText, ''),
+        status,
+        selectedModels: Array.isArray(value.selectedModels) ? value.selectedModels as DashaSelectedModel[] : [],
+        requestedResponseCount: clampNumber(Math.floor(toNumber(value.requestedResponseCount, 24)), 1, 120),
+        validResponseCount: Math.max(0, Math.floor(toNumber(value.validResponseCount, 0))),
+        responses: Array.isArray(value.responses) ? value.responses as DashaResponseRecord[] : [],
+        clusters: Array.isArray(value.clusters) ? value.clusters as DashaClusterRecord[] : [],
+        clusterFailureModes: normalizeStringArray(value.clusterFailureModes),
+        clusteringMethod: normalizeOptionalString(value.clusteringMethod, status === 'completed' ? 'unknown' : 'pending'),
+        clusteringNotes: typeof value.clusteringNotes === 'string' ? value.clusteringNotes : null,
+        errorMessage: typeof value.errorMessage === 'string' ? value.errorMessage : undefined,
+        createdAt: normalizeNonEmptyString(value.createdAt, new Date().toISOString()),
+        completedAt: typeof value.completedAt === 'string' ? value.completedAt : null,
     };
 }
 
@@ -2080,6 +2483,7 @@ function normalizeDashaRun(value: unknown): DashaRunV2 | null {
         rubricPackId: normalizeNonEmptyString(value.rubricPackId, ''),
         runMode: value.runMode === 'cluster_only' ? 'cluster_only' : 'score_and_cluster',
         status: value.status === 'completed' || value.status === 'failed' ? value.status : 'draft',
+        workflowStage: normalizeDashaWorkflowStage(value.workflowStage, value.status === 'completed' ? 'judged' : 'cluster_pending'),
         inputArtifacts: normalizeArtifacts(value.inputArtifacts),
         questionText: normalizeOptionalString(value.questionText, ''),
         questionSource: normalizeQuestionSource(value.questionSource, 'canonical'),
@@ -2087,6 +2491,12 @@ function normalizeDashaRun(value: unknown): DashaRunV2 | null {
         comparisonId: normalizeNullableString(value.comparisonId),
         comparisonRole: normalizeDashaComparisonRole(value.comparisonRole),
         selectedModels: Array.isArray(value.selectedModels) ? value.selectedModels as DashaSelectedModel[] : [],
+        judgeSettings: normalizeDashaJudgeSettings(isRecord(value.judgeSettings)
+            ? {
+                model: typeof value.judgeSettings.model === 'string' ? value.judgeSettings.model : null,
+                reasoningEffort: typeof value.judgeSettings.reasoningEffort === 'string' ? value.judgeSettings.reasoningEffort : null,
+            }
+            : null),
         requestedResponseCount: typeof value.requestedResponseCount === 'number' ? value.requestedResponseCount : undefined,
         validResponseCount: typeof value.validResponseCount === 'number' ? value.validResponseCount : undefined,
         responses: Array.isArray(value.responses) ? value.responses as DashaResponseRecord[] : [],
@@ -2107,6 +2517,65 @@ function normalizeDashaRun(value: unknown): DashaRunV2 | null {
         createdAt: normalizeNonEmptyString(value.createdAt, new Date().toISOString()),
         completedAt: typeof value.completedAt === 'string' ? value.completedAt : null,
     };
+}
+
+function normalizeKarthicRefinementLog(value: unknown): KarthicRefinementLogEntry[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .map((entry) => {
+            if (!isRecord(entry)) {
+                return null;
+            }
+            const rowKey = normalizeRubricRowKey(entry.rowKey);
+            if (!rowKey) {
+                return null;
+            }
+            return {
+                iteration: Math.max(1, Math.floor(toNumber(entry.iteration, 1))),
+                action: normalizeKarthicRefinementAction(entry.action),
+                rowKey,
+                rationale: normalizeNonEmptyString(entry.rationale, 'No rationale provided.'),
+                sourceClusterIds: normalizeStringArray(entry.sourceClusterIds),
+            } satisfies KarthicRefinementLogEntry;
+        })
+        .filter((entry): entry is KarthicRefinementLogEntry => Boolean(entry));
+}
+
+function normalizeKarthicRefinementAction(value: unknown): KarthicRefinementLogEntry['action'] {
+    switch (value) {
+        case 'added':
+        case 'rewritten':
+        case 'dropped':
+        case 'kept':
+            return value;
+        default:
+            return 'kept';
+    }
+}
+
+function normalizeKarthicRefinementStatus(value: unknown, fallback: KarthicRubricPackV2['refinementStatus']): KarthicRubricPackV2['refinementStatus'] {
+    switch (value) {
+        case 'not_started':
+        case 'seeded':
+        case 'refined':
+        case 'approved':
+            return value;
+        default:
+            return fallback;
+    }
+}
+
+function normalizeDashaWorkflowStage(value: unknown, fallback: DashaRunV2['workflowStage']): DashaRunV2['workflowStage'] {
+    switch (value) {
+        case 'cluster_pending':
+        case 'clustered':
+        case 'judged':
+            return value;
+        default:
+            return fallback;
+    }
 }
 
 function normalizeRubricRows(value: unknown): KarthicRubricRow[] {
@@ -2408,12 +2877,30 @@ function normalizeRubricRowKeys(value: unknown): RubricRowKey[] {
         : [];
 }
 
+function normalizeRubricRowKey(value: unknown): RubricRowKey | null {
+    return typeof value === 'string' && ROW_KEYS.has(value as RubricRowKey) ? value as RubricRowKey : null;
+}
+
 function normalizeOpenAiJsonModel(model?: string) {
     return model?.trim() || DEFAULT_OPENAI_JSON_MODEL;
 }
 
 function normalizeOpenAiTextModel(model?: string) {
     return model?.trim() || DEFAULT_OPENAI_TEXT_MODEL;
+}
+
+function normalizeDashaJudgeSettings(value: {
+    model?: string | null;
+    reasoningEffort?: ReasoningEffort | string | null;
+} | null | undefined): DashaJudgeSettings {
+    return {
+        provider: 'openai',
+        model: normalizeOpenAiJsonModel(value?.model ?? undefined),
+        reasoningEffort: normalizeReasoningEffortValue(
+            value?.reasoningEffort,
+            DEFAULT_DASHA_JUDGE_SETTINGS.reasoningEffort,
+        ),
+    };
 }
 
 function getNestedString(value: Record<string, unknown>, parentKey: string, childKey: string) {
@@ -2686,12 +3173,81 @@ async function getRequiredKarthicPack(id: string) {
     return pack;
 }
 
+async function getRequiredKarthicPreClusterRun(id: string) {
+    const run = await getKarthicPreClusterRun(id);
+    if (!run) {
+        throw new Error('Pre-Karthic cluster run not found.');
+    }
+    return run;
+}
+
 async function getRequiredDashaRun(id: string) {
     const run = await getDashaRun(id);
     if (!run) {
         throw new Error('Dasha run not found.');
     }
     return run;
+}
+
+async function deriveClusterFailureModes(input: {
+    benchmarkAnswer: string;
+    likelyFailureModes: FrankLikelyFailureModes | null;
+    clusters: DashaClusterRecord[];
+}) {
+    const serializedFailureModes = input.likelyFailureModes
+        ? Object.entries(input.likelyFailureModes).map(([key, value]) => `${key}: ${value}`).join('\n')
+        : 'No likely failure modes were provided.';
+    const clusterContext = input.clusters.map((cluster) => [
+        `${cluster.id} (${cluster.size} responses)`,
+        `Representative: ${cluster.representativeText}`,
+        `Models: ${cluster.modelBreakdown.map((entry) => `${entry.modelKey} x${entry.count}`).join(', ') || 'Unknown'}`,
+    ].join('\n')).join('\n\n');
+
+    try {
+        const parsed = await generateJson({
+            operation: 'Karthic cluster failure mode synthesis',
+            prompt: buildDashaClusterFailureModesPrompt({
+                benchmarkAnswer: input.benchmarkAnswer,
+                likelyFailureModes: serializedFailureModes,
+                clusterContext,
+            }),
+        });
+        const items = normalizeStringArray(parsed.clusterFailureModes);
+        if (items.length > 0) {
+            return items;
+        }
+    } catch {
+        // Fall back below.
+    }
+
+    return input.clusters.map((cluster) => {
+        const overlap = roundToTwo(jaccardSimilarity(
+            normalizeForSimilarity(input.benchmarkAnswer),
+            normalizeForSimilarity(cluster.representativeText),
+        ));
+        return `${cluster.id}: benchmark overlap ${overlap}. Review this representative against stored failure modes and missing benchmark points.`;
+    });
+}
+
+function buildFallbackRefinementLog(previousRows: KarthicRubricRow[], nextRows: KarthicRubricRow[]) {
+    return nextRows.map((row) => {
+        const previous = previousRows.find((item) => item.key === row.key);
+        const changed = !previous
+            || previous.title !== row.title
+            || previous.description !== row.description
+            || previous.weight !== row.weight
+            || previous.naGuidance !== row.naGuidance
+            || JSON.stringify(previous.goldenTarget) !== JSON.stringify(row.goldenTarget);
+        return {
+            iteration: 1,
+            action: changed ? 'rewritten' : 'kept',
+            rowKey: row.key,
+            rationale: changed
+                ? 'Row was sharpened during rubric refinement using centroid-vs-benchmark contrasts.'
+                : 'Row remained sufficiently discriminative during refinement.',
+            sourceClusterIds: [],
+        } satisfies KarthicRefinementLogEntry;
+    });
 }
 
 async function generateModelResponse({ provider, model, systemPrompt, messages, temperature, reasoningEffort }: GenerateModelOptions) {

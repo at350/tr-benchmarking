@@ -1,0 +1,103 @@
+UCC ARTICLE 2 / SECTION 2-201 — WORKED BENCHMARK EXAMPLE
+
+Purpose:
+This file gives the GPT one clean benchmark anchor for a UCC 2-201 Statute of Frauds problem. Use it as a model for routing, neutral-question drafting, and benchmark-answer structure. Do not copy the facts verbatim into later variations.
+
+Why this example is clean:
+- the transaction is clearly for the sale of goods
+- the price is above the statutory threshold
+- the quantity term is stated
+- both sides are merchants
+- the benchmark can proceed through the merchant-confirmation route without importing other substitutes
+
+Routing snapshot:
+Input type: Worked benchmark example
+Governing-law candidate: UCC Article 2
+Primary SoF provision candidate: UCC Article 2 / Section 2-201
+Secondary candidate(s): None on these facts
+Controlling doctrine: Sale-of-goods agreement at or above the UCC threshold requires a qualifying writing or supported substitute under Section 2-201
+Main gate order: classify under Article 2 -> threshold -> writing/quantity/authentication -> merchant confirmation
+Variation readiness: Ready
+Main no-silent-change facts:
+- the contract is for goods, not services
+- the quantity term is present
+- both parties are merchants
+- Metro sent a signed confirmation
+- Harbor received it and did not object in writing within ten days
+
+Benchmark packet
+
+Source-style fact core:
+Metro Restaurant Supply orally agrees to sell 200 stainless-steel mixing bowls to Harbor Bakery for $15 each. Both parties are merchants. The next day, Metro sends Harbor an email confirming the agreement, signed with the sales manager's typed business signature. Harbor receives the email and does not object in writing within ten days. Harbor later refuses to perform.
+
+Neutral legal question:
+Metro Restaurant Supply orally agrees to sell 200 stainless-steel mixing bowls to Harbor Bakery for $15 each. The next day, Metro sends Harbor an email confirming the agreement, signed with the sales manager's typed business signature. Harbor receives the email and does not object in writing within ten days. Harbor later refuses to perform. Is the agreement enforceable under UCC 2-201?
+
+Gold benchmark answer:
+
+Jurisdiction / Governing-law assumption
+Assume baseline UCC Article 2 and Section 2-201 rules, and no jurisdiction-specific variation beyond what the benchmark source materials support.
+
+Bottom-line outcome
+Likely enforceable under UCC 2-201 on the stated facts. This is a sale-of-goods contract above the threshold, but the merchant-confirmation route likely satisfies the Statute of Frauds.
+
+Controlling doctrine
+The controlling doctrine is UCC Section 2-201. The key path is merchant confirmation: a writing sufficient against the sender that is received by another merchant and not timely objected to in writing.
+
+Main gate order
+determine Article 2 applies -> confirm threshold is met -> assess writing, quantity term, and authentication -> assess merchant confirmation
+
+Transaction characterization
+The contract is for the sale of 200 stainless-steel mixing bowls, which are goods. Nothing in the problem suggests a mixed services issue.
+
+Trigger analysis
+The transaction is a sale of goods above the baseline Article 2 threshold. That brings Section 2-201 into play.
+
+Writing / compliance analysis
+Metro's email appears to contain a quantity term, identify the transaction, and include an authentication feature through the sales manager's typed business signature. On the benchmark path, that makes the writing likely sufficient against Metro as sender.
+
+Exception / substitute / enforcement-limitation analysis
+Because both sides are merchants, Harbor received the confirmation, and Harbor did not object in writing within ten days, the merchant-confirmation route likely makes the agreement enforceable against Harbor as well. The benchmark does not need to rely on specially manufactured goods, admission, or payment/acceptance routes.
+
+Other defenses or competing doctrines
+No separate common-law Statute of Frauds analysis is needed because Article 2 is the governing framework on these facts.
+
+Strongest counterargument
+Harbor's best counterargument is that the email is too informal or that the typed signature is insufficient. But the stronger baseline answer is that the confirmation is attributable to Metro and contains the key quantity information needed for the merchant-confirmation route.
+
+Bounded uncertainty
+The answer would be less stable if merchant status were unclear, if the email omitted quantity, or if Harbor had objected in writing within ten days. On the stated facts, those control points are fixed.
+
+Carry-forward variation notes:
+Core answer reuse:
+- Cosmetic edits only for Lane A changes that preserve goods classification, threshold side, quantity-term presence, merchant status, and the no-objection confirmation path.
+
+Safest Lane A zones:
+- names
+- product labels that remain goods of the same legal type
+- neutral quantity and price shifts that stay on the same side of the threshold and keep the same writing logic
+- industry context
+- non-controlling salience facts about the businesses
+
+Best Lane B ambiguity targets:
+- whether the parties are merchants
+- whether the writing contains quantity
+- whether the transaction is predominantly goods
+- whether Harbor received the confirmation
+- whether Harbor objected in writing within ten days
+- whether the typed business signature is attributable to the sender
+
+Unsafe drifts:
+- changing goods into services
+- crossing the threshold line without marking the doctrinal shift
+- removing the quantity term and pretending the answer is still fixed
+- blending the merchant-confirmation route with generic common-law reliance language
+
+Rubric focus points:
+- correctly classifies the transaction under Article 2
+- isolates quantity and authentication in the writing analysis
+- keeps the merchant-confirmation path separate from other Section 2-201 substitutes
+- avoids importing common-law SoF rules into a UCC-centered benchmark
+
+Why this is a good anchor:
+This example shows a clean positive UCC benchmark and teaches the model that quantity, merchant status, and the no-objection confirmation path are the critical moving parts.

@@ -154,6 +154,7 @@ export function deriveDashaExplorerData(run: DashaRunV2): DashaExplorerData {
         scoredRowCount,
         failedModelCount,
         runStatus: run.status,
+        workflowStage: run.workflowStage,
     });
 
     const primaryComparisonClusterIds = clusterEntries
@@ -477,11 +478,12 @@ function buildSummarySentence(input: {
     scoredRowCount: number;
     failedModelCount: number;
     runStatus: DashaRunV2['status'];
+    workflowStage: DashaRunV2['workflowStage'];
 }) {
     if (input.runStatus === 'failed') {
         return 'This run failed before Dasha could produce a complete cluster analysis.';
     }
-    if (input.runStatus === 'draft') {
+    if (input.runStatus === 'draft' && input.workflowStage === 'cluster_pending') {
         return 'Dasha is still generating responses and building clusters for this run.';
     }
 
@@ -489,6 +491,10 @@ function buildSummarySentence(input: {
     const failureSuffix = input.failedModelCount > 0
         ? ` ${input.failedModelCount} selected ${input.failedModelCount === 1 ? 'model had' : 'models had'} no valid answers.`
         : '';
+
+    if (input.runStatus === 'draft' && input.workflowStage === 'clustered') {
+        return `${responsePart}; clustering is complete and rubric judging is still pending.${failureSuffix}`.trim();
+    }
 
     if (!input.hasScoring || !input.overallWinningClusterId || input.scoredRowCount === 0) {
         return `${responsePart}; rubric scoring was skipped.${failureSuffix}`.trim();

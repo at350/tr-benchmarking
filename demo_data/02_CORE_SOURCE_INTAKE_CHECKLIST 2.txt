@@ -1,0 +1,256 @@
+CORE SOURCE INTAKE CHECKLIST
+For Screening Cases, Statutes, Restatement Sections, and Doctrine Sources Before Gold-Packet Drafting
+
+PURPOSE
+This checklist screens whether a case, statute, Restatement section, or doctrine source is a strong candidate for use in a gold packet. Use it before full source extraction, gold-packet mapping, benchmark-answer drafting, or reverse-engineered question drafting.
+
+CORE IDEA
+A good lead source is not just legally relevant. It must also be usable for:
+- source-grounded extraction,
+- a stable benchmark answer,
+- a narrow reverse-engineered question,
+- predictable failure-mode and rubric drafting,
+- and clean routing to the right doctrine family or doctrine pack when a pack-based workflow is used.
+
+USE RULES
+- Use this checklist before doing full Step 1-4 drafting in 01_CORE_WORKFLOW_TEMPLATE.
+- Treat the uploaded source as the substantive authority.
+- Treat this file as a screening aid, not as substantive legal authority.
+- If the source is weak, ambiguous, too procedural, too incomplete, or too split-dependent, do not force it into a benchmark answer.
+- When a source is only moderately usable, pair it with at least one supporting authority.
+- If the source appears to implicate multiple doctrine families, identify the best-fit family or likely pack and state the routing uncertainty rather than forcing a definitive benchmark answer.
+- If the source conflicts with a later pack-specific doctrine file, the source controls on substance and the pack file only structures the analysis.
+
+STOP RULE
+If any of the following are true, the source is NOT a strong stand-alone gold-source candidate:
+- mostly headnotes, synopsis, syllabus, or editorial material rather than source text
+- no clear doctrinal holding on the target issue
+- too procedural to support a stable benchmark answer
+- too fact-bound to generalize without distortion
+- too jurisdiction-split to support a clean benchmark answer without added authority
+- no clear path to a narrow reverse-engineered question
+- no clean doctrinal center or no stable routing path to a single doctrine family / pack
+
+In that situation, say:
+"Not a strong gold-source candidate without additional authority."
+
+RATING SCALE
+Use one of these final ratings:
+- Strong lead source
+- Moderate; usable with supporting authority
+- Weak; support/contrast source only
+- Not a strong gold-source candidate without additional authority
+
+REQUIRED OUTPUT FORMAT
+When using this checklist, return exactly these headings:
+
+1. Candidate source:
+2. Source type / authority level:
+3. Target doctrine family / likely pack:
+4. Clean legal issue:
+5. Black-letter rule extractable:
+6. Trigger facts identifiable:
+7. Holding usable for benchmark drafting:
+8. Limits / boundaries identifiable:
+9. Procedural noise level:
+10. Jurisdiction sensitivity / split risk:
+11. Benchmark-answer suitability:
+12. Reverse-engineering suitability:
+13. Benchmark posture (choose one): (a) Narrow source-grounded benchmark only; (b) Generalizable only with supporting authority; (c) Portable benchmark under stated assumptions
+14. Failure-mode yield:
+15. JD review burden:
+16. Final intake rating:
+17. Recommendation:
+
+CHECKLIST ITEMS
+Use Strong / Moderate / Weak for items 4-13 unless the source is clearly unusable.
+
+1. Candidate source:
+- Identify the case, statute, Restatement section, or doctrine source.
+- If the source is not primary authority, say so explicitly.
+- If the source is only a partial excerpt, say that explicitly.
+
+2. Source type / authority level:
+Ask:
+- Is this primary legal authority?
+- Is it opinion text, statute text, Restatement text, regulation text, or only secondary/editorial material?
+Strong:
+- opinion text, statute text, Restatement text, regulation text, or other primary source
+Weak:
+- headnotes only, editorial summary only, incomplete excerpt with no usable holding
+
+3. Target doctrine family / likely pack:
+Ask:
+- What narrow doctrine family is this source actually useful for?
+- Can it be kept tight enough for evaluation use?
+- If the project uses doctrine packs, what is the likely best-fit pack?
+Strong:
+- narrow, identifiable doctrine family with a clear best-fit routing path
+Moderate:
+- doctrine family is identifiable, but pack fit or doctrinal center needs qualification
+Weak:
+- source sprawls across many issues with no clear focal doctrine or no stable routing path
+
+4. Clean legal issue:
+Ask:
+- Is there a clearly defined legal issue that matches the benchmark task?
+Strong:
+- issue is narrow and easy to state in one sentence
+Weak:
+- issue is diffuse, mixed, or hard to isolate
+
+5. Black-letter rule extractable:
+Ask:
+- Can a usable rule be stated from the source itself rather than invented from background knowledge?
+Strong:
+- clear doctrinal rule can be extracted from the source text
+Moderate:
+- rule is present but needs careful inference or narrowing
+Weak:
+- no stable rule statement can be extracted
+
+6. Trigger facts identifiable:
+Ask:
+- Are the facts that trigger the doctrine clearly identifiable?
+Strong:
+- dispositive facts are easy to isolate and restate
+Weak:
+- facts are muddy, incomplete, or intertwined with irrelevant detail
+
+7. Holding usable for benchmark drafting:
+Ask:
+- Does the source clearly resolve the target issue in a way that can support a benchmark answer?
+Strong:
+- holding is clear and maps cleanly to the doctrine family
+Moderate:
+- holding is usable but must be narrowed carefully
+Weak:
+- holding is unclear, alternative-ground heavy, or too procedural
+
+8. Limits / boundaries identifiable:
+Ask:
+- Does the source show what it does not decide, what its holding depends on, or where the doctrine stops?
+Strong:
+- source gives clear limits, exceptions, or boundary conditions
+Moderate:
+- limits can be inferred but are not cleanly stated
+Weak:
+- source invites overgeneralization because limits are not identifiable
+
+9. Procedural noise level:
+Ask:
+- Is the source mainly about procedure, pleading posture, evidentiary posture, remedy, or some other side issue?
+Strong:
+- low procedural noise; doctrine holding is central
+Moderate:
+- some procedural overlay, but doctrine still usable
+Weak:
+- procedural posture dominates the decision
+
+10. Jurisdiction sensitivity / split risk:
+Ask:
+- Is the source unusually jurisdiction-specific or tied to a disputed minority rule?
+- Would a generalized benchmark answer silently import assumptions the source itself does not support?
+Strong:
+- source is stable within its jurisdiction and not unusually split-dependent
+Moderate:
+- some jurisdiction sensitivity; should be flagged in bounded uncertainty or benchmark posture
+Weak:
+- major split or unusual local rule makes stand-alone use risky
+
+11. Benchmark-answer suitability:
+Ask:
+- Can this source be normalized into the benchmark-answer structure used by the core workflow without importing missing doctrine?
+- Can it support: bottom-line outcome, controlling doctrine, main rule path or main gates, strongest counterargument, and bounded uncertainty?
+Strong:
+- cleanly fits benchmark-answer drafting
+Moderate:
+- usable with trimming and careful JD review
+Weak:
+- source does not translate cleanly into benchmark-answer form
+
+12. Reverse-engineering suitability:
+Ask:
+- Can this source support a narrow exam-style question that tests the controlling doctrine first?
+- Can the question be written without pre-answering the doctrine?
+Strong:
+- clean, realistic hypo can be reverse-engineered from the source
+Moderate:
+- possible, but source needs simplification, fact pruning, or explicit jurisdiction tagging
+Weak:
+- no clean question path; facts are too messy, too revealing, or too underdetermined
+
+13. Benchmark posture:
+Choose one:
+- (a) Narrow source-grounded benchmark only
+- (b) Generalizable only with supporting authority
+- (c) Portable benchmark under stated assumptions
+
+Ask:
+- Is this source best used as a tightly source-grounded packet?
+- Would a portable benchmark answer require extra authority?
+- If generalized, what assumptions would need to be made explicit?
+
+Strong:
+- chosen posture is clear and easy to justify
+Moderate:
+- posture is usable but needs qualification
+Weak:
+- no stable benchmark posture can be selected without distorting the source
+
+14. Failure-mode yield:
+Ask:
+- Does this source naturally generate predictable model mistakes or doctrinal confusions useful for rubric drafting and clustering?
+Strong:
+- clear likely mistakes, fallback confusions, routing errors, or wrong-gate patterns
+Moderate:
+- some likely mistakes are visible
+Weak:
+- source does not naturally expose reusable failure modes
+
+15. JD review burden:
+List the exact things a JD should verify before the source is used as a gold source.
+Examples:
+- whether the rule is holding or dicta
+- whether a limit is doctrinal or merely procedural
+- whether the jurisdiction treats this as a minority rule
+- whether a later act really cures the original defect
+- whether a fallback doctrine is source-supported or only inferred
+- whether routing should stay in one doctrine family / pack or be split
+- whether a generalized benchmark answer would overread the source
+
+16. Final intake rating:
+Use one:
+- Strong lead source
+- Moderate; usable with supporting authority
+- Weak; support/contrast source only
+- Not a strong gold-source candidate without additional authority
+
+17. Recommendation:
+Choose one of these recommendation styles:
+- Use as lead source for a gold packet.
+- Use as lead source only with one supporting authority.
+- Use only as contrast/limit authority.
+- Do not use as a lead gold source without more authority.
+
+DECISION RULES
+Use these practical rules:
+- Strong lead source:
+  clean issue + extractable rule + usable holding + identifiable trigger facts + workable reverse-engineering path + stable routing path
+- Moderate; usable with supporting authority:
+  mostly usable, but one or two of the following are weak: limits, jurisdiction sensitivity, portability, reverse-engineering fit, or routing confidence
+- Weak; support/contrast source only:
+  useful for a boundary or contrast point, but not stable enough to anchor the packet alone
+- Not a strong gold-source candidate without additional authority:
+  triggers the stop rule or fails to support a stable benchmark answer
+
+QUICK JD TRIAGE QUESTIONS
+Before approving a source, ask:
+1. Can I state the rule from the source without silently filling gaps?
+2. Can I identify the trigger facts that actually drive the holding?
+3. Can I route this source cleanly to one doctrine family or best-fit pack?
+4. Can I write a narrow benchmark answer from this source without adding major outside doctrine?
+5. Can I reverse-engineer a realistic question from it without giving away the answer?
+6. Would this source help us build likely failure modes and rubric rows?
+
+If the answer to several of these is no, the source should not be the lead gold source.

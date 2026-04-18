@@ -1,7 +1,7 @@
 'use client';
 
 import { startTransition, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Network, Scale, ScrollText, ShieldAlert } from 'lucide-react';
 
 import { DashaResultsExplorer } from '@/components/DashaResultsExplorer';
 import { AppShell } from '@/components/ui/AppShell';
@@ -14,12 +14,14 @@ import {
 } from '@/lib/legal-workflow-v2-constants';
 import type {
     ArtifactRole,
+    DashaJudgeSettings,
     DashaRunMode,
     DashaRunV2,
     DashaSelectedModel,
     FrankPacketV2,
     FrankGenerationSettings,
     FrankSofPackId,
+    KarthicPreClusterRunV2,
     KarthicRubricPackV2,
     KarthicRubricRow,
     PromptGenerationSettingsByKind,
@@ -44,9 +46,14 @@ type WorkflowStageId =
     | 'extraction_mapping'
     | 'benchmark'
     | 'question'
-    | 'rubric'
-    | 'judge'
-    | 'zak';
+    | 'pre_karthic_cluster'
+    | 'seed_rubric'
+    | 'refine_rubric'
+    | 'approve_rubric'
+    | 'dasha_cluster'
+    | 'dasha_judge'
+    | 'dasha_results'
+    | 'zak_review';
 
 type WorkflowBlockId = 'frank' | 'karthic' | 'dasha' | 'zak';
 
@@ -99,11 +106,19 @@ type WorkflowGenerationTarget =
     | 'question_generation'
     | 'rubric_generation';
 
+type DashaJudgeModalTarget = 'run_default' | 'judge_override';
+
 const DEFAULT_SELECTED_MODEL_KEYS = [
     'openai::gpt-5.4',
     'anthropic::claude-opus-4-6',
     'gemini::gemini-3.1-pro-preview',
 ];
+
+const DEFAULT_DASHA_JUDGE_SETTINGS: DashaJudgeSettings = {
+    provider: 'openai',
+    model: 'gpt-4.1-mini',
+    reasoningEffort: 'medium',
+};
 
 const PACK_OPTIONS: Array<{ value: FrankSofPackId; label: string }> = [
     { value: 'pack10', label: FRANK_V2_PACK_LABELS.pack10 },
@@ -144,19 +159,49 @@ const WORKFLOW_STAGES: WorkflowStageDefinition[] = [
         description: 'Frank Phase 4: one neutral reverse-engineered hypo without the old task-packet structure.',
     },
     {
-        id: 'rubric',
-        title: 'Karthic Rubric',
-        shortLabel: 'Karthic Rubric',
-        description: 'Karthic stage: generate and edit the row-based rubric pack derived from an approved Frank packet.',
+        id: 'pre_karthic_cluster',
+        title: 'Pre-Karthic Clustering',
+        shortLabel: 'Pre-Cluster',
+        description: 'Generate an exploratory batch of responses, cluster them, and preserve the centroid reps before rubric drafting.',
     },
     {
-        id: 'judge',
+        id: 'seed_rubric',
+        title: 'Seed Rubric Draft',
+        shortLabel: 'Seed Rubric',
+        description: 'Generate the initial rubric draft from Frank artifacts plus the pre-Karthic cluster summaries.',
+    },
+    {
+        id: 'refine_rubric',
+        title: 'Refine Rubric',
+        shortLabel: 'Refine Rubric',
+        description: 'Refine broad rows using centroid-vs-benchmark contrasts and filter redundant or misaligned criteria.',
+    },
+    {
+        id: 'approve_rubric',
+        title: 'Approve Rubric',
+        shortLabel: 'Approve Rubric',
+        description: 'Review the refined rubric pack, confirm the row set, and approve it for Dasha.',
+    },
+    {
+        id: 'dasha_cluster',
+        title: 'Dasha Cluster',
+        shortLabel: 'Cluster',
+        description: 'Generate the final evaluation batch and cluster the raw answers before any judging begins.',
+    },
+    {
+        id: 'dasha_judge',
         title: 'Dasha Judge',
-        shortLabel: 'Dasha Judge',
-        description: 'Dasha stage: run the approved rubric against clustered model responses and inspect row/module scoring.',
+        shortLabel: 'Judge',
+        description: 'Judge clustered centroid representatives against the approved refined rubric.',
     },
     {
-        id: 'zak',
+        id: 'dasha_results',
+        title: 'Dasha Results',
+        shortLabel: 'Results',
+        description: 'Inspect propagated cluster scores, model summaries, and the current Dasha results view.',
+    },
+    {
+        id: 'zak_review',
         title: 'Zak Escalation',
         shortLabel: 'Zak Review',
         description: 'Zak stage: SME escalation and instability review after Dasha when a packet needs human judgment.',
@@ -174,19 +219,19 @@ const WORKFLOW_BLOCKS: WorkflowBlockDefinition[] = [
         id: 'karthic',
         title: 'Karthic',
         description: 'Rubric construction and refinement.',
-        stageIds: ['rubric'],
+        stageIds: ['pre_karthic_cluster', 'seed_rubric', 'refine_rubric', 'approve_rubric'],
     },
     {
         id: 'dasha',
         title: 'Dasha',
         description: 'Clustered judging and score inspection.',
-        stageIds: ['judge'],
+        stageIds: ['dasha_cluster', 'dasha_judge', 'dasha_results'],
     },
     {
         id: 'zak',
         title: 'Zak',
         description: 'Escalation and SME review when the run is unstable.',
-        stageIds: ['zak'],
+        stageIds: ['zak_review'],
     },
 ];
 
@@ -254,27 +299,69 @@ const WORKFLOW_STAGE_GUIDES: Record<WorkflowStageId, WorkflowStageGuide> = {
         ],
         promptNote: 'Phase 4 runs only after the benchmark answer exists. The stored prompt below should always correspond to the current question draft.',
     },
-    rubric: {
-        purpose: 'Generate and edit the row-based Karthic rubric pack that turns the approved Frank packet into scoring criteria.',
+    pre_karthic_cluster: {
+        purpose: 'Generate a smaller exploratory batch of responses from the approved Frank packet question, cluster them, and preserve representative centroids before rubric drafting.',
         stopRules: [
-            'Frank must already be approved before rubric generation can start.',
+            'Frank must already be approved before pre-Karthic clustering can start.',
+            'This stage should finish before any rubric drafting begins.',
+        ],
+        promptNote: 'This clustering pass is exploratory. It exists to surface wrong or incomplete reasoning patterns that Karthic should turn into better rubric rows.',
+    },
+    seed_rubric: {
+        purpose: 'Generate the initial rubric draft from the approved Frank packet and the saved pre-Karthic centroid summaries.',
+        stopRules: [
+            'A completed pre-Karthic cluster run must exist first.',
         ],
         promptFiles: [
             '07_SHARED_MODULE_SKELETON.txt',
             'Pack doctrine file',
             'Pack failure bank file',
         ],
-        promptNote: 'Generating the rubric pack creates or refreshes the row set for the selected approved Frank packet.',
+        promptNote: 'Seed drafting should be response-conditioned: the draft is grounded in the benchmark answer and the exploratory sample responses.',
     },
-    judge: {
-        purpose: 'Run Dasha to generate model responses, cluster the reasoning patterns, and score those clustered outputs against the approved rubric.',
+    refine_rubric: {
+        purpose: 'Refine the seed rubric using cluster-vs-benchmark differences so broad or redundant rows become sharper and more discriminative.',
         stopRules: [
-            'Only approved rubric packs can start Dasha.',
+            'Only seeded rubric packs can be refined.',
+            'Rows that do not separate benchmark-aligned reasoning from wrong centroids should be rewritten or conceptually dropped.',
+        ],
+        promptFiles: [
+            '07_SHARED_MODULE_SKELETON.txt',
+            'Pack doctrine file',
+            'Pack failure bank file',
+        ],
+        promptNote: 'This is the RRD-lite step: recursive sharpening, misalignment filtering, and redundancy filtering without covariance-based weighting.',
+    },
+    approve_rubric: {
+        purpose: 'Review the refined rubric pack, cluster-derived failure modes, and refinement log before approving the rubric for Dasha.',
+        stopRules: [
+            'Approval is blocked until the pack has a completed pre-cluster run and refined status.',
+        ],
+        promptNote: 'Approval freezes the refined rubric as the judging target for Dasha.',
+    },
+    dasha_cluster: {
+        purpose: 'Generate the full final response batch and cluster the answers before any row-level judging starts.',
+        stopRules: [
+            'Only approved refined rubric packs can start Dasha clustering.',
             'Clustering can fall back to heuristic mode if the Python pipeline is unavailable.',
         ],
-        promptNote: 'Dasha uses the approved question from the rubric-linked Frank packet, then scores clustered outputs row by row.',
+        promptNote: 'This is the production clustering pass. It is separate from the exploratory Karthic clustering pass.',
     },
-    zak: {
+    dasha_judge: {
+        purpose: 'Judge the clustered centroid representatives against the approved refined rubric after Dasha clustering has completed.',
+        stopRules: [
+            'Only clustered Dasha runs can be judged.',
+        ],
+        promptNote: 'Dasha judges centroid representatives row by row, then propagates those scores to the run summary.',
+    },
+    dasha_results: {
+        purpose: 'Inspect the judged Dasha run in the results explorer after centroid judging has completed.',
+        stopRules: [
+            'Dasha judging must complete before the final scored results view is available.',
+        ],
+        promptNote: 'The raw cluster JSON stays in the Dasha Cluster stage. This results stage is the scored explorer for judged runs.',
+    },
+    zak_review: {
         purpose: 'Review the Dasha run for instability, caps, penalties, or other flags that should escalate the packet for SME inspection.',
         stopRules: [
             'Zak is shown as its own top-level block even though auto-triggering is not implemented yet.',
@@ -318,9 +405,13 @@ export default function LegalWorkflowPage() {
     );
 
     const [rubricPacks, setRubricPacks] = useState<KarthicRubricPackV2[]>([]);
+    const [preClusterRuns, setPreClusterRuns] = useState<KarthicPreClusterRunV2[]>([]);
+    const [selectedPreClusterRunId, setSelectedPreClusterRunId] = useState('');
     const [selectedRubricId, setSelectedRubricId] = useState('');
     const [rubricEditor, setRubricEditor] = useState<KarthicRubricPackV2 | null>(null);
     const [collapsedRubricRows, setCollapsedRubricRows] = useState<Record<string, boolean>>({});
+    const [preClusterSampleCount, setPreClusterSampleCount] = useState('24');
+    const [preClusterSelectedModelKeys, setPreClusterSelectedModelKeys] = useState<string[]>(DEFAULT_SELECTED_MODEL_KEYS);
 
     const [dashaRuns, setDashaRuns] = useState<DashaRunV2[]>([]);
     const [selectedRunId, setSelectedRunId] = useState('');
@@ -328,6 +419,9 @@ export default function LegalWorkflowPage() {
     const [dashaRunMode, setDashaRunMode] = useState<DashaRunMode>('score_and_cluster');
     const [sampleCount, setSampleCount] = useState('120');
     const [selectedModelKeys, setSelectedModelKeys] = useState<string[]>(DEFAULT_SELECTED_MODEL_KEYS);
+    const [dashaJudgeSettings, setDashaJudgeSettings] = useState<DashaJudgeSettings>(clone(DEFAULT_DASHA_JUDGE_SETTINGS));
+    const [judgeSettingsDraft, setJudgeSettingsDraft] = useState<DashaJudgeSettings>(clone(DEFAULT_DASHA_JUDGE_SETTINGS));
+    const [openDashaJudgeTarget, setOpenDashaJudgeTarget] = useState<DashaJudgeModalTarget | null>(null);
 
     const approvedFrankPackets = useMemo(
         () => frankPackets.filter((packet) => packet.status === 'approved'),
@@ -336,6 +430,10 @@ export default function LegalWorkflowPage() {
     const approvedRubricPacks = useMemo(
         () => rubricPacks.filter((pack) => pack.status === 'approved'),
         [rubricPacks],
+    );
+    const selectedPreClusterRun = useMemo(
+        () => preClusterRuns.find((run) => run.id === selectedPreClusterRunId) ?? preClusterRuns[0] ?? null,
+        [preClusterRuns, selectedPreClusterRunId],
     );
     const selectedRun = useMemo(
         () => dashaRuns.find((run) => run.id === selectedRunId) ?? dashaRuns[0] ?? null,
@@ -365,6 +463,12 @@ export default function LegalWorkflowPage() {
     }, [frankPackets, selectedFrankId]);
 
     useEffect(() => {
+        if (!selectedPreClusterRunId && preClusterRuns.length > 0) {
+            setSelectedPreClusterRunId(preClusterRuns[0].id);
+        }
+    }, [preClusterRuns, selectedPreClusterRunId]);
+
+    useEffect(() => {
         if (!selectedRubricId && rubricPacks.length > 0) {
             applyRubricPack(rubricPacks[0]);
         }
@@ -386,7 +490,13 @@ export default function LegalWorkflowPage() {
     }, [dashaRuns, selectedRunId]);
 
     useEffect(() => {
-        if (!selectedRunId || selectedRun?.status !== 'draft') {
+        if (selectedRun?.judgeSettings) {
+            setJudgeSettingsDraft(clone(selectedRun.judgeSettings));
+        }
+    }, [selectedRun?.id, selectedRun?.judgeSettings.model, selectedRun?.judgeSettings.reasoningEffort]);
+
+    useEffect(() => {
+        if (!selectedRunId || selectedRun?.status !== 'draft' || selectedRun?.workflowStage !== 'cluster_pending') {
             return;
         }
 
@@ -396,7 +506,7 @@ export default function LegalWorkflowPage() {
                 const runResponse = await fetch('/api/dasha-runs', { cache: 'no-store' });
                 const runJson = await runResponse.json();
                 if (!runResponse.ok) {
-                    throw new Error(runJson.error || 'Failed to refresh Dasha judge run.');
+                    throw new Error(runJson.error || 'Failed to refresh Dasha run.');
                 }
                 if (cancelled) {
                     return;
@@ -404,15 +514,18 @@ export default function LegalWorkflowPage() {
                 const refreshedRuns = sortRuns(Array.isArray(runJson.items) ? runJson.items as DashaRunV2[] : []);
                 setDashaRuns(refreshedRuns);
                 const item = refreshedRuns.find((run) => run.id === selectedRunId);
-                if (item?.status === 'completed') {
-                    setStatusMessage('Dasha judge run completed.');
+                if (item?.status === 'completed' && item.workflowStage === 'judged') {
+                    setStatusMessage('Dasha judging completed.');
+                }
+                if (item?.status === 'draft' && item.workflowStage === 'clustered') {
+                    setStatusMessage('Dasha clustering completed. Review the clustered results or continue to judging.');
                 }
                 if (item?.status === 'failed') {
-                    setErrorMessage(item.errorMessage || 'Dasha judge run failed.');
+                    setErrorMessage(item.errorMessage || 'Dasha run failed.');
                 }
             } catch (error) {
                 if (!cancelled) {
-                    setErrorMessage(error instanceof Error ? error.message : 'Failed to refresh Dasha judge run.');
+                    setErrorMessage(error instanceof Error ? error.message : 'Failed to refresh Dasha run.');
                 }
             }
         }, 4000);
@@ -421,23 +534,26 @@ export default function LegalWorkflowPage() {
             cancelled = true;
             window.clearInterval(intervalId);
         };
-    }, [selectedRun?.status, selectedRunId]);
+    }, [selectedRun?.status, selectedRun?.workflowStage, selectedRunId]);
 
     async function loadAll() {
         setIsLoading(true);
         setErrorMessage(null);
         try {
-            const [frankRes, rubricRes, runRes] = await Promise.all([
+            const [frankRes, preClusterRes, rubricRes, runRes] = await Promise.all([
                 fetch('/api/frank-packets', { cache: 'no-store' }),
+                fetch('/api/karthic-pre-cluster-runs', { cache: 'no-store' }),
                 fetch('/api/karthic-rubric-packs', { cache: 'no-store' }),
                 fetch('/api/dasha-runs', { cache: 'no-store' }),
             ]);
-            const [frankJson, rubricJson, runJson] = await Promise.all([
+            const [frankJson, preClusterJson, rubricJson, runJson] = await Promise.all([
                 frankRes.json(),
+                preClusterRes.json(),
                 rubricRes.json(),
                 runRes.json(),
             ]);
             setFrankPackets(sortByUpdated(Array.isArray(frankJson.items) ? frankJson.items as FrankPacketV2[] : []));
+            setPreClusterRuns(sortPreClusterRuns(Array.isArray(preClusterJson.items) ? preClusterJson.items as KarthicPreClusterRunV2[] : []));
             setRubricPacks(sortByUpdated(Array.isArray(rubricJson.items) ? rubricJson.items as KarthicRubricPackV2[] : []));
             setDashaRuns(sortRuns(Array.isArray(runJson.items) ? runJson.items as DashaRunV2[] : []));
         } catch (error) {
@@ -519,6 +635,29 @@ export default function LegalWorkflowPage() {
         }
         updateGenerationSetting(openGenerationTarget, generationSettingsDraft);
         setOpenGenerationTarget(null);
+    }
+
+    function openDashaJudgeSettings(target: DashaJudgeModalTarget) {
+        if (target === 'run_default') {
+            setJudgeSettingsDraft(clone(dashaJudgeSettings));
+        } else {
+            setJudgeSettingsDraft(clone(selectedRun?.judgeSettings ?? DEFAULT_DASHA_JUDGE_SETTINGS));
+        }
+        setOpenDashaJudgeTarget(target);
+    }
+
+    function saveDashaJudgeSettings() {
+        if (!openDashaJudgeTarget) {
+            return;
+        }
+        if (openDashaJudgeTarget === 'run_default') {
+            setDashaJudgeSettings((current) => ({
+                ...current,
+                model: judgeSettingsDraft.model,
+                reasoningEffort: judgeSettingsDraft.reasoningEffort,
+            }));
+        }
+        setOpenDashaJudgeTarget(null);
     }
 
     async function createFrankPacket() {
@@ -652,20 +791,61 @@ export default function LegalWorkflowPage() {
         }
     }
 
-    async function generateRubricPack() {
+    async function runPreKarthicCluster() {
         if (!frankEditor?.id || frankEditor.status !== 'approved') {
             setErrorMessage('Select an approved Frank packet first.');
             return;
         }
+        if (preClusterSelectedModelKeys.length === 0) {
+            setErrorMessage('Select at least one model for pre-Karthic clustering.');
+            return;
+        }
         setErrorMessage(null);
-        setStatusMessage('Generating Karthic rubric pack from the approved Frank packet...');
+        setStatusMessage('Running pre-Karthic clustering...');
         try {
-            const settings = getGenerationSetting('rubric_generation');
-            const response = await fetch('/api/karthic-rubric-packs/rows', {
+            const response = await fetch('/api/karthic-pre-cluster-runs', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
                     frankPacketId: frankEditor.id,
+                    sampleCount: preClusterSampleCount || '24',
+                    selectedModels: buildSelectedModels(preClusterSelectedModelKeys),
+                }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to run pre-Karthic clustering.');
+            }
+            const item = json.item as KarthicPreClusterRunV2;
+            setPreClusterRuns((current) => sortPreClusterRuns([item, ...current.filter((run) => run.id !== item.id)]));
+            setSelectedPreClusterRunId(item.id);
+            setStatusMessage('Pre-Karthic clustering completed.');
+            goToStage('seed_rubric');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to run pre-Karthic clustering.');
+            setStatusMessage(null);
+        }
+    }
+
+    async function seedRubricPack() {
+        if (!frankEditor?.id || frankEditor.status !== 'approved') {
+            setErrorMessage('Select an approved Frank packet first.');
+            return;
+        }
+        if (!selectedPreClusterRun?.id || selectedPreClusterRun.status !== 'completed') {
+            setErrorMessage('Select a completed pre-Karthic cluster run first.');
+            return;
+        }
+        setErrorMessage(null);
+        setStatusMessage('Generating seed Karthic rubric pack...');
+        try {
+            const settings = getGenerationSetting('rubric_generation');
+            const response = await fetch('/api/karthic-rubric-packs/seed', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    frankPacketId: frankEditor.id,
+                    preClusterRunId: selectedPreClusterRun.id,
                     id: rubricEditor?.frankPacketId === frankEditor.id ? rubricEditor.id : undefined,
                     model: settings.model,
                     reasoningEffort: settings.reasoningEffort,
@@ -673,16 +853,48 @@ export default function LegalWorkflowPage() {
             });
             const json = await response.json();
             if (!response.ok) {
-                throw new Error(json.error || 'Failed to generate rubric pack.');
+                throw new Error(json.error || 'Failed to generate seed rubric pack.');
             }
             const item = json.item as KarthicRubricPackV2;
             applyRubricPack(item);
             setRubricPacks((current) => sortByUpdated([item, ...current.filter((pack) => pack.id !== item.id)]));
-            setDashaRubricPackId(item.id);
-            setStatusMessage('Karthic rubric pack generated.');
-            goToStage('rubric');
+            setStatusMessage('Seed rubric pack generated.');
+            goToStage('refine_rubric');
         } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to generate rubric pack.');
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to generate seed rubric pack.');
+            setStatusMessage(null);
+        }
+    }
+
+    async function refineRubricPack() {
+        if (!rubricEditor?.id) {
+            setErrorMessage('Select a rubric pack first.');
+            return;
+        }
+        setErrorMessage(null);
+        setStatusMessage('Refining Karthic rubric pack from clustered contrasts...');
+        try {
+            const settings = getGenerationSetting('rubric_generation');
+            const response = await fetch('/api/karthic-rubric-packs/refine', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    id: rubricEditor.id,
+                    model: settings.model,
+                    reasoningEffort: settings.reasoningEffort,
+                }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to refine rubric pack.');
+            }
+            const item = json.item as KarthicRubricPackV2;
+            applyRubricPack(item);
+            setRubricPacks((current) => sortByUpdated([item, ...current.filter((pack) => pack.id !== item.id)]));
+            setStatusMessage('Rubric pack refined.');
+            goToStage('approve_rubric');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to refine rubric pack.');
             setStatusMessage(null);
         }
     }
@@ -730,28 +942,61 @@ export default function LegalWorkflowPage() {
             return;
         }
         setErrorMessage(null);
-        setStatusMessage('Starting Dasha judge run...');
+        setStatusMessage('Starting Dasha cluster run...');
         try {
             const formData = new FormData();
             formData.set('rubricPackId', dashaRubricPackId);
-            formData.set('runMode', dashaRunMode);
+            formData.set('runMode', 'score_and_cluster');
             formData.set('sampleCount', sampleCount || '120');
             formData.set('selectedModels', JSON.stringify(buildSelectedModels(selectedModelKeys)));
+            formData.set('judgeModel', dashaJudgeSettings.model);
+            formData.set('judgeReasoningEffort', dashaJudgeSettings.reasoningEffort);
             const response = await fetch('/api/dasha-runs', {
                 method: 'POST',
                 body: formData,
             });
             const json = await response.json();
             if (!response.ok) {
-                throw new Error(json.error || 'Failed to start Dasha judge run.');
+                throw new Error(json.error || 'Failed to start Dasha cluster run.');
             }
             const item = json.item as DashaRunV2;
             setDashaRuns((current) => sortRuns([item, ...current.filter((run) => run.id !== item.id)]));
             setSelectedRunId(item.id);
-            setStatusMessage('Dasha judge run started.');
-            goToStage('judge');
+            setStatusMessage('Dasha clustering started.');
+            goToStage('dasha_cluster');
         } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to start Dasha judge run.');
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to start Dasha cluster run.');
+            setStatusMessage(null);
+        }
+    }
+
+    async function judgeDashaRun() {
+        if (!selectedRun?.id) {
+            setErrorMessage('Select a clustered Dasha run first.');
+            return;
+        }
+        setErrorMessage(null);
+        setStatusMessage('Judging clustered Dasha run...');
+        try {
+            const response = await fetch(`/api/dasha-runs/${selectedRun.id}/judge`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    judgeModel: judgeSettingsDraft.model,
+                    judgeReasoningEffort: judgeSettingsDraft.reasoningEffort,
+                }),
+            });
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to judge clustered Dasha run.');
+            }
+            const item = json.item as DashaRunV2;
+            setDashaRuns((current) => sortRuns([item, ...current.filter((run) => run.id !== item.id)]));
+            setSelectedRunId(item.id);
+            setStatusMessage('Dasha judging completed.');
+            goToStage('dasha_results');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to judge clustered Dasha run.');
             setStatusMessage(null);
         }
     }
@@ -789,8 +1034,12 @@ export default function LegalWorkflowPage() {
     const hasBenchmark = Boolean(frankEditor?.benchmarkAnswer.trim());
     const hasQuestion = Boolean(frankEditor?.reverseEngineeredQuestion.trim());
     const hasApprovedFrank = frankEditor?.status === 'approved';
+    const hasCompletedPreCluster = selectedPreClusterRun?.status === 'completed';
+    const hasSeedRubric = Boolean(rubricEditor?.seedRows?.length) && rubricEditor?.refinementStatus !== 'not_started';
+    const hasRefinedRubric = rubricEditor?.refinementStatus === 'refined' || rubricEditor?.refinementStatus === 'approved';
     const hasApprovedRubric = rubricEditor?.status === 'approved';
-    const hasCompletedRun = selectedRun?.status === 'completed';
+    const hasClusteredRun = Boolean(selectedRun?.clusters?.length) && (selectedRun?.workflowStage === 'clustered' || selectedRun?.workflowStage === 'judged' || selectedRun?.status === 'completed');
+    const hasJudgedRun = selectedRun?.status === 'completed' && selectedRun?.workflowStage === 'judged';
 
     const stageViews = useMemo<WorkflowStageView[]>(() => {
         return WORKFLOW_STAGES.map((stage) => {
@@ -841,31 +1090,69 @@ export default function LegalWorkflowPage() {
                         blocked: false,
                         statusLabel: hasQuestion ? 'Complete' : hasBenchmark ? 'Open' : 'Locked',
                     };
-                case 'rubric':
+                case 'pre_karthic_cluster':
                     return {
                         ...stage,
-                        complete: hasApprovedRubric,
+                        complete: Boolean(hasCompletedPreCluster),
                         unlocked: hasApprovedFrank,
                         blocked: false,
-                        statusLabel: hasApprovedRubric ? 'Approved' : hasApprovedFrank ? 'Open' : 'Locked',
+                        statusLabel: hasCompletedPreCluster ? 'Complete' : hasApprovedFrank ? 'Open' : 'Locked',
                     };
-                case 'judge':
+                case 'seed_rubric':
                     return {
                         ...stage,
-                        complete: Boolean(hasCompletedRun),
+                        complete: Boolean(hasSeedRubric),
+                        unlocked: Boolean(hasCompletedPreCluster),
+                        blocked: false,
+                        statusLabel: hasSeedRubric ? 'Drafted' : hasCompletedPreCluster ? 'Open' : 'Locked',
+                    };
+                case 'refine_rubric':
+                    return {
+                        ...stage,
+                        complete: Boolean(hasRefinedRubric),
+                        unlocked: Boolean(hasSeedRubric),
+                        blocked: false,
+                        statusLabel: hasRefinedRubric ? 'Refined' : hasSeedRubric ? 'Open' : 'Locked',
+                    };
+                case 'approve_rubric':
+                    return {
+                        ...stage,
+                        complete: Boolean(hasApprovedRubric),
+                        unlocked: Boolean(hasRefinedRubric),
+                        blocked: false,
+                        statusLabel: hasApprovedRubric ? 'Approved' : hasRefinedRubric ? 'Open' : 'Locked',
+                    };
+                case 'dasha_cluster':
+                    return {
+                        ...stage,
+                        complete: Boolean(hasClusteredRun),
                         unlocked: approvedRubricPacks.length > 0,
                         blocked: false,
-                        statusLabel: hasCompletedRun
-                            ? 'Results'
-                            : selectedRun?.status === 'draft'
+                        statusLabel: hasClusteredRun
+                            ? 'Clustered'
+                            : selectedRun?.workflowStage === 'cluster_pending'
                                 ? 'Running'
-                                : selectedRun?.status === 'failed'
-                                    ? 'Needs review'
-                                    : approvedRubricPacks.length > 0
-                                        ? 'Open'
-                                        : 'Locked',
+                                : approvedRubricPacks.length > 0
+                                    ? 'Open'
+                                    : 'Locked',
                     };
-                case 'zak':
+                case 'dasha_judge':
+                    return {
+                        ...stage,
+                        complete: Boolean(hasJudgedRun),
+                        unlocked: Boolean(hasClusteredRun),
+                        blocked: false,
+                        statusLabel: hasJudgedRun ? 'Complete' : hasClusteredRun ? 'Open' : 'Locked',
+                    };
+                case 'dasha_results':
+                    return {
+                        ...stage,
+                        complete: Boolean(hasJudgedRun),
+                        unlocked: Boolean(hasJudgedRun),
+                        blocked: false,
+                        statusLabel: hasJudgedRun ? 'Results' : 'Locked',
+                    };
+                case 'zak_review':
                     return {
                         ...stage,
                         complete: false,
@@ -895,13 +1182,18 @@ export default function LegalWorkflowPage() {
         hasApprovedFrank,
         hasApprovedRubric,
         hasBenchmark,
-        hasCompletedRun,
+        hasCompletedPreCluster,
+        hasClusteredRun,
         hasExtractionMapping,
         hasFrankPacket,
         hasQuestion,
+        hasRefinedRubric,
         hasRoutingIntake,
+        hasSeedRubric,
+        hasJudgedRun,
         selectedRun,
         selectedRun?.status,
+        selectedRun?.workflowStage,
     ]);
 
     const blockViews = useMemo<WorkflowBlockView[]>(() => {
@@ -938,6 +1230,12 @@ export default function LegalWorkflowPage() {
     const currentBlockIndex = blockViews.findIndex((block) => block.active);
     const currentBlock = blockViews[currentBlockIndex] ?? blockViews[0];
     const currentBlockStepIndex = currentBlock?.stages.findIndex((stage) => stage.id === visibleStage) ?? -1;
+    const currentBlockPreviousStage = currentBlockStepIndex > 0
+        ? currentBlock?.stages[currentBlockStepIndex - 1] ?? null
+        : null;
+    const currentBlockNextStage = currentBlockStepIndex >= 0 && currentBlockStepIndex < ((currentBlock?.stages.length ?? 0) - 1)
+        ? currentBlock?.stages[currentBlockStepIndex + 1] ?? null
+        : null;
     const selectedDashaPack = useMemo(
         () => approvedRubricPacks.find((pack) => pack.id === dashaRubricPackId) ?? null,
         [approvedRubricPacks, dashaRubricPackId],
@@ -986,25 +1284,40 @@ export default function LegalWorkflowPage() {
                 if (!hasQuestion) {
                     return 'Generate or enter the reverse-engineered question before continuing.';
                 }
-                return hasApprovedFrank ? null : 'Approve the Frank packet before continuing to rubric generation.';
-            case 'rubric':
-                return hasApprovedRubric ? null : 'Approve a rubric pack before continuing to Dasha.';
-            case 'judge':
-                return selectedRun ? null : 'Run Dasha before continuing to Zak review.';
-            case 'zak':
+                return hasApprovedFrank ? null : 'Approve the Frank packet before continuing to Karthic.';
+            case 'pre_karthic_cluster':
+                return hasCompletedPreCluster ? null : 'Run pre-Karthic clustering before continuing.';
+            case 'seed_rubric':
+                return hasSeedRubric ? null : 'Generate the seed rubric before continuing.';
+            case 'refine_rubric':
+                return hasRefinedRubric ? null : 'Refine the rubric before continuing.';
+            case 'approve_rubric':
+                return hasApprovedRubric ? null : 'Approve the refined rubric before continuing to Dasha.';
+            case 'dasha_cluster':
+                return hasClusteredRun ? null : 'Run Dasha clustering before continuing.';
+            case 'dasha_judge':
+                return hasJudgedRun ? null : 'Judge the clustered Dasha run before continuing.';
+            case 'dasha_results':
+                return hasJudgedRun ? null : 'Complete Dasha judging before reviewing final results.';
+            case 'zak_review':
                 return null;
             default:
                 return 'This stage is not ready yet.';
         }
     }, [
         benchmarkBlockedReason,
+        hasCompletedPreCluster,
+        hasClusteredRun,
         hasApprovedFrank,
         hasApprovedRubric,
         hasBenchmark,
         hasExtractionMapping,
         hasFrankPacket,
         hasQuestion,
+        hasRefinedRubric,
         hasRoutingIntake,
+        hasSeedRubric,
+        hasJudgedRun,
         selectedRun,
         visibleStage,
     ]);
@@ -1302,11 +1615,11 @@ export default function LegalWorkflowPage() {
                         ) : <EmptyPanelCopy text="Select a Frank packet to generate or edit the reverse-engineered question." />}
                     </>
                 );
-            case 'rubric':
+            case 'pre_karthic_cluster':
                 return (
                     <>
                         <SectionHeader title={currentStage.title} description={currentStage.description} />
-                        <div className="mt-4 grid gap-4 lg:grid-cols-[320px,1fr]">
+                        <div className="mt-4 grid gap-4 lg:grid-cols-[340px,1fr]">
                             <div className="space-y-3">
                                 <Field label="Approved Frank packet">
                                     <select
@@ -1325,15 +1638,90 @@ export default function LegalWorkflowPage() {
                                         ))}
                                     </select>
                                 </Field>
-                                <div className="flex flex-wrap gap-2">
-                                    <button className={primaryButtonClassName} onClick={() => void generateRubricPack()}>
-                                        {rubricEditor?.frankPacketId === frankEditor?.id ? 'Regenerate Rubric Pack' : 'Generate Rubric Pack'}
-                                    </button>
-                                    <GenerationSettingsButton
-                                        setting={getGenerationSetting('rubric_generation')}
-                                        onClick={() => openGenerationSettings('rubric_generation')}
-                                    />
+                                <Field label="Saved pre-cluster runs">
+                                    <select className={inputClassName} value={selectedPreClusterRun?.id ?? ''} onChange={(event) => setSelectedPreClusterRunId(event.target.value)}>
+                                        <option value="">Select run</option>
+                                        {preClusterRuns.map((run) => (
+                                            <option key={run.id} value={run.id}>{run.id} · {run.status}</option>
+                                        ))}
+                                    </select>
+                                </Field>
+                                <Field label="Exploratory responses">
+                                    <input className={inputClassName} value={preClusterSampleCount} onChange={(event) => setPreClusterSampleCount(event.target.value)} />
+                                </Field>
+                                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Model configuration</p>
+                                    <p className="mt-1 text-sm text-slate-600">{preClusterSelectedModelKeys.length} model{preClusterSelectedModelKeys.length === 1 ? '' : 's'} selected.</p>
+                                    <div className="mt-4">
+                                        <ModelSelectionPanel
+                                            selectedModelKeys={preClusterSelectedModelKeys}
+                                            onToggleModel={(modelKey, checked) => {
+                                                setPreClusterSelectedModelKeys((current) => checked
+                                                    ? [...new Set([...current, modelKey])]
+                                                    : current.filter((item) => item !== modelKey));
+                                            }}
+                                        />
+                                    </div>
                                 </div>
+                                <button className={primaryButtonClassName} onClick={() => void runPreKarthicCluster()}>
+                                    Run Pre-Karthic Clustering
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                {selectedPreClusterRun ? (
+                                    <>
+                                        <ReadOnlyTextCard title="Selected run" text={`${selectedPreClusterRun.id}\nStatus: ${selectedPreClusterRun.status}\nClusters: ${selectedPreClusterRun.clusters.length}\nValid responses: ${selectedPreClusterRun.validResponseCount}`} />
+                                        <ReadOnlyJsonCard title="Cluster failure modes" value={selectedPreClusterRun.clusterFailureModes} />
+                                        <ReadOnlyJsonCard
+                                            title="Cluster representatives"
+                                            value={selectedPreClusterRun.clusters.map((cluster) => ({
+                                                id: cluster.id,
+                                                size: cluster.size,
+                                                representativeText: cluster.representativeText,
+                                                modelBreakdown: cluster.modelBreakdown,
+                                            }))}
+                                        />
+                                    </>
+                                ) : (
+                                    <EmptyPanelCopy text="Run or select a pre-Karthic cluster pass to inspect centroid representatives and saved failure modes." />
+                                )}
+                            </div>
+                        </div>
+                    </>
+                );
+            case 'seed_rubric':
+            case 'refine_rubric':
+            case 'approve_rubric':
+                return (
+                    <>
+                        <SectionHeader title={currentStage.title} description={currentStage.description} />
+                        <div className="mt-4 grid gap-4 lg:grid-cols-[340px,1fr]">
+                            <div className="space-y-3">
+                                <Field label="Approved Frank packet">
+                                    <select
+                                        className={inputClassName}
+                                        value={frankEditor?.status === 'approved' ? frankEditor.id : ''}
+                                        onChange={(event) => {
+                                            const packet = approvedFrankPackets.find((item) => item.id === event.target.value);
+                                            if (packet) {
+                                                applyFrankPacket(packet);
+                                            }
+                                        }}
+                                    >
+                                        <option value="">Select approved Frank packet</option>
+                                        {approvedFrankPackets.map((packet) => (
+                                            <option key={packet.id} value={packet.id}>{packet.title}</option>
+                                        ))}
+                                    </select>
+                                </Field>
+                                <Field label="Completed pre-cluster run">
+                                    <select className={inputClassName} value={selectedPreClusterRun?.id ?? ''} onChange={(event) => setSelectedPreClusterRunId(event.target.value)}>
+                                        <option value="">Select completed run</option>
+                                        {preClusterRuns.filter((run) => run.status === 'completed').map((run) => (
+                                            <option key={run.id} value={run.id}>{run.id} · {run.clusters.length} clusters</option>
+                                        ))}
+                                    </select>
+                                </Field>
                                 <Field label="Saved rubric packs">
                                     <select
                                         className={inputClassName}
@@ -1347,31 +1735,40 @@ export default function LegalWorkflowPage() {
                                     >
                                         <option value="">Select rubric pack</option>
                                         {rubricPacks.map((pack) => (
-                                            <option key={pack.id} value={pack.id}>{FRANK_V2_PACK_LABELS[pack.selectedPack]} · {pack.status}</option>
+                                            <option key={pack.id} value={pack.id}>{FRANK_V2_PACK_LABELS[pack.selectedPack]} · {pack.refinementStatus} · {pack.status}</option>
                                         ))}
                                     </select>
                                 </Field>
+                                <div className="flex flex-wrap gap-2">
+                                    {visibleStage === 'seed_rubric' ? (
+                                        <button className={primaryButtonClassName} onClick={() => void seedRubricPack()}>Generate Seed Rubric</button>
+                                    ) : null}
+                                    {visibleStage === 'refine_rubric' ? (
+                                        <button className={primaryButtonClassName} onClick={() => void refineRubricPack()}>Refine Rubric</button>
+                                    ) : null}
+                                    {visibleStage === 'approve_rubric' ? (
+                                        <button className={primaryButtonClassName} onClick={() => void saveRubric('approved')}>Approve Rubric Pack</button>
+                                    ) : null}
+                                    <button className={secondaryButtonClassName} onClick={() => void saveRubric('draft')}>Save Draft</button>
+                                    <GenerationSettingsButton
+                                        setting={getGenerationSetting('rubric_generation')}
+                                        onClick={() => openGenerationSettings('rubric_generation')}
+                                    />
+                                </div>
                                 {rubricEditor ? (
                                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                                         <p><span className="font-semibold">Pack:</span> {FRANK_V2_PACK_LABELS[rubricEditor.selectedPack]}</p>
-                                        <p><span className="font-semibold">Rows:</span> {rubricEditor.rows.length}</p>
+                                        <p><span className="font-semibold">Refinement:</span> {rubricEditor.refinementStatus}</p>
                                         <p><span className="font-semibold">Status:</span> {rubricEditor.status}</p>
-                                        <div className="mt-3 flex flex-wrap gap-2">
-                                            <button className={secondaryButtonClassName} onClick={() => void saveRubric('draft')}>Save Rubric Pack</button>
-                                            <button className={primaryButtonClassName} onClick={() => void saveRubric('approved')}>Approve Rubric Pack</button>
-                                        </div>
+                                        <p><span className="font-semibold">Pre-cluster run:</span> {rubricEditor.preClusterRunId ?? 'None'}</p>
                                     </div>
-                                ) : (
-                                    <EmptyPanelCopy text="Generate or select a rubric pack to edit row-level scoring definitions." />
-                                )}
+                                ) : null}
                             </div>
-                            <div>
+                            <div className="space-y-4">
                                 {rubricEditor ? (
-                                    <div className="space-y-4">
-                                        <ReadOnlyTextCard
-                                            title="Current question"
-                                            text={frankEditor?.reverseEngineeredQuestion ?? rubricEditor.questionText}
-                                        />
+                                    <>
+                                        <ReadOnlyTextCard title="Current question" text={frankEditor?.reverseEngineeredQuestion ?? rubricEditor.questionText} />
+                                        <ReadOnlyJsonCard title="Cluster failure modes" value={rubricEditor.clusterFailureModes} />
                                         <Field label="Comparison method note">
                                             <textarea
                                                 className={textareaClassName}
@@ -1379,6 +1776,7 @@ export default function LegalWorkflowPage() {
                                                 onChange={(event) => setRubricEditor((current) => current ? { ...current, comparisonMethodNote: event.target.value } : current)}
                                             />
                                         </Field>
+                                        {visibleStage !== 'seed_rubric' ? <ReadOnlyJsonCard title="Refinement log" value={rubricEditor.refinementLog} /> : null}
                                         <div className="flex flex-wrap gap-2">
                                             <button
                                                 className={secondaryButtonClassName}
@@ -1409,13 +1807,15 @@ export default function LegalWorkflowPage() {
                                                 />
                                             ))}
                                         </div>
-                                    </div>
-                                ) : null}
+                                    </>
+                                ) : (
+                                    <EmptyPanelCopy text="Generate or select a rubric pack to inspect the seeded and refined row set." />
+                                )}
                             </div>
                         </div>
                     </>
                 );
-            case 'judge':
+            case 'dasha_cluster':
                 return (
                     <>
                         <SectionHeader title={currentStage.title} description={currentStage.description} />
@@ -1425,26 +1825,7 @@ export default function LegalWorkflowPage() {
                                     <div className="flex flex-wrap items-start justify-between gap-3">
                                         <div>
                                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Shared Dasha Configuration</p>
-                                            <p className="mt-1 text-sm text-slate-600">
-                                                Set the sample count and model pool once here for the Dasha scoring and clustering run.
-                                            </p>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            <button
-                                                className={secondaryButtonClassName}
-                                                type="button"
-                                                onClick={() => setSelectedModelKeys(DEFAULT_SELECTED_MODEL_KEYS)}
-                                            >
-                                                Reset defaults
-                                            </button>
-                                            <button
-                                                className={secondaryButtonClassName}
-                                                type="button"
-                                                disabled={selectedModelKeys.length === 0}
-                                                onClick={() => setSelectedModelKeys([])}
-                                            >
-                                                Clear all
-                                            </button>
+                                            <p className="mt-1 text-sm text-slate-600">Set the sample count and model pool for the final evaluation clustering pass.</p>
                                         </div>
                                     </div>
                                     <div className="grid gap-4 xl:grid-cols-[220px,minmax(0,1fr)]">
@@ -1452,12 +1833,8 @@ export default function LegalWorkflowPage() {
                                             <input className={inputClassName} value={sampleCount} onChange={(event) => setSampleCount(event.target.value)} />
                                         </Field>
                                         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                            <div>
-                                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Model configuration</p>
-                                                <p className="mt-1 text-sm text-slate-600">
-                                                    {selectedModelKeys.length} model{selectedModelKeys.length === 1 ? '' : 's'} selected for Dasha.
-                                                </p>
-                                            </div>
+                                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Model configuration</p>
+                                            <p className="mt-1 text-sm text-slate-600">{selectedModelKeys.length} model{selectedModelKeys.length === 1 ? '' : 's'} selected for Dasha.</p>
                                             <div className="mt-4">
                                                 <ModelSelectionPanel
                                                     selectedModelKeys={selectedModelKeys}
@@ -1470,68 +1847,125 @@ export default function LegalWorkflowPage() {
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
-                                    <div>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Dasha Run</p>
-                                        <p className="mt-1 text-sm text-slate-600">
-                                            Judge clustered model responses against the approved rubric and inspect row-level scoring.
-                                        </p>
-                                    </div>
-                                    <div className="grid gap-4 lg:grid-cols-2">
-                                        <Field label="Approved rubric pack">
-                                            <select
-                                                className={inputClassName}
-                                                value={dashaRubricPackId}
-                                                onChange={(event) => setDashaRubricPackId(event.target.value)}
-                                            >
-                                                <option value="">Select approved rubric pack</option>
-                                                {approvedRubricPacks.map((pack) => (
-                                                    <option key={pack.id} value={pack.id}>{FRANK_V2_PACK_LABELS[pack.selectedPack]} · {pack.id}</option>
-                                                ))}
-                                            </select>
-                                        </Field>
-                                        <Field label="Run mode">
-                                            <select className={inputClassName} value={dashaRunMode} onChange={(event) => setDashaRunMode(event.target.value as DashaRunMode)}>
-                                                <option value="score_and_cluster">Score + cluster</option>
-                                                <option value="cluster_only">Cluster only</option>
-                                            </select>
-                                        </Field>
-                                    </div>
-                                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr),220px]">
-                                        <Field label="Saved runs">
-                                            <select
-                                                className={inputClassName}
-                                                value={selectedRun?.id ?? ''}
-                                                onChange={(event) => setSelectedRunId(event.target.value)}
-                                            >
-                                                <option value="">Select run</option>
-                                                {dashaRuns.map((run) => (
-                                                    <option key={run.id} value={run.id}>{run.id} · {run.status}</option>
-                                                ))}
-                                            </select>
-                                        </Field>
-                                        <div className="flex items-end">
-                                            <button className={`${primaryButtonClassName} w-full`} onClick={() => void runDasha()}>
-                                                Start Dasha Run
-                                            </button>
+                                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Judge configuration</p>
+                                        <p className="mt-1 text-sm text-slate-600">Choose the OpenAI model Dasha should use later when scoring clustered representatives against the rubric.</p>
+                                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                                            <JudgeSettingsButton
+                                                setting={dashaJudgeSettings}
+                                                onClick={() => openDashaJudgeSettings('run_default')}
+                                            />
+                                            <p className="text-sm text-slate-500">
+                                                Saved for new Dasha runs started from this stage.
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
+                                <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+                                    <Field label="Approved rubric pack">
+                                        <select className={inputClassName} value={dashaRubricPackId} onChange={(event) => setDashaRubricPackId(event.target.value)}>
+                                            <option value="">Select approved rubric pack</option>
+                                            {approvedRubricPacks.map((pack) => (
+                                                <option key={pack.id} value={pack.id}>{FRANK_V2_PACK_LABELS[pack.selectedPack]} · {pack.id}</option>
+                                            ))}
+                                        </select>
+                                    </Field>
+                                    <Field label="Saved runs">
+                                        <select className={inputClassName} value={selectedRun?.id ?? ''} onChange={(event) => setSelectedRunId(event.target.value)}>
+                                            <option value="">Select run</option>
+                                            {dashaRuns.map((run) => (
+                                                <option key={run.id} value={run.id}>{run.id} · {run.workflowStage} · {run.status}</option>
+                                            ))}
+                                        </select>
+                                    </Field>
+                                    <button className={primaryButtonClassName} onClick={() => void runDasha()}>Run Dasha Clustering</button>
+                                </div>
+                                <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+                                    {selectedRun ? (
+                                        <>
+                                            <ReadOnlyTextCard title="Selected Dasha run" text={`${selectedRun.id}\nStatus: ${selectedRun.status}\nWorkflow stage: ${selectedRun.workflowStage}\nClusters: ${selectedRun.clusters.length}\nJudge: ${formatGenerationSettingInline(selectedRun.judgeSettings)}`} />
+                                            <ReadOnlyTextCard title="Clustering notes" text={selectedRun.clusteringNotes ?? 'No clustering notes saved for this run.'} />
+                                        </>
+                                    ) : (
+                                        <EmptyPanelCopy text="Start or select a Dasha run to inspect the clustering stage." />
+                                    )}
+                                </div>
                             </div>
-
-                            <div className="min-w-0 space-y-4">
+                            {selectedRun ? (
+                                <div className="grid gap-4 xl:grid-cols-2">
+                                    <ReadOnlyJsonCard title="Cluster centroids JSON" value={selectedRun.clusters} />
+                                    <ReadOnlyJsonCard title="Run outputs JSON" value={buildDashaClusterOutputsJson(selectedRun)} />
+                                </div>
+                            ) : null}
+                        </div>
+                    </>
+                );
+            case 'dasha_judge':
+                return (
+                    <>
+                        <SectionHeader title={currentStage.title} description={currentStage.description} />
+                        <div className="mt-4 grid gap-4 xl:grid-cols-[360px,1fr]">
+                            <div className="space-y-3">
+                                <Field label="Clustered Dasha run">
+                                    <select className={inputClassName} value={selectedRun?.id ?? ''} onChange={(event) => setSelectedRunId(event.target.value)}>
+                                        <option value="">Select clustered run</option>
+                                        {dashaRuns.filter((run) => run.workflowStage === 'clustered' || run.workflowStage === 'judged' || run.status === 'completed').map((run) => (
+                                            <option key={run.id} value={run.id}>{run.id} · {run.workflowStage}</option>
+                                        ))}
+                                    </select>
+                                </Field>
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Judge override</p>
+                                    <p className="mt-1 text-sm text-slate-600">Adjust the judge model for this clustered run before Dasha scores the centroids.</p>
+                                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                                        <JudgeSettingsButton
+                                            setting={judgeSettingsDraft}
+                                            onClick={() => openDashaJudgeSettings('judge_override')}
+                                        />
+                                        <p className="text-sm text-slate-500">
+                                            Starts from the run’s saved judge setting and can be changed before judging.
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    className={primaryButtonClassName}
+                                    disabled={!selectedRun || selectedRun.workflowStage !== 'clustered'}
+                                    onClick={() => void judgeDashaRun()}
+                                >
+                                    Judge Clustered Run
+                                </button>
+                            </div>
+                            <div className="space-y-4">
                                 {selectedRun ? (
-                                    <DashaResultsExplorer key={selectedRun.id} run={selectedRun} />
+                                    <>
+                                        <ReadOnlyJsonCard title="Clusters" value={selectedRun.clusters.map((cluster) => ({
+                                            id: cluster.id,
+                                            size: cluster.size,
+                                            representativeText: cluster.representativeText,
+                                        }))} />
+                                        <ReadOnlyTextCard title="Clustering notes" text={selectedRun.clusteringNotes ?? 'No clustering notes saved for this run.'} />
+                                    </>
                                 ) : (
-                                    <EmptyPanelCopy text="Start or select a Dasha run to inspect saved results." />
+                                    <EmptyPanelCopy text="Select a clustered Dasha run to judge its centroid representatives." />
                                 )}
                             </div>
                         </div>
                     </>
                 );
-            case 'zak':
+            case 'dasha_results':
+                return (
+                    <>
+                        <SectionHeader title={currentStage.title} description={currentStage.description} />
+                        <div className="mt-4 min-w-0 space-y-4">
+                            {selectedRun ? (
+                                <DashaResultsExplorer key={selectedRun.id} run={selectedRun} />
+                            ) : (
+                                <EmptyPanelCopy text="Start, cluster, and judge a Dasha run to inspect saved results." />
+                            )}
+                        </div>
+                    </>
+                );
+            case 'zak_review':
                 return (
                     <>
                         <SectionHeader title={currentStage.title} description={currentStage.description} />
@@ -1557,7 +1991,7 @@ export default function LegalWorkflowPage() {
                                 <div className="space-y-4">
                                     {selectedRun ? (
                                         <>
-                                            <ReadOnlyTextCard title="Selected Dasha run" text={`${selectedRun.id}\nStatus: ${selectedRun.status}\nRun mode: ${selectedRun.runMode}`} />
+                                            <ReadOnlyTextCard title="Selected Dasha run" text={`${selectedRun.id}\nStatus: ${selectedRun.status}\nRun mode: ${selectedRun.runMode}\nSaved judge: ${formatGenerationSettingInline(selectedRun.judgeSettings)}\nJudge override: ${formatGenerationSettingInline(judgeSettingsDraft)}`} />
                                             <ReadOnlyTextCard title="Clustering notes" text={selectedRun.clusteringNotes ?? 'No clustering notes saved for this run.'} />
                                         </>
                                     ) : (
@@ -1593,114 +2027,121 @@ export default function LegalWorkflowPage() {
             title="FKD Pipeline Redo"
             subtitle="A grouped Frank / Karthic / Dasha / Zak workflow with smaller substeps inside each block."
         >
-            <div className="space-y-6">
+            <div className="space-y-4">
                 {isLoading ? <Banner tone="info" text="Loading Frank v2 workflow data..." /> : null}
                 {statusMessage ? <Banner tone="info" text={statusMessage} /> : null}
                 {errorMessage ? <Banner tone="error" text={errorMessage} /> : null}
 
-                <Panel>
-                    <div className="flex flex-wrap items-start justify-between gap-4">
+                <section>
+                    <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Pipeline Navigator</p>
-                            <p className="mt-2 text-sm text-slate-600">
-                                One substep is visible at a time, but the navigator is grouped into the larger FKDZ blocks so the overall pipeline shape is easier to see.
-                            </p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Pipeline Tabs</p>
+                            <p className="mt-1 text-sm text-slate-500">These switch between the major workflow blocks: Frank builds the packet, Karthic builds the rubric, Dasha runs judging, and Zak handles escalation.</p>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                            <p className="font-semibold text-slate-900">Pipeline Block {currentBlockIndex + 1} of {blockViews.length}</p>
-                            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                                Step {Math.max(currentBlockStepIndex + 1, 1)} of {currentBlock?.stages.length ?? 1} in {currentBlock?.title ?? 'Pipeline'}
-                            </p>
-                            {getFrankPhaseNumber(currentStage.id) !== null ? (
-                                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                                    Frank Phase {getFrankPhaseNumber(currentStage.id)} of {FRANK_PHASE_ORDER.length}
-                                </p>
-                            ) : null}
-                            <p>{currentStage.title}</p>
+                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Current Tab</p>
+                            <p className="mt-1 font-semibold text-slate-900">{currentBlock?.title ?? 'Pipeline'}</p>
                         </div>
                     </div>
-                    <div className="mt-4 grid gap-4 xl:grid-cols-4">
-                        {blockViews.map((block, index) => (
-                            <div
+                    <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
+                    {blockViews.map((block) => {
+                        const targetStage = block.stages.find((stage) => stage.unlocked) ?? block.stages[0] ?? null;
+                        return (
+                            <StageBlockCard
                                 key={block.id}
-                                className={buildBlockCardClassName(block, block.active)}
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Block {index + 1}</p>
-                                        <p className="mt-1 text-sm font-semibold">{block.title}</p>
-                                        <p className="mt-1 text-xs">{block.statusLabel}</p>
+                                block={block}
+                                icon={getBlockIcon(block.id)}
+                                onClick={() => {
+                                    if (targetStage?.unlocked) {
+                                        goToStage(targetStage.id);
+                                    }
+                                }}
+                            />
+                        );
+                    })}
+                    </div>
+                </section>
+
+                <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                    <div className="min-w-0 space-y-4">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <SectionHeader
+                                title={`${currentBlock?.title ?? 'Pipeline'} Wizard`}
+                                description={buildWizardDescription(currentBlock?.id ?? 'frank')}
+                            />
+                            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Current Step</p>
+                                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
+                                            <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                                {getNavigatorBadge(currentStage.id)}
+                                            </span>
+                                            <span className="font-semibold text-slate-900">{currentStage.title}</span>
+                                            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{currentStage.statusLabel}</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-right text-sm text-slate-500">
+                                        <p>{buildBlockProgressLabel(currentBlock?.id ?? 'frank', currentStage.id, currentBlockStepIndex, currentBlock?.stages.length ?? 1)}</p>
+                                        <p className="mt-1">{currentBlockNextStage ? `Next up: ${formatWorkflowStepLabel(currentBlockNextStage.id)}` : 'Final step in this block'}</p>
                                     </div>
                                 </div>
-                                <p className="mt-3 text-sm text-slate-600">{block.description}</p>
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                    {block.stages.map((stage) => (
-                                        <button
-                                            key={stage.id}
-                                            type="button"
-                                            aria-current={stage.id === visibleStage ? 'step' : undefined}
-                                            disabled={!stage.unlocked}
-                                            className={buildBlockStepButtonClassName(stage, stage.id === visibleStage)}
-                                            onClick={() => goToStage(stage.id)}
-                                        >
-                                            <span className="block text-[11px] font-semibold uppercase tracking-[0.12em]">
-                                                {getNavigatorBadge(stage.id)}
-                                            </span>
-                                            <span className="mt-1 block text-sm font-semibold">{stage.shortLabel}</span>
-                                            <span className="mt-1 block text-xs">{stage.statusLabel}</span>
-                                        </button>
-                                    ))}
+                            </div>
+                            {(currentBlock?.stages.length ?? 0) > 1 ? (
+                            <BlockStepRail
+                                blockId={currentBlock?.id ?? 'frank'}
+                                stages={currentBlock?.stages ?? []}
+                                currentStageId={visibleStage}
+                                onChange={goToStage}
+                            />
+                            ) : null}
+                            <div className="mt-4 border-t border-slate-200 pt-4">
+                                {nextStageBlockedReason ? <Banner tone="warning" text={nextStageBlockedReason} /> : null}
+                                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                                    <button
+                                        className={secondaryButtonClassName}
+                                        disabled={!currentBlockPreviousStage}
+                                        onClick={() => {
+                                            if (currentBlockPreviousStage) {
+                                                goToStage(currentBlockPreviousStage.id);
+                                            }
+                                        }}
+                                    >
+                                        Previous
+                                    </button>
+                                    <div className="text-sm text-slate-500">
+                                        {currentBlockNextStage ? `Next: ${currentBlockNextStage.title}` : 'Final step in this block'}
+                                    </div>
+                                    <button
+                                        className={primaryButtonClassName}
+                                        disabled={!currentBlockNextStage || Boolean(nextStageBlockedReason)}
+                                        onClick={() => {
+                                            if (currentBlockNextStage && !nextStageBlockedReason) {
+                                                goToStage(currentBlockNextStage.id);
+                                            }
+                                        }}
+                                    >
+                                        Next
+                                    </button>
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                </Panel>
+                        </div>
 
-                <Panel>
-                    <div className="relative min-w-0">
-                        <div className="min-w-0">
-                            {renderStagePanel()}
-                        </div>
-                        <div className="mt-4 xl:absolute xl:right-0 xl:top-0 xl:z-20 xl:mt-0 xl:w-[340px]">
-                            <StageGuideOverlay
-                                stageId={visibleStage}
-                                promptPreview={activeStagePrompt}
-                                isOpen={isStageGuideOpen}
-                                onToggle={() => setIsStageGuideOpen((current) => !current)}
-                            />
-                        </div>
-                    </div>
-                    <div className="mt-6 border-t border-slate-200 pt-4">
-                        {nextStageBlockedReason ? <Banner tone="warning" text={nextStageBlockedReason} /> : null}
-                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                            <button
-                                className={secondaryButtonClassName}
-                                disabled={!previousStage}
-                                onClick={() => {
-                                    if (previousStage) {
-                                        goToStage(previousStage.id);
-                                    }
-                                }}
-                            >
-                                Previous
-                            </button>
-                            <div className="text-sm text-slate-500">
-                                {nextStage ? `Next: ${nextStage.title}` : 'Final stage'}
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <div className="mb-4 border-b border-slate-200 pb-3">
+                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Step Workspace</p>
+                                <p className="mt-1 text-sm text-slate-500">This is the actual input and output area for the selected step.</p>
                             </div>
-                            <button
-                                className={primaryButtonClassName}
-                                disabled={!nextStage || Boolean(nextStageBlockedReason)}
-                                onClick={() => {
-                                    if (nextStage && !nextStageBlockedReason) {
-                                        goToStage(nextStage.id);
-                                    }
-                                }}
-                            >
-                                Next
-                            </button>
+                            <div className="min-w-0">
+                                {renderStagePanel()}
+                            </div>
                         </div>
                     </div>
-                </Panel>
+
+                    <div className="min-w-0 space-y-6">
+                        <StageGuideCard stageId={visibleStage} promptPreview={activeStagePrompt} />
+                    </div>
+                </section>
             </div>
             {openGenerationTarget ? (
                 <GenerationSettingsModal
@@ -1709,6 +2150,19 @@ export default function LegalWorkflowPage() {
                     onChange={setGenerationSettingsDraft}
                     onClose={() => setOpenGenerationTarget(null)}
                     onSave={saveGenerationSettings}
+                />
+            ) : null}
+            {openDashaJudgeTarget ? (
+                <JudgeSettingsModal
+                    targetLabel={openDashaJudgeTarget === 'run_default' ? 'Dasha Judge Configuration' : 'Dasha Judge Override'}
+                    value={judgeSettingsDraft}
+                    onChange={(value) => setJudgeSettingsDraft((current) => ({
+                        ...current,
+                        model: value.model,
+                        reasoningEffort: value.reasoningEffort,
+                    }))}
+                    onClose={() => setOpenDashaJudgeTarget(null)}
+                    onSave={saveDashaJudgeSettings}
                 />
             ) : null}
         </AppShell>
@@ -1737,14 +2191,99 @@ function getNavigatorBadge(stageId: WorkflowStageId) {
     switch (stageId) {
         case 'source':
             return 'Source';
-        case 'rubric':
+        case 'pre_karthic_cluster':
+        case 'seed_rubric':
+        case 'refine_rubric':
+        case 'approve_rubric':
             return 'Rubric';
-        case 'judge':
+        case 'dasha_cluster':
+        case 'dasha_judge':
+        case 'dasha_results':
             return 'Judge';
-        case 'zak':
+        case 'zak_review':
             return 'Zak';
         default:
             return 'Stage';
+    }
+}
+
+function formatWorkflowStepLabel(stageId: WorkflowStageId) {
+    const phaseNumber = getFrankPhaseNumber(stageId);
+    if (phaseNumber !== null) {
+        const stage = WORKFLOW_STAGES.find((item) => item.id === stageId);
+        return stage ? `Phase ${phaseNumber} · ${stage.shortLabel}` : `Phase ${phaseNumber}`;
+    }
+    switch (stageId) {
+        case 'source':
+            return 'Source Setup';
+        case 'pre_karthic_cluster':
+            return 'Pre-Cluster';
+        case 'seed_rubric':
+            return 'Seed Rubric';
+        case 'refine_rubric':
+            return 'Refine Rubric';
+        case 'approve_rubric':
+            return 'Approve Rubric';
+        case 'dasha_cluster':
+            return 'Dasha Cluster';
+        case 'dasha_judge':
+            return 'Dasha Judge';
+        case 'dasha_results':
+            return 'Results';
+        case 'zak_review':
+            return 'Zak Review';
+        default: {
+            const stage = WORKFLOW_STAGES.find((item) => item.id === stageId);
+            return stage?.shortLabel ?? 'Stage';
+        }
+    }
+}
+
+function buildBlockProgressLabel(
+    blockId: WorkflowBlockId,
+    stageId: WorkflowStageId,
+    currentBlockStepIndex: number,
+    blockStageCount: number,
+) {
+    if (blockId === 'frank') {
+        const phaseNumber = getFrankPhaseNumber(stageId);
+        return phaseNumber !== null
+            ? `Frank Phase ${phaseNumber} of ${FRANK_PHASE_ORDER.length}`
+            : 'Source setup';
+    }
+    if (blockStageCount <= 1) {
+        return 'Single-step block';
+    }
+    return `Step ${Math.max(currentBlockStepIndex + 1, 1)} of ${blockStageCount}`;
+}
+
+function getBlockIcon(blockId: WorkflowBlockId) {
+    switch (blockId) {
+        case 'frank':
+            return <ScrollText className="h-5 w-5" />;
+        case 'karthic':
+            return <Scale className="h-5 w-5" />;
+        case 'dasha':
+            return <Network className="h-5 w-5" />;
+        case 'zak':
+            return <ShieldAlert className="h-5 w-5" />;
+        default:
+            return <ScrollText className="h-5 w-5" />;
+    }
+}
+
+function buildWizardDescription(blockId: WorkflowBlockId) {
+    switch (blockId) {
+        case 'frank':
+            return 'One step at a time: move through packet intake, extraction, benchmark drafting, and reverse-engineered question setup.';
+        case 'karthic':
+            return 'One step at a time: pre-cluster the sample responses, draft the seed rubric, refine it from centroid contrasts, then approve it.';
+        case 'dasha':
+            return 'One step at a time: cluster the final response batch, judge centroid representatives, and inspect the propagated results.';
+        case 'zak':
+            return 'Use Zak as the escalation and SME-review handoff when a Dasha run looks unstable or incomplete.';
+        default:
+            return 'Work through the active pipeline block one step at a time.';
     }
 }
 
@@ -1823,6 +2362,47 @@ function sortRuns(items: DashaRunV2[]) {
     return [...items].sort((left, right) => String(right.completedAt ?? right.createdAt).localeCompare(String(left.completedAt ?? left.createdAt)));
 }
 
+function buildDashaClusterOutputsJson(run: DashaRunV2) {
+    const responseById = new Map(run.responses.map((response) => [response.id, response]));
+    const assignedResponseIds = new Set<string>();
+
+    const clusters = run.clusters.map((cluster) => {
+        const memberResponses = cluster.memberResponseIds
+            .map((responseId) => {
+                assignedResponseIds.add(responseId);
+                return responseById.get(responseId) ?? null;
+            })
+            .filter((response): response is NonNullable<typeof response> => Boolean(response));
+
+        return {
+            cluster,
+            representative: responseById.get(cluster.representativeResponseId) ?? null,
+            members: memberResponses,
+        };
+    });
+
+    return {
+        runId: run.id,
+        status: run.status,
+        workflowStage: run.workflowStage,
+        runMode: run.runMode,
+        questionText: run.questionText,
+        judgeSettings: run.judgeSettings,
+        requestedResponseCount: run.requestedResponseCount ?? run.responses.length,
+        validResponseCount: run.validResponseCount ?? run.responses.filter((response) => !response.error && response.responseText.trim()).length,
+        clusteringMethod: run.clusteringMethod,
+        clusteringNotes: run.clusteringNotes,
+        selectedModels: run.selectedModels,
+        clusters,
+        unassignedResponses: run.responses.filter((response) => !assignedResponseIds.has(response.id)),
+        erroredResponses: run.responses.filter((response) => Boolean(response.error)),
+    };
+}
+
+function sortPreClusterRuns(items: KarthicPreClusterRunV2[]) {
+    return [...items].sort((left, right) => String(right.completedAt ?? right.createdAt).localeCompare(String(left.completedAt ?? left.createdAt)));
+}
+
 function splitLines(value: string) {
     return value
         .split('\n')
@@ -1830,36 +2410,104 @@ function splitLines(value: string) {
         .filter(Boolean);
 }
 
-function buildBlockCardClassName(block: WorkflowBlockView, isCurrent: boolean) {
-    if (isCurrent) {
-        return 'rounded-2xl border border-teal-300 bg-teal-50 p-4 text-left text-teal-900 shadow-[0_10px_25px_rgba(13,148,136,0.12)]';
+function buildStageBlockCardClassName(block: WorkflowBlockView) {
+    if (block.active) {
+        return 'rounded-2xl border border-teal-300 bg-teal-50/60 p-4 text-left text-slate-900 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-teal-200';
     }
     if (!block.unlocked) {
-        return 'rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left text-slate-400';
+        return 'rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left text-slate-400 shadow-[0_8px_20px_rgba(15,23,42,0.06)]';
     }
-    if (block.complete) {
-        return 'rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-left text-emerald-900';
-    }
-    if (block.blocked) {
-        return 'rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left text-amber-900';
-    }
-    return 'rounded-2xl border border-slate-200 bg-white p-4 text-left text-slate-700';
+    return 'rounded-2xl border border-slate-200 bg-white p-4 text-left text-slate-900 shadow-[0_8px_20px_rgba(15,23,42,0.08)]';
 }
 
-function buildBlockStepButtonClassName(stage: WorkflowStageView, isCurrent: boolean) {
+function buildSubstepTabClassName(stage: WorkflowStageView, isCurrent: boolean) {
     if (isCurrent) {
-        return 'min-w-[132px] rounded-xl border border-teal-300 bg-white px-3 py-3 text-left text-teal-900 shadow-[0_8px_20px_rgba(13,148,136,0.12)]';
+        return 'rounded-full border border-teal-300 bg-teal-50 px-3 py-1.5 text-left text-teal-900 shadow-[0_6px_16px_rgba(13,148,136,0.10)]';
     }
     if (!stage.unlocked) {
-        return 'min-w-[132px] rounded-xl border border-slate-200 bg-slate-100 px-3 py-3 text-left text-slate-400';
+        return 'rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-left text-slate-400';
     }
     if (stage.complete) {
-        return 'min-w-[132px] rounded-xl border border-emerald-200 bg-white px-3 py-3 text-left text-emerald-900';
+        return 'rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-left text-emerald-900';
     }
     if (stage.blocked) {
-        return 'min-w-[132px] rounded-xl border border-amber-200 bg-white px-3 py-3 text-left text-amber-900';
+        return 'rounded-full border border-amber-200 bg-white px-3 py-1.5 text-left text-amber-900';
     }
-    return 'min-w-[132px] rounded-xl border border-slate-200 bg-white px-3 py-3 text-left text-slate-700';
+    return 'rounded-full border border-slate-200 bg-white px-3 py-1.5 text-left text-slate-700';
+}
+
+function StageBlockCard({
+    block,
+    icon,
+    onClick,
+}: {
+    block: WorkflowBlockView;
+    icon: ReactNode;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={!block.unlocked}
+            className={buildStageBlockCardClassName(block)}
+        >
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                {block.active ? 'Active Tab' : 'Pipeline Tab'}
+            </p>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-teal-200 bg-white text-teal-800">
+                {icon}
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3">
+                <h2 className="text-xl font-semibold tracking-tight">{block.title}</h2>
+                <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    {block.statusLabel}
+                </span>
+            </div>
+            <p className="mt-2 max-w-md text-sm leading-7 text-slate-600">{block.description}</p>
+        </button>
+    );
+}
+
+function BlockStepRail({
+    blockId,
+    stages,
+    currentStageId,
+    onChange,
+}: {
+    blockId: WorkflowBlockId;
+    stages: WorkflowStageView[];
+    currentStageId: WorkflowStageId;
+    onChange: (stageId: WorkflowStageId) => void;
+}) {
+    return (
+        <div className="mt-4 flex flex-wrap gap-2.5">
+            {stages.map((stage) => (
+                <button
+                    key={stage.id}
+                    type="button"
+                    disabled={!stage.unlocked}
+                    onClick={() => onChange(stage.id)}
+                    className={buildWizardStepClassName(stage, stage.id === currentStageId)}
+                >
+                    <span className="font-semibold">
+                        {blockId === 'frank' ? formatWorkflowStepLabel(stage.id) : stage.shortLabel}
+                    </span>
+                    <span className="ml-2 text-[11px] uppercase tracking-[0.12em] opacity-70">{stage.statusLabel}</span>
+                </button>
+            ))}
+        </div>
+    );
+}
+
+function buildWizardStepClassName(stage: WorkflowStageView, isCurrent: boolean) {
+    if (isCurrent) {
+        return 'inline-flex items-center rounded-full border border-teal-300 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800';
+    }
+    if (!stage.unlocked) {
+        return 'inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-400';
+    }
+    return 'inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500';
 }
 
 function buildStagePromptPreview(input: {
@@ -1879,9 +2527,13 @@ function buildStagePromptPreview(input: {
             return getSavedPromptPreview(input.frankPacket?.savedPrompts, 'benchmark_generation');
         case 'question':
             return getSavedPromptPreview(input.frankPacket?.savedPrompts, 'question_generation');
-        case 'rubric':
+        case 'seed_rubric':
+        case 'refine_rubric':
+        case 'approve_rubric':
             return getSavedPromptPreview(input.rubricPack?.savedPrompts, 'rubric_generation');
-        case 'judge': {
+        case 'pre_karthic_cluster':
+        case 'dasha_cluster':
+        case 'dasha_judge': {
             const questionText = input.selectedRun?.questionText?.trim() || input.dashaPack?.questionText?.trim() || '';
             if (!questionText) {
                 return null;
@@ -1897,7 +2549,8 @@ function buildStagePromptPreview(input: {
                 ].join('\n'),
             };
         }
-        case 'zak':
+        case 'dasha_results':
+        case 'zak_review':
             return null;
         default:
             return null;
@@ -2115,6 +2768,20 @@ function GenerationSettingsButton({
     );
 }
 
+function JudgeSettingsButton({
+    setting,
+    onClick,
+}: {
+    setting: DashaJudgeSettings;
+    onClick: () => void;
+}) {
+    return (
+        <button className={secondaryButtonClassName} type="button" onClick={onClick}>
+            Model: {formatGenerationSettingInline(setting)}
+        </button>
+    );
+}
+
 function GenerationSettingsModal({
     targetLabel,
     value,
@@ -2192,7 +2859,84 @@ function GenerationSettingsModal({
     );
 }
 
-function formatGenerationSettingInline(setting: FrankGenerationSettings) {
+function JudgeSettingsModal({
+    targetLabel,
+    value,
+    onChange,
+    onClose,
+    onSave,
+}: {
+    targetLabel: string;
+    value: DashaJudgeSettings;
+    onChange: (value: Pick<DashaJudgeSettings, 'model' | 'reasoningEffort'>) => void;
+    onClose: () => void;
+    onSave: () => void;
+}) {
+    const modelOptions = MODEL_OPTIONS_BY_PROVIDER.openai;
+    const supportsReasoning = supportsReasoningEffortControl('openai', value.model);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+            <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Model Selection</p>
+                        <p className="mt-1 text-lg font-semibold text-slate-900">{targetLabel}</p>
+                        <p className="mt-2 text-sm text-slate-600">
+                            Choose the OpenAI model Dasha should use when scoring clustered representatives against the approved rubric.
+                        </p>
+                    </div>
+                </div>
+                <div className="mt-4 space-y-4">
+                    <Field label="Model">
+                        <select
+                            className={inputClassName}
+                            value={value.model}
+                            onChange={(event) => onChange({
+                                model: event.target.value,
+                                reasoningEffort: value.reasoningEffort,
+                            })}
+                        >
+                            {modelOptions.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                    </Field>
+                    <Field label="Reasoning effort">
+                        <select
+                            className={inputClassName}
+                            value={supportsReasoning ? value.reasoningEffort : 'medium'}
+                            disabled={!supportsReasoning}
+                            onChange={(event) => onChange({
+                                model: value.model,
+                                reasoningEffort: event.target.value as ReasoningEffort,
+                            })}
+                        >
+                            {REASONING_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                    </Field>
+                    {!supportsReasoning ? (
+                        <p className="text-sm text-slate-500">
+                            This model uses its default reasoning behavior for Dasha judging.
+                        </p>
+                    ) : null}
+                </div>
+                <div className="mt-6 flex justify-end gap-2">
+                    <button className={secondaryButtonClassName} type="button" onClick={onClose}>
+                        Cancel
+                    </button>
+                    <button className={primaryButtonClassName} type="button" onClick={onSave}>
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function formatGenerationSettingInline(setting: Pick<FrankGenerationSettings, 'model' | 'reasoningEffort'>) {
     const modelLabel = getOpenAiModelLabel(setting.model);
     const supportsReasoning = supportsReasoningEffortControl('openai', setting.model);
     return supportsReasoning

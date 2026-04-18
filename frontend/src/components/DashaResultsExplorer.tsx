@@ -53,7 +53,7 @@ export function DashaResultsExplorer({ run }: DashaResultsExplorerProps) {
         return (
             <EmptyState
                 title="No Dasha run selected"
-                description="Start a Dasha judge run or pick a saved run to compare answer families, score modules, and inspect cluster-level reasoning."
+                description="Start a Dasha cluster run or pick a saved run to inspect clustered answer families, then continue to rubric judging when you are ready."
                 icon={<BarChart3 className="h-5 w-5" />}
             />
         );
@@ -69,9 +69,14 @@ export function DashaResultsExplorer({ run }: DashaResultsExplorerProps) {
                     {run.errorMessage || 'Dasha stopped before clustering or rubric scoring completed.'}
                 </Notice>
             ) : null}
-            {run.status === 'draft' ? (
-                <Notice tone="info" icon={<Workflow className="h-4 w-4" />} title="Run in progress">
+            {run.status === 'draft' && run.workflowStage === 'cluster_pending' ? (
+                <Notice tone="info" icon={<Workflow className="h-4 w-4" />} title="Clustering in progress">
                     {run.clusteringNotes || 'Dasha is still generating responses and clustering this run.'}
+                </Notice>
+            ) : null}
+            {run.status === 'draft' && run.workflowStage === 'clustered' ? (
+                <Notice tone="info" icon={<Workflow className="h-4 w-4" />} title="Clustering complete">
+                    This run already has clustered answer families, so you can inspect the cluster results now. Row-level rubric judging has not been run yet.
                 </Notice>
             ) : null}
 
@@ -297,7 +302,13 @@ function CompareView(input: {
 
             {!input.data.hasScoring ? (
                 <Notice tone="info" icon={<Gauge className="h-4 w-4" />} title="Rubric scoring skipped">
-                    This run was started in <code className="rounded bg-white px-1 py-0.5 text-xs">cluster_only</code> mode. Clusters can still be compared as answer families, but row and module score panels are intentionally unavailable.
+                    {input.data.runMode === 'cluster_only'
+                        ? (
+                            <>
+                                This run was started in <code className="rounded bg-white px-1 py-0.5 text-xs">cluster_only</code> mode. Clusters can still be compared as answer families, but row and module score panels are intentionally unavailable.
+                            </>
+                        )
+                        : 'This run has clustered results available, but row and module score panels stay unavailable until the Dasha judging step is run.'}
                 </Notice>
             ) : (
                 <>

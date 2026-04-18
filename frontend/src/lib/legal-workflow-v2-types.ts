@@ -248,16 +248,54 @@ export type KarthicRubricRow = {
     goldenTarget: RubricRowGoldenTarget;
 };
 
+export type KarthicPreClusterRunStatus = Extract<WorkflowStatus, 'draft' | 'completed' | 'failed'>;
+
+export type KarthicRefinementAction = 'added' | 'rewritten' | 'dropped' | 'kept';
+
+export type KarthicRefinementLogEntry = {
+    iteration: number;
+    action: KarthicRefinementAction;
+    rowKey: RubricRowKey;
+    rationale: string;
+    sourceClusterIds: string[];
+};
+
+export type KarthicRefinementStatus = 'not_started' | 'seeded' | 'refined' | 'approved';
+
+export type KarthicPreClusterRunV2 = {
+    schemaVersion: 2;
+    id: string;
+    frankPacketId: string;
+    questionText: string;
+    status: KarthicPreClusterRunStatus;
+    selectedModels: DashaSelectedModel[];
+    requestedResponseCount: number;
+    validResponseCount: number;
+    responses: DashaResponseRecord[];
+    clusters: DashaClusterRecord[];
+    clusterFailureModes: string[];
+    clusteringMethod: string;
+    clusteringNotes: string | null;
+    errorMessage?: string;
+    createdAt: string;
+    completedAt: string | null;
+};
+
 export type KarthicRubricPackV2 = {
     schemaVersion: 2;
     id: string;
     frankPacketId: string;
+    preClusterRunId: string | null;
     selectedPack: FrankSofPackId;
     questionSource: QuestionSource;
     questionVariancePackageId: string | null;
     questionText: string;
     status: Extract<WorkflowStatus, 'draft' | 'approved'>;
+    seedRows: KarthicRubricRow[];
     rows: KarthicRubricRow[];
+    clusterFailureModes: string[];
+    refinementLog: KarthicRefinementLogEntry[];
+    refinementStatus: KarthicRefinementStatus;
     savedPrompts: FrankSavedPrompt[];
     generationSettings: PromptGenerationSettingsByKind;
     comparisonMethodNote: string;
@@ -274,6 +312,12 @@ export type DashaSelectedModel = {
     model: string;
     reasoningEffort?: ReasoningEffort;
     temperature?: number;
+};
+
+export type DashaJudgeSettings = {
+    provider: 'openai';
+    model: string;
+    reasoningEffort: ReasoningEffort;
 };
 
 export type DashaResponseRecord = {
@@ -379,12 +423,15 @@ export type WeightedSummary = {
     notApplicableRowKeys: RubricRowKey[];
 };
 
+export type DashaWorkflowStage = 'cluster_pending' | 'clustered' | 'judged';
+
 export type DashaRunV2 = {
     schemaVersion: 2;
     id: string;
     rubricPackId: string;
     runMode: DashaRunMode;
     status: Extract<WorkflowStatus, 'draft' | 'completed' | 'failed'>;
+    workflowStage: DashaWorkflowStage;
     inputArtifacts: ArtifactRecord[];
     questionText: string;
     questionSource: QuestionSource;
@@ -392,6 +439,7 @@ export type DashaRunV2 = {
     comparisonId: string | null;
     comparisonRole: DashaComparisonRole | null;
     selectedModels: DashaSelectedModel[];
+    judgeSettings: DashaJudgeSettings;
     requestedResponseCount?: number;
     validResponseCount?: number;
     responses: DashaResponseRecord[];

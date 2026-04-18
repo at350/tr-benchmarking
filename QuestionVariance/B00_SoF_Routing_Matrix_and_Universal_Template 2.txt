@@ -1,0 +1,415 @@
+STATUTE OF FRAUDS ROUTING MATRIX + UNIVERSAL ANSWER TEMPLATE
+Purpose:
+This file sits before B01-B03. It tells the GPT how to classify a Statute of Frauds problem, identify the likely governing provision and gate order, and only then offer controlled variation options. Its job is to make the variation workflow portable across all major Statute of Frauds provisions without silently changing doctrine.
+
+Core rule:
+Do not vary first and classify later.
+Before offering any Lane A or Lane B option, first route the problem into the correct Statute of Frauds provision pack, identify the controlling doctrine, and state the main gate order.
+
+Default workflow:
+0. inspect the original legal question, benchmark answer, and source materials
+1. identify the transaction type and governing-law candidate
+2. identify the most likely Statute of Frauds provision pack
+3. identify any serious secondary pack candidates
+4. state the controlling doctrine and main gate order
+5. decide whether the problem is stable enough for variation
+6. only then apply B01-B03
+7. by default, vary one fact family at a time unless the user explicitly requests a combined variation
+
+Routing status values:
+- Stable route
+- Multiple plausible routes
+- Needs classification first
+- Not primarily a Statute of Frauds problem
+
+Required routing output before any variation menu:
+Input type:
+Governing-law candidate:
+Primary SoF provision candidate:
+Secondary candidate(s):
+Controlling doctrine:
+Main gate order:
+Variation readiness:
+Main no-silent-change facts:
+
+Global no-silent-change rules:
+Unless the user explicitly wants a different doctrine test, do not silently change:
+- oral vs written vs mixed writing status
+- governing law family
+- goods vs services vs land characterization
+- the side of any legal threshold
+- promisor/promisee or creditor/debtor role direction
+- primary vs collateral liability
+- personal vs representative capacity
+- whether marriage is the consideration
+- whether the contract can possibly be fully performed within one year
+- whether the transaction involves an interest in land
+- UCC quantity term presence
+- merchant status when the merchant-confirmation route matters
+- possession / payment / improvement facts when they drive a land exception analysis
+- admission, acceptance, delivery, or payment facts when they drive a UCC exception analysis
+
+GLOBAL PRELIMINARY CLASSIFICATION GATES
+Use these before choosing a specific SoF pack.
+
+Gate G1 - governing law family
+Ask first whether the transaction is governed primarily by Article 2, common law, real-property doctrine, probate/executor doctrine, or a mixed framework.
+- If the problem is a sale of goods, route to the UCC pack first.
+- If the problem is mixed goods and services, classify first rather than forcing UCC or common law too early.
+- If the problem is about land or an interest in land, route to the land pack.
+- If the problem is about an executor or administrator promising to pay estate obligations personally, test the executor pack.
+- If the problem is about answering for another person’s debt or default, test the suretyship pack.
+- If the problem is about a promise made in consideration of marriage, test the marriage pack.
+- If the problem turns on duration or impossibility of full performance within one year from making, test the one-year pack.
+
+Gate G2 - is the issue actually SoF-triggered?
+Do not assume the Statute of Frauds applies just because the facts mention an oral promise.
+Ask whether the selected provision is actually triggered.
+
+Gate G3 - is the route stable enough for variation?
+If classification depends on one unresolved fact, do not present a normal Lane A menu as though the doctrine were fixed. Mark the problem as Multiple plausible routes or Needs classification first.
+
+PROVISION ROUTING MATRIX
+
+Pack 1 - Marriage provision
+Core question:
+Is the promise unenforceable because it was made in consideration of marriage and lacks the required writing?
+
+Typical trigger facts:
+- promise of money, property, transfer, or settlement tied to marriage as consideration
+- promise made before marriage in exchange for marrying or remaining married
+- dispute about whether marriage is the bargain itself or merely background context
+
+Main gate order:
+1. characterize the promise
+2. determine whether marriage is the consideration or merely the setting
+3. determine whether a signed writing is required and present
+4. evaluate any narrow substitute, estoppel, or partial-enforcement theory only if the source materials support it
+
+Facts that must stay fixed in Lane A unless the change is intentional:
+- whether marriage is the consideration
+- whether the promise was pre-marital, marital, or merely relationship-related
+- the existence of a writing
+- party direction if it affects who gave consideration to whom
+
+Good Lane A variation zones:
+- names
+- occupations
+- city or state only if jurisdiction does not change
+- property labels or asset descriptions if the legal function stays the same
+- salience facts that do not create a new doctrine
+
+Good Lane B omission / ambiguity targets:
+- whether the promise was exchanged for marriage or only made during a romantic relationship
+- whether the promise was made before or after the marriage
+- whether any writing exists
+
+Main red flags:
+- treating an ordinary promise between romantic partners as a marriage-consideration promise
+- silently changing the consideration structure
+- importing family-law doctrines that are not part of the original benchmark
+
+Pack 2 - Suretyship provision
+Core question:
+Is the promise unenforceable because it is a collateral promise to answer for the debt or default of another and lacks the required writing?
+
+Typical trigger facts:
+- guaranty-like promise
+- creditor, debtor, and third-party promisor structure
+- dispute about whether the promisor assumed original liability or only backup liability
+- dispute about a main-purpose or leading-object type exception
+
+Main gate order:
+1. identify the underlying obligor and the alleged surety
+2. determine whether the promise is collateral or original
+3. test whether the writing requirement is triggered and satisfied
+4. evaluate any main-purpose / leading-object or equivalent self-benefit route if supported by the source materials
+
+Facts that must stay fixed in Lane A unless the change is intentional:
+- creditor/debtor/promisor role direction
+- whether the promise is collateral or original
+- who the promise was made to if addressee matters
+- facts supporting or defeating self-benefit / main purpose
+- existence of a writing
+
+Good Lane A variation zones:
+- names
+- industry or business context
+- debt labels
+- dollar amounts only if no threshold or bias issue is created
+- neutral salience additions that do not change liability structure
+
+Good Lane B omission / ambiguity targets:
+- whether the promisor’s object was to benefit herself or himself directly
+- whether the promise ran to the creditor or only to the debtor
+- whether the promisor became primarily liable
+- whether the original obligor remained liable
+
+Main red flags:
+- silently converting a collateral promise into an original promise
+- changing who owes the underlying debt
+- using a generalized term that hides whether the promise was to the creditor or debtor
+
+Pack 3 - One-year provision
+Core question:
+Is the promise unenforceable because, by its terms, it could not possibly be fully performed within one year from the making of the contract and lacks the required writing?
+
+Typical trigger facts:
+- fixed duration exceeding one year
+- performance tied to a timeline beginning at contract formation or another specified start point
+- dispute about whether full performance is possible within one year even if unlikely
+- dispute about a contingency, termination right, or alternate completion path
+
+Main gate order:
+1. identify the contract formation point
+2. determine the exact promised performance and the earliest possible completion date under the stated terms
+3. decide whether complete performance is impossible within one year from making
+4. determine whether the writing requirement is satisfied
+5. evaluate any limited substitute or performance-based argument only if supported by the source materials
+
+Facts that must stay fixed in Lane A unless the change is intentional:
+- the timing side of the one-year line
+- the start date structure
+- contingencies that make performance possible or impossible within one year
+- termination language if it matters to the one-year analysis
+- existence of a writing
+
+Good Lane A variation zones:
+- threshold-preserving month or time shifts that stay on the same side of the line
+- names
+- industries
+- project labels
+- salience facts that do not change the performance timeline
+
+Good Lane B omission / ambiguity targets:
+- the exact duration
+- the exact start point
+- whether a contingency could permit completion within one year
+- whether the contract is for full performance or indefinite duration
+
+Main red flags:
+- changing 14 months to 11 months or vice versa
+- omitting so much timing information that every issue becomes vague
+- assuming improbability equals impossibility
+
+Pack 4 - Land sale / interest in land provision
+Core question:
+Is the promise unenforceable because it transfers, creates, or materially affects an interest in land and lacks the required writing?
+
+Typical trigger facts:
+- sale of land
+- option, easement, lease, mortgage-related land interest, or other transfer of an interest in land
+- dispute about whether the transaction concerns land at all
+- dispute about a part-performance route
+
+Main gate order:
+1. characterize the transaction and the land interest at stake
+2. determine whether the selected land-interest rule triggers a writing requirement
+3. evaluate whether the writing satisfies the essential-term requirements under the benchmark’s doctrine path
+4. evaluate any part-performance, estoppel, or equivalent route only if the source materials support it
+
+Facts that must stay fixed in Lane A unless the change is intentional:
+- whether the transaction concerns an interest in land
+- the type of land interest at issue
+- possession, payment, and improvement facts if they drive the exception analysis
+- property-description adequacy if it matters in the source materials
+- existence of a writing
+
+Good Lane A variation zones:
+- party names
+- city or county if the jurisdiction does not change
+- parcel descriptors only if the land-interest function stays the same
+- neutral pricing changes that do not create a different issue
+- non-controlling salience additions
+
+Good Lane B omission / ambiguity targets:
+- whether possession occurred
+- whether payment occurred
+- whether improvements were made
+- whether the interest is actually in land or only adjacent to land
+- whether any signed memorandum exists
+
+Main red flags:
+- silently changing a land transaction into a services or goods transaction
+- removing all land-interest detail so the route itself disappears
+- treating every land-related conversation as a land-transfer contract
+
+Pack 5 - UCC Article 2 sale-of-goods provision
+Core question:
+Is the agreement unenforceable under UCC 2-201 because it is a contract for the sale of goods at or above the statutory threshold and the required writing or substitute is missing?
+
+Typical trigger facts:
+- sale of goods
+- mixed goods/services contract needing classification
+- quantity term issues
+- merchant-confirmation issues
+- admission, special manufacture, payment, receipt, or acceptance issues
+
+Main gate order:
+1. determine whether Article 2 governs the transaction
+2. determine whether the transaction is for the sale of goods and whether the threshold is crossed
+3. determine whether there is a writing sufficient under the applicable benchmark path, including any required quantity term or authentication feature
+4. evaluate merchant-confirmation route if supported
+5. evaluate special-manufacture, admission, payment, receipt, or acceptance route if supported
+
+Facts that must stay fixed in Lane A unless the change is intentional:
+- goods vs services classification
+- the side of the UCC threshold
+- quantity term presence or absence
+- merchant status if merchant confirmation matters
+- admission, payment, receipt, or acceptance facts if they drive enforceability
+- existence of a writing or confirmation
+
+Good Lane A variation zones:
+- names
+- product labels if they remain goods of the same legal type
+- quantities only if the writing/threshold logic remains unchanged
+- dollar amounts only if they stay on the same side of the threshold and do not create a different quantity issue
+- neutral industry context
+
+Good Lane B omission / ambiguity targets:
+- whether the parties are merchants
+- whether the writing contains a quantity term
+- whether the transaction is predominantly goods or services
+- whether goods were received, accepted, or paid for
+- whether a confirming memorandum was sent and not objected to
+
+Main red flags:
+- silently crossing the threshold
+- changing goods into services
+- omitting the quantity fact and then pretending the answer is still fixed
+- importing common-law SoF reasoning where the benchmark is clearly UCC-centered
+
+Pack 6 - Executor / administrator personal-promise provision
+Core question:
+Is the promise unenforceable because an executor or administrator allegedly promised to answer personally for an estate obligation without the required writing?
+
+Typical trigger facts:
+- executor or administrator promise
+- dispute about personal versus representative capacity
+- promise to pay estate debt from personal funds versus estate assets
+- probate context with unclear role language
+
+Main gate order:
+1. identify the fiduciary role and the underlying estate obligation
+2. determine whether the promise is personal or only representative
+3. determine whether the writing requirement is triggered and satisfied
+4. evaluate any supported substitute or estoppel route only if the source materials support it
+
+Facts that must stay fixed in Lane A unless the change is intentional:
+- whether the promisor is acting personally or representatively
+- whether the debt is an estate debt
+- whether the promise reaches personal assets
+- existence of a writing
+
+Good Lane A variation zones:
+- party names
+- estate context details that do not change capacity
+- labels for the underlying obligation if legal function stays the same
+- non-controlling salience facts
+
+Good Lane B omission / ambiguity targets:
+- whether the promise was personal or only in a representative role
+- whether payment was to come from personal funds or estate assets
+- whether the obligation belonged to the estate or to the fiduciary individually
+
+Main red flags:
+- silently changing capacity
+- collapsing fiduciary and personal liability into one role
+- using vague wording that hides whose money is at issue
+
+MULTI-PACK AND NO-FIT RULES
+Use these when the route is not clean.
+
+1. Mixed goods/services problems
+If the problem may be governed by either Article 2 or common law, classify first. Do not offer a normal variation menu that presumes one framework unless the benchmark answer already fixed the classification path.
+
+2. Suretyship vs original-obligation problems
+If the problem may be either a collateral promise or an original undertaking, say that classification is the gate and preserve it explicitly.
+
+3. Executor vs representative-administration problems
+If the issue is whether the fiduciary promised personally or only in an official capacity, treat that as a gate and do not flatten it.
+
+4. Marriage-context problems
+If the facts involve a romantic or marital relationship but do not clearly show that marriage is the consideration, do not force the marriage provision.
+
+5. Not primarily a SoF problem
+If the real issue is formation, capacity, mistake, parol evidence, consideration, or another doctrine, say so. The router should not falsely label every oral-contract issue as a SoF question.
+
+UNIVERSAL ANSWER TEMPLATE
+Use this answer shape across all SoF packs unless the source materials require a specific variant. Keep headings stable so clustering remains comparable.
+
+Jurisdiction / Governing-law assumption
+- state the assumed jurisdiction or governing-law frame only as needed
+- state whether the analysis is using common law, land doctrine, probate/executor doctrine, or UCC Article 2
+
+Bottom-line outcome
+- state the likely enforceability result in one or two sentences
+
+Controlling doctrine
+- name the applicable SoF provision or explain that the threshold classification issue is which provision applies
+
+Main gate order
+- list the actual analysis path in short form
+- examples: classification -> trigger -> writing -> exception
+- or: capacity -> personal promise -> writing -> substitute
+
+Transaction characterization
+- explain what kind of transaction or promise this is
+- include any threshold classification question that must be answered before the SoF analysis can proceed
+
+Trigger analysis
+- explain why the selected SoF provision is or is not triggered
+- if the trigger itself is uncertain, say exactly which missing or disputed fact controls it
+
+Writing / compliance analysis
+- explain whether there is a sufficient writing, memorandum, confirmation, signature, authentication, quantity term, or equivalent required feature under the benchmark path
+
+Exception / substitute / enforcement-limitation analysis
+- evaluate only the exceptions or substitutes genuinely supported by the source materials and benchmark answer
+- do not import extra fallback doctrines just because they exist in the abstract
+
+Other defenses or competing doctrines
+- include only if the benchmark answer or source materials actually require them
+- keep this section brief if the problem is mainly a SoF issue
+
+Strongest counterargument
+- identify the best argument on the other side without changing the controlling path
+
+Bounded uncertainty
+- if a key fact is missing or classification is unstable, identify the missing fact and give only the main conditional branches
+- do not bluff certainty when the route depends on an omitted control fact
+
+UNIVERSAL VARIATION READINESS RULES
+Only offer a normal B02 menu when all of the following are true:
+- the primary provision route is stable
+- the controlling doctrine is identifiable
+- the main gate order is identifiable
+- the proposed change does not silently move the problem into a different pack
+- the updated answer can be classified as Reuse as-is, Cosmetic edits only, or Ambiguity rewrite required under B01-B03
+
+When the route is unstable:
+- say which classification fact controls the route
+- label the problem as Multiple plausible routes or Needs classification first
+- do not pretend a Lane A answer-invariant variation is safe
+
+MENU DISCIPLINE AFTER ROUTING
+After routing, B02 still controls the menu style, but only offer options that fit the chosen pack.
+- default to 3 to 6 options maximum
+- default to one fact family at a time
+- prefer Lane A when the selected pack and outcome should stay fixed
+- use Lane B only when the goal is to test whether the model identifies the missing control fact and folds any remaining uncertainty into "Strongest counterargument:"
+- if only one or two safe options exist for that pack, say so
+
+PACK-SPECIFIC SELF-CHECK BEFORE FINALIZING A VARIATION
+Before marking a variation Ready, ask:
+- Did I keep the problem in the same SoF pack unless the change was intentional?
+- Did I preserve the same gate order in Lane A?
+- Did I keep threshold direction fixed?
+- Did I preserve party-role direction?
+- Did I avoid silently changing writing status?
+- Did I avoid importing a new fallback doctrine?
+- If this is Lane B, did I clearly identify the missing control fact and remove only what is necessary?
+
+Status rule:
+If any answer to the self-check is no, mark the package Needs targeted revision or Unsafe rather than pretending the variation is clean.
