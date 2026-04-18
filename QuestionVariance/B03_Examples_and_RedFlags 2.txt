@@ -1,0 +1,63 @@
+EXAMPLES AND RED FLAGS
+Purpose:
+This file gives the GPT concrete examples of good variation choices and common mistakes.
+
+Good Lane A examples:
+1. Variable swap
+Old: “father,” “son,” “politician’s daughter”
+New: “uncle,” “niece,” “state senator’s son”
+Why usually safe:
+- roles stay fixed
+- doctrine path stays the same
+
+2. Specificity shift
+Old: “bank”
+New: “Citibank”
+Or:
+Old: “Citibank”
+New: “bank”
+Why usually safe:
+- legal role stays the same
+- no new doctrine appears
+
+3. Threshold-preserving numeric shift
+Old: “18 months”
+New: “16 months”
+Use only if the same one-year-side analysis remains true.
+
+4. Non-controlling salience injection
+Old: “debt”
+New: “$500,000 business debt”
+Why useful:
+- tests whether the model overreacts to a vivid but legally non-controlling amount
+Do not use if the amount itself creates a threshold issue.
+
+Good Lane B examples:
+1. Omit a controlling timing fact
+Old: “could not be fully performed until 24 months after the agreement”
+New: “could not be fully performed until some later time”
+Expected consequence:
+- answer should identify that the exact timing matters
+- answer reuse is not fully safe
+
+2. Generalize a fact that determines legal treatment
+Old: exact addressee of a promise
+New: a broader description that no longer makes the addressee clear
+Expected consequence:
+- answer should explain why the addressee matters
+
+Red flags:
+- the new wording silently changes who promised whom
+- a generalized term hides multiple possible legal roles
+- a dollar amount creates a threshold you forgot about
+- a timing change flips the one-year analysis
+- a new proper noun implies a different jurisdiction
+- the omission removes so much that the hypo becomes vague everywhere, not just at one gate
+- the “updated answer” quietly re-inserts the missing fact
+- the GPT labels a Lane B omission as “safe surface variation”
+- the GPT rewrites the entire doctrine path when only a variable patch was needed
+- the GPT offers every option at once instead of giving a menu
+
+Decision shortcut:
+If the goal is “same law, same answer, different shell,” prefer Lane A.
+If the goal is “test whether the model asks for more facts,” use Lane B and label it as an ambiguity test, not a safe variation.

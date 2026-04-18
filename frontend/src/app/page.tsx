@@ -1,4 +1,4 @@
-import { ArrowRight, BarChart3, BookOpenText, Database, Orbit, Workflow } from 'lucide-react';
+import { ArrowRight, BarChart3, BookOpenText, Database, FileStack, Orbit, Workflow } from 'lucide-react';
 
 import { AppShell } from '@/components/ui/AppShell';
 import { PanelCard } from '@/components/ui/PanelCard';
@@ -11,7 +11,19 @@ export default function HomePage() {
             subtitle="Choose a tool: inspect datasets, browse legal outlines, analyze LSH-RUHS clusters, or run full general benchmarking with configurable model evaluations."
             maxWidthClassName="max-w-7xl"
         >
-            <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
+            <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+                <PanelCard
+                    href="/demos"
+                    title="Demos"
+                    description="Open streamlined workflow views for the full Frank-Karthic-Dasha pipeline, with benchmark intake, clustered model responses, rubric construction, and judged leaderboard outputs."
+                    icon={<FileStack className="h-5 w-5" />}
+                    badge="Workflow"
+                >
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                        Open workflow view <ArrowRight className="h-3.5 w-3.5" />
+                    </div>
+                </PanelCard>
+
                 <PanelCard
                     href="/database-view"
                     title="Dataset"
@@ -50,7 +62,7 @@ export default function HomePage() {
 
                 <PanelCard
                     href="/legal-workflow"
-                    title="Frank-Karthic-Dasha"
+                    title="Frank-Karthic-Dasha SoF"
                     description="Build stage-bounded legal benchmark artifacts: source-grounded Frank packets, approved Karthic rubrics, and Dasha centroid-first evaluations."
                     icon={<Workflow className="h-5 w-5" />}
                     badge="Pipeline"

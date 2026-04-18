@@ -1,0 +1,121 @@
+LAND + ONE-YEAR — LEASE CONFUSION SET
+
+Purpose:
+This file helps the GPT handle oral lease or land-use agreements whose duration exceeds one year, creating possible overlap between:
+1. the land-interest provision, and
+2. the one-year provision.
+
+Why this confusion case matters:
+Weak outputs often treat any over-one-year agreement as a pure one-year case and fail to classify the transaction as a lease or other interest in land.
+A stronger router should notice that land classification usually comes first.
+
+Primary routing lesson:
+When the agreement creates a leasehold or other interest in land, the land pack should be the first route.
+The duration feature can still matter, but land classification should not disappear.
+
+Competing route map:
+Candidate route A:
+Land sale / interest in land provision
+
+Candidate route B:
+One-year provision
+
+Relationship between routes:
+Overlap with land-first priority.
+The land-interest route is usually the cleaner first lens on a lease benchmark, with one-year reasoning as a possible secondary note if the source materials treat it separately.
+
+Routing snapshot:
+Input type: Cross-pack confusion benchmark
+Confusion pattern: Overlap with land-first priority
+Governing-law candidate: Real-property SoF route
+Primary SoF provision candidate: Land sale / interest in land provision
+Secondary candidate(s): One-year provision if the source materials separately emphasize duration
+Controlling doctrine: Oral lease creating an interest in land should be classified as a land-interest problem before any generic one-year analysis
+Main gate order:
+characterize the transaction as a lease or land-use interest -> assess whether the land writing rule is triggered -> assess writing -> assess any supported part-performance or substitute route -> note any secondary duration issue only if source materials support it
+Variation readiness: Ready only if the leasehold nature and duration side remain fixed
+Main no-silent-change facts:
+- the transaction creates a leasehold or other interest in land
+- the term exceeds one year under the benchmark
+- no sufficient writing is present unless the benchmark says otherwise
+- the agreement is not merely a license or services arrangement
+
+Benchmark packet
+
+Source-style fact core:
+Riley orally agrees to lease a downtown retail storefront to Jun for 18 months, beginning the following month. No signed writing memorializes the arrangement. Jun takes preliminary steps to open the store, but Riley later refuses to honor the lease.
+
+Neutral legal question:
+Riley orally agrees to lease a downtown retail storefront to Jun for 18 months, beginning the following month. There is no signed writing. Riley later refuses to honor the lease. Is the agreement enforceable?
+
+Gold routing + benchmark answer:
+
+Jurisdiction / Governing-law assumption
+Assume ordinary Statute of Frauds treatment for interests in land and no special jurisdiction-specific exception unless the source materials provide one.
+
+Bottom-line routing outcome
+The best first route is the land-interest provision because the agreement is an oral lease of real property. The 18-month term reinforces that this is not a fleeting arrangement, but the principal classificatory move is still land first.
+
+Controlling doctrine
+The controlling routing issue is whether the agreement creates a leasehold interest in land. On these facts, it does.
+
+Competing route analysis
+Land route:
+An 18-month lease of a storefront is a classic land-use arrangement and should be analyzed under the land-interest framework first.
+
+One-year route:
+The duration also exceeds one year, so a weaker model may jump to the common-law one-year pack. But on this benchmark, that would skip the more specific land classification step.
+
+Relationship between the routes
+This is overlap with land-first priority. The land pack is the primary route. A secondary note about duration is permissible only if the source materials keep it doctrinally distinct.
+
+Main gate order
+classify the transaction as a leasehold interest -> assess land-writing requirement -> assess writing -> assess any supported part-performance or related substitute -> note any source-specific duration issue if needed
+
+Transaction characterization
+This is not a general promise of future cooperation and not merely a business opportunity. It is an oral agreement granting possession or use of a specific retail space for a defined term.
+
+Writing / compliance analysis
+The facts state that no signed writing exists. On the benchmark path, that means the ordinary land-writing route is missing. Any route around the statute would need to come from the actual source materials.
+
+Other possible routes and why they do or do not control
+The one-year provision may look relevant because the term is 18 months, but it is not the best first lens. The primary mistake would be to erase the leasehold nature of the agreement.
+
+Strongest counterargument
+Jun's strongest argument would be any recognized part-performance or reliance theory supported by the source materials. The benchmark facts, standing alone, do not lock in that route.
+
+Bounded uncertainty
+The route would become less stable if the arrangement looked more like a revocable license, storage permission, or a services contract connected to property rather than a leasehold. On the stated facts, the lease classification is clear enough for land-first routing.
+
+Carry-forward routing notes:
+Core answer reuse:
+- Cosmetic edits only if the transaction remains a leasehold interest, the term stays over one year, and no-writing status remains fixed.
+
+Safest Lane A zones after routing is fixed:
+- names
+- type of commercial property
+- city or business context
+- rent amount changes that do not alter classification
+- neutral salience facts about the intended business
+
+Best Lane B ambiguity targets:
+- whether the agreement grants exclusive possession or only temporary permission
+- whether the term is actually 18 months or only month-to-month
+- whether any signed email, term sheet, or lease draft exists
+- whether the user took possession, paid rent, or made improvements
+
+Unsafe drifts:
+- changing the lease into a license or storage permission without marking the route change
+- changing 18 months to 11 months without marking the duration shift
+- changing the property arrangement into construction or management services while pretending the same land route still applies
+
+Rubric focus points:
+A strong answer should:
+- classify the transaction as a leasehold or other land interest first
+- avoid letting generic one-year language eclipse land analysis
+- keep any part-performance discussion tied to the source materials
+- acknowledge uncertainty if possession or term facts are blurred
+
+Why this is a good anchor:
+This file teaches the router not to let duration swallow classification.
+In lease problems, the land-interest character usually does the first and most important legal work.

@@ -1,31 +1,28 @@
 import { NextResponse } from 'next/server';
 
-import { refineKarthicRubricPack } from '@/lib/legal-workflow-server';
+import { refineKarthicRubricPack } from '@/lib/legal-workflow-v2-server';
+import type { ReasoningEffort } from '@/lib/legal-workflow-v2-types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-type RefineRequest = {
-    packId?: string;
-    contrastiveStrongAnswer?: string;
-    contrastiveMediocreAnswer?: string;
-    domainIds?: string[];
+type RequestBody = {
+    id?: string;
+    model?: string;
+    reasoningEffort?: ReasoningEffort;
 };
 
 export async function POST(req: Request) {
     try {
-        const body = (await req.json()) as RefineRequest;
-        if (!body.packId) {
-            return NextResponse.json({ error: 'packId is required.' }, { status: 400 });
+        const body = (await req.json()) as RequestBody;
+        if (!body.id?.trim()) {
+            return NextResponse.json({ error: 'id is required.' }, { status: 400 });
         }
-
         const item = await refineKarthicRubricPack({
-            packId: body.packId,
-            contrastiveStrongAnswer: body.contrastiveStrongAnswer,
-            contrastiveMediocreAnswer: body.contrastiveMediocreAnswer,
-            domainIds: body.domainIds,
+            id: body.id,
+            model: body.model,
+            reasoningEffort: body.reasoningEffort,
         });
-
         return NextResponse.json({ item });
     } catch (error) {
         console.error('Failed to refine Karthic rubric pack.', error);

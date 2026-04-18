@@ -1,0 +1,101 @@
+LAND SALE / INTEREST IN LAND PROVISION — WORKED BENCHMARK EXAMPLE
+
+Purpose:
+This file gives the GPT one clean benchmark anchor for a Statute of Frauds land-transfer problem. Use it as a model for routing, neutral-question drafting, and benchmark-answer structure. Do not copy the facts verbatim into later variations.
+
+Why this example is clean:
+- the transaction is plainly a sale of land
+- the party to be charged signed a short writing
+- the writing identifies the parcel, the price, and the contemplated closing
+- the benchmark can focus on writing sufficiency without needing a part-performance exception
+
+Routing snapshot:
+Input type: Worked benchmark example
+Governing-law candidate: Land / common-law Statute of Frauds
+Primary SoF provision candidate: Land sale / interest in land provision
+Secondary candidate(s): None on these facts
+Controlling doctrine: Contract for the sale of land generally requires a qualifying writing under the governing source path
+Main gate order: characterize land transaction -> writing trigger -> writing sufficiency -> any supported exception if needed
+Variation readiness: Ready
+Main no-silent-change facts:
+- the transaction is a sale of land
+- Mira is the party to be charged
+- Mira signed the writing
+- the writing contains a property description and price
+- the benchmark turns on writing sufficiency, not on part performance
+
+Benchmark packet
+
+Source-style fact core:
+Mira signs a short letter addressed to Evan stating, "I will sell you my 12-acre parcel at 88 Valley Road, Greene County, for $240,000. Closing June 1." Evan accepts orally. Mira later refuses to sell.
+
+Neutral legal question:
+Mira signs a short letter stating, "I will sell you my 12-acre parcel at 88 Valley Road, Greene County, for $240,000. Closing June 1." The letter is addressed to Evan and signed by Mira. Evan accepts orally. Mira later refuses to sell. Is the agreement enforceable?
+
+Gold benchmark answer:
+
+Jurisdiction / Governing-law assumption
+Assume ordinary land-related Statute of Frauds principles and no jurisdiction-specific essential-term rule beyond what the benchmark source materials support.
+
+Bottom-line outcome
+Likely enforceable under the benchmark path. The transaction is a sale of land, but Mira signed a writing that appears to identify the property, the parties, and the bargain with sufficient clarity for a baseline Statute of Frauds analysis.
+
+Controlling doctrine
+The controlling doctrine is the land sale or interest-in-land provision of the Statute of Frauds: a contract for the transfer of an interest in land generally requires a qualifying writing.
+
+Main gate order
+characterize the transaction as one involving land -> assess whether a writing is required -> assess whether the signed writing is sufficient -> assess any supported exception only if needed
+
+Transaction characterization
+This is a direct sale of land, not a services agreement or a goods contract. The land-transfer writing rule is therefore the primary SoF framework.
+
+Trigger analysis
+Because the agreement concerns the sale of a 12-acre parcel, the land provision is triggered under the benchmark path.
+
+Writing / compliance analysis
+Mira, the party to be charged, signed a letter that appears to identify the parcel, the sale price, and the contemplated closing. On a baseline benchmark, that writing is likely sufficient to satisfy the statute, assuming the source materials treat those details as adequate.
+
+Exception / substitute / enforcement-limitation analysis
+No exception needs to be reached because the benchmark can proceed through the signed-writing route. The benchmark should not import part performance, estoppel, or other alternatives unless the source materials call for them.
+
+Other defenses or competing doctrines
+The benchmark does not need to add a separate issue about oral acceptance. The main question is whether the signed memorandum satisfies the land-writing requirement on these facts.
+
+Strongest counterargument
+Mira's strongest counterargument is that the letter is too short or informal to count as a sufficient memorandum. But because it appears to identify the parcel, the price, and the intended transaction, the stronger baseline answer is that the writing likely satisfies the statute.
+
+Bounded uncertainty
+The answer would be less stable if the property description were materially vaguer, if the writing were unsigned, or if the transaction were not clearly for a land interest. On the stated facts, those concerns are limited.
+
+Carry-forward variation notes:
+Core answer reuse:
+- Cosmetic edits only for Lane A changes that preserve land characterization and writing sufficiency.
+
+Safest Lane A zones:
+- party names
+- city or county details if jurisdiction does not change
+- parcel descriptors that still identify the same kind of land interest with similar specificity
+- neutral price changes that do not create a different issue
+- non-controlling salience facts about the parcel or the parties
+
+Best Lane B ambiguity targets:
+- whether the signed writing exists
+- whether the property description is specific enough under the source path
+- whether the transaction really concerns a covered land interest
+- whether the signed document is attributable to the party to be charged
+- if the benchmark later uses an exception path, whether possession, payment, or improvements occurred
+
+Unsafe drifts:
+- changing the transaction into construction, repair, brokerage, or another services problem
+- making the property description so vague that the route becomes source-specific in a new way
+- changing the signed-writing route into an exception route without changing the benchmark answer
+- shifting from a sale of land to a different land-interest category without marking that doctrinal change
+
+Rubric focus points:
+- correctly characterizes the transaction as a land transfer
+- makes the signed writing the main route
+- checks the writing for property and bargain identification rather than reciting a generic checklist
+- avoids unnecessary detours into exception analysis when the writing path is already present
+
+Why this is a good anchor:
+This example shows a low-noise land benchmark where the writing route is the real issue. That helps the GPT avoid turning every land problem into a part-performance problem by reflex.

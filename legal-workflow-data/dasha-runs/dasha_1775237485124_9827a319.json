@@ -4762,7 +4762,7 @@
         {
           "clusterId": "cluster_4",
           "applicabilityStatus": "applicable",
-          "applicabilityExplanation": "The representative answer explicitly addresses the doctrinal and jurisdictional uncertainties inherent in the Neale framework and the Statute of Frauds context, consistent with the domain's focus on bounded uncertainty and jurisdictional limits.",
+          "applicabilityExplanation": "The representative answer explicitly addresses the doctrinal and jurisdictional uncertainties inherent in the Neale framework and the Statute of Frauds context, consistent with the domain's focus on specific uncertainty folded into the strongest counterargument and jurisdictional limits.",
           "score": 90,
           "confidence": 0.9,
           "rationale": "The answer identifies the core uncertainties about what constitutes substantial improvements, the role of rents, and the interplay between classical part-performance and modern promissory estoppel doctrines, all of which are central to the domain. It also states the jurisdictional assumption and explains why it matters, fulfilling the domain's requirement to state what legal or factual developments would resolve the uncertainties. The absence of contradictions and the presence of additional clarifying points enhance its completeness and utility.",
@@ -4854,7 +4854,7 @@
         {
           "clusterId": "cluster_8",
           "applicabilityStatus": "applicable",
-          "applicabilityExplanation": "The representative answer explicitly addresses the doctrinal and jurisdictional uncertainties inherent in the Neale framework and State X's assumed law, consistent with the domain's focus on bounded uncertainty and jurisdictional limits.",
+          "applicabilityExplanation": "The representative answer explicitly addresses the doctrinal and jurisdictional uncertainties inherent in the Neale framework and State X's assumed law, consistent with the domain's focus on specific uncertainty folded into the strongest counterargument and jurisdictional limits.",
           "score": 90,
           "confidence": 0.9,
           "rationale": "The representative answer aligns well with the golden target by identifying the key doctrinal uncertainties around substantial improvements, rent receipt/use, and the interplay between classical part performance and modern promissory estoppel doctrines. It also states the jurisdictional assumption and what factual/legal developments would resolve these uncertainties. The answer goes beyond by elaborating on the legal nature of Claire's acts and specifying the remedial outcome, which enriches the analysis without contradicting the golden target. No contradictions or omissions of core points were found.",

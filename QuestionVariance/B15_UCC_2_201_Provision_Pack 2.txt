@@ -1,0 +1,218 @@
+STATUTE OF FRAUDS PACK — UCC ARTICLE 2 / SECTION 2-201
+
+Purpose:
+This pack helps the GPT handle Article 2 Statute of Frauds problems by keeping the analysis centered on sale-of-goods classification, threshold, writing sufficiency, and the specific substitute routes that the benchmark actually uses.
+
+Scope statement:
+Use this pack when the likely controlling issue is whether an agreement for the sale of goods is enforceable under UCC 2-201 despite missing or disputed writing compliance.
+
+Baseline source-of-truth rule:
+The benchmark answer and source materials control.
+This pack assumes a baseline Article 2 / 2-201 framework and should be adapted to the assigned jurisdiction or source text.
+Do not import merchant-confirmation, specially manufactured goods, admission, payment, receipt, or acceptance routes unless the source materials support them.
+
+Use this pack when:
+- the transaction is a sale of goods
+- the threshold side matters under the selected source path
+- the writing or quantity-term issue is central
+- the problem may involve merchant confirmation or another 2-201 substitute route
+- a mixed goods/services problem has already been classified into Article 2
+
+Do not use this pack when:
+- the transaction is mainly services or real property
+- the classification between goods and services is still the main unresolved gate
+- the benchmark does not actually rely on 2-201
+- the alleged agreement concerns something that the source materials do not treat as goods
+
+Default gate order:
+1. determine whether Article 2 governs the transaction
+2. determine whether the agreement is a sale of goods and whether the selected threshold is crossed
+3. determine whether there is a writing sufficient under the benchmark path, including any required quantity or authentication feature
+4. evaluate any supported merchant-confirmation route
+5. evaluate any supported special-manufacture, admission, payment, receipt, or acceptance route
+6. identify any uncertainty briefly under "Strongest counterargument:" if goods classification, threshold, merchant status, quantity, or substitute-route facts are unclear
+
+Anchor facts that must stay fixed in Lane A:
+- goods versus services classification
+- the side of the Article 2 threshold
+- whether a writing exists
+- whether the writing includes the feature the benchmark treats as essential, often quantity
+- merchant status if merchant confirmation matters
+- whether payment, receipt, acceptance, admission, or special-manufacture facts are present if the benchmark relies on them
+
+Lane A safe variation zones:
+1. goods-label swaps
+Examples:
+- “custom chairs” -> “custom desks”
+- “industrial bolts” -> “industrial fasteners”
+Use only if the items remain goods of the same legal type.
+
+2. threshold-preserving numeric shifts
+Examples:
+- price changes or quantity changes that stay on the same side of the selected threshold and do not alter the writing logic
+Use only if the quantity-term analysis remains the same.
+
+3. role-preserving commercial-shell changes
+Examples:
+- names
+- industry setting
+- buyer/seller labels
+Use only if merchant status and transaction type remain fixed.
+
+4. non-controlling salience injections
+Examples:
+- famous retailer
+- luxury branding
+- vivid shipping context
+Use only if the added fact does not create a new exception or classification issue.
+
+Lane B ambiguity targets:
+1. predominant-purpose ambiguity
+Old:
+“The contract was for the sale of 1,000 units of equipment plus incidental installation.”
+New:
+“The contract was for a commercial package including equipment and related work.”
+Why this matters:
+The answer should identify that the goods/services classification may control whether Article 2 applies.
+
+2. quantity-term ambiguity
+Old:
+“The signed writing stated 1,000 units.”
+New:
+“The signed writing stated the parties’ agreement for the equipment.”
+Why this matters:
+The answer should identify whether the writing contains the feature the benchmark treats as essential.
+
+3. merchant-status ambiguity
+Old:
+“Both parties were merchants in these goods.”
+New:
+“Both parties did business in the industry.”
+Why this matters:
+The answer should identify whether the merchant-confirmation route is really available.
+
+4. substitute-route ambiguity
+Old:
+“The buyer received and accepted half the goods.”
+New:
+“The transaction partially moved forward.”
+Why this matters:
+The answer should identify which concrete facts would matter under the chosen substitute route.
+
+Unsafe variation patterns:
+- converting goods into services or vice versa without labeling the shift
+- changing the transaction from below threshold to above threshold or the reverse in a supposed Lane A package
+- removing the quantity feature from the writing but still claiming answer invariance
+- changing merchant status when merchant confirmation is central
+- importing common-law SoF reasoning when the benchmark is clearly Article 2 centered
+
+Recommended default menu seeds for B02:
+Option 1 — Lane A / Goods-label swap
+What changes:
+Product label, industry context, and party shell only.
+Expected answer reuse:
+Cosmetic edits only.
+Main red flag:
+Do not change goods classification.
+
+Option 2 — Lane A / Threshold-preserving commercial detail shift
+What changes:
+Price, quantity, or sales context while keeping threshold side and writing logic fixed.
+Expected answer reuse:
+Reuse as-is or Cosmetic edits only.
+Main red flag:
+Do not change the quantity-term path.
+
+Option 3 — Lane B / Quantity-term ambiguity
+What changes:
+Generalizes what the writing says so the model must identify the missing essential feature.
+Expected answer reuse:
+Ambiguity rewrite required.
+Main red flag:
+Do not quietly restore the quantity fact.
+
+Option 4 — Lane B / Merchant or substitute-route ambiguity
+What changes:
+Blurs merchant status, confirmation facts, or acceptance/payment facts.
+Expected answer reuse:
+Ambiguity rewrite required.
+Main red flag:
+Do not blur multiple substitute routes at once unless the point is that the route is unstable.
+
+Worked micro examples:
+Safe Lane A:
+Old:
+“A buyer orally agreed to purchase 800 industrial pumps from a seller. The only signed writing omitted the disputed legal feature under the benchmark path.”
+New:
+“A buyer orally agreed to purchase 800 industrial valves from a seller. The only signed writing omitted the disputed legal feature under the benchmark path.”
+Why usually safe:
+The transaction remains a sale of goods and the writing defect remains the same.
+
+Safe Lane B:
+Old:
+“The signed memorandum stated 800 pumps.”
+New:
+“The signed memorandum referred to the equipment order.”
+Why this works:
+The model should identify that the content of the writing matters and may not be sufficient under the benchmark path.
+
+Unsafe:
+Old:
+“The contract was for the sale of 800 pumps.”
+New:
+“The contract was for design, installation, and maintenance services involving pumps.”
+Why unsafe:
+The governing-law route may shift away from Article 2.
+
+Answer-shape emphasis:
+Jurisdiction / Governing-law assumption:
+State clearly that the analysis is under Article 2 if classification is stable.
+
+Bottom-line outcome:
+State whether the agreement likely satisfies or fails the 2-201 path used by the benchmark.
+
+Controlling doctrine:
+Name the key gate as Article 2 classification, threshold, writing sufficiency, or the substitute route actually in play.
+
+Transaction characterization:
+Identify the goods, the buyer-seller relationship, and any mixed-contract issue.
+
+Trigger analysis:
+Explain why 2-201 applies or why a missing classification fact makes that uncertain.
+
+Writing / compliance analysis:
+Focus on the exact writing feature the benchmark treats as important.
+Do not drift into generic common-law memorandum language if the benchmark is UCC-specific.
+
+Exception / substitute analysis:
+Limit yourself to the specific 2-201 route the benchmark supports:
+- merchant confirmation
+- specially manufactured goods
+- admission
+- payment
+- receipt or acceptance
+or another supported route
+
+Strongest counterargument:
+Usually that Article 2 does not govern, that the writing is sufficient, or that a supported substitute route makes the agreement enforceable.
+
+If goods classification, quantity, merchant status, or substitute facts are missing, say so directly.
+
+Rubric focus points:
+A strong answer should:
+- classify the transaction into Article 2 before applying 2-201
+- identify whether the threshold is crossed under the selected source path
+- tie writing sufficiency to the actual benchmark feature at issue
+- analyze only the substitute routes genuinely supported by the facts
+- avoid importing common-law SoF logic when the benchmark is UCC-centered
+
+Main red flags:
+- the answer never decides whether Article 2 applies
+- the variation changes merchant status without saying so
+- the updated answer assumes a quantity or other writing feature after a Lane B omission removed it
+- the model treats any partial performance fact as automatically enough without the benchmark path
+- the variation silently turns a goods contract into a mixed or services contract
+
+Status rule:
+Mark the package Ready only if the agreement remains in the same Article 2 / 2-201 lane in Lane A, or if the Lane B version isolates one missing classification, writing, merchant, or substitute-route fact.
+Otherwise mark Needs targeted revision or Unsafe.

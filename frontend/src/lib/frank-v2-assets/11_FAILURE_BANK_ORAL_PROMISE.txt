@@ -1,0 +1,374 @@
+PACK 10 — COMMON-LAW ORAL PROMISE FAILURE-MODE BANK
+Reusable label bank for benchmark answers, cluster summaries, and rubric-adjacent JD review
+
+PURPOSE
+This file is the Pack 10 successor to the current Statute of Frauds failure-mode bank. It is intended to preserve current oral-promise labeling behavior while relocating the bank into the doctrine-pack structure. Use it to support answer comparison, clustering, and failure tagging across common-law oral-promise enforceability problems.
+
+SCOPE
+This bank covers Pack 10 — Common-law oral promises, especially questions involving:
+- marriage-consideration issues
+- one-year issues
+- suretyship / debt-payment issues
+- fallback doctrines such as promissory or equitable estoppel
+- related mistake / condition arguments
+
+Typical Pack 10 prompts include:
+- third-party promises conditioned on marriage
+- oral promises to answer for another person's debt or duty
+- oral promises with timing facts that raise the one-year provision
+- family, beneficiary, or similar oral-promise disputes where writing, substitute doctrines, and fallback theories are contested
+
+Routing note:
+- Some Pack 10 prompts will be controlled by the marriage-consideration gate.
+- Others will turn mainly on one-year or suretyship.
+- Route by the actual controlling gate, not by surface similarity alone.
+
+If the problem is mainly about land transfer, UCC goods, executor promises, or another category not covered here, do not force-fit the answer into these labels. Instead use:
+- OUT-1 Outside current oral-promise bank scope
+
+CONTINUITY / COMPATIBILITY NOTE
+- This file keeps the existing label families (SG / FR / SC / MC / OY / SU / FD / XD / OUT) so current exports, clustering workflows, and rubric-adjacent labeling remain backward-compatible.
+- Treat this file as the Pack 10 replacement for the earlier generic oral-promise / Statute of Frauds failure bank.
+
+USE RULES
+- Assign metadata tags first.
+- Then assign one primary doctrinal failure label.
+- Add up to two secondary modifiers if needed.
+- Prefer the earliest doctrinal gate that goes materially wrong:
+  structural gatekeeping -> formation -> Statute of Frauds core / gate selection -> specific Statute of Frauds gate -> fallback doctrines / defenses -> cross-cutting discipline.
+- Do not punish the same mistake twice under different labels.
+- Use this bank for failure labeling, not as substantive authority.
+- When a specific source case or doctrine source conflicts with this bank, the source controls.
+
+METADATA TAGS
+Assign these before doctrinal labeling.
+
+1. Outcome
+- Enforceable
+- Not enforceable
+- Mixed / depends
+- No clear conclusion
+
+2. Outcome correctness
+- Correct
+- Arguably correct / jurisdiction-dependent
+- Incorrect
+- Indeterminate
+
+3. Reasoning alignment
+- Right result / right reason
+- Right result / wrong or incomplete reason
+- Wrong result / plausible reasoning
+- Wrong result / poor reasoning
+
+4. Jurisdiction assumption
+- U.S. common law / Restatement-style
+- Other stated jurisdiction
+- No jurisdiction stated
+
+5. Controlling doctrine named by model
+- Marriage-consideration Statute of Frauds
+- One-year provision
+- Suretyship
+- Main purpose doctrine
+- Promissory estoppel
+- Formation / consideration
+- Mistake / condition
+- Mixed / multiple
+- None named
+- Other
+
+PRIMARY FAILURE-MODE LABELS
+
+A. STRUCTURAL GATEKEEPING
+Use when the answer’s overall path is wrong before the doctrine-specific analysis even begins.
+
+SG-1 Controlling-doctrine omission
+Apply when the answer never identifies the likely controlling doctrine or controlling Statute of Frauds gate.
+Typical cues:
+- jumps straight to fairness, estoppel, or mistake
+- mentions “no writing” without naming the actual category
+- lists doctrines without identifying which one controls
+
+SG-2 Fallback-first / misordered analysis
+Apply when the answer leads with fallback doctrines or defenses before formation and the main Statute of Frauds gates.
+Typical cues:
+- estoppel appears before the main Statute of Frauds analysis
+- main purpose doctrine appears before suretyship is triggered
+- mistake or fairness drives the answer before the gate analysis
+
+SG-3 Laundry-list without prioritization
+Apply when the answer names multiple doctrines but never ranks them or explains their relationship.
+Typical cues:
+- short checklist paragraphs
+- no path from formation to controlling gate to fallback doctrines
+
+SG-4 Barrier collapse / exception bleed-over
+Apply when the answer treats one workaround or exception as clearing every barrier.
+Typical cues:
+- estoppel or main purpose declared dispositive without explaining what barrier it actually reaches
+- one Statute of Frauds category discussed as though it resolves all other categories too
+
+SG-5 No bottom line / strongest-counterargument-specificity failure
+Apply when the answer gives no clear conclusion, gives conflicting conclusions, or uses vague uncertainty instead of resolving the problem.
+Typical cues:
+- generic “it depends” language with no identified source of uncertainty
+- application and conclusion point in opposite directions
+
+B. FORMATION / EXCHANGE FRAMING
+Use when the answer mishandles bargain formation before or alongside the Statute of Frauds analysis.
+
+FR-1 Bargain vs conditional-gift miss
+Apply when the answer never tests whether the requested act is the price of the promise or merely a condition on a gift.
+Typical cues:
+- treats any requested act as a bargain automatically
+- ignores whether the promisor sought exchange or simply attached a condition to generosity
+
+FR-2 Any-act-is-consideration error
+Apply when the answer assumes that performance alone automatically proves consideration.
+Typical cues:
+- “they did the act, so there is consideration”
+- no analysis of why the act counts as exchange rather than condition
+
+FR-3 Prior-intent / preexisting-position blind spot
+Apply when the source or facts suggest the promisee already planned or was already obligated to act, but the answer ignores or mishandles that fact.
+Typical cues:
+- no discussion of prior intent when it bears on inducement or bargain formation
+- treats prior intent as automatic knockout rather than a nuance
+
+FR-4 Formation / reliance collapse
+Apply when the answer collapses contract formation analysis into reliance analysis.
+Typical cues:
+- uses estoppel-style reliance language instead of exchange analysis
+- treats inducement as the same question as consideration
+
+C. STATUTE OF FRAUDS CORE / GATE SELECTION
+Use when the answer mishandles the general Statute of Frauds framework or selects the wrong gate.
+
+SC-1 SoF-as-proof-only error
+Apply when the answer treats the missing writing as only an evidentiary or credibility problem rather than an enforceability bar.
+Typical cues:
+- “hard to prove” rather than “unenforceable absent writing”
+- “oral promise may still be enforceable if believable” with no category analysis
+
+SC-2 Wrong controlling Statute of Frauds category
+Apply when the answer chooses the wrong Statute of Frauds bucket as the main issue or ignores the actual controlling category.
+Typical cues:
+- treats the case as purely one-year or purely suretyship when another gate is more central
+- discusses a generic writing rule without naming the relevant category
+
+SC-3 Trigger test misstated
+Apply when the answer states the wrong legal trigger for the relevant Statute of Frauds category.
+Typical cues:
+- wrong one-year test
+- wrong suretyship trigger
+- wrong statement of what counts as marriage consideration
+
+SC-4 Separate Statute of Frauds gates collapsed
+Apply when the answer runs several Statute of Frauds categories together without keeping them analytically separate.
+Typical cues:
+- one-year, suretyship, and marriage treated as one merged issue
+- no explanation of which gate matters most and which are secondary
+
+SC-5 Unsupported writing-substitute / memorandum claim
+Apply when the answer invents or overreads a writing, memorandum, signature, or substitute compliance theory not supported by the source or facts.
+Typical cues:
+- assumes a later document automatically satisfies the statute
+- invents a signed memorandum not in the record
+
+D. MARRIAGE-CONSIDERATION LABELS
+Use only if this gate is actually in play.
+
+MC-1 Marriage bucket missed or misread
+Apply when the answer overlooks the marriage-consideration category or misstates what it covers.
+Typical cues:
+- treats the promise as merely a mutual promise to marry
+- fails to recognize a third-party marriage-conditioned promise
+
+MC-2 Full-performance escape
+Apply when the answer says later marriage or completed marriage automatically removes the agreement from the Statute of Frauds.
+Typical cues:
+- “the marriage happened, so the oral promise is enforceable”
+- treats marriage itself as sufficient part performance without more
+
+MC-3 Incidental-vs-real-consideration confusion
+Apply when the answer fails to distinguish marriage as the real consideration from marriage as incidental background.
+Typical cues:
+- assumes that any mention of marriage triggers the category
+- fails to ask whether marriage was actually part of the bargain
+
+MC-4 Later-conduct cures original defect
+Apply when the answer says later acts by the promisor automatically validate an originally oral marriage-consideration promise.
+Typical cues:
+- later transfer, designation, or performance is treated as automatically curing the original lack of writing
+
+E. ONE-YEAR LABELS
+Use only if this gate is actually in play.
+
+OY-1 Actual-duration test error
+Apply when the answer uses how long performance actually took, rather than whether performance was possible within one year at formation.
+Typical cues:
+- “it took more than a year, so the one-year rule applies”
+- “it was completed within a year, so the rule never mattered” without the correct test
+
+OY-2 Possibility-at-formation rule omitted
+Apply when the answer fails to ask whether performance was possible within one year when the agreement was made.
+Typical cues:
+- no formation-time analysis
+- focuses only on expected duration or real-world likelihood
+
+OY-3 Open-ended / contingent performance confusion
+Apply when the answer mishandles indefinite, contingent, or early-terminating performance structures.
+Typical cues:
+- assumes an open-ended promise is automatically within the statute
+- assumes an uncertain duration automatically defeats the statute
+
+F. SURETYSHIP / DEBT-PAYMENT LABELS
+Use only if a debt-payment issue is actually in play.
+
+Note:
+- Use SU-2 when the error is failure to distinguish a promise to the creditor from a promise to the debtor.
+- Use SU-7 when the error is failure to recognize a distinct promise-to-the-surety posture.
+- Use SU-8 when the answer recognizes the general posture but fails to use the sole-reliance fact that the source makes important.
+
+SU-1 Automatic suretyship trigger
+Apply when the answer assumes that any promise involving another person’s debt is classic suretyship.
+Typical cues:
+- “promise to pay another’s debt = suretyship” with no further analysis
+
+SU-2 Promise-to-creditor vs promise-to-debtor confusion
+Apply when the answer ignores or misstates who received the promise.
+Typical cues:
+- treats a promise to the debtor as though it were automatically a promise to the creditor
+- flips the party roles in a way that changes the analysis
+
+SU-3 Primary-vs-secondary liability confusion
+Apply when the answer fails to distinguish a collateral guaranty from a primary assumption of liability.
+Typical cues:
+- says the promisor simply “became liable” without explaining how
+- uses guaranty language and assumption language interchangeably
+
+SU-4 Novation / assumption confusion
+Apply when the answer claims novation or primary assumption without discussing what would be needed for that shift.
+Typical cues:
+- “the promisor stepped into the debtor’s shoes” with no support
+- no discussion of creditor assent when that matters
+
+SU-5 Main-purpose overread
+Apply when the answer treats any personal motive or hoped-for benefit as enough to satisfy the main-purpose doctrine.
+Typical cues:
+- indirect motive treated as dispositive
+- no analysis of whether the benefit is direct and dominant
+
+SU-6 Main-purpose-before-trigger error
+Apply when the answer discusses the main-purpose doctrine before establishing that suretyship is actually in play.
+Typical cues:
+- main purpose used as a freestanding cure
+- no prior showing that the promise is the type of collateral promise the doctrine presupposes
+
+SU-7 Promise-to-surety posture missed
+Apply when the answer collapses a promise made to a proposed surety into the more familiar creditor-versus-debtor frame and never recognizes that the promise ran to the surety.
+Typical cues:
+- analyzes only promise to creditor versus promise to debtor
+- says only “promise to pay another’s debt” without identifying the addressee as the proposed surety
+- treats indemnity-to-surety language as generic guaranty language
+- labels the promise as ordinary suretyship without asking whether the source or jurisdiction treats a promise to the surety differently
+
+SU-8 Sole-reliance fact omitted or underused
+Apply when the answer omits, minimizes, or fails to use the fact that the surety became bound relying solely on the promisor’s assurance, even though that fact matters to the source-grounded analysis.
+Typical cues:
+- omits the sole-reliance fact entirely
+- says only that the surety “relied” on the promise, without addressing sole reliance
+- treats sole reliance as irrelevant background rather than as a holding-driving fact
+- gives a generic suretyship conclusion without testing whether sole reliance supports treating the promise as an original rather than collateral undertaking under the source
+
+
+G. FALLBACK DOCTRINES / DEFENSES
+Use after the main gates.
+
+FD-1 Estoppel as universal SoF cure
+Apply when the answer treats promissory or equitable estoppel as an automatic override to all Statute of Frauds barriers.
+Typical cues:
+- “fairness defeats the statute” with no gate-specific limits
+- estoppel invoked without asking whether the assumed jurisdiction allows it here
+
+FD-2 Reliance-by-performance only
+Apply when the answer treats doing the requested act as sufficient detrimental reliance without separate inducement and concrete detriment analysis.
+Typical cues:
+- “they relied because they performed”
+- no attempt to identify additional detriment or causal dependence
+
+FD-3 Inducement / concrete-detriment blind spot
+Apply when the answer invokes estoppel but never analyzes whether the promise caused the conduct or produced a distinct detriment.
+Typical cues:
+- no causation analysis
+- no detriment identified beyond the requested performance itself
+
+FD-4 Irrelevant workaround doctrine
+Apply when the answer invokes an inapplicable substitute doctrine or equity label without fit analysis.
+Typical cues:
+- generic part performance or unjust enrichment used without explaining relevance
+- equity buzzwords replacing doctrinal fit
+
+FD-5 Main purpose used to cure non-suretyship gate
+Apply when the answer uses the main-purpose doctrine to solve a different and independent Statute of Frauds barrier.
+Typical cues:
+- main purpose said to cure marriage-consideration or one-year issues
+
+FD-6 Motive becomes condition precedent
+Apply when the answer rewrites a hoped-for motive, tax consequence, or background assumption into an actual contractual condition without support.
+Typical cues:
+- “the promisor only had to perform if the benefit materialized” when the source does not say that
+
+FD-7 Unilateral-mistake overreach
+Apply when the answer treats a mistaken expectation or hoped-for advantage as automatically excusing performance.
+Typical cues:
+- mistake doctrine used as a universal fallback without doctrinal fit
+
+H. CROSS-CUTTING DISCIPLINE
+Use for mistakes that cut across the doctrinal analysis.
+
+XD-1 Invented facts or documents
+Apply when the answer adds facts, writings, promises, signatures, creditor assent, timing, or communications not in the source or prompt.
+
+XD-2 Party-role confusion
+Apply when the answer mixes up promisor, promisee, debtor, creditor, lender, spouse, or beneficiary roles in a way that affects the legal analysis.
+
+XD-3 Timeline / math error
+Apply when the answer misstated dates, time windows, sequence, or duration in a way that matters.
+
+XD-4 Jurisdiction drift
+Apply when the answer imports jurisdiction-specific doctrine without stating that assumption or treats a local rule as universal.
+
+XD-5 Empty hedging / unsupported universals
+Apply when the answer uses vague “varies by jurisdiction” language without identifying the real split, or uses broad universal claims without support.
+
+XD-6 Off-task practical-advice drift
+Apply when the answer stops doing enforceability analysis and turns into client advice, litigation strategy, or remedies counseling.
+
+XD-7 Internal contradiction
+Apply when the answer’s issue/rule/application path points one way but the conclusion points the other way, or when incompatible doctrines are announced without reconciliation.
+
+OUTSIDE-SCOPE LABEL
+OUT-1 Outside current oral-promise bank scope
+Apply when the problem primarily turns on a Statute of Frauds category or issue not covered by this Pack 10 oral-promise bank.
+Typical cues:
+- land-sale or real-property writing issue
+- UCC sale-of-goods writing issue
+- executor / estate-specific undertaking
+- another category not treated in this bank
+
+RECOMMENDED LABEL SYNTAX
+[Metadata tags] + [Primary failure label] + [Optional secondary modifiers]
+
+Examples:
+- Not enforceable / Correct / Right result-wrong reason + SC-1 SoF-as-proof-only error
+- Enforceable / Incorrect / Wrong result-plausible reasoning + SU-5 Main-purpose overread + SG-4 Barrier collapse
+- Mixed / Indeterminate / Wrong result-poor reasoning + SG-1 Controlling-doctrine omission + XD-5 Empty hedging
+
+QUICK JD REVIEW RULE
+When in doubt, ask:
+1. What is the earliest gate that went materially wrong?
+2. Is this really a doctrinal mistake, or only a wording/style issue?
+3. Would assigning a second label double-count the same failure?
+4. Is the question actually within the scope of this bank?

@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient: OpenAI | null = null;
+
+function getOpenAiClient() {
+    if (!openaiClient) {
+        openaiClient = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+    }
+    return openaiClient;
+}
 
 const RATE_LIMIT_MAX_RETRIES = 5;
 const RATE_LIMIT_DELAY_BETWEEN_RUNS_MS = 200;
@@ -434,7 +441,7 @@ async function evaluateControlledQuestion(q: Question, config: ExperimentConfig,
 async function runLegacyInference(model: string, systemPrompt: string, userContent: string, temperature: number) {
     const isResponsesAPI = model === 'gpt-5-mini' || model === 'gpt-5-nano';
     if (isResponsesAPI) {
-        const response = await withRetryOn429(() => openai.responses.create({
+        const response = await withRetryOn429(() => getOpenAiClient().responses.create({
             model,
             input: userContent,
             instructions: systemPrompt,
@@ -541,7 +548,7 @@ async function createChatCompletion(model: string, systemPrompt: string, userCon
     ];
 
     try {
-        const response = await withRetryOn429(() => openai.chat.completions.create({
+        const response = await withRetryOn429(() => getOpenAiClient().chat.completions.create({
             model,
             messages,
             temperature,
@@ -556,7 +563,7 @@ async function createChatCompletion(model: string, systemPrompt: string, userCon
             throw error;
         }
 
-        const response = await withRetryOn429(() => openai.chat.completions.create({
+        const response = await withRetryOn429(() => getOpenAiClient().chat.completions.create({
             model,
             messages,
         }));

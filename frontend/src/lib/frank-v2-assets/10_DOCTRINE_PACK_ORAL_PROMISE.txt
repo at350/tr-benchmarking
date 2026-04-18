@@ -1,0 +1,308 @@
+PACK 10 — DOCTRINE PACK: ORAL PROMISE
+Common-Law Oral Promises (Marriage-Consideration, One-Year, Suretyship)
+
+PURPOSE
+This file is the pack-specific doctrine guide for common-law oral-promise enforceability questions in Pack 10. It is a reasoning aid for gold-packet drafting, benchmark-answer drafting, clustering preparation, and failure-mode spotting. It is not itself legal authority.
+
+This file is meant to convert the current oral-promise / father-son system into a reusable Pack 10 without changing the existing workflow logic or answer shape. Core workflow, output headings, and question-writing rules stay in the core files. This file handles only the Pack 10 substantive doctrine scope.
+
+COMPANION FILES IN PACK 10
+- 10_DOCTRINE_PACK_ORAL_PROMISE.txt = substantive doctrine guide for this pack
+- 11_FAILURE_BANK_ORAL_PROMISE.txt = pack-specific failure labels and tagging bank
+- 12_WORKED_SOURCE_EXAMPLE_ORAL_PROMISE.txt = worked source-grounded example
+- 13_CLEAN_BENCHMARK_EXAMPLE_ORAL_PROMISE.txt = clean benchmark-answer example
+
+SOURCE PRIORITY
+When a specific case, statute, Restatement section, or doctrine source is provided, that source controls the legal substance. If anything conflicts, prioritize:
+1. Uploaded authority for substance
+2. Core workflow/template files for process and exact headings
+3. This doctrine pack for Pack 10 default framing
+4. Companion example files for structure and depth only
+
+USE RULES
+- Default to U.S. common law / Restatement-style framing unless the source clearly requires a specific jurisdiction.
+- Focus on enforceability, not merely proof difficulty.
+- Keep independent legal barriers separate.
+- Use gate-by-gate reasoning, not generic IRAC.
+- Use full doctrine names.
+- Do not invent writings, signatures, creditor assent, conditions, later agreements, or jurisdiction-specific rules not supported by the source.
+- Do not force-fit land-sale, UCC goods, executor-administrator, or other non-Pack-10 categories into this pack.
+- If mixed or unclear, do source extraction first, identify the likely controlling issue, and state whether Pack 10 is actually the best fit.
+
+OUTPUT-SHAPE REMINDER
+For backward compatibility with current runs, this pack keeps the current benchmark-answer headings:
+Jurisdiction assumption:
+Bottom-line outcome:
+Controlling doctrine:
+Formation:
+Statute of Frauds Gates:
+Exceptions/Promissory Estoppel:
+Defenses/Mistake:
+Strongest counterargument:
+
+1. SCOPE AND TRIGGER
+Use Pack 10 when the likely controlling issue is a common-law oral-promise enforceability problem involving one or more of the following:
+- contract in consideration of marriage
+- one-year provision issues
+- suretyship / debt-payment issues
+- fallback doctrines such as promissory estoppel or equitable estoppel in the oral-promise setting
+- related motive / condition / unilateral-mistake arguments that matter only after or alongside the main oral-promise gates
+
+Pack 10 is especially appropriate when the model must decide which oral-promise Statute of Frauds category controls, whether the promise is enforceable without a signed writing, and whether any fallback theory can reach the specific barrier at issue.
+
+Routing note:
+- If the primary issue is land transfer or another land-interest question, route to Pack 20.
+- If the primary issue is a personal representative promising to answer estate debt personally, route to Pack 30.
+- If the primary issue is sale of goods, merchant confirmation, quantity, special manufacture, admission, or payment/delivery under UCC section 2-201, route to Pack 40.
+
+2. WHAT USUALLY FITS / WHAT USUALLY DOES NOT
+
+What usually fits Pack 10
+- A third-party promise conditioned on or exchanged for marriage
+- An oral promise where marriage is plausibly the real consideration and the missing writing is the main enforceability issue
+- An oral promise arguably falling within the one-year provision, where the real question is possibility of performance at formation
+- An oral promise to pay another person's debt, where the analysis turns on suretyship nuance, promise-to-creditor versus promise-to-debtor, or primary versus secondary liability
+- Oral-promise hypos that include estoppel, mistake, or motive facts as secondary issues rather than as the primary doctrine family
+- Narrow beneficiary-designation or similar source patterns where the real issue is still an oral promise made upon consideration of marriage
+
+What usually does NOT fit Pack 10
+- Land-sale, land-option, easement, mortgage, or other land-interest transfer questions
+- UCC sale-of-goods questions, especially those centered on quantity, merchant-confirmation rules, special manufacture, admission, or payment/delivery exceptions
+- Executor or administrator promises to answer estate debt personally
+- Questions mainly about a signed writing's sufficiency in a land or goods setting rather than an oral-promise common-law setting
+- Broad contract-formation questions with no real Statute of Frauds gate
+- A simple mutual promise between the marrying parties to marry, standing alone, unless the source specifically makes that feature relevant in some other way
+
+3. MUST-SEPARATE SUBISSUES
+Keep the following issues analytically distinct. This is one of the main functions of Pack 10.
+
+A. Formation versus reliance
+- Ask whether the requested act is the price of the promise or only a condition on a gift.
+- Do not collapse bargain formation into reliance.
+- Treat prior intent as a nuance, not as an automatic knockout.
+
+B. Enforceability versus proof
+- The Statute of Frauds is an enforceability screen, not merely a credibility or evidence problem.
+- "No writing" is not enough by itself; identify which category requires the writing.
+
+C. Controlling gate versus secondary gates
+- Identify the likely controlling Statute of Frauds category first.
+- Address secondary gates only if they are genuinely relevant.
+- Do not run marriage-consideration, one-year, and suretyship together as one merged writing issue.
+
+D. Marriage-consideration versus incidental marriage
+- Distinguish marriage as the real consideration from marriage as background context.
+- Distinguish a third-party marriage-conditioned promise from a mutual promise between the marrying parties.
+- Do not assume completed marriage automatically removes the agreement from the statute.
+
+E. One-year possibility-at-formation versus actual duration
+- The correct question is whether performance could possibly be completed within one year at formation.
+- Do not use how long performance actually took.
+- Do not use how long the parties expected performance to take unless the source makes that expectation legally relevant.
+
+F. Promise direction in suretyship: creditor, debtor, or proposed surety
+- Classic suretyship usually turns on a promise to the creditor to answer for another's debt.
+- A promise made only to the debtor may weaken or defeat the classic suretyship trigger in many treatments.
+- Distinguish both of those from a promise made to a proposed surety that the promisor will see the debt paid or indemnify the surety if the surety signs.
+- In some jurisdictions, including source-grounded New Hampshire, that promise-to-the-surety posture may be treated as an original rather than collateral undertaking when the surety becomes bound relying solely on the promisor's assurance.
+- Do not universalize that rule. The authorities are divided, and some courts instead treat the promise as collateral because the principal already owes the surety an implied duty of indemnity.
+- Preserve the exact trigger facts: the promise ran to the proposed surety, the surety signed or became bound, and the surety acted solely on the promisor's promise.
+
+
+G. Primary versus secondary liability
+- Separate a collateral guaranty from a true assumption or novation.
+- If primary assumption or novation is claimed, ask what would be needed to shift the obligation and whether creditor assent matters.
+
+H. Main purpose doctrine versus general personal motive
+- Use the main purpose / leading object doctrine only if suretyship is actually triggered.
+- Do not equate any hoped-for benefit or personal motive with a qualifying direct dominant economic benefit.
+- Do not let main purpose cure a separate marriage-consideration problem.
+
+I. Motive versus condition precedent
+- A hoped-for tax advantage, family benefit, or personal preference is not automatically an express or implied condition to performance.
+- Treat condition arguments separately from enforceability unless the source clearly ties them together.
+
+J. Fallback doctrine versus universal cure
+- Map each fallback theory only to the barrier it can actually address.
+- Do not let estoppel, main purpose, or later conduct swallow every independent gate.
+
+4. WRITING SATISFACTION REQUIREMENTS
+Pack 10 asks first whether a writing is required at all, and only then whether there is a qualifying writing or substitute.
+
+A. Core writing question
+- If a Pack 10 category is triggered, ask whether there is a signed writing attributable to the party to be charged that reasonably memorializes the agreement as the source requires.
+- Do not reduce the issue to whether the promise is believable.
+
+B. Category-specific writing posture
+- Marriage-consideration: if the marriage-consideration gate is triggered, the absence of a signed writing is ordinarily a serious barrier. Completed marriage alone does not automatically satisfy the requirement.
+- One-year: if the agreement could possibly be performed within one year at formation, this gate is not triggered and no one-year writing analysis is needed.
+- Suretyship: writing analysis depends on whether the promise is actually the kind of collateral promise the suretyship category covers. Keep distinct a promise to the creditor, a promise to the debtor, and a promise to a proposed surety. In a source-grounded New Hampshire posture, a promise to a proposed surety to see the debt paid and indemnify the surety may be outside the statute when the surety acted solely on that promise. Do not generalize that result beyond the supporting source or jurisdiction.
+
+
+C. Do not invent compliance
+- Do not invent a memorandum, signed note, lender communication, novation, or later agreement.
+- Do not assume later conduct automatically supplies the missing writing.
+- Do not assume a document satisfies the statute unless the source and facts actually support that conclusion.
+
+D. Keep separate writing problems separate
+- Satisfying or bypassing one gate does not automatically satisfy another.
+- A suretyship writing analysis does not resolve an independent marriage-consideration writing problem.
+
+5. SUBSTITUTES / EXCEPTIONS / FALLBACK THEORIES
+Use fallback theories only after the main Pack 10 gates.
+
+A. Promissory estoppel
+Potential role:
+- A possible fallback theory in some jurisdictions when injustice from reliance is strong enough.
+
+Required analysis:
+- inducement / causation
+- actual reliance
+- concrete detriment beyond simply doing the requested act
+- whether the relevant jurisdiction allows estoppel to overcome this specific Statute of Frauds barrier
+- remedy sensitivity, including the possibility that relief may be limited rather than full expectation enforcement
+
+Guardrails:
+- Do not say fairness defeats the statute.
+- Do not treat performance of the condition itself as automatic detrimental reliance.
+- If the promisee already planned to act, analyze whether the promise actually caused the conduct.
+- Estoppel is often a weak fallback in Pack 10 unless the facts show genuine induced change of position and the jurisdiction is receptive.
+
+B. Equitable estoppel / executed-contract / later-conduct theories
+Potential role:
+- Sometimes raised when later conduct appears to carry out the promise or when a party argues the promisor should be stopped from denying the arrangement.
+
+Guardrails:
+- Use only if the source actually supports that move.
+- Do not assume later conduct automatically cures the original writing defect.
+- Keep this theory source-specific rather than treating it as a general Pack 10 default.
+
+C. Main purpose / leading object doctrine
+Potential role:
+- A possible carveout from the suretyship category when the promisor's dominant purpose is to secure a direct personal economic benefit.
+
+Guardrails:
+- Use only after establishing that suretyship is actually triggered.
+- Directness and dominance matter.
+- A personal motive, hoped-for tax benefit, family preference, or general goodwill is not automatically enough.
+- Even if main purpose succeeds, it reaches only suretyship; it does not eliminate an independent marriage-consideration problem.
+
+D. Other workaround doctrines
+- Do not insert generic part performance as a default Pack 10 workaround.
+- Do not use free-floating equity labels without explaining fit.
+- Do not stack multiple workaround doctrines unless the source clearly supports each one.
+
+6. TYPICAL BOUNDED-UNCERTAINTY POINTS
+When uncertainty exists in Pack 10, identify the exact source of uncertainty rather than using generic hedging. Typical uncertainty points for "Strongest counterargument:" include:
+- whether the requested act is the real consideration or only a condition on a gift
+- whether marriage is the true bargain term or only incidental background
+- whether the jurisdiction allows promissory estoppel to overcome the specific Statute of Frauds category at issue
+- whether a debtor-directed promise is treated as classic suretyship on these facts in the relevant jurisdiction
+- whether an asserted economic benefit is sufficiently direct and dominant to support main purpose
+- whether a later act by the promisor is merely later conduct or a source-supported substitute with legal effect
+- whether the source supports a portable common-law statement or only a narrow jurisdiction-specific benchmark
+
+Good uncertainty-inside-counterargument style
+- Identify the exact doctrinal question.
+- State what remains clear despite the uncertainty.
+- Do not weaken a strong controlling-gate analysis by adding vague "varies by jurisdiction" language with no specific point attached.
+
+7. PACK-SPECIFIC MODEL FAILURE MODES
+This section is a doctrine-pack overview only. Use 11_FAILURE_BANK_ORAL_PROMISE.txt for full tagging and label rules.
+
+Structural failures
+- controlling doctrine omitted
+- fallback-first analysis
+- laundry-list discussion without prioritization
+- exception bleed-over / barrier collapse
+- no clear bottom line or no specific uncertainty folded into the strongest counterargument
+
+Formation failures
+- any act treated as automatic consideration
+- no bargain-versus-conditional-gift analysis where relevant
+- prior intent ignored or overstated
+- formation collapsed into reliance
+
+Pack 10 gate failures
+- Statute of Frauds treated as proof-only
+- wrong controlling category selected
+- marriage-consideration bucket missed or misread
+- completed marriage treated as automatic escape from the statute
+- one-year rule applied using actual duration instead of possibility at formation
+- automatic suretyship trigger
+- promise-to-creditor and promise-to-debtor not separated
+- primary and secondary liability confused
+- novation / assumption asserted without support
+- main purpose doctrine used before suretyship is triggered or overread from mere motive
+
+Fallback / defense failures
+- promissory estoppel treated as a universal override
+- reliance satisfied merely by performance of the requested act
+- no concrete detriment or causation analysis
+- irrelevant workaround doctrine inserted
+- motive rewritten as condition precedent
+- mistake argument used to displace a clearer controlling writing problem
+
+Cross-cutting failures
+- invented facts or writings
+- invented creditor assent or later agreement
+- party-role confusion
+- timeline or math error
+- unsupported jurisdiction-specific rule
+- generic hedging instead of specific uncertainty folded into the strongest counterargument
+
+8. COMPANION WORKED SOURCE-GROUNDED EXAMPLE
+Full companion file:
+- 12_WORKED_SOURCE_EXAMPLE_ORAL_PROMISE.txt
+
+Suggested lead worked example for this pack:
+- an oral promise made upon consideration of marriage in a beneficiary-designation or similar source-grounded setting
+- controlling issue: marriage-consideration Statute of Frauds gate
+- source-specific counterargument: later conduct or executed-contract / estoppel theory
+- teaching point: later conduct does not automatically cure the original oral-promise defect
+
+What the worked example should show
+- how to keep formation brief when the source's real center is the writing gate
+- how to keep secondary issues secondary
+- how to state a real counterargument without letting it swallow the controlling doctrine
+- how to preserve jurisdiction-specific limits when portability is weak
+
+9. COMPANION CLEAN BENCHMARK EXAMPLE
+Full companion file:
+- 13_CLEAN_BENCHMARK_EXAMPLE_ORAL_PROMISE.txt
+
+Suggested clean example for this pack:
+- the current father-son oral-promise benchmark as the Pack 10 clean example
+- likely controlling doctrine: marriage-consideration Statute of Frauds
+- secondary issues: one-year and suretyship
+- fallback posture: promissory estoppel is possible but weak; main purpose matters only if suretyship is first triggered
+
+What the clean example should model
+- exact benchmark headings
+- concise black-letter-law style
+- clear controlling-doctrine naming early
+- brief but real treatment of non-triggered or secondary issues
+- specific uncertainty folded into the strongest counterargument rather than generic hedging
+
+PACK 10 DRAFTING DEFAULTS
+When drafting from this doctrine pack:
+- Name the likely controlling doctrine early.
+- Keep formation to the minimum needed unless formation is truly outcome-driving.
+- Analyze the likely controlling Statute of Frauds category first.
+- Keep one-year and suretyship secondary unless the facts truly make one of them the main gate.
+- Put fallback doctrines after the main gates.
+- Explain what barrier each fallback theory can and cannot address.
+- Keep mistake and motive arguments secondary unless the source clearly makes them primary.
+- Preserve factual fidelity and current output headings.
+
+FINAL CHECK BEFORE USE
+Do not finalize a Pack 10 answer unless all of the following are true:
+- the likely controlling doctrine is named
+- the answer treats the Statute of Frauds as an enforceability bar, not just a proof problem
+- the controlling gate appears before fallback theories
+- one-year uses the possibility-at-formation test
+- suretyship separates addressee and liability posture when relevant
+- main purpose appears only if suretyship is first triggered
+- estoppel is not treated as a universal cure
+- motive is not silently rewritten as a condition
+- uncertainty, if any, is specific and bounded

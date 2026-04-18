@@ -1,0 +1,171 @@
+CORE OUTPUT SHAPE AND PROMPT STRUCTURE
+
+PURPOSE
+This file standardizes answer shape and prompt structure across the current writing-based doctrine packs so outputs stay comparable, cluster-friendly, and rubric-ready. It is structure only, not substantive authority.
+
+USE RULE
+- Use this file for exact headings, ordered reasoning, and batch-run discipline only.
+- Uploaded authority controls legal substance.
+- The selected doctrine pack supplies doctrine-specific triggers, substitutes, exceptions, and edge cases.
+- Keep this file thin: no routing matrix, no workflow logic, no doctrine teaching, and no question-writing detail.
+- Freeze this output shell across the current core packs unless a controlled backward-compatibility test requires otherwise.
+
+CURRENT CORE SCOPE
+This file is designed for the current cross-pack refactor covering:
+- common-law oral-promise / Statute of Frauds packs,
+- land-contract packs,
+- executor / administrator promise packs,
+- sale-of-goods writing packs under UCC section 2-201.
+
+CORE DESIGN GOALS
+1. Keep the same output shell across packs.
+2. Make the controlling legal path easy to detect.
+3. Reduce pointless variance for clustering and archetype extraction.
+4. Separate outcome tracking from doctrinal scoring.
+5. Prevent pack-specific headings from fragmenting comparable outputs.
+
+CORE PRINCIPLES
+- Do not use generic IRAC.
+- Use exact section headings in every run.
+- Use gate-by-gate legal analysis.
+- State a clear bottom line and name the likely controlling doctrine.
+- Keep independent barriers separate.
+- Put fallback theories only after the main trigger analysis.
+- Prefer full doctrine names over abbreviations.
+- Distinguish enforceability or formality from mere proof or credibility.
+- Keep non-triggered secondary issues brief.
+- Do not invent facts, writings, signatures, assent, party roles, or jurisdiction-specific rules.
+- Keep the answer concise, black-letter-law in style, neutral, and evaluator-facing.
+- Do not cite outside authority unless the task explicitly asks for authority-grounded drafting.
+- If uncertainty exists, identify the exact source of uncertainty.
+
+OUTPUT LOGIC
+The opening three headings function as metadata-like fields that help evaluators separate outcome tracking from doctrinal scoring:
+- Jurisdiction assumption
+- Bottom-line outcome
+- Controlling doctrine
+
+REQUIRED OUTPUT FORMAT
+Return the answer in exactly this format:
+
+Jurisdiction assumption:
+
+Bottom-line outcome:
+
+Controlling doctrine:
+
+Transaction / formation characterization:
+
+Writing requirement and trigger:
+
+Compliance / substitute / exception analysis:
+
+Other defenses or competing doctrines:
+
+Strongest counterargument:
+
+- NOTE: Other instructions might require a separate "bounded uncertainty" headings. Please do not create a separate heading for that. If there is uncertainty, include that under "Strongest counterargument".
+
+
+REQUIRED REASONING ORDER
+Even though the output begins with jurisdiction, bottom line, and controlling doctrine, the substantive discussion should still follow this order:
+1. Transaction / formation characterization
+2. Writing requirement and trigger
+3. Compliance / substitute / exception analysis
+4. Other defenses or competing doctrines
+5. Counterargument and/or uncertainty
+
+SECTION RULES
+
+Jurisdiction assumption:
+- State only as far as the source supports.
+- Preserve source-specific jurisdiction when the benchmark is narrow or source-grounded.
+- If drafting a generalized benchmark, state the chosen framework clearly.
+- Do not smuggle in unstated local rules.
+
+Bottom-line outcome:
+- Give a clear answer.
+- Do not hide behind vague hedging.
+- If a narrow qualification is genuinely needed, state it briefly and precisely in ordinary prose without weakening the dominant answer.
+- Tie the outcome to the controlling doctrine.
+
+Controlling doctrine:
+- Name the likely controlling doctrine explicitly.
+- If two doctrines plausibly compete, identify the best-fit controller first and then state the precise point of uncertainty.
+- Do not give a doctrine laundry list without prioritizing one path.
+
+Transaction / formation characterization:
+- Identify the transaction type or contract structure as needed for the selected pack.
+- State what the promise, transfer, or obligation is and what is allegedly being exchanged.
+- Identify the main fact cutting the other way.
+- Say whether that fact matters more to transaction characterization, bargain formation, inducement, or both.
+- If this section is not dispositive, keep it brief.
+
+Writing requirement and trigger:
+- Identify the likely controlling writing or formality requirement first and explain why it is or is not triggered.
+- Distinguish unenforceability from mere proof difficulty.
+- Address secondary triggers only if genuinely relevant.
+- Keep separate triggers analytically separate; do not merge them into one broad conclusion.
+- Do not let a secondary issue displace a clearer controlling gate.
+
+Compliance / substitute / exception analysis:
+- First address direct compliance with the controlling requirement.
+- Then address substitutes, exceptions, or fallback theories only after the main trigger analysis.
+- Explain what barrier each substitute or exception can address and what it cannot.
+- Do not treat one workaround as curing every problem.
+- If the selected doctrine pack includes limited or jurisdiction-sensitive substitutes, state that precisely rather than speaking in universals.
+- If a material factual gap or jurisdiction-sensitive limit affects this part of the analysis, address it briefly in ordinary prose where it arises.
+
+Other defenses or competing doctrines:
+- Use this section for secondary defenses, excuse arguments, or competing doctrines not already handled above.
+- Distinguish motive from an actual condition precedent when relevant.
+- Treat mistake, excuse, or related defenses separately unless the source clearly makes them primary.
+- Keep non-controlling doctrines brief.
+
+Strongest counterargument:
+- State the best opposing doctrinal argument in one to three sentences.
+- Make it a real counterargument, not a straw man.
+- Tie it to the facts and the selected doctrine pack.
+- If the best counterargument turns on a specific missing fact, jurisdiction-sensitive point, or source ambiguity, identify that point briefly rather than using generic hedging.
+
+BATCH-RUN / CLUSTERING RULES
+- Use the exact headings in every run.
+- Keep the same heading spellings and punctuation.
+- Prefer full doctrine names over short forms to reduce artificial cluster splitting.
+- If a secondary issue is not triggered, say so briefly and move on.
+- Keep answers concise enough that the controlling path is easy to detect.
+- Avoid long boilerplate introductions or closing advice.
+- Avoid unexplained abbreviations, citation-heavy drafting, and stylistic flourishes that do not change legal content.
+- Use specific uncertainty statements rather than generic hedging.
+- Keep outcome language stable across runs when the legal conclusion is the same.
+
+READY-TO-USE CORE PROMPT BLOCK
+Use or adapt the block below when you want a model to produce a benchmark-ready answer:
+
+You are analyzing a legal question for evaluation or benchmarking purposes. Do not use generic IRAC. Use the exact section headings below. Keep the analysis concise, fact-specific, doctrinally ordered, neutral, and black-letter-law in style. Name the likely controlling doctrine early. Keep independent barriers separate. Address fallback theories only after the main writing or formality analysis. Use full doctrine names. Do not invent facts, writings, signatures, parties, or jurisdiction-specific rules. If uncertainty remains, identify the specific source of uncertainty rather than saying only "it depends." Do not cite outside authority unless the task specifically asks for it.
+
+Return your answer in exactly this format:
+Jurisdiction assumption:
+Bottom-line outcome:
+Controlling doctrine:
+Transaction / formation characterization:
+Writing requirement and trigger:
+Compliance / substitute / exception analysis:
+Other defenses or competing doctrines:
+Strongest counterargument:
+
+LEGACY MAPPING FROM THE ORAL-PROMISE FILE SET
+Use this mapping when converting older father-son or oral-promise materials into the core shell:
+- Formation -> Transaction / formation characterization
+- Statute of Frauds Gates -> Writing requirement and trigger
+- Exceptions/Promissory Estoppel -> Compliance / substitute / exception analysis
+- Defenses/Mistake -> Other defenses or competing doctrines
+
+If a controlled backward-compatibility study requires the legacy headings, say so explicitly and keep the entire run internally consistent. Otherwise, use the core headings above.
+
+SEPARATION RULE
+This file governs answer shape only.
+- Routing and source priority belong in 00_MAIN_GPT_INSTRUCTIONS.txt.
+- Workflow and staged output belong in 01_CORE_WORKFLOW_TEMPLATE.txt.
+- Question-writing rules belong in 04_CORE_QUESTION_WRITING_CHECKLIST.txt.
+- Pack-specific doctrine, failure modes, and worked examples belong in the selected doctrine pack.

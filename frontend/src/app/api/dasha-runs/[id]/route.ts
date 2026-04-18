@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { getDashaRun } from '@/lib/legal-workflow-server';
+import { getDashaRun } from '@/lib/legal-workflow-v2-server';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

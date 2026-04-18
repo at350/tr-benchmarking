@@ -1,0 +1,347 @@
+SHARED MODULE SKELETON
+Cross-pack parent-module template for rubric design, prompt alignment, cluster summaries, and LLM-judge scoring
+
+PURPOSE
+This file preserves a shared, human-designed module taxonomy across doctrine packs so new packs can stay aligned with the same evaluation pipeline.
+
+Use this file to:
+- keep prompt structure, rubric design, cluster summaries, and failure labeling aligned;
+- give each doctrine pack the same parent-module scaffold;
+- support later rubric refinement without rebuilding the evaluation architecture;
+- preserve comparability across centroids, cluster summaries, and judged outputs.
+
+This file is structural only. It is not substantive legal authority and it does not supply pack-specific black-letter law.
+
+SCOPE
+Use this file across all doctrine packs, including:
+- Pack 10 — Common-law oral promises
+- Pack 20 — Land contracts
+- Pack 30 — Executor/administrator personal promise
+- Pack 40 — Sale of goods (UCC § 2-201)
+- later doctrine packs built on the same gold-packet workflow
+
+DO NOT USE THIS FILE TO:
+- state pack-specific trigger tests, exceptions, or holding rules;
+- freeze father-son oral-promise doctrine as the global default;
+- override uploaded authority, doctrine-pack files, or jurisdiction-specific source material;
+- turn generic writing quality into a substitute for legal reasoning criteria.
+
+CORE DESIGN RULES
+1. Keep the module skeleton shared; keep doctrine content pack-local.
+2. Use the exact output headings and answer order from the core output-shape / prompt-structure file.
+3. Keep independent legal barriers separate.
+4. Put fallback doctrines after the main gates.
+5. Prefer earliest-gate errors as primary failure labels.
+6. Keep cross-cutting answer discipline distinct from doctrine-specific analysis.
+7. If a pack changes module weights or row structure, record why.
+8. If a proposed criterion is generic, stylistic, or not legally anchored, reject it or downgrade it.
+
+PIPELINE ROLE
+This skeleton should stay aligned with all major downstream uses:
+- prompt design
+- benchmark-answer drafting
+- cluster summaries and centroid review
+- rubric generation and refinement
+- LLM-as-a-judge scoring
+- SME review and disagreement escalation
+
+FROZEN MODULE TAXONOMY
+Module 0 — Metadata tags (not scored)
+Module 1 — Structural gatekeeping
+Module 2 — Primary doctrine gates
+Module 3 — Fallback doctrines and defenses
+Module 4 — Cross-cutting answer discipline
+
+Important:
+- Do not rename these parent modules across packs.
+- Do not merge metadata into scored doctrinal rows.
+- Do not move fallback doctrines ahead of the main gates.
+- If a pack needs an extra row, nest it inside one of the existing parent modules.
+
+CONTINUITY DEFAULTS
+If the team wants maximum backward compatibility with the current father-son pipeline, keep these module proportions as the starting default:
+- Module 1 — 28
+- Module 2 — 40
+- Module 3 — 19
+- Module 4 — 13
+
+These are starting defaults, not universal truth. A later pack may adjust them, but only with an explicit note in its changelog and validation record.
+
+DEFAULT GLOBAL SCORING ANCHORS
+Use these anchors unless a pack has a documented reason to tighten or relax them.
+
+0 = Absent or materially wrong; would mislead the outcome.
+1 = Mentioned but incorrect or superficial; wrong test, wrong trigger, or no real application.
+2 = Partially correct; right general idea but missing a key element, exception, or application step.
+3 = Mostly correct; minor gaps but still usable.
+4 = Strong; correct rule, prioritized path, fact-specific application, and addresses key counterpoints.
+
+--------------------------------------------------
+MODULE 0 — METADATA TAGS (NOT SCORED)
+--------------------------------------------------
+Purpose:
+Separate outcome tracking from doctrinal scoring and keep exports cluster-ready.
+
+Required shared fields:
+- Bottom-line outcome
+- Outcome correctness
+- Reasoning alignment
+- Jurisdiction assumption
+- Controlling doctrine named by model
+
+Optional pack-local metadata:
+- controller-fit check
+- benchmark posture check
+- source-grounded vs generalized drafting tag
+- cluster confidence or escalation flag
+
+What belongs here:
+- benchmarking labels
+- routing labels
+- comparison labels
+- not-scored tracking fields
+
+What does NOT belong here:
+- doctrinal score rows
+- penalties
+- narrative comments that should live in JD review notes
+
+Cluster / judging use:
+- separates right result / wrong reason from wrong result / plausible reasoning;
+- supports centroid-level snapshots before row-level scoring begins.
+
+--------------------------------------------------
+MODULE 1 — STRUCTURAL GATEKEEPING
+--------------------------------------------------
+Purpose:
+Checks whether the answer follows the right legal path, identifies the dispositive issue early, and keeps independent barriers separate.
+
+Recommended continuity row slots:
+- A = Issue spotting + prioritization
+- K = Barrier stacking + exception mapping
+- J = Clear bottom line + structured reasoning
+
+Shared cross-pack expectations:
+- identifies the main controlling issue early;
+- follows the required order of analysis from the core prompt-structure file;
+- does not lead with fallback theories or a doctrine laundry list;
+- maps each exception only to the barrier it can actually address;
+- gives a clear bottom line tied to the controlling doctrine;
+- states bounded uncertainty specifically rather than hiding behind generic hedging.
+
+Prompt mirror:
+The prompt should require exact headings, ordered analysis, a clear bottom line, and a strongest counterargument.
+
+Typical cross-pack failure families:
+- controlling-doctrine omission
+- fallback-first analysis
+- no prioritization
+- barrier collapse / exception bleed-over
+- no clear conclusion / vague depends language
+
+Pack author must fill in:
+- row-specific 4/4 standards;
+- primary failure-mode labels;
+- optional strength tags;
+- any caps tied to controlling-doctrine omission or no-bottom-line failure.
+
+--------------------------------------------------
+MODULE 2 — PRIMARY DOCTRINE GATES
+--------------------------------------------------
+Purpose:
+Holds the core doctrinal analysis for the pack. This is the main legal module and should contain the controlling gate plus the most important secondary gates or subissues.
+
+Recommended continuity row slots:
+- B = Transaction / formation characterization
+- C = Controlling doctrine gate identification + correct trigger
+- D = Secondary gate or major subissue #1
+- E = Secondary gate or major subissue #2 / doctrinal nuance
+
+Shared cross-pack expectations:
+- names the controlling doctrine early;
+- states the correct trigger test for the controlling doctrine;
+- distinguishes enforceability from proof where that distinction matters;
+- keeps secondary gates secondary;
+- separates distinct legal roles when the doctrine requires that separation;
+- does not let a secondary issue displace the main controller.
+
+What belongs here:
+- transaction characterization or formation framing where relevant;
+- controlling gate identification and application;
+- must-separate subissues;
+- key secondary tests;
+- doctrine-specific nuance that can change the result.
+
+What does NOT belong here:
+- fallback equity as the main path;
+- generic answer-hygiene criteria;
+- free-floating policy discussion.
+
+Prompt mirror:
+The prompt should direct the model to identify the controlling doctrine first, then address only genuinely relevant secondary gates.
+
+Pack author must fill in:
+- exact controlling doctrine(s);
+- pack-specific trigger tests;
+- which D and E rows are actually needed;
+- must-separate role distinctions;
+- doctrine-specific bounded-uncertainty points;
+- pack-specific failure labels.
+
+Examples of pack-local use:
+- oral-promise pack: marriage-consideration, one-year, suretyship, main-purpose prerequisites;
+- land pack: land-interest characterization, writing sufficiency, essential terms, part-performance boundaries;
+- executor pack: personal vs representative promise, estate-debt posture, writing trigger, capacity-role distinction;
+- UCC § 2-201 pack: goods characterization, signed writing + quantity, merchant-confirmation rule, special-manufacture / admission / payment-delivery exceptions.
+
+--------------------------------------------------
+MODULE 3 — FALLBACK DOCTRINES AND DEFENSES
+--------------------------------------------------
+Purpose:
+Tests whether fallback theories, substitutes, exceptions, and defenses are handled precisely and only after the main gates.
+
+Recommended continuity row slots:
+- F = Exceptions / workarounds + limits
+- G = Reliance / estoppel / causation rigor or closest fallback analogue
+- H = Defenses / conditions / competing doctrines
+
+Shared cross-pack expectations:
+- fallback doctrines come after the main gates;
+- each workaround is tied to the barrier it can address;
+- fallback theories are not treated as universal cures;
+- reliance-based arguments analyze causation and concrete detriment where relevant;
+- defenses are kept separate from the main enforceability path unless the source makes them primary.
+
+What belongs here:
+- substitute doctrines;
+- exceptions and their limits;
+- fallback equity;
+- defenses, conditions, mistake, and competing nonprimary doctrines.
+
+What does NOT belong here:
+- generic fairness language with no doctrinal fit;
+- pack-local secondary gates that really belong in Module 2;
+- answer-format or prompt-adherence issues.
+
+Prompt mirror:
+The prompt should require the model to explain what an exception can and cannot cure and to keep fallback discussion secondary.
+
+Pack author must fill in:
+- pack-specific fallback doctrines;
+- reliance or causation elements if relevant;
+- defense-specific guardrails;
+- which theories should usually stay brief;
+- pack-specific failure labels and examples.
+
+--------------------------------------------------
+MODULE 4 — CROSS-CUTTING ANSWER DISCIPLINE
+--------------------------------------------------
+Purpose:
+Polices answer hygiene that matters across every doctrine pack: factual fidelity, internal consistency, claim calibration, and staying on task.
+
+Recommended continuity row slots:
+- I = Factual fidelity + internal consistency
+- L = Scope calibration / claim discipline
+- M = Relevance discipline / prompt adherence
+
+Shared cross-pack expectations:
+- no invented material facts;
+- no party-role confusion;
+- no material timeline or sequence errors;
+- no internal contradiction;
+- no false universal rules;
+- uncertainty is specific rather than vague;
+- answer stays focused on enforceability / target issue;
+- required headings and full doctrine names are used where the prompt requires them.
+
+Use with caution:
+This module is important, but it should be kept more manually curated than the doctrine modules. Do not let it balloon into a catch-all style bucket.
+
+What belongs here:
+- factual fidelity;
+- scope discipline;
+- prompt adherence;
+- relevance discipline.
+
+What does NOT belong here:
+- pack-specific doctrine tests;
+- major trigger logic;
+- fallback-vs-main-gate ordering issues that belong in Module 1.
+
+--------------------------------------------------
+PACK-AUTHOR WORKFLOW
+--------------------------------------------------
+When creating a new doctrine pack, follow this order:
+
+1. Start with this shared module skeleton.
+2. Use the core workflow, intake, output-shape, and question-writing files as the operating system.
+3. Populate Module 2 and Module 3 from:
+   - uploaded authority,
+   - the pack-specific doctrine file,
+   - the gold benchmark answer,
+   - and the pack-specific failure bank.
+4. Keep Module 1 and Module 4 as shared as possible across packs.
+5. Add pack-specific failure labels only after the module structure is stable.
+6. Validate the pack on centroids or representative cluster answers before broad rollout.
+7. Record disagreement cases and update only with explicit rationale.
+
+--------------------------------------------------
+RRD / REFINEMENT GUARDRAILS
+--------------------------------------------------
+If the team uses recursive rubric refinement or any similar rubric-expansion method, keep these constraints:
+- the module skeleton remains human-designed and fixed;
+- doctrine files act as a constraint layer on what counts as a valid rubric item;
+- broad rows may be decomposed, but duplicated or stylistic rows should be filtered out;
+- correlated rows should not be overcounted in weighting;
+- Module 4 should be refined lightly, not aggressively.
+
+Good refinement targets:
+- splitting a broad doctrinal row into legally distinct subissues;
+- separating controlling-gate mistakes from secondary-gate mistakes;
+- pruning redundant fallback-doctrine criteria.
+
+Bad refinement targets:
+- rewarding polish, verbosity, or comprehensiveness for their own sake;
+- creating criteria that sound precise but are not legally meaningful;
+- duplicating the same underlying failure across several rows without a reason.
+
+--------------------------------------------------
+PACK-LOCAL FILL-IN CHECKLIST
+--------------------------------------------------
+Each doctrine pack should add or confirm:
+- controlling doctrine(s)
+- controlling trigger(s)
+- what clearly fits / what clearly does not fit
+- must-separate subissues
+- writing or satisfaction requirements if relevant
+- fallback theories and their limits
+- bounded-uncertainty points
+- pack-specific failure labels
+- one worked source-grounded example
+- one clean benchmark example
+- any justified weight adjustments
+
+--------------------------------------------------
+COMPARABILITY RULES
+--------------------------------------------------
+To preserve comparability across packs and batch runs:
+- keep the parent-module names unchanged;
+- keep the main answer order unchanged unless the core prompt-structure file is revised globally;
+- prefer full doctrine names over abbreviations;
+- keep non-triggered secondary issues brief;
+- require specific uncertainty statements rather than generic hedging;
+- record all material scoring-structure changes in the changelog below.
+
+--------------------------------------------------
+CHANGELOG BLOCK
+--------------------------------------------------
+Pack:
+Date:
+Author:
+Module weights used:
+Rows added or modified:
+Why:
+Validation status:
+Notes for downstream judging / clustering:
+
+END OF FILE

@@ -1,0 +1,205 @@
+STATUTE OF FRAUDS PACK — LAND SALE / INTEREST IN LAND PROVISION
+
+Purpose:
+This pack helps the GPT handle land-related Statute of Frauds problems by forcing a careful characterization of the transaction and the land interest before any writing or exception analysis begins.
+
+Scope statement:
+Use this pack when the likely controlling issue is whether the agreement transfers, creates, or materially affects an interest in land and therefore requires a writing under the governing source path.
+
+Baseline source-of-truth rule:
+The benchmark answer and source materials control.
+Land-related Statute of Frauds doctrine varies across sources, especially on part performance, estoppel, leases, and memorandum sufficiency.
+Do not import a land exception or essential-term rule unless the benchmark path supports it.
+
+Use this pack when:
+- the agreement is for the sale of land
+- the agreement creates or transfers another covered interest in land under the source path
+- the key gate is whether the transaction is one for an interest in land
+- the benchmark focuses on writing sufficiency, property description, or part performance
+
+Do not use this pack when:
+- the transaction is really a services agreement related to real estate
+- the issue is a goods or financing transaction merely connected to land
+- the source materials do not treat the alleged interest as a covered land interest
+- classification between land and non-land is still the main unresolved gate
+
+Default gate order:
+1. characterize the transaction and the asserted interest in land
+2. determine whether that type of land transaction triggers a writing requirement under the benchmark path
+3. evaluate whether a writing or memorandum exists and whether it is sufficient under the selected source path
+4. evaluate only the supported part-performance, estoppel, or equivalent route if the benchmark uses it
+5. identify any uncertainty briefly under "Strongest counterargument:" if the nature of the interest, the writing status, or the exception facts are unclear
+
+Anchor facts that must stay fixed in Lane A:
+- whether the transaction concerns an interest in land at all
+- the type of interest at issue
+- whether a writing exists
+- property-description adequacy if the benchmark makes it relevant
+- possession, payment, and improvement facts if they drive exception analysis
+- whether the benchmark already uses part performance, estoppel, or another substitute
+
+Lane A safe variation zones:
+1. parcel-shell changes
+Examples:
+- street address changes
+- county changes
+- lot labels
+Use only if jurisdiction does not change and the land-interest function remains identical.
+
+2. price or asset-salience changes
+Examples:
+- purchase price changes that do not create another doctrinal issue
+- adding scenic or luxury descriptors
+Use only if the price or description does not change the legal path.
+
+3. party and setting changes
+Examples:
+- names
+- occupations
+- neutral local context
+Use only if the transaction remains the same type of land-interest agreement.
+
+Lane B ambiguity targets:
+1. land-interest ambiguity
+Old:
+“A agreed to sell Blackacre to B.”
+New:
+“A agreed to transfer rights connected to the property to B.”
+Why this matters:
+The answer may now need to identify whether the agreement actually involves a covered interest in land.
+
+2. memorandum ambiguity
+Old:
+“There was no signed writing.”
+New:
+“The parties discussed the deal informally and exchanged communications.”
+Why this matters:
+The answer should identify that writing existence and sufficiency matter.
+
+3. part-performance ambiguity
+Old:
+“B paid part of the price, took possession, and made improvements.”
+New:
+“B acted in reliance on the agreement.”
+Why this matters:
+The answer should identify which concrete facts matter under the exception path.
+
+4. property-description ambiguity
+Old:
+“The memorandum described Lot 7 of Greenacre Estates.”
+New:
+“The memorandum described the seller’s property.”
+Why this matters:
+The sufficiency of the writing may now be uncertain.
+
+Unsafe variation patterns:
+- converting a land-transfer agreement into a brokerage, construction, or services agreement without labeling the doctrinal shift
+- deleting all land-interest details so the route itself disappears
+- adding possession, payment, or improvement facts that change the exception posture
+- changing the adequacy of the writing while still labeling the package answer-invariant
+- treating any property-related discussion as a covered land contract
+
+Recommended default menu seeds for B02:
+Option 1 — Lane A / Parcel-shell swap
+What changes:
+Address, lot description, local setting, and party names only.
+Expected answer reuse:
+Cosmetic edits only.
+Main red flag:
+Do not change the land-interest type.
+
+Option 2 — Lane A / Non-controlling salience injection
+What changes:
+Price detail, luxury descriptor, or local color that should not affect doctrine.
+Expected answer reuse:
+Reuse as-is or Cosmetic edits only.
+Main red flag:
+Do not create a new exception or financing issue.
+
+Option 3 — Lane B / Part-performance ambiguity
+What changes:
+Generalizes concrete reliance facts such as possession, payment, or improvements.
+Expected answer reuse:
+Ambiguity rewrite required.
+Main red flag:
+Do not erase every exception-related fact at once.
+
+Option 4 — Lane B / Writing-sufficiency ambiguity
+What changes:
+Blurs whether a signed memorandum exists or whether the description is adequate.
+Expected answer reuse:
+Ambiguity rewrite required.
+Main red flag:
+Do not quietly assume a sufficient writing in the updated answer.
+
+Worked micro examples:
+Safe Lane A:
+Old:
+“A orally agreed to sell B a parcel in Harris County for $300,000. No signed writing existed.”
+New:
+“A orally agreed to sell B a lot in Travis County for $325,000. No signed writing existed.”
+Why usually safe:
+The transaction remains a land sale and the writing status is unchanged.
+
+Safe Lane B:
+Old:
+“B paid part of the purchase price, took possession, and built a fence.”
+New:
+“B relied on the agreement and changed position.”
+Why this works:
+The model should identify that the specific reliance facts matter to any part-performance route.
+
+Unsafe:
+Old:
+“A orally agreed to sell B land.”
+New:
+“A orally agreed to build a guesthouse on B’s land.”
+Why unsafe:
+The new facts may shift the problem from a land-transfer agreement to a services contract.
+
+Answer-shape emphasis:
+Jurisdiction / Governing-law assumption:
+Briefly state the land-interest framework only as needed.
+
+Bottom-line outcome:
+State whether the agreement likely falls within the land provision and whether the writing or supported exception analysis controls.
+
+Controlling doctrine:
+Name the key gate as “covered interest in land” if classification is disputed.
+
+Transaction characterization:
+Describe the exact land-related interest and why it does or does not fall within the selected source path.
+
+Trigger analysis:
+Explain why the transaction counts as a land-interest agreement or why that classification is uncertain.
+
+Writing / compliance analysis:
+Focus on memorandum existence and whatever essential writing features the benchmark uses.
+
+Exception / substitute analysis:
+Stay tightly bounded.
+Only discuss part performance, estoppel, or equivalent routes if the source materials support them.
+
+Strongest counterargument:
+Usually that the transaction is not actually a covered land-interest agreement, or that the writing or exception route is sufficient.
+
+If the interest type, writing sufficiency, or reliance facts are missing, say exactly which fact matters.
+
+Rubric focus points:
+A strong answer should:
+- characterize the transaction before jumping to exceptions
+- explain whether the asserted interest is one the selected source path covers
+- keep writing sufficiency tied to the actual benchmark
+- identify concrete exception facts rather than vague reliance language
+- avoid importing land doctrines not present in the source materials
+
+Main red flags:
+- the answer never identifies the specific land interest
+- the variation changes part-performance facts but still claims answer invariance
+- the updated answer reintroduces possession or improvement facts that a Lane B version removed
+- the model assumes any email or communication is a sufficient memorandum without benchmark support
+- the variation turns a land issue into a services issue without saying so
+
+Status rule:
+Mark the package Ready only if the agreement remains in the same land-interest lane in Lane A, or if the Lane B version isolates one missing land-trigger, writing, or exception fact.
+Otherwise mark Needs targeted revision or Unsafe.

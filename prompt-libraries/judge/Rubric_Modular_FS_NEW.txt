@@ -24,7 +24,6 @@ Check whether the answer uses these headings:
 6. Exceptions/Promissory Estoppel:
 7. Defenses/Mistake:
 8. Strongest counterargument:
-9. Bounded uncertainty:
 
 OPTIONAL REVIEWER TRIAGE
 Before full scoring, quickly check:

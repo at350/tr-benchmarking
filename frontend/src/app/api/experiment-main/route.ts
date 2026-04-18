@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// Initialize OpenAI
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient: OpenAI | null = null;
+
+function getOpenAiClient() {
+    if (!openaiClient) {
+        openaiClient = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+    }
+    return openaiClient;
+}
 
 type DatasetMode = 'supergpqa' | 'prbench';
 type Provider = 'openai' | 'anthropic' | 'gemini';
@@ -437,12 +443,12 @@ async function generateModelResponse({ provider, model, systemPrompt, messages, 
         if (supportsTemperature) {
             request.temperature = temperature;
         }
-        const response: any = await (openai as any).responses.create(request);
+        const response: any = await (getOpenAiClient() as any).responses.create(request);
 
         return response.output_text || response.output?.[0]?.content?.[0]?.text || '';
     }
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAiClient().chat.completions.create({
         model,
         messages: [
             { role: 'system', content: systemPrompt },

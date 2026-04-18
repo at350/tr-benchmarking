@@ -3,8 +3,8 @@ import { spawn } from 'child_process';
 
 import { NextResponse } from 'next/server';
 
-import { listDashaRuns, runDashaEvaluation } from '@/lib/legal-workflow-server';
-import type { ArtifactRole, DashaRunMode, DashaSelectedModel } from '@/lib/legal-workflow-types';
+import { listDashaRuns, runDashaEvaluation } from '@/lib/legal-workflow-v2-server';
+import type { ArtifactRole, DashaRunMode, DashaSelectedModel, ReasoningEffort } from '@/lib/legal-workflow-v2-types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -31,6 +31,8 @@ export async function POST(req: Request) {
         const runMode = String(formData.get('runMode') || 'score_and_cluster').trim() as DashaRunMode;
         const selectedModelsRaw = String(formData.get('selectedModels') || '').trim();
         const sampleCountRaw = String(formData.get('sampleCount') || '').trim();
+        const judgeModel = String(formData.get('judgeModel') || '').trim();
+        const judgeReasoningEffort = String(formData.get('judgeReasoningEffort') || '').trim() as ReasoningEffort;
         const files = formData.getAll('files');
 
         if (!rubricPackId) {
@@ -71,6 +73,8 @@ export async function POST(req: Request) {
             files: normalizedFiles,
             selectedModels,
             sampleCount,
+            judgeModel: judgeModel || undefined,
+            judgeReasoningEffort: judgeReasoningEffort || undefined,
         });
 
         const workerScript = path.join(process.cwd(), 'scripts', 'dasha-run-worker.mjs');

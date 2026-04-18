@@ -1,0 +1,57 @@
+43_CLEAN_BENCHMARK_EXAMPLE_UCC_2201
+
+PURPOSE
+This file is a worked example of a clean benchmark answer for Pack 40 — sale of goods under UCC section 2-201.
+It preserves the current benchmark headings for continuity across packs and should be used as a style-and-structure model for UCC section 2-201 benchmark drafting.
+
+USE RULES
+- Use this file for structure, depth, issue-prioritization, and black-letter-law style only.
+- Do not copy its fact pattern, issue mix, or fallback theories unless the current source or prompt supports them.
+- Do not refer to cases, opinions, sources, or authority inside the benchmark answer unless the user explicitly asks for authority-grounded drafting.
+- Keep the exact headings below when drafting benchmark answers.
+- Keep the answer evaluator-facing, concise, ordered, and neutral.
+- For this pack, center the analysis on goods characterization, signed writing and quantity, the merchant-confirmation rule, and UCC-specific exceptions such as specially manufactured goods, admission, and payment / receipt and acceptance.
+
+EXACT HEADINGS TO PRESERVE
+Jurisdiction assumption:
+Bottom-line outcome:
+Controlling doctrine:
+Formation:
+Statute of Frauds Gates:
+Exceptions/Promissory Estoppel:
+Defenses/Mistake:
+Strongest counterargument:
+
+WORKED BENCHMARK ANSWER
+
+Jurisdiction assumption:
+UCC Article 2 as adopted in a typical U.S. jurisdiction, with general common-law contract principles filling gaps unless displaced.
+
+Bottom-line outcome:
+The goods agreement is likely enforceable at least up to the quantity stated in the seller's signed confirmation.
+
+Controlling doctrine:
+The likely controlling doctrine is UCC section 2-201, especially the signed-writing and merchant-confirmation rules for contracts for the sale of goods priced at $500 or more.
+
+Formation:
+There is a straightforward sale-of-goods bargain because the seller agreed to produce and deliver 5,000 custom logo mugs and the buyer agreed to pay a stated price. The main fact cutting the other way is that the buyer expected a later formal purchase order, which can suggest the parties were still reducing the deal to paper. On these facts, however, that point matters more to UCC writing compliance and the exact scope of the deal than to whether consideration existed.
+
+Statute of Frauds Gates:
+The UCC goods gate is the dispositive issue. The transaction is for movable goods rather than primarily for services, and the price is well above $500, so UCC section 2-201 is directly implicated. Under that rule, the agreement ordinarily requires a writing sufficient to indicate that a contract for sale has been made, and the contract is not enforceable beyond the quantity of goods stated in the writing.
+
+Here, the seller's signed confirmation stating 5,000 custom logo mugs at a stated unit price is the strongest compliance path. If both parties are merchants, a confirmatory memorandum that is sufficient against the sender can also bind the recipient if the recipient receives it, has reason to know its contents, and fails to send written objection within ten days. On these facts, the buyer's failure to send written objection after receiving the signed confirmation strongly supports enforceability against the buyer up to the stated quantity.
+
+The later expectation of a formal purchase order does not automatically defeat the existing deal if the parties had already agreed on the goods and quantity and the confirmation memorialized that agreement. If the confirmation path were viewed as imperfect, the specially manufactured goods exception would be the next-best route. Custom logo mugs are not ordinarily suitable for sale to others in the seller's ordinary course, and once the seller has substantially begun production or made a commitment to procure them before repudiation, a signed writing is not required. Payment and receipt-and-acceptance are not the main issues on these facts, and there is no stated judicial admission.
+
+Exceptions/Promissory Estoppel:
+Any fallback theory should be analyzed only after the main UCC writing analysis. The strongest fallback here is the specially manufactured goods exception, because it is built directly into UCC section 2-201 and fits the customization facts more naturally than free-floating equity.
+
+A broader promissory-estoppel theory is secondary and uncertain. Many courts are reluctant to use generalized estoppel to displace the UCC's specific writing framework when the statute itself already contains tailored exceptions. Even where reliance matters, the seller's better route is still the UCC-specific exceptions rather than a free-floating estoppel theory. On these facts, estoppel is weaker than the merchant-confirmation and special-manufacture analyses.
+
+Defenses/Mistake:
+No separate mistake or excuse issue appears to control. The buyer's later claim that internal approval had not yet been finalized or that market demand changed does not by itself defeat an otherwise sufficient UCC memorandum. If the parties expressly conditioned formation on a later signed purchase order, that could matter, but on these facts it is better treated as a counterargument about whether the confirmation truly reflected a completed deal rather than as an independent mistake defense.
+
+Strongest counterargument:
+The strongest counterargument is that the parties intended not to be bound until a formal purchase order issued, so the seller's confirmation should be treated as only a negotiation memo rather than a memorandum of a completed sale. That is a real argument, but it is still weaker than the enforcement position if the signed confirmation stated the quantity, both parties were merchants, and no written objection was sent within ten days.
+
+The main uncertainty is factual and partly jurisdiction-sensitive: whether both parties qualify as merchants for the confirmation rule, whether the confirmation was signed and definite enough to indicate a completed contract, and how individualized the goods were and how far production had progressed if the analysis shifts to the specially manufactured goods exception. But if the quantity term and merchant-confirmation facts are strong, the better analysis is that the contract is enforceable at least up to the stated quantity.
