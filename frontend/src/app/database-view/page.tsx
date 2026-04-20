@@ -179,10 +179,10 @@ export default function DatabaseViewPage() {
                         </div>
                         <div className="flex items-center gap-3">
                             <Link
-                                href="/general-benchmarking"
+                                href="/legal-autoeval-pipeline"
                                 className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
                             >
-                                Open Benchmark Runner
+                                Open Legal AutoEval Pipeline
                             </Link>
                             <span className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
                                 <Database className="h-4 w-4" />

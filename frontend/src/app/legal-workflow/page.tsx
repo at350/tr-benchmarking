@@ -379,11 +379,26 @@ const WORKFLOW_GENERATION_TARGET_LABELS: Record<WorkflowGenerationTarget, string
     rubric_generation: 'Karthic Rubric',
 };
 
+type WorkflowPageMode = 'full' | 'frank_only';
+
 function clone<T>(value: T): T {
     return JSON.parse(JSON.stringify(value)) as T;
 }
 
-export default function LegalWorkflowPage() {
+type LegalWorkflowPageClientProps = {
+    pageMode?: WorkflowPageMode;
+    eyebrow?: string;
+    title?: string;
+    subtitle?: string;
+};
+
+export function LegalWorkflowPageClient({
+    pageMode = 'full',
+    eyebrow = 'Workflow v2',
+    title = 'FKD Pipeline Redo',
+    subtitle = 'A grouped Frank / Karthic / Dasha / Zak workflow with smaller substeps inside each block.',
+}: LegalWorkflowPageClientProps) {
+    const isFrankOnlyMode = pageMode === 'frank_only';
     const [hasMounted, setHasMounted] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -422,6 +437,18 @@ export default function LegalWorkflowPage() {
     const [dashaJudgeSettings, setDashaJudgeSettings] = useState<DashaJudgeSettings>(clone(DEFAULT_DASHA_JUDGE_SETTINGS));
     const [judgeSettingsDraft, setJudgeSettingsDraft] = useState<DashaJudgeSettings>(clone(DEFAULT_DASHA_JUDGE_SETTINGS));
     const [openDashaJudgeTarget, setOpenDashaJudgeTarget] = useState<DashaJudgeModalTarget | null>(null);
+    const workflowBlocks = useMemo(
+        () => isFrankOnlyMode ? WORKFLOW_BLOCKS.filter((block) => block.id === 'frank') : WORKFLOW_BLOCKS,
+        [isFrankOnlyMode],
+    );
+    const allowedStageIds = useMemo(
+        () => new Set(workflowBlocks.flatMap((block) => block.stageIds)),
+        [workflowBlocks],
+    );
+    const workflowStages = useMemo(
+        () => WORKFLOW_STAGES.filter((stage) => allowedStageIds.has(stage.id)),
+        [allowedStageIds],
+    );
 
     const approvedFrankPackets = useMemo(
         () => frankPackets.filter((packet) => packet.status === 'approved'),
@@ -442,6 +469,12 @@ export default function LegalWorkflowPage() {
     useEffect(() => {
         setHasMounted(true);
     }, []);
+
+    useEffect(() => {
+        if (!allowedStageIds.has(visibleStage)) {
+            setVisibleStage(workflowStages[0]?.id ?? 'source');
+        }
+    }, [allowedStageIds, visibleStage, workflowStages]);
 
     useEffect(() => {
         void loadAll();
@@ -1042,7 +1075,7 @@ export default function LegalWorkflowPage() {
     const hasJudgedRun = selectedRun?.status === 'completed' && selectedRun?.workflowStage === 'judged';
 
     const stageViews = useMemo<WorkflowStageView[]>(() => {
-        return WORKFLOW_STAGES.map((stage) => {
+        return workflowStages.map((stage) => {
             switch (stage.id) {
                 case 'source':
                     return {
@@ -1177,6 +1210,7 @@ export default function LegalWorkflowPage() {
             }
         });
     }, [
+        workflowStages,
         approvedRubricPacks.length,
         benchmarkBlockedReason,
         hasApprovedFrank,
@@ -1197,7 +1231,7 @@ export default function LegalWorkflowPage() {
     ]);
 
     const blockViews = useMemo<WorkflowBlockView[]>(() => {
-        return WORKFLOW_BLOCKS.map((block) => {
+        return workflowBlocks.map((block) => {
             const stages = block.stageIds
                 .map((stageId) => stageViews.find((stage) => stage.id === stageId))
                 .filter((stage): stage is WorkflowStageView => Boolean(stage));
@@ -1221,7 +1255,7 @@ export default function LegalWorkflowPage() {
                             : 'Locked',
             };
         });
-    }, [stageViews, visibleStage]);
+    }, [stageViews, visibleStage, workflowBlocks]);
 
     const currentStageIndex = stageViews.findIndex((stage) => stage.id === visibleStage);
     const currentStage = stageViews[currentStageIndex] ?? stageViews[0];
@@ -1284,6 +1318,9 @@ export default function LegalWorkflowPage() {
                 if (!hasQuestion) {
                     return 'Generate or enter the reverse-engineered question before continuing.';
                 }
+                if (isFrankOnlyMode) {
+                    return hasApprovedFrank ? null : 'Approve the Frank packet to finish the Legal AutoEval pipeline.';
+                }
                 return hasApprovedFrank ? null : 'Approve the Frank packet before continuing to Karthic.';
             case 'pre_karthic_cluster':
                 return hasCompletedPreCluster ? null : 'Run pre-Karthic clustering before continuing.';
@@ -1319,6 +1356,7 @@ export default function LegalWorkflowPage() {
         hasSeedRubric,
         hasJudgedRun,
         selectedRun,
+        isFrankOnlyMode,
         visibleStage,
     ]);
 
@@ -2010,9 +2048,9 @@ export default function LegalWorkflowPage() {
     if (!hasMounted) {
         return (
             <AppShell
-                eyebrow="Workflow v2"
-                title="FKD Pipeline Redo"
-                subtitle="A grouped Frank / Karthic / Dasha / Zak workflow with smaller substeps inside each block."
+                eyebrow={eyebrow}
+                title={title}
+                subtitle={subtitle}
             >
                 <div className="space-y-6">
                     <Banner tone="info" text="Loading Frank v2 workflow data..." />
@@ -2023,9 +2061,9 @@ export default function LegalWorkflowPage() {
 
     return (
         <AppShell
-            eyebrow="Workflow v2"
-            title="FKD Pipeline Redo"
-            subtitle="A grouped Frank / Karthic / Dasha / Zak workflow with smaller substeps inside each block."
+            eyebrow={eyebrow}
+            title={title}
+            subtitle={subtitle}
         >
             <div className="space-y-4">
                 {isLoading ? <Banner tone="info" text="Loading Frank v2 workflow data..." /> : null}
@@ -2036,7 +2074,11 @@ export default function LegalWorkflowPage() {
                     <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Pipeline Tabs</p>
-                            <p className="mt-1 text-sm text-slate-500">These switch between the major workflow blocks: Frank builds the packet, Karthic builds the rubric, Dasha runs judging, and Zak handles escalation.</p>
+                            <p className="mt-1 text-sm text-slate-500">
+                                {isFrankOnlyMode
+                                    ? 'This Legal AutoEval tab is a Frank-only workflow for packet construction, benchmark drafting, and reverse-engineered question setup.'
+                                    : 'These switch between the major workflow blocks: Frank builds the packet, Karthic builds the rubric, Dasha runs judging, and Zak handles escalation.'}
+                            </p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Current Tab</p>
@@ -2167,6 +2209,10 @@ export default function LegalWorkflowPage() {
             ) : null}
         </AppShell>
     );
+}
+
+export default function LegalWorkflowPage() {
+    return <LegalWorkflowPageClient />;
 }
 
 function findLastUnlockedStage(stages: WorkflowStageView[]) {

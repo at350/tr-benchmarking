@@ -2237,10 +2237,10 @@ export default function LshRunsPage() {
                                 {isStreamConnected ? 'Live stream connected' : 'Live stream reconnecting'}
                             </span>
                             <Link
-                                href="/general-benchmarking"
+                                href="/legal-workflow"
                                 className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100"
                             >
-                                Open Benchmark Runner
+                                Open FKD Workflow
                             </Link>
                         </div>
                     </div>

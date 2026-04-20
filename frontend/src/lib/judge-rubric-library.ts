@@ -7,7 +7,7 @@ export type JudgeRubricTemplate = {
     fileName?: string;
 };
 
-export const JUDGE_RUBRIC_LIBRARY_STORAGE_KEY = 'general-benchmarking.judge-rubric-library.v1';
+export const JUDGE_RUBRIC_LIBRARY_STORAGE_KEY = 'legal-workflow.judge-rubric-library.v1';
 const BUILTIN_RUBRIC_TIMESTAMP = '2026-02-24T00:00:00.000Z';
 
 export const BUILTIN_JUDGE_RUBRIC_TEMPLATES: JudgeRubricTemplate[] = [

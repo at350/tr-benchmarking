@@ -58,10 +58,10 @@ export default function OutlinesPage() {
                         {isLoading ? 'Loading outlines...' : `${outlines.length} outline${outlines.length === 1 ? '' : 's'} available`}
                     </p>
                     <Link
-                        href="/general-benchmarking"
+                        href="/legal-autoeval-pipeline"
                         className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                     >
-                        Open Benchmark Runner
+                        Open Legal AutoEval Pipeline
                     </Link>
                 </div>
                 {error && <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}

@@ -9,8 +9,8 @@ const NAV_ITEMS = [
     { href: '/demos', label: 'Demos' },
     { href: '/database-view', label: 'Dataset' },
     { href: '/legal-workflow', label: 'Frank-Karthic-Dasha SoF' },
+    { href: '/legal-autoeval-pipeline', label: 'Legal AutoEval Pipeline' },
     { href: '/lsh-runs', label: 'LSH-RUHS' },
-    { href: '/general-benchmarking', label: 'General Benchmarking' },
 ];
 
 type AppShellProps = {
