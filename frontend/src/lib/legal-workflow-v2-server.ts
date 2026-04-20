@@ -1031,44 +1031,52 @@ export async function seedKarthicRubricPack(input: {
         input.reasoningEffort,
     );
     const scoringPolicy = existing?.scoringPolicy ?? createDefaultKarthicScoringPolicy(frankPacket.controllerCard);
-    const basePrompt = await buildKarthicSeedRowsPrompt({
-        packet: frankPacket,
-        assets,
-        questionText: frankPacket.reverseEngineeredQuestion,
-        benchmarkAnswer: frankPacket.benchmarkAnswer,
-        questionSourceLabel: 'Canonical reverse-engineered question',
-        trackLabel: 'Original question',
-        scoringPolicy,
-    });
-    const baseParsed = await generateJson({
-        operation: 'Karthic v2 seed rubric generation',
-        prompt: basePrompt,
-        model: generationSettings.rubric_generation?.model,
-        reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
-    });
+    const selectedVariationPackage = getActiveQuestionVariancePackage(frankPacket);
+    const shouldBuildSelectedVariationTrack = frankPacket.controllerCard?.dual_rubric_mode === 'on' && Boolean(selectedVariationPackage);
+    const [basePrompt, selectedVariationPrompt] = await Promise.all([
+        buildKarthicSeedRowsPrompt({
+            packet: frankPacket,
+            assets,
+            questionText: frankPacket.reverseEngineeredQuestion,
+            benchmarkAnswer: frankPacket.benchmarkAnswer,
+            questionSourceLabel: 'Canonical reverse-engineered question',
+            trackLabel: 'Original question',
+            scoringPolicy,
+        }),
+        shouldBuildSelectedVariationTrack && selectedVariationPackage
+            ? buildKarthicSeedRowsPrompt({
+                packet: frankPacket,
+                assets,
+                questionText: selectedVariationPackage.variedLegalQuestion,
+                benchmarkAnswer: selectedVariationPackage.updatedModelAnswer,
+                questionSourceLabel: 'Selected variation question',
+                trackLabel: 'Selected variation',
+                scoringPolicy,
+                selectedVariationPackage,
+            })
+            : Promise.resolve(null),
+    ]);
+    const [baseParsed, selectedVariationParsed] = await Promise.all([
+        generateJson({
+            operation: 'Karthic v2 seed rubric generation',
+            prompt: basePrompt,
+            model: generationSettings.rubric_generation?.model,
+            reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
+        }),
+        selectedVariationPrompt
+            ? generateJson({
+                operation: 'Karthic v2 selected-variation seed rubric generation',
+                prompt: selectedVariationPrompt,
+                model: generationSettings.rubric_generation?.model,
+                reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
+            })
+            : Promise.resolve(null),
+    ]);
     const baseRows = normalizeRubricRows(baseParsed.rows);
     validateRubricRowsOrThrow(baseRows);
 
-    const selectedVariationPackage = getActiveQuestionVariancePackage(frankPacket);
     let selectedVariationRows: KarthicRubricRow[] | undefined;
-    let selectedVariationPrompt: string | null = null;
-    if (frankPacket.controllerCard?.dual_rubric_mode === 'on' && selectedVariationPackage) {
-        selectedVariationPrompt = await buildKarthicSeedRowsPrompt({
-            packet: frankPacket,
-            assets,
-            questionText: selectedVariationPackage.variedLegalQuestion,
-            benchmarkAnswer: selectedVariationPackage.updatedModelAnswer,
-            questionSourceLabel: 'Selected variation question',
-            trackLabel: 'Selected variation',
-            scoringPolicy,
-            selectedVariationPackage,
-        });
-        const selectedVariationParsed = await generateJson({
-            operation: 'Karthic v2 selected-variation seed rubric generation',
-            prompt: selectedVariationPrompt,
-            model: generationSettings.rubric_generation?.model,
-            reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
-        });
+    if (selectedVariationParsed) {
         selectedVariationRows = normalizeRubricRows(selectedVariationParsed.rows);
         validateRubricRowsOrThrow(selectedVariationRows);
     }
@@ -1146,44 +1154,52 @@ export async function refineKarthicRubricPack(input: {
         input.model,
         input.reasoningEffort,
     );
-    const basePrompt = await buildKarthicRefineRowsPrompt({
-        packet: frankPacket,
-        assets,
-        questionText: existing.tracks.base.questionText,
-        benchmarkAnswer: existing.tracks.base.benchmarkAnswer,
-        trackLabel: existing.tracks.base.label,
-        scoringPolicy: existing.scoringPolicy,
-        currentRows: existing.tracks.base.rows,
-    });
-    const baseParsed = await generateJson({
-        operation: 'Karthic v2 rubric refinement',
-        prompt: basePrompt,
-        model: generationSettings.rubric_generation?.model,
-        reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
-    });
+    const selectedVariationPackage = getActiveQuestionVariancePackage(frankPacket);
+    const shouldRefineSelectedVariationTrack = Boolean(existing.tracks.selected_variation && selectedVariationPackage);
+    const [basePrompt, selectedVariationPrompt] = await Promise.all([
+        buildKarthicRefineRowsPrompt({
+            packet: frankPacket,
+            assets,
+            questionText: existing.tracks.base.questionText,
+            benchmarkAnswer: existing.tracks.base.benchmarkAnswer,
+            trackLabel: existing.tracks.base.label,
+            scoringPolicy: existing.scoringPolicy,
+            currentRows: existing.tracks.base.rows,
+        }),
+        shouldRefineSelectedVariationTrack && selectedVariationPackage
+            ? buildKarthicRefineRowsPrompt({
+                packet: frankPacket,
+                assets,
+                questionText: existing.tracks.selected_variation!.questionText,
+                benchmarkAnswer: existing.tracks.selected_variation!.benchmarkAnswer,
+                trackLabel: existing.tracks.selected_variation!.label,
+                scoringPolicy: existing.scoringPolicy,
+                selectedVariationPackage,
+                currentRows: existing.tracks.selected_variation!.rows,
+            })
+            : Promise.resolve(null),
+    ]);
+    const [baseParsed, selectedVariationParsed] = await Promise.all([
+        generateJson({
+            operation: 'Karthic v2 rubric refinement',
+            prompt: basePrompt,
+            model: generationSettings.rubric_generation?.model,
+            reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
+        }),
+        selectedVariationPrompt
+            ? generateJson({
+                operation: 'Karthic v2 selected-variation rubric refinement',
+                prompt: selectedVariationPrompt,
+                model: generationSettings.rubric_generation?.model,
+                reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
+            })
+            : Promise.resolve(null),
+    ]);
     const baseRows = normalizeRubricRows(baseParsed.rows);
     validateRubricRowsOrThrow(baseRows);
     const baseRefinementLog = normalizeKarthicRefinementLog(baseParsed.refinementLog);
-    const selectedVariationPackage = getActiveQuestionVariancePackage(frankPacket);
     let selectedVariationRows = existing.tracks.selected_variation?.rows;
-    let selectedVariationPrompt: string | null = null;
-    if (existing.tracks.selected_variation && selectedVariationPackage) {
-        selectedVariationPrompt = await buildKarthicRefineRowsPrompt({
-            packet: frankPacket,
-            assets,
-            questionText: existing.tracks.selected_variation.questionText,
-            benchmarkAnswer: existing.tracks.selected_variation.benchmarkAnswer,
-            trackLabel: existing.tracks.selected_variation.label,
-            scoringPolicy: existing.scoringPolicy,
-            selectedVariationPackage,
-            currentRows: existing.tracks.selected_variation.rows,
-        });
-        const selectedVariationParsed = await generateJson({
-            operation: 'Karthic v2 selected-variation rubric refinement',
-            prompt: selectedVariationPrompt,
-            model: generationSettings.rubric_generation?.model,
-            reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
-        });
+    if (selectedVariationParsed) {
         selectedVariationRows = normalizeRubricRows(selectedVariationParsed.rows);
         validateRubricRowsOrThrow(selectedVariationRows);
     }

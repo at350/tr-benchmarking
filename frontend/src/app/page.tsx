@@ -8,7 +8,7 @@ export default function HomePage() {
         <AppShell
             eyebrow="Benchmark Workspace"
             title="Legal AI Benchmarking Portal"
-            subtitle="Choose a tool: inspect datasets, browse legal outlines, analyze LSH-RUHS clusters, or work through the full FKD and Frank-only Legal AutoEval pipelines."
+            subtitle="Choose a tool: inspect datasets, browse legal outlines, analyze LSH-RUHS clusters, or work through the full FKD and Frank-only Legal Auto-Eval pipelines."
             maxWidthClassName="max-w-7xl"
         >
             <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
@@ -19,7 +19,7 @@ export default function HomePage() {
                     icon={<FileStack className="h-5 w-5" />}
                     badge="Workflow"
                 >
-                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-700)]">
                         Open workflow view <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>
@@ -31,7 +31,7 @@ export default function HomePage() {
                     icon={<Database className="h-5 w-5" />}
                     badge="Explore"
                 >
-                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-700)]">
                         Open dataset explorer <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>
@@ -43,7 +43,7 @@ export default function HomePage() {
                     icon={<BookOpenText className="h-5 w-5" />}
                     badge="Reference"
                 >
-                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-700)]">
                         Open outlines library <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>
@@ -55,7 +55,7 @@ export default function HomePage() {
                     icon={<Orbit className="h-5 w-5" />}
                     badge="Analyze"
                 >
-                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-700)]">
                         Open LSH-RUHS atlas <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>
@@ -67,19 +67,19 @@ export default function HomePage() {
                     icon={<Workflow className="h-5 w-5" />}
                     badge="Pipeline"
                 >
-                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-700)]">
                         Open stage-separated workflow <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>
 
                 <PanelCard
                     href="/legal-autoeval-pipeline"
-                    title="Legal AutoEval Pipeline"
+                    title="Legal Auto-Eval Pipeline"
                     description="Use the Frank-only workflow to build packet intake, extraction, benchmark answers, and reverse-engineered questions without the downstream rubric and judging stages yet."
                     icon={<ScrollText className="h-5 w-5" />}
                     badge="Pipeline"
                 >
-                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-700)]">
                         Open Frank-only workflow <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>

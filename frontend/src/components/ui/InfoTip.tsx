@@ -48,7 +48,7 @@ export function InfoTip({ label }: InfoTipProps) {
             <button
                 type="button"
                 onClick={() => setIsOpen((previous) => !previous)}
-                className="cursor-pointer rounded-full border border-slate-300 bg-white p-1 text-slate-500 transition-colors hover:border-teal-300 hover:text-teal-700"
+                className="cursor-pointer rounded-full border border-slate-300 bg-white p-1 text-slate-500 transition-colors hover:border-[var(--accent-300)] hover:text-[var(--accent-700)]"
                 aria-label="Show field description"
                 aria-expanded={isOpen}
             >

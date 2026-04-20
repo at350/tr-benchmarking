@@ -9,7 +9,7 @@ const NAV_ITEMS = [
     { href: '/demos', label: 'Demos' },
     { href: '/database-view', label: 'Dataset' },
     { href: '/legal-workflow', label: 'Frank-Karthic-Dasha SoF' },
-    { href: '/legal-autoeval-pipeline', label: 'Legal AutoEval Pipeline' },
+    { href: '/legal-autoeval-pipeline', label: 'Legal Auto-Eval Pipeline' },
     { href: '/lsh-runs', label: 'LSH-RUHS' },
 ];
 
@@ -26,12 +26,12 @@ export function AppShell({ eyebrow, title, subtitle, actions, children, maxWidth
     const pathname = usePathname();
 
     return (
-        <main className="min-h-screen bg-[radial-gradient(1200px_720px_at_-10%_-8%,rgba(20,184,166,0.16),transparent),radial-gradient(1000px_620px_at_100%_0%,rgba(37,99,235,0.12),transparent),#f7fafc] text-slate-900">
+        <main className="min-h-screen bg-[radial-gradient(1200px_720px_at_-10%_-8%,rgba(31,116,184,0.16),transparent),radial-gradient(1000px_620px_at_100%_0%,rgba(94,155,204,0.16),transparent),#f7fafc] text-slate-900">
             <div className={`mx-auto px-4 py-6 sm:px-6 lg:px-8 ${maxWidthClassName}`}>
                 <header className="rounded-2xl border border-slate-200 bg-white/92 p-5 shadow-[0_12px_35px_rgba(15,23,42,0.09)] backdrop-blur">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            {eyebrow && <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal-700">{eyebrow}</p>}
+                            {eyebrow && <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--accent-700)]">{eyebrow}</p>}
                             <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">{title}</h1>
                             <p className="mt-2 max-w-3xl text-sm text-slate-600">{subtitle}</p>
                         </div>
@@ -46,7 +46,7 @@ export function AppShell({ eyebrow, title, subtitle, actions, children, maxWidth
                                     key={item.href}
                                     href={item.href}
                                     className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${active
-                                        ? 'border-teal-300 bg-teal-50 text-teal-800'
+                                        ? 'border-[var(--accent-300)] bg-[var(--accent-50)] text-[var(--accent-800)]'
                                         : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
                                         }`}
                                 >

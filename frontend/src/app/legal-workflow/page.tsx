@@ -266,7 +266,7 @@ const WORKFLOW_BLOCKS: WorkflowBlockDefinition[] = [
     {
         id: 'zak',
         title: 'Zak',
-        description: 'Escalation and SME review when the run is unstable.',
+        description: 'Escalation and SME review.',
         stageIds: ['zak_review'],
     },
 ];
@@ -1665,7 +1665,7 @@ export function LegalWorkflowPageClient({
                     return 'Generate or enter the reverse-engineered question before continuing.';
                 }
                 if (isFrankOnlyMode) {
-                    return hasApprovedFrank ? null : 'Approve the Frank packet to finish the Legal AutoEval pipeline.';
+                    return hasApprovedFrank ? null : 'Approve the Frank packet to finish the Legal Auto-Eval pipeline.';
                 }
                 return hasApprovedFrank ? null : 'Approve the Frank packet before continuing to Karthic.';
             case 'seed_rubric':
@@ -2006,10 +2006,10 @@ export function LegalWorkflowPageClient({
                                         {isActionPending('save_frank') ? 'Saving...' : 'Save Phase 4 Draft'}
                                     </button>
                                 </div>
-                                <div className="rounded-2xl border border-teal-200 bg-[linear-gradient(180deg,rgba(240,253,250,0.96),rgba(248,250,252,0.98))] p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
+                                <div className="rounded-2xl border border-[var(--accent-200)] bg-[linear-gradient(180deg,rgba(240,253,250,0.96),rgba(248,250,252,0.98))] p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
                                     <div className="flex flex-wrap items-start justify-between gap-3">
                                         <div className="max-w-2xl">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Question Variation</p>
+                                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-700)]">Question Variation</p>
                                             <p className="mt-2 text-sm text-slate-700">
                                                 Keep variation off for the single-question path. Turn it on only when you want a second legal question, a second Karthic rubric track, and a second Dasha run.
                                             </p>
@@ -2017,7 +2017,7 @@ export function LegalWorkflowPageClient({
                                                 Choose exactly one sub-lane such as A1 or B1, then choose one or more exact variations inside that sub-lane.
                                             </p>
                                         </div>
-                                        <div className="rounded-full border border-teal-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-teal-800">
+                                        <div className="rounded-full border border-[var(--accent-200)] bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent-800)]">
                                             {frankEditor.questionVariance.activePackageId
                                                 ? 'Variation active'
                                                 : frankEditor.questionVariance.menu?.options?.length
@@ -2052,10 +2052,10 @@ export function LegalWorkflowPageClient({
                                                         </div>
                                                     </div>
                                                     {selectedVariationOption ? (
-                                                        <div className="space-y-4 rounded-xl border border-teal-100 bg-white/90 p-4">
+                                                        <div className="space-y-4 rounded-xl border border-[var(--accent-100)] bg-white/90 p-4">
                                                             <div className="flex flex-wrap items-start justify-between gap-3">
                                                                 <div>
-                                                                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-teal-700">Selected sub-lane</p>
+                                                                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent-700)]">Selected sub-lane</p>
                                                                     <p className="mt-1 text-sm font-semibold text-slate-900">
                                                                         {selectedVariationOption.laneCode} · {selectedVariationOption.variationType}
                                                                     </p>
@@ -2085,7 +2085,7 @@ export function LegalWorkflowPageClient({
                                                                         return (
                                                                             <label key={swap.id} className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
                                                                                 <input
-                                                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                                                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-[var(--accent-600)] focus:ring-[var(--accent-500)]"
                                                                                     type="checkbox"
                                                                                     checked={checked}
                                                                                     onChange={(event) => toggleVariationSwap(selectedVariationOption, swap.id, event.target.checked)}
@@ -2969,7 +2969,7 @@ function splitLines(value: string) {
 
 function buildStageBlockCardClassName(block: WorkflowBlockView) {
     if (block.active) {
-        return 'rounded-2xl border border-teal-300 bg-teal-50/60 p-4 text-left text-slate-900 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-teal-200';
+        return 'rounded-2xl border border-[var(--accent-300)] bg-[var(--accent-50)]/60 p-4 text-left text-slate-900 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-[var(--accent-200)]';
     }
     if (!block.unlocked) {
         return 'rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left text-slate-400 shadow-[0_8px_20px_rgba(15,23,42,0.06)]';
@@ -2979,7 +2979,7 @@ function buildStageBlockCardClassName(block: WorkflowBlockView) {
 
 function buildSubstepTabClassName(stage: WorkflowStageView, isCurrent: boolean) {
     if (isCurrent) {
-        return 'rounded-full border border-teal-300 bg-teal-50 px-3 py-1.5 text-left text-teal-900 shadow-[0_6px_16px_rgba(13,148,136,0.10)]';
+        return 'rounded-full border border-[var(--accent-300)] bg-[var(--accent-50)] px-3 py-1.5 text-left text-[var(--accent-900)] shadow-[0_6px_16px_rgba(31,116,184,0.14)]';
     }
     if (!stage.unlocked) {
         return 'rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-left text-slate-400';
@@ -3012,7 +3012,7 @@ function StageBlockCard({
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 {block.active ? 'Active Tab' : 'Pipeline Tab'}
             </p>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-teal-200 bg-white text-teal-800">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--accent-200)] bg-white text-[var(--accent-800)]">
                 {icon}
             </div>
             <div className="mt-3 flex items-center justify-between gap-3">
@@ -3059,7 +3059,7 @@ function BlockStepRail({
 
 function buildWizardStepClassName(stage: WorkflowStageView, isCurrent: boolean) {
     if (isCurrent) {
-        return 'inline-flex items-center rounded-full border border-teal-300 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800';
+        return 'inline-flex items-center rounded-full border border-[var(--accent-300)] bg-[var(--accent-50)] px-3 py-1.5 text-xs font-semibold text-[var(--accent-800)]';
     }
     if (!stage.unlocked) {
         return 'inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-400';
@@ -3183,7 +3183,7 @@ function StageGuideCard({ stageId, promptPreview }: { stageId: WorkflowStageId; 
             ) : null}
 
             {guide.promptNote ? (
-                <div className="mt-4 rounded-xl border border-teal-200 bg-teal-50 px-3 py-3 text-sm text-teal-900">
+                <div className="mt-4 rounded-xl border border-[var(--accent-200)] bg-[var(--accent-50)] px-3 py-3 text-sm text-[var(--accent-900)]">
                     <p className="font-semibold">Prompt usage</p>
                     <p className="mt-1 leading-6">{guide.promptNote}</p>
                 </div>
@@ -3282,13 +3282,13 @@ function ModelSelectionPanel({
                                             key={modelKey}
                                             className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
                                                 checked
-                                                    ? 'border-teal-300 bg-teal-50/70'
+                                                    ? 'border-[var(--accent-300)] bg-[var(--accent-50)]/70'
                                                     : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                                             }`}
                                         >
                                             <input
                                                 type="checkbox"
-                                                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                                                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[var(--accent-600)] focus:ring-[var(--accent-500)]"
                                                 checked={checked}
                                                 onChange={(event) => onToggleModel(modelKey, event.target.checked)}
                                             />
@@ -3509,7 +3509,7 @@ function Banner({ tone, text }: { tone: 'info' | 'warning' | 'error'; text: stri
         ? 'border-rose-200 bg-rose-50 text-rose-800'
         : tone === 'warning'
             ? 'border-amber-200 bg-amber-50 text-amber-800'
-            : 'border-teal-200 bg-teal-50 text-teal-800';
+            : 'border-[var(--accent-200)] bg-[var(--accent-50)] text-[var(--accent-800)]';
     return <div className={`rounded-xl border px-4 py-3 text-sm ${className}`}>{text}</div>;
 }
 
@@ -3538,14 +3538,14 @@ function WorkflowStatusDock({
     const shellClassName = tone === 'error'
         ? 'border-rose-200 bg-rose-50/95 text-rose-950 shadow-[0_18px_45px_rgba(244,63,94,0.18)]'
         : tone === 'progress'
-            ? 'border-teal-200 bg-white/95 text-slate-900 shadow-[0_18px_45px_rgba(13,148,136,0.16)]'
+            ? 'border-[var(--accent-200)] bg-white/95 text-slate-900 shadow-[0_18px_45px_rgba(31,116,184,0.18)]'
             : tone === 'success'
                 ? 'border-emerald-200 bg-emerald-50/95 text-emerald-950 shadow-[0_18px_45px_rgba(16,185,129,0.16)]'
                 : 'border-slate-200 bg-white/95 text-slate-900 shadow-[0_18px_45px_rgba(15,23,42,0.12)]';
     const badgeClassName = tone === 'error'
         ? 'border-rose-200 bg-rose-100 text-rose-800'
         : tone === 'progress'
-            ? 'border-teal-200 bg-teal-50 text-teal-800'
+            ? 'border-[var(--accent-200)] bg-[var(--accent-50)] text-[var(--accent-800)]'
             : tone === 'success'
                 ? 'border-emerald-200 bg-emerald-100 text-emerald-800'
                 : 'border-slate-200 bg-slate-100 text-slate-700';
@@ -3697,7 +3697,7 @@ function RubricTrackEditorCard({
     const allCollapsed = rowKeys.length > 0 && rowKeys.every((key) => collapsedRubricRows[key]);
 
     return (
-        <div className={`space-y-4 rounded-2xl border p-4 ${isActive ? 'border-teal-300 bg-teal-50/40' : 'border-slate-200 bg-white'}`}>
+        <div className={`space-y-4 rounded-2xl border p-4 ${isActive ? 'border-[var(--accent-300)] bg-[var(--accent-50)]/40' : 'border-slate-200 bg-white'}`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{title}</p>
@@ -3851,15 +3851,15 @@ function ScoringPolicyEditor({
                             <option value="on">On</option>
                         </select>
                     </Field>
-                    <Field label="Zak review threshold">
+                    <Field label="Zak review threshold (unused for now)">
                         <input
                             className={inputClassName}
+                            disabled
                             value={String(policy.zakReviewPenaltyThreshold)}
-                            onChange={(event) => onChange({
-                                ...policy,
-                                zakReviewPenaltyThreshold: Number.parseInt(event.target.value || '0', 10) || policy.zakReviewPenaltyThreshold,
-                            })}
                         />
+                        <p className="mt-2 text-xs text-slate-500">
+                            Preserved for compatibility only. The current simplified Zak rule does not use this number to trigger review.
+                        </p>
                     </Field>
                 </div>
                 <CompactItemList title="Source files" items={policy.sourceFiles} />
@@ -3988,5 +3988,5 @@ function CapRuleEditor({
 
 const inputClassName = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400';
 const textareaClassName = 'min-h-[110px] w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400';
-const primaryButtonClassName = 'rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';
+const primaryButtonClassName = 'rounded-xl border border-[var(--accent-300)] bg-[var(--accent-50)] px-4 py-2 text-sm font-semibold text-[var(--accent-800)] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';
 const secondaryButtonClassName = 'rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';
