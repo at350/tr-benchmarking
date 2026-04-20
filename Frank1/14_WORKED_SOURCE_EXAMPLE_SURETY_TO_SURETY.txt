@@ -1,0 +1,99 @@
+14_WORKED_SOURCE_EXAMPLE_SURETY_TO_SURETY
+For Pack 10 — Common-Law Oral Promises
+
+PURPOSE
+This file is an additional worked source-grounded example for Pack 10. It is a Pack 10 companion example for narrow suretyship / debt-payment questions in which the promise runs to a proposed surety rather than to the creditor.
+Use it to model:
+- exact headings
+- ordered gate-by-gate reasoning
+- source-grounded analysis
+- bounded uncertainty
+- concise treatment of non-triggered secondary issues
+- narrow, jurisdiction-specific drafting when portability is weak
+
+USE RULES
+- This file is a structure/depth example for Pack 10 oral-promise questions, not a universal substantive answer key.
+- When a specific case, statute, or doctrine source is uploaded, that source controls the legal content.
+- Do not copy this example's facts, fallback theories, or doctrinal emphasis unless the source supports them.
+- Preserve the exact headings in the benchmark answer.
+- Treat all content here as a draft example for human validation.
+
+PACK 10 SCOPE REMINDER
+Use this example only for common-law oral-promise / Statute of Frauds work in the current Pack 10 lane, especially questions involving:
+- suretyship / debt-payment issues
+- promise-to-creditor versus promise-to-debtor versus promise-to-surety distinctions
+- original-versus-collateral-undertaking analysis
+- fallback doctrines only after the main suretyship gate
+- related mistake / condition arguments if they are actually present
+
+EXAMPLE SOURCE CONTEXT
+Lead source illustration: Demeritt v. Bickford (New Hampshire).
+Narrow doctrine family: oral promise made to a proposed surety that the promisor will see the note paid and indemnify the surety if the surety signs.
+Why this works as a Pack 10 example:
+- the controlling suretyship / debt-payment issue is narrow and explicit
+- the promise-to-the-surety posture is holding-driving rather than incidental
+- the sole-reliance fact is express and should be preserved
+- the source supports a real counterargument because it expressly describes the split of authority
+- the issue can be reverse-engineered into a neutral exam-style question without adding extra doctrine
+- the example stays within Pack 10 oral-promise scope while modeling a jurisdiction-specific suretyship benchmark
+
+WORKED BENCHMARK ANSWER
+
+Jurisdiction assumption:
+[Supported by source] New Hampshire law, narrowly grounded in Demeritt's treatment of a promise made to a proposed surety to see a note paid and indemnify the surety.
+
+Bottom-line outcome:
+[Supported by source] The surety-plaintiff has the better claim. Under the New Hampshire rule reflected in Demeritt, the oral promise is enforceable and is not within the Statute of Frauds on these facts.
+
+Controlling doctrine:
+[Supported by source] The controlling doctrine is the suretyship / debt-payment Statute of Frauds question, and more specifically whether a promise made to a proposed surety to see the debt paid and indemnify the surety is a collateral promise within the statute or an original undertaking outside it.
+[Supported by source] Demeritt holds that when the surety becomes bound relying solely on the promisor's assurance, the agreement is not within the statute.
+[Inference from source] The decisive issue is not generic guaranty language alone, but the distinct promise-to-the-surety posture plus the sole-reliance fact.
+
+Formation:
+[Supported by source] The source frames the surety's signing as done in consideration of the promisor's assurance: the promisor requested that the promisee sign as surety, and the promisee did so.
+[Inference from source] Formation is therefore at least comfortably plausible and is not the real obstacle in this source. The harder issue is how the promise is characterized for Statute of Frauds purposes.
+
+Statute of Frauds Gates:
+[Supported by source] The defendant argued that the promise fell within the clause requiring a writing for a special promise to answer for the debt, default, or miscarriage of another.
+[Supported by source] Demeritt acknowledges a direct split of authority. Some courts treat the promise as within the statute because the principal already owes the surety an implied promise of indemnity, so the promisor's express undertaking is merely collateral to coexisting liability.
+[Supported by source] New Hampshire adopted the contrary view: a promise to a surety to indemnify him for becoming surety for a third person is an original and not a collateral undertaking when the promisee acts solely on the promise of the promisor.
+[Inference from source] On those facts, the suretyship writing requirement is not triggered, so the absence of a writing does not bar enforcement.
+[Inference from source] Secondary Statute of Frauds gates such as marriage consideration or one-year performance are not the real issue here and should not be expanded into major sections.
+
+Exceptions/Promissory Estoppel:
+[Inference from source] No fallback substitute is needed because the source's main path is that the promise falls outside the statute on these facts.
+[Background generalization] A broader promissory-estoppel discussion should not replace that source-grounded path unless the user explicitly asks for cross-jurisdictional generalization.
+[Inference from source] The better drafting lesson is not that equity saves an oral promise otherwise barred by the statute, but that this narrow promise-to-the-surety posture is treated as outside the statute in the governing jurisdiction.
+
+Defenses/Mistake:
+[Supported by source] The source does not present a separate mistake, condition, or excuse issue.
+[Inference from source] The real competing doctrinal point is the opposing characterization argument that the promise is collateral because the principal already owes implied indemnity to the surety. This section should stay brief so the controlling New Hampshire rule remains visible.
+
+Strongest counterargument:
+[Supported by source] The strongest counterargument is the one Demeritt expressly describes: even if the surety acted solely on the promisor's assurance, the law already implies indemnity from the principal to the surety, so the promisor's undertaking is only collateral to coexisting liability and therefore within the statute.
+[Supported by source] That argument is real because the court recognized that the authorities are nearly equally divided.
+[Inference from source] But it loses within New Hampshire because the court said the question was not open in that state and reaffirmed the contrary view.
+
+Bounded uncertainty:
+[Supported by source] The source itself says the authorities are not uniform and that the direct authorities are nearly equally divided.
+[Supported by source] The New Hampshire result is strong because the court said the question was not open in that state and cited earlier New Hampshire cases adopting the non-statute view.
+[Inference from source] The main uncertainty is portability, not the New Hampshire outcome. Any reverse-engineered question based on this source should preserve the promise-to-surety posture, the indemnity language, and the sole-reliance fact rather than turning the case into a general common-law suretyship benchmark.
+
+WHY THIS IS A GOOD PACK 10 WORKED SOURCE EXAMPLE
+- It names the controlling doctrine early.
+- It isolates the promise-to-the-surety posture rather than collapsing it into ordinary guaranty language.
+- It keeps formation brief because the source's real center is the Statute of Frauds characterization issue.
+- It preserves the sole-reliance fact as holding-driving.
+- It gives a real counterargument without letting the split of authority swallow the source-grounded New Hampshire answer.
+- It models how to preserve jurisdiction-specific limits when portability is weak.
+
+PAIRING RULE
+Use this file as the worked source-grounded companion to a narrow Pack 10 clean benchmark example involving a promise to a proposed surety. Use this file for source-grounded / audit-tagged drafting and use the clean example file for evaluator-facing benchmark drafting without support tags.
+
+DO NOT COPY THESE SOURCE-SPECIFIC FEATURES UNLESS THE NEW SOURCE SUPPORTS THEM
+- the New Hampshire-specific non-statute rule
+- the promise-to-a-proposed-surety posture
+- the express promise to see the note paid and indemnify the surety
+- the sole-reliance fact
+- the court's split-dependent framing of the issue

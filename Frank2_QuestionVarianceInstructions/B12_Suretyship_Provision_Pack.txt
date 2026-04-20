@@ -1,0 +1,206 @@
+STATUTE OF FRAUDS PACK — SURETYSHIP PROVISION
+
+Purpose:
+This pack helps the GPT handle promises to answer for another person’s debt or default without collapsing original undertakings, indemnity-like promises, and ordinary guaranties into one undifferentiated category.
+
+Scope statement:
+Use this pack when the likely controlling issue is whether a promise is collateral — a promise to answer for the debt or default of another — and therefore requires a writing under the governing source path.
+Do not use this pack merely because three parties appear in the fact pattern.
+
+Baseline source-of-truth rule:
+The benchmark answer and source materials control.
+This pack is only a baseline guide.
+Different sources handle original undertaking, leading-object or main-purpose reasoning, and related doctrines differently.
+Do not import a specific exception unless the source materials support it.
+
+Use this pack when:
+- the facts suggest a guaranty or backup-payment promise
+- one person allegedly promises a creditor that another person’s debt will be paid
+- the key dispute is collateral versus original liability
+- the source materials treat self-benefit or leading-object reasoning as part of the doctrinal path
+
+Do not use this pack when:
+- the promisor appears to be taking on primary liability from the outset
+- the dispute is mainly formation, consideration, agency, or another doctrine with no real suretyship gate
+- the parties and debt structure are too unclear to tell whether the promise is collateral
+
+Default gate order:
+1. identify the underlying obligor, the creditor, and the alleged surety
+2. determine whether the promise is collateral or original
+3. determine whether a writing is required and whether one exists
+4. evaluate any main-purpose, self-benefit, or equivalent route only if the source materials support it
+5. identify bounded uncertainty if the promise direction, addressee, or liability structure is unclear
+
+Anchor facts that must stay fixed in Lane A:
+- who owes the underlying debt
+- who allegedly promised to answer for that debt
+- whether the promise is collateral or original under the benchmark
+- who received the promise if that matters to the source path
+- facts supporting or defeating a self-benefit or leading-object theory
+- whether any writing exists
+
+Lane A safe variation zones:
+1. business-context swaps
+Examples:
+- “apartment rent debt” -> “inventory financing debt”
+- “friend’s loan” -> “supplier invoice”
+Use only if the liability structure is unchanged.
+
+2. role-preserving shell changes
+Examples:
+- names
+- industries
+- business sizes
+- neutral debt labels
+
+3. salience injections
+Examples:
+- large debt amount
+- famous bank
+- high-status promisor
+Use only if the amount or identity does not create a new threshold or bias problem in the benchmark.
+
+Lane B ambiguity targets:
+1. collateral-versus-original ambiguity
+Old:
+“If D does not pay, I will pay you.”
+New:
+“I will see that this gets paid.”
+Why this matters:
+The new language may no longer clearly reveal whether the promisor undertook secondary or primary liability.
+
+2. addressee ambiguity
+Old:
+“The promisor told the creditor, ‘If D does not pay, I will.’”
+New:
+“The promisor said the debt would be taken care of.”
+Why this matters:
+The answer may now need to identify to whom the promise was made.
+
+3. self-benefit ambiguity
+Old:
+“The promisor guaranteed the debt to keep the supplier delivering to the promisor’s own business.”
+New:
+“The promisor guaranteed the debt in connection with the business relationship.”
+Why this matters:
+The self-benefit route may now be uncertain.
+
+4. obligor-liability ambiguity
+Old:
+“The original debtor remained liable.”
+New:
+“The parties treated the obligation as covered.”
+Why this matters:
+The answer may need to identify whether the transaction was really a novation or an original undertaking.
+
+Unsafe variation patterns:
+- changing who owes the underlying debt
+- converting a backup promise into a primary obligation without labeling the shift
+- changing the promisee from creditor to debtor when the source path depends on that distinction
+- adding facts that resolve the main-purpose issue in the opposite direction
+- using vague language that hides both the addressee and the liability structure at once
+
+Recommended default menu seeds for B02:
+Option 1 — Lane A / Role-preserving business-context swap
+What changes:
+Industry, debt label, party names, and setting only.
+Expected answer reuse:
+Cosmetic edits only.
+Main red flag:
+Keep liability direction fixed.
+
+Option 2 — Lane A / Salience injection
+What changes:
+Adds vivid but non-controlling details such as a large amount or famous lender.
+Expected answer reuse:
+Reuse as-is or Cosmetic edits only.
+Main red flag:
+Do not change any self-benefit or main-purpose facts.
+
+Option 3 — Lane B / Original-vs-collateral ambiguity
+What changes:
+Blurs whether the promisor undertook secondary or primary liability.
+Expected answer reuse:
+Ambiguity rewrite required.
+Main red flag:
+Do not blur every role at once.
+
+Option 4 — Lane B / Main-purpose ambiguity
+What changes:
+Generalizes the promisor’s reason for making the promise.
+Expected answer reuse:
+Ambiguity rewrite required.
+Main red flag:
+Do not silently reverse the existing exception analysis.
+
+Worked micro examples:
+Safe Lane A:
+Old:
+“A promised the bank that if B defaulted on the equipment loan, A would pay. There was no writing.”
+New:
+“A logistics executive promised the supplier that if B defaulted on the inventory financing debt, A would pay. There was no writing.”
+Why usually safe:
+The creditor-debtor-surety structure and lack of writing remain unchanged.
+
+Safe Lane B:
+Old:
+“A told the bank, ‘If B does not pay, I will.’”
+New:
+“A said the bank would be paid.”
+Why this works:
+The model should identify that it is unclear whether A made a collateral promise, undertook primary liability, or even addressed the statement to the bank.
+
+Unsafe:
+Old:
+“A told the bank, ‘If B does not pay, I will.’”
+New:
+“A agreed to buy the equipment directly and pay the bank.”
+Why unsafe:
+The new facts may create original liability rather than suretyship.
+
+Answer-shape emphasis:
+Jurisdiction / Governing-law assumption:
+Usually common law unless the source materials say otherwise.
+
+Bottom-line outcome:
+State whether the promise is likely within the suretyship provision and whether writing is required.
+
+Controlling doctrine:
+Name the key gate: collateral versus original liability.
+
+Transaction characterization:
+Identify creditor, obligor, promisor, and the direction of the promise.
+
+Trigger analysis:
+Explain why the promise does or does not answer for another’s debt.
+
+Writing / compliance analysis:
+Tie the writing question to the correct liability characterization.
+
+Exception / substitute analysis:
+Only analyze main-purpose, self-benefit, or equivalent routes if the source materials genuinely use them.
+
+Strongest counterargument:
+Usually that the promisor undertook an original obligation, or that a writing or equivalent substitute exists.
+
+Bounded uncertainty:
+If it is unclear whether the promise was collateral, say exactly that and explain which missing fact controls.
+
+Rubric focus points:
+A strong answer should:
+- identify the underlying debt and role structure
+- distinguish collateral from original liability
+- keep the writing analysis downstream from that classification
+- use any self-benefit or main-purpose reasoning only if supported
+- avoid blurring addressee, liability direction, and obligor status
+
+Main red flags:
+- every three-party promise is labeled suretyship without classification
+- the answer ignores whether the original debtor remained liable
+- the updated answer assumes facts removed by a Lane B omission
+- the variation quietly changes creditor/debtor direction
+- the answer imports guaranty doctrine language not grounded in the benchmark
+
+Status rule:
+Mark the package Ready only if the liability structure remains stable in Lane A, or if the Lane B version isolates one missing classification fact without dissolving the whole debt structure.
+Otherwise mark Needs targeted revision or Unsafe.

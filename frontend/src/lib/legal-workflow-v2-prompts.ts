@@ -1,8 +1,17 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 
 import { FRANK_V2_BENCHMARK_HEADINGS, FRANK_V2_PACK_LABELS, RUBRIC_MODULE_LABELS, RUBRIC_ROW_SPECS } from '@/lib/legal-workflow-v2-constants';
-import type { FrankPacketV2, FrankSofPackId, KarthicPreClusterRunV2, KarthicRubricRow } from '@/lib/legal-workflow-v2-types';
+import type {
+    FrankPacketV2,
+    FrankSofPackId,
+    KarthicPreClusterRunV2,
+    KarthicScoringPolicy,
+    KarthicRubricRow,
+    QuestionVariancePackage,
+} from '@/lib/legal-workflow-v2-types';
 
 type AssetKey =
     | 'main'
@@ -19,6 +28,8 @@ type AssetKey =
     | 'cleanExample';
 
 type AssetRegistryEntry = Record<AssetKey, string>;
+type KarthicInstructionKey = 'buildSpec' | 'overlays' | 'prefill' | 'caseCitation';
+type DashaInstructionKey = 'evaluationSpec' | 'evaluatorInstructions' | 'caseCitationProtocol' | 'centroidMetadata';
 
 const CORE_ASSET_FILES = {
     main: '00_MAIN_GPT_INSTRUCTIONS.txt',
@@ -30,6 +41,20 @@ const CORE_ASSET_FILES = {
     selfAudit: '06_CORE_SELF_AUDIT.txt',
     sharedModuleSkeleton: '07_SHARED_MODULE_SKELETON.txt',
 } satisfies Record<Exclude<AssetKey, 'doctrinePack' | 'failureBank' | 'workedExample' | 'cleanExample'>, string>;
+
+const KARTHIC_INSTRUCTION_FILES: Record<KarthicInstructionKey, string> = {
+    buildSpec: '08_Karthic_Rubric_Build_Spec_v1.md',
+    overlays: '09_Cross_Pack_Scoring_Overlays_Caps_Penalties_v1.md',
+    prefill: '50_Karthic_PreFill_Instructions.rtf',
+    caseCitation: '58_Case_Citation_Verification_Protocol_v1.md',
+};
+
+const DASHA_INSTRUCTION_FILES: Record<DashaInstructionKey, string> = {
+    evaluationSpec: '56_Dasha_Evaluation_Spec_v1.md',
+    evaluatorInstructions: '57_Dasha_Evaluator_Instructions_v2.txt',
+    caseCitationProtocol: '58_Case_Citation_Verification_Protocol_v2.md',
+    centroidMetadata: '60_Centroid_Composition_Metadata_and_Simple_Zak_Rule_v1.md',
+};
 
 const PACK_ASSET_FILES: Record<FrankSofPackId, Pick<AssetRegistryEntry, 'doctrinePack' | 'failureBank' | 'workedExample' | 'cleanExample'>> = {
     pack10: {
@@ -59,11 +84,19 @@ const PACK_ASSET_FILES: Record<FrankSofPackId, Pick<AssetRegistryEntry, 'doctrin
 };
 
 const assetCache = new Map<string, string>();
+const execFileAsync = promisify(execFile);
 
-function resolveAssetsRoot() {
-    return path.basename(process.cwd()) === 'frontend'
-        ? path.resolve(process.cwd(), 'src/lib/frank-v2-assets')
-        : path.resolve(process.cwd(), 'frontend/src/lib/frank-v2-assets');
+function resolveAssetRoots() {
+    const cwd = process.cwd();
+    return path.basename(cwd) === 'frontend'
+        ? [
+            path.resolve(cwd, '../Frank1'),
+            path.resolve(cwd, 'src/lib/frank-v2-assets'),
+        ]
+        : [
+            path.resolve(cwd, 'Frank1'),
+            path.resolve(cwd, 'frontend/src/lib/frank-v2-assets'),
+        ];
 }
 
 async function readAsset(fileName: string) {
@@ -71,9 +104,16 @@ async function readAsset(fileName: string) {
     if (cached) {
         return cached;
     }
-    const content = await fs.readFile(path.join(resolveAssetsRoot(), fileName), 'utf8');
-    assetCache.set(fileName, content);
-    return content;
+    for (const root of resolveAssetRoots()) {
+        try {
+            const content = await fs.readFile(path.join(root, fileName), 'utf8');
+            assetCache.set(fileName, content);
+            return content;
+        } catch {
+            continue;
+        }
+    }
+    throw new Error(`Frank asset "${fileName}" was not found in any configured asset root.`);
 }
 
 export async function getFrankV2AssetBundle(packId: FrankSofPackId) {
@@ -84,6 +124,87 @@ export async function getFrankV2AssetBundle(packId: FrankSofPackId) {
     ] as Array<[AssetKey, string]>).map(async ([key, fileName]) => [key, await readAsset(fileName)] as const));
 
     return Object.fromEntries(bundleEntries) as AssetRegistryEntry;
+}
+
+function resolveKarthicInstructionRoots() {
+    const cwd = process.cwd();
+    return path.basename(cwd) === 'frontend'
+        ? [path.resolve(cwd, '../KarthicFiles')]
+        : [path.resolve(cwd, 'KarthicFiles')];
+}
+
+async function readKarthicInstruction(fileName: string) {
+    const cacheKey = `karthic:${fileName}`;
+    const cached = assetCache.get(cacheKey);
+    if (cached) {
+        return cached;
+    }
+
+    for (const root of resolveKarthicInstructionRoots()) {
+        const filePath = path.join(root, fileName);
+        try {
+            let content = '';
+            if (fileName.toLowerCase().endsWith('.rtf')) {
+                const { stdout } = await execFileAsync('textutil', ['-convert', 'txt', '-stdout', filePath]);
+                content = stdout;
+            } else {
+                content = await fs.readFile(filePath, 'utf8');
+            }
+            assetCache.set(cacheKey, content);
+            return content;
+        } catch {
+            continue;
+        }
+    }
+    throw new Error(`Karthic instruction "${fileName}" was not found in any configured instruction root.`);
+}
+
+export async function getKarthicInstructionBundle(options?: {
+    includeCaseCitationProtocol?: boolean;
+}) {
+    const entries = await Promise.all((Object.entries(KARTHIC_INSTRUCTION_FILES) as Array<[KarthicInstructionKey, string]>)
+        .filter(([key]) => options?.includeCaseCitationProtocol || key !== 'caseCitation')
+        .map(async ([key, fileName]) => [key, await readKarthicInstruction(fileName)] as const));
+
+    return Object.fromEntries(entries) as Partial<Record<KarthicInstructionKey, string>> & {
+        buildSpec: string;
+        overlays: string;
+        prefill: string;
+    };
+}
+
+function resolveDashaInstructionRoots() {
+    const cwd = process.cwd();
+    return path.basename(cwd) === 'frontend'
+        ? [path.resolve(cwd, '../Dasha')]
+        : [path.resolve(cwd, 'Dasha')];
+}
+
+async function readDashaInstruction(fileName: string) {
+    const cacheKey = `dasha:${fileName}`;
+    const cached = assetCache.get(cacheKey);
+    if (cached) {
+        return cached;
+    }
+
+    for (const root of resolveDashaInstructionRoots()) {
+        const filePath = path.join(root, fileName);
+        try {
+            const content = await fs.readFile(filePath, 'utf8');
+            assetCache.set(cacheKey, content);
+            return content;
+        } catch {
+            continue;
+        }
+    }
+    throw new Error(`Dasha instruction "${fileName}" was not found in any configured instruction root.`);
+}
+
+export async function getDashaInstructionBundle() {
+    const entries = await Promise.all((Object.entries(DASHA_INSTRUCTION_FILES) as Array<[DashaInstructionKey, string]>)
+        .map(async ([key, fileName]) => [key, await readDashaInstruction(fileName)] as const));
+
+    return Object.fromEntries(entries) as Record<DashaInstructionKey, string>;
 }
 
 export function buildFrankRoutingIntakePrompt(input: {
@@ -272,28 +393,51 @@ export function buildFrankQuestionPrompt(input: {
     ].join('\n');
 }
 
-export function buildKarthicRowsPrompt(input: {
+export async function buildKarthicRowsPrompt(input: {
     packet: FrankPacketV2;
     assets: Awaited<ReturnType<typeof getFrankV2AssetBundle>>;
     questionText: string;
+    benchmarkAnswer: string;
     questionSourceLabel: string;
+    trackLabel: string;
+    scoringPolicy: KarthicScoringPolicy;
+    selectedVariationPackage?: QuestionVariancePackage | null;
     clusterContext?: string;
 }) {
+    const karthicInstructions = await getKarthicInstructionBundle({
+        includeCaseCitationProtocol: input.scoringPolicy.caseCitationVerificationMode === 'on',
+    });
     return [
+        karthicInstructions.prefill,
+        '',
+        karthicInstructions.buildSpec,
+        '',
         input.assets.sharedModuleSkeleton,
         '',
         input.assets.doctrinePack,
         '',
         input.assets.failureBank,
         '',
+        karthicInstructions.overlays,
+        karthicInstructions.caseCitation ? `\n${karthicInstructions.caseCitation}` : '',
+        '',
         `Selected pack: ${input.packet.selectedPack ? FRANK_V2_PACK_LABELS[input.packet.selectedPack] : 'Unrouted'}`,
+        `Karthic track: ${input.trackLabel}`,
         `${input.questionSourceLabel}:\n${input.questionText}`,
         '',
-        `Benchmark answer:\n${input.packet.benchmarkAnswer}`,
+        `Benchmark answer:\n${input.benchmarkAnswer}`,
         '',
         `Extraction sheet:\n${JSON.stringify(input.packet.sourceExtractionSheet)}`,
         '',
         `Gold packet mapping:\n${JSON.stringify(input.packet.goldPacketMapping)}`,
+        '',
+        `Controller card:\n${JSON.stringify(input.packet.controllerCard)}`,
+        '',
+        input.selectedVariationPackage
+            ? `Selected QuestionVariance package:\n${JSON.stringify(input.selectedVariationPackage)}`
+            : 'Selected QuestionVariance package: none',
+        '',
+        `Scoring policy:\n${JSON.stringify(input.scoringPolicy)}`,
         '',
         `Likely failure modes:\n${JSON.stringify(input.packet.likelyFailureModes)}`,
         input.clusterContext ? `\nSample response clusters:\n${input.clusterContext}` : '',
@@ -306,19 +450,27 @@ export function buildKarthicRowsPrompt(input: {
     ].join('\n');
 }
 
-export function buildKarthicSeedRowsPrompt(input: {
+export async function buildKarthicSeedRowsPrompt(input: {
     packet: FrankPacketV2;
     assets: Awaited<ReturnType<typeof getFrankV2AssetBundle>>;
     questionText: string;
+    benchmarkAnswer: string;
     questionSourceLabel: string;
-    preClusterRun: KarthicPreClusterRunV2;
+    trackLabel: string;
+    scoringPolicy: KarthicScoringPolicy;
+    selectedVariationPackage?: QuestionVariancePackage | null;
+    preClusterRun?: KarthicPreClusterRunV2 | null;
 }) {
-    return buildKarthicRowsPrompt({
+    return await buildKarthicRowsPrompt({
         packet: input.packet,
         assets: input.assets,
         questionText: input.questionText,
+        benchmarkAnswer: input.benchmarkAnswer,
         questionSourceLabel: input.questionSourceLabel,
-        clusterContext: [
+        trackLabel: input.trackLabel,
+        scoringPolicy: input.scoringPolicy,
+        selectedVariationPackage: input.selectedVariationPackage,
+        clusterContext: input.preClusterRun ? [
             input.preClusterRun.clusters.map((cluster) => [
                 `${cluster.id} (${cluster.size} responses)`,
                 `Representative: ${cluster.representativeText}`,
@@ -327,45 +479,72 @@ export function buildKarthicSeedRowsPrompt(input: {
             input.preClusterRun.clusterFailureModes.length > 0
                 ? `Cluster failure modes:\n${input.preClusterRun.clusterFailureModes.join('\n')}`
                 : '',
-        ].filter(Boolean).join('\n\n'),
+        ].filter(Boolean).join('\n\n') : '',
     });
 }
 
-export function buildKarthicRefineRowsPrompt(input: {
+export async function buildKarthicRefineRowsPrompt(input: {
     packet: FrankPacketV2;
     assets: Awaited<ReturnType<typeof getFrankV2AssetBundle>>;
     questionText: string;
-    preClusterRun: KarthicPreClusterRunV2;
+    benchmarkAnswer: string;
+    trackLabel: string;
+    scoringPolicy: KarthicScoringPolicy;
+    selectedVariationPackage?: QuestionVariancePackage | null;
+    preClusterRun?: KarthicPreClusterRunV2 | null;
     currentRows: KarthicRubricRow[];
 }) {
+    const karthicInstructions = await getKarthicInstructionBundle({
+        includeCaseCitationProtocol: input.scoringPolicy.caseCitationVerificationMode === 'on',
+    });
     return [
+        karthicInstructions.prefill,
+        '',
+        karthicInstructions.buildSpec,
+        '',
         input.assets.sharedModuleSkeleton,
         '',
         input.assets.doctrinePack,
         '',
         input.assets.failureBank,
         '',
+        karthicInstructions.overlays,
+        karthicInstructions.caseCitation ? `\n${karthicInstructions.caseCitation}` : '',
+        '',
         `Selected pack: ${input.packet.selectedPack ? FRANK_V2_PACK_LABELS[input.packet.selectedPack] : 'Unrouted'}`,
+        `Karthic track: ${input.trackLabel}`,
         `Question:\n${input.questionText}`,
         '',
-        `Benchmark answer:\n${input.packet.benchmarkAnswer}`,
+        `Benchmark answer:\n${input.benchmarkAnswer}`,
+        '',
+        `Controller card:\n${JSON.stringify(input.packet.controllerCard)}`,
+        '',
+        input.selectedVariationPackage
+            ? `Selected QuestionVariance package:\n${JSON.stringify(input.selectedVariationPackage)}`
+            : 'Selected QuestionVariance package: none',
+        '',
+        `Scoring policy:\n${JSON.stringify(input.scoringPolicy)}`,
         '',
         `Likely failure modes:\n${JSON.stringify(input.packet.likelyFailureModes)}`,
         '',
         `Current rubric rows:\n${JSON.stringify(input.currentRows, null, 2)}`,
         '',
-        `Cluster representatives:\n${input.preClusterRun.clusters.map((cluster) => JSON.stringify({
-            id: cluster.id,
-            size: cluster.size,
-            representativeText: cluster.representativeText,
-            modelBreakdown: cluster.modelBreakdown,
-        }, null, 2)).join('\n\n')}`,
+        input.preClusterRun
+            ? `Cluster representatives:\n${input.preClusterRun.clusters.map((cluster) => JSON.stringify({
+                id: cluster.id,
+                size: cluster.size,
+                representativeText: cluster.representativeText,
+                modelBreakdown: cluster.modelBreakdown,
+            }, null, 2)).join('\n\n')}`
+            : 'Cluster representatives: not used in this Karthic prefill pass.',
         '',
-        `Cluster failure modes:\n${input.preClusterRun.clusterFailureModes.join('\n') || 'None recorded.'}`,
+        input.preClusterRun
+            ? `Cluster failure modes:\n${input.preClusterRun.clusterFailureModes.join('\n') || 'None recorded.'}`
+            : 'Cluster failure modes: not used in this Karthic prefill pass.',
         '',
         'Refine the rubric using RRD-lite rules.',
-        'Keep or rewrite a row only if it distinguishes benchmark-aligned reasoning from wrong or incomplete centroid reasoning, captures an important missed failure mode, or sharpens a too-broad row.',
-        'Rewrite or conceptually drop a row if it scores benchmark and wrong centroids similarly, rewards wrong centroids more than benchmark-aligned ones, or duplicates another row.',
+        'Keep or rewrite a row only if it sharpens a too-broad prefill row, captures an important failure mode, or improves doctrinal discrimination without adding clutter.',
+        'If no cluster data is present, refine from the Frank packet, controller card, selected variation package, and scoring-policy boundaries only.',
         'Preserve the fixed row keys and module assignments. Do not invent extra rows beyond the existing row-key framework.',
         'Return JSON only with shape {"rows":[...],"refinementLog":[...],"comparisonMethodNote":"..."} where refinementLog items contain iteration, action, rowKey, rationale, and sourceClusterIds.',
     ].join('\n');
@@ -439,6 +618,106 @@ export function buildDashaRowEvaluationPrompt(input: {
         '',
         'Representative answer:',
         input.responseText,
+    ].join('\n');
+}
+
+export function buildDashaClusterAuditPrompt(input: {
+    instructions: Awaited<ReturnType<typeof getDashaInstructionBundle>>;
+    questionText: string;
+    rubricType: string;
+    evaluationTrack: string;
+    questionVersion: string;
+    representativeText: string;
+    clusterMetadata: {
+        clusterId: string;
+        clusterSizeTotal: number;
+        modelBreakdown: Array<{ model: string; count: number; share: number }>;
+        representedModelCount: number;
+        dominantModelName: string | null;
+        dominantModelShare: number;
+    };
+    rowScores: Array<{
+        rowKey: string;
+        rowTitle: string;
+        moduleLabel: string;
+        weight: number;
+        score: number | null;
+        applicabilityStatus: 'applicable' | 'not_applicable';
+        rationale: string;
+        differenceSummary: string;
+    }>;
+    scoringPolicy: KarthicScoringPolicy;
+    caseCitationVerificationMode: 'on' | 'off';
+    workflowSourceCaseName: string | null;
+    workflowSourceCaseCitation: string | null;
+    sourceCaseMonitoring: 'on' | 'off';
+}) {
+    return [
+        'You are running the Dasha cluster-audit pass after row scoring has already been completed.',
+        'Use the repo instruction files below as binding guidance.',
+        'If case-citation verification mode is on and the centroid mentions any case, use web search before answering.',
+        'Return JSON only. Do not wrap the JSON in markdown.',
+        '',
+        'Instruction file: 56_Dasha_Evaluation_Spec_v1.md',
+        input.instructions.evaluationSpec,
+        '',
+        'Instruction file: 57_Dasha_Evaluator_Instructions_v2.txt',
+        input.instructions.evaluatorInstructions,
+        '',
+        'Instruction file: 58_Case_Citation_Verification_Protocol_v2.md',
+        input.instructions.caseCitationProtocol,
+        '',
+        'Instruction file: 60_Centroid_Composition_Metadata_and_Simple_Zak_Rule_v1.md',
+        input.instructions.centroidMetadata,
+        '',
+        `Evaluation track: ${input.evaluationTrack}`,
+        `Question version: ${input.questionVersion}`,
+        `Rubric type: ${input.rubricType}`,
+        `Question text:\n${input.questionText}`,
+        '',
+        `Representative answer:\n${input.representativeText}`,
+        '',
+        `Cluster metadata:\n${JSON.stringify(input.clusterMetadata, null, 2)}`,
+        '',
+        `Row scoring summary:\n${JSON.stringify(input.rowScores, null, 2)}`,
+        '',
+        `Scoring policy:\n${JSON.stringify(input.scoringPolicy, null, 2)}`,
+        '',
+        `case_citation_verification_mode: ${input.caseCitationVerificationMode}`,
+        `workflow_source_case_name: ${input.workflowSourceCaseName ?? 'not_available'}`,
+        `workflow_source_case_citation: ${input.workflowSourceCaseCitation ?? 'not_available'}`,
+        `source_case_monitoring: ${input.sourceCaseMonitoring}`,
+        '',
+        'Return JSON with exactly this shape:',
+        JSON.stringify({
+            disagreementFlag: false,
+            trackSummaryNote: 'string',
+            triggeredPenaltyCodes: ['string'],
+            triggeredCapCodes: ['string'],
+            penaltyReasons: {
+                P_HallucinatedCaseCitation: 'string',
+            },
+            capReasons: {
+                CAP_75_HallucinatedCoreAuthority: 'string',
+            },
+            caseCitation: {
+                caseMentionStatus: 'none',
+                extractedCaseMentions: ['string'],
+                verifiedCaseMentions: ['string'],
+                hallucinatedCaseMentions: ['string'],
+                citationAccuracyStatus: 'not_applicable',
+                sourceCaseReferenceStatus: 'not_applicable',
+                sourceCaseReferenceNote: 'string',
+                caseVerificationReviewFlag: false,
+                note: 'string',
+            },
+        }),
+        '',
+        'Rules:',
+        '- Do not reward mere citation by default.',
+        '- Record metadata even when no penalties or caps apply.',
+        '- Trigger only penalty or cap codes that appear in the scoring policy and are truly justified.',
+        '- Under the simplified Dasha rule, ambiguous case verification alone does not trigger Zak review.',
     ].join('\n');
 }
 

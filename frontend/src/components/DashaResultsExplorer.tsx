@@ -187,11 +187,25 @@ function RunOverviewStrip({ data }: { data: DashaExplorerData }) {
                     <p className="mt-2 text-sm leading-6 text-slate-600">
                         {data.clusteringNotes || 'No clustering notes were recorded for this run.'}
                     </p>
+                    {data.trackSummary ? (
+                        <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Track summary</p>
+                            <p className="mt-1 text-sm text-slate-700">{data.trackSummary.trackSummary}</p>
+                            <p className="mt-2 text-xs text-slate-500">
+                                Vote split: {data.trackSummary.topCentroidVoteSplit} · Majority: {data.trackSummary.panelMajorityStatus}
+                            </p>
+                        </div>
+                    ) : null}
                     {overallWinner ? (
                         <div className="mt-4 rounded-2xl border border-teal-200 bg-teal-50/70 p-3">
                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-teal-700">Overall winner</p>
                             <p className="mt-1 text-sm font-semibold text-teal-950">
-                                {overallWinner.clusterId} · Weighted {formatScore(overallWinner.weightedScore)} · {overallWinner.size} answers
+                                {overallWinner.clusterId} · Final {formatScore(overallWinner.weightedScore)} · {overallWinner.size} answers
+                            </p>
+                            <p className="mt-1 text-xs text-teal-800">
+                                Subtotal {formatScore(overallWinner.subtotal)}
+                                {overallWinner.capApplied ? ` · Cap ${overallWinner.capApplied.code}` : ''}
+                                {overallWinner.penaltiesApplied.length > 0 ? ` · ${overallWinner.penaltiesApplied.length} penalty` : ''}
                             </p>
                             <div className="mt-2 flex flex-wrap gap-2">
                                 {overallWinner.modelBreakdown.map((entry) => (
@@ -661,7 +675,11 @@ function ExplainView({ data, visibleRows, comparisonClusters }: { data: DashaExp
                                             ) : null}
                                         </div>
                                         <p className="mt-1 text-sm text-slate-600">
-                                            {cluster.size} answers · Weighted {formatScore(cluster.weightedScore)} · {cluster.winsCount} row wins
+                                            {cluster.size} answers · Final {formatScore(cluster.weightedScore)} · Subtotal {formatScore(cluster.subtotal)} · {cluster.winsCount} row wins
+                                        </p>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            {cluster.representedModelCount} models represented
+                                            {cluster.dominantModelName ? ` · dominant ${cluster.dominantModelName} ${formatPercentage(cluster.dominantModelShare)}` : ''}
                                         </p>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
@@ -672,6 +690,46 @@ function ExplainView({ data, visibleRows, comparisonClusters }: { data: DashaExp
                                 <p className="mt-3 line-clamp-4 text-sm leading-6 text-slate-700">{cluster.representativeText}</p>
                             </summary>
                             <div className="border-t border-slate-200 px-4 py-4">
+                                {cluster.penaltiesApplied.length > 0 || cluster.capApplied || cluster.caseCitation.note ? (
+                                    <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3">
+                                        <p className={mutedLabelClassName}>Audit Notes</p>
+                                        <p className="mt-2 text-sm text-slate-700">{cluster.caseCitation.note || cluster.trackSummaryNote || 'No extra audit note saved.'}</p>
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {cluster.penaltiesApplied.map((penalty) => (
+                                                <span key={`${cluster.clusterId}_${penalty.code}`} className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">
+                                                    {penalty.code} -{penalty.points}
+                                                </span>
+                                            ))}
+                                            {cluster.capApplied ? (
+                                                <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-800">
+                                                    {cluster.capApplied.code} cap {cluster.capApplied.cap}
+                                                </span>
+                                            ) : null}
+                                            {cluster.caseCitation.caseVerificationReviewFlag ? (
+                                                <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                                                    Verification flagged
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                ) : null}
+                                {cluster.caseCitation.caseMentionStatus === 'mentioned' ? (
+                                    <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                        <p className={mutedLabelClassName}>Case Citation</p>
+                                        <p className="mt-2 text-sm text-slate-700">
+                                            {cluster.caseCitation.note || 'Case citation metadata was saved for this centroid.'}
+                                        </p>
+                                        {cluster.caseCitation.extractedCaseMentions.length > 0 ? (
+                                            <div className="mt-2 flex flex-wrap gap-2">
+                                                {cluster.caseCitation.extractedCaseMentions.map((item) => (
+                                                    <span key={`${cluster.clusterId}_${item}`} className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
+                                                        {item}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ) : null}
                                 <div className="flex flex-wrap gap-2">
                                     {cluster.modelBreakdown.map((model) => (
                                         <span key={`${cluster.clusterId}_${model.modelKey}`} className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">

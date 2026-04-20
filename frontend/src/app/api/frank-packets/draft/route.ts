@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { draftFrankPacket } from '@/lib/legal-workflow-v2-server';
+import { draftFrankPacket, draftFrankPacketFromTemplate } from '@/lib/legal-workflow-v2-server';
 import type { ArtifactRole, ReasoningEffort } from '@/lib/legal-workflow-v2-types';
 
 export const dynamic = 'force-dynamic';
@@ -14,9 +14,20 @@ export async function POST(req: Request) {
         const title = String(formData.get('title') || '').trim();
         const model = String(formData.get('model') || '').trim() || undefined;
         const reasoningEffort = String(formData.get('reasoningEffort') || '').trim() as ReasoningEffort | '';
+        const sourcePacketId = String(formData.get('sourcePacketId') || '').trim();
         const files = formData.getAll('files');
-        if (files.length === 0) {
-            return NextResponse.json({ error: 'At least one uploaded authority file is required.' }, { status: 400 });
+        if (files.length === 0 && !sourcePacketId) {
+            return NextResponse.json({ error: 'Upload authority files or choose a benchmark template.' }, { status: 400 });
+        }
+
+        if (sourcePacketId) {
+            const item = await draftFrankPacketFromTemplate({
+                templatePacketId: sourcePacketId,
+                title,
+                model,
+                reasoningEffort: reasoningEffort || undefined,
+            });
+            return NextResponse.json({ item });
         }
 
         const normalizedFiles = await Promise.all(files.map(async (entry, index) => {

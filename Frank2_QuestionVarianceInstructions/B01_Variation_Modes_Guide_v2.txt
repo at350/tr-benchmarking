@@ -1,0 +1,110 @@
+VARIATION MODES GUIDE
+Purpose:
+This file defines the variation families available to the question-variator GPT and separates answer-invariant variations from fact-sensitivity tests.
+
+Core split:
+1. Lane A — Answer-Invariant Variation
+Use when the target legal analysis should stay the same.
+Preserve:
+- controlling doctrine
+- likely bottom-line outcome
+- strongest counterargument
+- main legal path / gate order
+
+2. Lane B — Fact-Sensitivity / Ambiguity Test
+Use when the goal is to remove, blur, or generalize a fact that is necessary to resolve a legal issue, so the correct model behavior is to identify missing facts, give bounded uncertainty, or explain conditional branches.
+This lane is not a “safe surface variation.”
+
+Lane A variation types:
+A1. Variable swap
+- names
+- cities or states if jurisdiction does not change
+- occupations or industries if legal role does not change
+- debt / property / transaction labels if legal function stays the same
+
+A2. Threshold-preserving numeric shift
+- dollar amounts if no legal threshold changes
+- months, durations, quantities, or counts only if they stay on the same side of the trigger
+
+A3. Specificity shift
+- broad -> specific if legal role stays the same
+- specific -> broad if legal role stays the same
+Examples:
+- “bank” -> “Citibank”
+- “Citibank” -> “bank”
+- “student loans” -> “education debt” only if the legal function is unchanged
+
+A4. Non-controlling salience injection
+Add a fact that should not change the legal analysis but may bias weaker models.
+Examples:
+- high dollar amount
+- famous company or bank name
+- prestigious job title
+- luxury item description
+Use only if the added fact does not create a new doctrine, threshold, or defense.
+
+Lane B variation types:
+B1. Fact omission / ambiguity test
+Remove or blur a fact necessary to resolve a gate.
+Examples:
+- “within 24 months” -> “for some period of time”
+- exact addressee or timing detail -> neutral placeholder
+Use only if the resulting hypo still reads naturally and the missing fact can be identified specifically.
+
+B2. Controlled generalization
+Replace a precise fact with a broader category to test whether the model recognizes uncertainty.
+Examples:
+- precise institution -> general institution
+- exact timing marker -> broader timing phrase
+Do not use if the generalization hides multiple legal roles or silently changes doctrine.
+
+Lane-code labels for menu output:
+When B02 presents selectable options, use these exact labels:
+- Lane A1 — Variable swap
+- Lane A2 — Threshold-preserving numeric shift
+- Lane A3 — Specificity shift
+- Lane A4 — Non-controlling salience injection
+- Lane B1 — Fact omission / ambiguity test
+- Lane B2 — Controlled generalization
+
+Single-cosmetic-only default:
+If the user asks for only one cosmetic variation, default to Lane A1 or Lane A3 unless the user explicitly requests another lane.
+Treat Lane A2 and Lane A4 as opt-in light stress tests rather than the default single cosmetic choice.
+Do not use generic option numbers as substitutes for these lane-code labels.
+
+Usually forbidden in all lanes unless the user explicitly wants a different doctrine test:
+- changing promisor/promisee roles
+- changing creditor/debtor roles
+- changing the existence of a writing
+- changing jurisdiction
+- changing threshold direction
+- changing the strongest-counterargument fact
+- changing sequence or timing in a way that changes doctrine
+- adding a new major fallback doctrine
+- creating a different controlling doctrine or gate order
+
+Answer reuse levels:
+- Reuse as-is
+- Cosmetic edits only
+- Unsafe
+- Ambiguity rewrite required
+
+Use “Ambiguity rewrite required” only when the correct answer must now identify a missing fact, explain why it matters, and give conditional branches or bounded uncertainty.
+
+Rubric patch rules:
+Lane A:
+- patch fact-specific variables and phrases only
+- keep doctrinal criteria unchanged if the doctrinal path is unchanged
+
+Lane B:
+- patch any criterion that assumes a now-missing fact or fixed outcome
+- add a bounded-uncertainty / missing-fact criterion only if needed
+- do not pretend the old rubric still fully fits if the benchmark now tests uncertainty recognition
+
+Unsafe triggers:
+- controlling doctrine changes
+- likely outcome changes in Lane A
+- strongest counterargument changes
+- gate order changes
+- new major doctrine appears
+- answer would require substantive doctrinal rewriting outside the selected lane

@@ -19,8 +19,9 @@ export function buildDashaModelSummaries(input: {
     responses: DashaResponseRecord[];
     clusters: DashaClusterRecord[];
     rowResults: RubricRowResult[];
+    clusterScoreMap?: Map<string, number | null>;
 }): DashaModelSummary[] {
-    const clusterScoreMap = buildClusterWeightedScoreMap(input.rowResults);
+    const clusterScoreMap = input.clusterScoreMap ?? buildClusterWeightedScoreMap(input.rowResults);
     const responseGroups = new Map<string, DashaResponseRecord[]>();
     input.responses.forEach((response) => {
         const current = responseGroups.get(response.modelKey);

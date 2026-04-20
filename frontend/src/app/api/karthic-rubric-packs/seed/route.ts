@@ -20,9 +20,6 @@ export async function POST(req: Request) {
         if (!body.frankPacketId?.trim()) {
             return NextResponse.json({ error: 'frankPacketId is required.' }, { status: 400 });
         }
-        if (!body.preClusterRunId?.trim()) {
-            return NextResponse.json({ error: 'preClusterRunId is required.' }, { status: 400 });
-        }
         const item = await seedKarthicRubricPack({
             frankPacketId: body.frankPacketId,
             preClusterRunId: body.preClusterRunId,

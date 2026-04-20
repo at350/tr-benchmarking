@@ -4,6 +4,7 @@ import type {
     DashaResponseRecord,
     DashaRunV2,
     DashaSelectedModel,
+    DashaTrackSummary,
     ModelProvider,
     RubricModuleId,
     RubricRowCentroidEvaluation,
@@ -87,7 +88,17 @@ export type DashaExplorerCluster = {
     representativeResponseId: string;
     modelBreakdown: DashaClusterRecord['modelBreakdown'];
     weightedScore: number | null;
+    subtotal: number | null;
     winsCount: number;
+    penaltiesApplied: DashaRunV2['clusterAnalyses'][number]['penaltiesApplied'];
+    capApplied: DashaRunV2['clusterAnalyses'][number]['capApplied'];
+    caseCitation: DashaRunV2['clusterAnalyses'][number]['caseCitation'];
+    representedModelCount: number;
+    dominantModelName: string | null;
+    dominantModelShare: number;
+    disagreementFlag: boolean;
+    zakReviewFlag: boolean;
+    trackSummaryNote: string;
     summaryTags: {
         bottomLineOutcome: string;
         reasoningAlignment: string;
@@ -124,6 +135,7 @@ export type DashaExplorerData = {
     summarySentence: string;
     overallWinningClusterId: string | null;
     overallWinningClusterWins: number;
+    trackSummary: DashaTrackSummary | null;
     modelParticipations: DashaExplorerModelParticipation[];
     clusters: DashaExplorerCluster[];
     rows: DashaExplorerRow[];
@@ -178,6 +190,7 @@ export function deriveDashaExplorerData(run: DashaRunV2): DashaExplorerData {
         summarySentence,
         overallWinningClusterId: overallWinningCluster?.clusterId ?? null,
         overallWinningClusterWins: overallWinningCluster?.winsCount ?? 0,
+        trackSummary: run.trackSummary ?? null,
         modelParticipations,
         clusters: clusterEntries,
         rows: rowEntries,
@@ -311,9 +324,11 @@ function deriveModules(rows: DashaExplorerRow[], clusterOrder: string[], rawClus
 }
 
 function deriveClusters(run: DashaRunV2, rows: DashaExplorerRow[], modules: DashaExplorerModule[]): DashaExplorerCluster[] {
+    const analysisByClusterId = new Map(run.clusterAnalyses.map((analysis) => [analysis.clusterId, analysis] as const));
     return run.clusters.map((cluster) => {
+        const analysis = analysisByClusterId.get(cluster.id) ?? null;
         const winsCount = rows.filter((row) => row.winningClusterId === cluster.id).length;
-        const weightedScore = computeClusterWeightedScore(cluster.id, rows);
+        const weightedScore = analysis?.finalScore ?? computeClusterWeightedScore(cluster.id, rows);
         const summaryTags = deriveClusterSummaryTags(cluster.id, rows);
         const moduleScores = modules.map((module) => {
             const score = module.clusterScores.find((item) => item.clusterId === cluster.id)?.score ?? null;
@@ -360,7 +375,27 @@ function deriveClusters(run: DashaRunV2, rows: DashaExplorerRow[], modules: Dash
             representativeResponseId: cluster.representativeResponseId,
             modelBreakdown: cluster.modelBreakdown,
             weightedScore,
+            subtotal: analysis?.subtotal ?? computeClusterWeightedScore(cluster.id, rows),
             winsCount,
+            penaltiesApplied: analysis?.penaltiesApplied ?? [],
+            capApplied: analysis?.capApplied ?? null,
+            caseCitation: analysis?.caseCitation ?? {
+                caseMentionStatus: 'none',
+                extractedCaseMentions: [],
+                verifiedCaseMentions: [],
+                hallucinatedCaseMentions: [],
+                citationAccuracyStatus: 'not_applicable',
+                sourceCaseReferenceStatus: 'not_applicable',
+                sourceCaseReferenceNote: '',
+                caseVerificationReviewFlag: false,
+                note: '',
+            },
+            representedModelCount: analysis?.representedModelCount ?? cluster.modelBreakdown.length,
+            dominantModelName: analysis?.dominantModelName ?? cluster.modelBreakdown[0]?.model ?? null,
+            dominantModelShare: analysis?.dominantModelShare ?? (cluster.size > 0 && cluster.modelBreakdown[0] ? roundToTwo(cluster.modelBreakdown[0].count / cluster.size) : 0),
+            disagreementFlag: analysis?.disagreementFlag ?? false,
+            zakReviewFlag: analysis?.zakReviewFlag ?? false,
+            trackSummaryNote: analysis?.trackSummaryNote ?? '',
             summaryTags,
             moduleScores,
             strengths,
