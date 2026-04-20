@@ -10,8 +10,19 @@
   --text-3: #64748b;
   --border-soft: #dbe5ef;
   --border-strong: #c7d4e2;
-  --brand-1: #0f766e;
-  --brand-2: #2563eb;
+  --accent-50: #f2f7fb;
+  --accent-100: #e4eef6;
+  --accent-200: #c9deee;
+  --accent-300: #a1c5e1;
+  --accent-400: #5e9bcc;
+  --accent-500: #1f74b8;
+  --accent-600: #1c68a6;
+  --accent-700: #185a90;
+  --accent-800: #144a76;
+  --accent-900: #103a5c;
+  --accent-950: #0a253b;
+  --brand-1: var(--accent-700);
+  --brand-2: var(--accent-500);
   --success: #15803d;
   --warn: #b45309;
   --danger: #b91c1c;
@@ -42,5 +53,5 @@ body {
 }
 
 ::selection {
-  background: rgba(20, 184, 166, 0.25);
+  background: rgba(31, 116, 184, 0.24);
 }

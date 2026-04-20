@@ -1,4 +1,4 @@
-import { ArrowRight, BarChart3, BookOpenText, Database, FileStack, Orbit, Workflow } from 'lucide-react';
+import { ArrowRight, BookOpenText, Database, FileStack, Orbit, ScrollText, Workflow } from 'lucide-react';
 
 import { AppShell } from '@/components/ui/AppShell';
 import { PanelCard } from '@/components/ui/PanelCard';
@@ -8,7 +8,7 @@ export default function HomePage() {
         <AppShell
             eyebrow="Benchmark Workspace"
             title="Legal AI Benchmarking Portal"
-            subtitle="Choose a tool: inspect datasets, browse legal outlines, analyze LSH-RUHS clusters, or run full general benchmarking with configurable model evaluations."
+            subtitle="Choose a tool: inspect datasets, browse legal outlines, analyze LSH-RUHS clusters, or work through the full FKD and Frank-only Legal Auto-Eval pipelines."
             maxWidthClassName="max-w-7xl"
         >
             <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
@@ -19,7 +19,7 @@ export default function HomePage() {
                     icon={<FileStack className="h-5 w-5" />}
                     badge="Workflow"
                 >
-                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-700)]">
                         Open workflow view <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>
@@ -31,7 +31,7 @@ export default function HomePage() {
                     icon={<Database className="h-5 w-5" />}
                     badge="Explore"
                 >
-                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-700)]">
                         Open dataset explorer <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>
@@ -43,7 +43,7 @@ export default function HomePage() {
                     icon={<BookOpenText className="h-5 w-5" />}
                     badge="Reference"
                 >
-                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-700)]">
                         Open outlines library <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>
@@ -55,7 +55,7 @@ export default function HomePage() {
                     icon={<Orbit className="h-5 w-5" />}
                     badge="Analyze"
                 >
-                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-700)]">
                         Open LSH-RUHS atlas <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>
@@ -67,20 +67,20 @@ export default function HomePage() {
                     icon={<Workflow className="h-5 w-5" />}
                     badge="Pipeline"
                 >
-                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-700)]">
                         Open stage-separated workflow <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>
 
                 <PanelCard
-                    href="/general-benchmarking"
-                    title="General Benchmarking"
-                    description="Configure benchmark suites, run model evaluations, probe single questions, and compare saved runs side by side."
-                    icon={<BarChart3 className="h-5 w-5" />}
-                    badge="Run"
+                    href="/legal-autoeval-pipeline"
+                    title="Legal Auto-Eval Pipeline"
+                    description="Use the Frank-only workflow to build packet intake, extraction, benchmark answers, and reverse-engineered questions without the downstream rubric and judging stages yet."
+                    icon={<ScrollText className="h-5 w-5" />}
+                    badge="Pipeline"
                 >
-                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
-                        Open benchmark runner <ArrowRight className="h-3.5 w-3.5" />
+                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-700)]">
+                        Open Frank-only workflow <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>
             </section>
@@ -89,8 +89,8 @@ export default function HomePage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Workflow</p>
                 <div className="mt-2 grid gap-3 text-sm text-slate-600 md:grid-cols-3">
                     <p><span className="font-semibold text-slate-800">1. Dataset:</span> Identify the right legal question mix.</p>
-                    <p><span className="font-semibold text-slate-800">2. Workflow:</span> Build stage-separated Frank, Karthic, and Dasha artifacts.</p>
-                    <p><span className="font-semibold text-slate-800">3. Compare:</span> Run and inspect evaluations without collapsing stage boundaries.</p>
+                    <p><span className="font-semibold text-slate-800">2. Workflow:</span> Build Frank packets in Legal AutoEval or continue through the full FKD pipeline.</p>
+                    <p><span className="font-semibold text-slate-800">3. Review:</span> Inspect clustered outputs and judged runs without collapsing stage boundaries.</p>
                 </div>
             </section>
         </AppShell>

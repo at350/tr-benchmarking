@@ -39,6 +39,7 @@ export type ReverseEngineeringSuitability = 'strong' | 'moderate' | 'weak';
 export type VariationProvisionId = 'marriage' | 'suretyship' | 'one_year' | 'land' | 'ucc_2201' | 'executor';
 export type VariationRouteStatus = 'stable_route' | 'multiple_plausible_routes' | 'needs_classification_first' | 'not_primarily_sof';
 export type VariationLane = 'lane_a' | 'lane_b';
+export type VariationLaneCode = 'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2';
 export type VariationReuseLevel = 'reuse_as_is' | 'cosmetic_edits_only' | 'ambiguity_rewrite_required' | 'unsafe';
 export type VariationStatus = 'ready' | 'needs_targeted_revision' | 'unsafe';
 export type VariationPackageStatus = 'safe' | 'unsafe' | 'ambiguity_test';
@@ -65,11 +66,13 @@ export type QuestionVarianceMenuOption = {
     id: string;
     label: string;
     lane: VariationLane;
+    laneCode: VariationLaneCode;
     variationType: string;
     whatChanges: string;
     whyItFits: string;
     expectedAnswerReuse: VariationReuseLevel;
     mainRedFlag: string;
+    exactSwapOptions: QuestionVarianceExactSwapOption[];
 };
 
 export type QuestionVarianceMenu = {
@@ -83,11 +86,21 @@ export type QuestionVarianceSwapLogEntry = {
     to: string;
 };
 
+export type QuestionVarianceExactSwapOption = {
+    id: string;
+    label: string;
+    from: string;
+    to: string;
+    whatChanges: string;
+};
+
 export type QuestionVariancePackage = {
     id: string;
     selectedOptionId: string;
     lane: VariationLane;
+    laneCode: VariationLaneCode;
     variationType: string;
+    selectedSwapOptionIds: string[];
     jurisdiction: string;
     controllingDoctrine: string;
     expectedResultType: VariationExpectedResultType;
@@ -174,6 +187,47 @@ export type FrankLikelyFailureModes = {
     FM5: string;
 };
 
+export type FrankControllerCardVariationLane = 'none' | 'A' | 'B';
+export type FrankControllerCardSelectedLaneCode = 'none' | 'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2';
+export type FrankControllerCardWritingStatus = 'present' | 'absent' | 'omitted' | 'disputed';
+export type FrankControllerCardRubricPatchScope = 'base rubric only' | 'selected variation only';
+export type FrankControllerCardSelectedVariationAnswerPosture = 'same_as_base' | 'localized_edit' | 'ambiguity_rewrite';
+export type FrankControllerCardDualRubricMode = 'off' | 'on';
+export type FrankControllerCardEvaluationTracks = 'original_only' | 'original_and_selected_variation';
+
+export type FrankControllerCard = {
+    selected_pack: FrankSofPackId | '';
+    doctrine_family: string;
+    jurisdiction_assumption: string;
+    benchmark_posture: string;
+    current_question_text: string;
+    gold_answer: string;
+    likely_controlling_doctrine: string;
+    correct_trigger_test: string;
+    trigger_facts: string[];
+    non_triggered_sibling_gates: string[];
+    required_gate_order: string[];
+    writing_status: FrankControllerCardWritingStatus;
+    strongest_counterargument: string;
+    allowed_fallbacks: string[];
+    fallback_limits: string[];
+    omitted_control_fact: string;
+    variation_lane: FrankControllerCardVariationLane;
+    selected_lane_code: FrankControllerCardSelectedLaneCode;
+    variation_menu_options: string[];
+    selected_variation_summary: string;
+    selected_variation_fact_deltas: string[];
+    rubric_patch_scope: FrankControllerCardRubricPatchScope;
+    failure_bank: string;
+    base_question_text: string;
+    base_gold_answer: string;
+    selected_variation_question_text: string;
+    selected_variation_answer_posture: FrankControllerCardSelectedVariationAnswerPosture;
+    dual_rubric_mode: FrankControllerCardDualRubricMode;
+    rubric_separation_rule: 'strict';
+    evaluation_tracks: FrankControllerCardEvaluationTracks;
+};
+
 export type FrankSavedPromptKind =
     | 'routing_intake_generation'
     | 'extraction_mapping_generation'
@@ -214,6 +268,7 @@ export type FrankPacketV2 = {
     intakeChecklist: FrankSourceIntakeChecklist | null;
     sourceExtractionSheet: FrankSourceExtractionSheet | null;
     goldPacketMapping: FrankGoldPacketMapping | null;
+    controllerCard: FrankControllerCard | null;
     likelyFailureModes: FrankLikelyFailureModes | null;
     benchmarkAnswer: string;
     reverseEngineeredQuestion: string;
@@ -261,6 +316,49 @@ export type KarthicRefinementLogEntry = {
 };
 
 export type KarthicRefinementStatus = 'not_started' | 'seeded' | 'refined' | 'approved';
+export type KarthicRubricTrackId = 'base' | 'selected_variation';
+export type KarthicCaseCitationVerificationMode = 'off' | 'on';
+
+export type KarthicRubricTrack = {
+    id: KarthicRubricTrackId;
+    label: string;
+    questionSource: QuestionSource;
+    questionVariancePackageId: string | null;
+    questionText: string;
+    benchmarkAnswer: string;
+    seedRows: KarthicRubricRow[];
+    rows: KarthicRubricRow[];
+    preservationNotes: string[];
+    patchNotes: string[];
+    deltaSummary: string[];
+};
+
+export type KarthicPenaltyRule = {
+    code: string;
+    label: string;
+    points: number;
+    enabled: boolean;
+    appliesWhen: string;
+    notes: string;
+};
+
+export type KarthicCapRule = {
+    code: string;
+    label: string;
+    cap: number;
+    enabled: boolean;
+    appliesWhen: string;
+    notes: string;
+};
+
+export type KarthicScoringPolicy = {
+    sourceFiles: string[];
+    caseCitationVerificationMode: KarthicCaseCitationVerificationMode;
+    zakReviewPenaltyThreshold: number;
+    penalties: KarthicPenaltyRule[];
+    caps: KarthicCapRule[];
+    notes: string[];
+};
 
 export type KarthicPreClusterRunV2 = {
     schemaVersion: 2;
@@ -287,12 +385,19 @@ export type KarthicRubricPackV2 = {
     frankPacketId: string;
     preClusterRunId: string | null;
     selectedPack: FrankSofPackId;
+    controllerCard: FrankControllerCard | null;
+    activeTrack: KarthicRubricTrackId;
+    tracks: {
+        base: KarthicRubricTrack;
+        selected_variation: KarthicRubricTrack | null;
+    };
     questionSource: QuestionSource;
     questionVariancePackageId: string | null;
     questionText: string;
     status: Extract<WorkflowStatus, 'draft' | 'approved'>;
     seedRows: KarthicRubricRow[];
     rows: KarthicRubricRow[];
+    scoringPolicy: KarthicScoringPolicy;
     clusterFailureModes: string[];
     refinementLog: KarthicRefinementLogEntry[];
     refinementStatus: KarthicRefinementStatus;
@@ -318,6 +423,45 @@ export type DashaJudgeSettings = {
     provider: 'openai';
     model: string;
     reasoningEffort: ReasoningEffort;
+};
+
+export type DashaCaseMentionStatus = 'none' | 'mentioned';
+export type DashaCitationAccuracyStatus =
+    | 'not_applicable'
+    | 'verified_correct'
+    | 'verified_partly_correct'
+    | 'hallucinated_or_unverifiable';
+export type DashaSourceCaseReferenceStatus =
+    | 'not_applicable'
+    | 'source_case_cited'
+    | 'other_case_only'
+    | 'source_case_and_other_cases';
+export type DashaPanelMajorityStatus = 'majority' | 'no_majority' | 'not_applicable';
+
+export type DashaAppliedPenalty = {
+    code: string;
+    label: string;
+    points: number;
+    reason: string;
+};
+
+export type DashaAppliedCap = {
+    code: string;
+    label: string;
+    cap: number;
+    reason: string;
+};
+
+export type DashaCaseCitationAnalysis = {
+    caseMentionStatus: DashaCaseMentionStatus;
+    extractedCaseMentions: string[];
+    verifiedCaseMentions: string[];
+    hallucinatedCaseMentions: string[];
+    citationAccuracyStatus: DashaCitationAccuracyStatus;
+    sourceCaseReferenceStatus: DashaSourceCaseReferenceStatus;
+    sourceCaseReferenceNote: string;
+    caseVerificationReviewFlag: boolean;
+    note: string;
 };
 
 export type DashaResponseRecord = {
@@ -364,6 +508,39 @@ export type DashaModelSummary = {
     dominantClusterId: string | null;
     dominantClusterShare: number;
     clusterContributions: DashaModelClusterContribution[];
+};
+
+export type DashaClusterAnalysis = {
+    clusterId: string;
+    evaluationTrack: string;
+    questionVersion: string;
+    rubricType: string;
+    clusterSizeTotal: number;
+    representedModelCount: number;
+    dominantModelName: string | null;
+    dominantModelCount: number;
+    dominantModelShare: number;
+    subtotal: number | null;
+    penaltiesApplied: DashaAppliedPenalty[];
+    capApplied: DashaAppliedCap | null;
+    finalScore: number | null;
+    disagreementFlag: boolean;
+    zakReviewFlag: boolean;
+    trackSummaryNote: string;
+    caseCitation: DashaCaseCitationAnalysis;
+};
+
+export type DashaTrackSummary = {
+    evaluationTrack: string;
+    questionVersion: string;
+    rubricType: string;
+    rankedCentroidList: string[];
+    bestCentroidByScore: string | null;
+    bestCentroidScore: number | null;
+    topCentroidVoteSplit: string;
+    panelMajorityStatus: DashaPanelMajorityStatus;
+    bestCentroidZakReviewFlag: boolean;
+    trackSummary: string;
 };
 
 export type RubricRowDifference = {
@@ -429,6 +606,7 @@ export type DashaRunV2 = {
     schemaVersion: 2;
     id: string;
     rubricPackId: string;
+    rubricTrackId: KarthicRubricTrackId;
     runMode: DashaRunMode;
     status: Extract<WorkflowStatus, 'draft' | 'completed' | 'failed'>;
     workflowStage: DashaWorkflowStage;
@@ -444,10 +622,12 @@ export type DashaRunV2 = {
     validResponseCount?: number;
     responses: DashaResponseRecord[];
     clusters: DashaClusterRecord[];
+    clusterAnalyses: DashaClusterAnalysis[];
     rowResults: RubricRowResult[];
     moduleSummaries: ModuleSummary[];
     weightedSummary: WeightedSummary;
     modelSummaries: DashaModelSummary[];
+    trackSummary: DashaTrackSummary | null;
     clusteringMethod: string;
     clusteringNotes: string | null;
     errorMessage?: string;

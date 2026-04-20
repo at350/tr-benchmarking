@@ -5,6 +5,7 @@ import type { ReasoningEffort } from '@/lib/legal-workflow-v2-types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const maxDuration = 120;
 
 type RequestBody = {
     frankPacketId?: string;
@@ -19,9 +20,6 @@ export async function POST(req: Request) {
         const body = (await req.json()) as RequestBody;
         if (!body.frankPacketId?.trim()) {
             return NextResponse.json({ error: 'frankPacketId is required.' }, { status: 400 });
-        }
-        if (!body.preClusterRunId?.trim()) {
-            return NextResponse.json({ error: 'preClusterRunId is required.' }, { status: 400 });
         }
         const item = await seedKarthicRubricPack({
             frankPacketId: body.frankPacketId,

@@ -58,10 +58,10 @@ export default function OutlinesPage() {
                         {isLoading ? 'Loading outlines...' : `${outlines.length} outline${outlines.length === 1 ? '' : 's'} available`}
                     </p>
                     <Link
-                        href="/general-benchmarking"
+                        href="/legal-autoeval-pipeline"
                         className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                     >
-                        Open Benchmark Runner
+                        Open Legal Auto-Eval Pipeline
                     </Link>
                 </div>
                 {error && <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
@@ -79,7 +79,7 @@ export default function OutlinesPage() {
                         <article key={outline.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div className="min-w-0">
-                                    <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-teal-700">
+                                    <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent-700)]">
                                         <FileText className="h-4 w-4" />
                                         Outline PDF
                                     </p>
@@ -98,7 +98,7 @@ export default function OutlinesPage() {
                                     <a
                                         href={outline.viewUrl}
                                         download={outline.fileName}
-                                        className="rounded-lg border border-teal-300 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800 hover:bg-teal-100"
+                                        className="rounded-lg border border-[var(--accent-300)] bg-[var(--accent-50)] px-3 py-1.5 text-xs font-semibold text-[var(--accent-800)] hover:bg-[var(--accent-100)]"
                                     >
                                         Download
                                     </a>
@@ -108,7 +108,7 @@ export default function OutlinesPage() {
                                 <object data={outline.viewUrl} type="application/pdf" className="h-[640px] w-full">
                                     <div className="p-4 text-sm text-slate-600">
                                         PDF preview is unavailable in this browser.{' '}
-                                        <a href={outline.viewUrl} target="_blank" rel="noreferrer" className="font-semibold text-teal-700 underline">
+                                        <a href={outline.viewUrl} target="_blank" rel="noreferrer" className="font-semibold text-[var(--accent-700)] underline">
                                             Open the PDF
                                         </a>
                                         .

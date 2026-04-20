@@ -1,0 +1,141 @@
+STATUTE OF FRAUDS PROVISION PACKS — INDEX + USAGE NOTES
+
+Purpose:
+This file sits between B00 and B01-B03.
+Use it to tell the GPT how the pack layer works, which provision file to load next, and how to keep the variation workflow stable across all major Statute of Frauds categories.
+
+Why this layer exists:
+B00 routes the problem and gives a universal answer shape.
+B01 defines safe variation families and ambiguity tests.
+B02 controls menu discipline and single-package output.
+B03 gives general examples and red flags.
+What was still missing was a short doctrine pack for each major provision so the GPT can:
+- classify more confidently
+- generate only provision-appropriate menu options
+- spot pack-specific red flags before varying
+- keep the benchmark answer aligned with the correct doctrinal gate order
+
+Read order:
+1. B00_SoF_Routing_Matrix_and_Universal_Template.txt
+2. the selected provision pack from this index
+3. B01_Variation_Modes_Guide_v2.txt
+4. B02_Menu_and_Output_Protocol.txt
+5. B03_Examples_and_RedFlags.txt
+
+Global source-of-truth rule:
+These pack files are baseline doctrine guides for benchmark construction and controlled variation.
+They are not a substitute for the actual source materials.
+If the benchmark answer, source case, doctrine excerpt, statute, or assigned jurisdiction says something more specific, the source materials control.
+Do not import a generic exception, state-specific rule, or fallback doctrine just because it exists somewhere in the abstract.
+
+Default pack-selection rule:
+After B00 routing, load exactly one primary provision pack unless the problem is marked:
+- Multiple plausible routes
+- Needs classification first
+- Not primarily a Statute of Frauds problem
+
+If routing is unstable, do not act as though the doctrine is fixed.
+State the classification gate first and keep the menu narrow.
+
+Provision file map:
+- B11_Marriage_Provision_Pack.txt
+- B12_Suretyship_Provision_Pack.txt
+- B13_One_Year_Provision_Pack.txt
+- B14_Land_Provision_Pack.txt
+- B15_UCC_2_201_Provision_Pack.txt
+- B16_Executor_Provision_Pack.txt
+
+When to load each pack:
+Marriage pack:
+Use when the problem may involve a promise made in consideration of marriage rather than merely a promise made during a romantic relationship.
+
+Suretyship pack:
+Use when the problem may involve a promise to answer for another person’s debt or default and the key gate is collateral versus original liability.
+
+One-year pack:
+Use when the problem may turn on whether full performance is possible within one year from the making of the contract.
+
+Land pack:
+Use when the transaction may transfer, create, or materially affect an interest in land.
+
+UCC 2-201 pack:
+Use when Article 2 may govern and the agreement may be a sale of goods problem.
+
+Executor pack:
+Use when an executor or administrator may have promised personally to answer for an estate obligation.
+
+Global pack discipline:
+1. Route first.
+2. Identify the controlling doctrine and main gate order.
+3. Freeze the control facts for Lane A.
+4. Offer only pack-appropriate options.
+5. By default, vary one fact family at a time.
+6. If a proposed variation would cross packs, mark it Unsafe or Needs classification first.
+
+Universal pack boundaries:
+Marriage vs relationship promise:
+Do not treat every promise between fiances or spouses as a marriage-consideration problem.
+Ask whether marriage is the bargain.
+
+Suretyship vs original undertaking:
+Do not assume every three-party debt context is suretyship.
+Ask whether the promisor is really secondarily liable or instead undertook primary liability.
+
+One-year vs indefinite-duration promise:
+Do not assume long-term expectations trigger the one-year provision.
+Ask whether complete performance is impossible within one year under the stated terms.
+
+Land vs non-land transaction:
+Do not treat every promise connected to real estate as a land-transfer contract.
+Characterize the interest and the transaction first.
+
+UCC vs common law:
+Do not force Article 2 onto a mixed goods/services problem without classification.
+Mixed contracts are a routing problem before they are a variation problem.
+
+Executor vs ordinary suretyship:
+Do not collapse personal fiduciary promises and ordinary guaranties into one bucket.
+Capacity is often the gate.
+
+What each provision pack contains:
+Each pack provides:
+- scope cues
+- default gate order
+- fixed facts for Lane A
+- safe Lane A menu seeds
+- Lane B ambiguity targets
+- worked micro examples
+- answer-shape emphasis
+- rubric focus points
+- pack-specific red flags
+
+Default answer-shape rule:
+Use B00’s universal answer template unless the source materials require a more specific structure.
+The pack files tell you what each section should emphasize for that provision.
+
+Global variation-readiness screen:
+Before you offer a normal B02 menu, confirm:
+- the selected pack is stable
+- the trigger fact pattern is clear enough
+- the writing-status path is clear enough
+- the proposed variation will not silently change governing law, party roles, threshold direction, or exception posture
+- the updated answer can honestly be labeled Reuse as-is, Cosmetic edits only, or Ambiguity rewrite required
+
+Default output behavior after pack selection:
+Offer 3 to 6 options maximum.
+If only 1 or 2 safe options exist for the selected pack, say so.
+Prefer Lane A unless the user specifically wants a missing-fact or uncertainty test.
+For Lane B, say exactly which fact is being removed or blurred and why it matters.
+Use lane-code labels, not generic option numbers.
+Once a menu is offered, wait for user selection unless the user explicitly says “generate one now.”
+If the user asks for only one cosmetic variation, offer exactly one narrow Lane A candidate and default to Lane A1 or Lane A3 unless the user explicitly requests another lane.
+
+Minimal instruction line to add to the GPT system prompt:
+Apply B00 first, then load the matching provision pack from B10-B16, then use B01 to identify the permitted lane codes and B02 to offer a narrow lane-coded menu, wait for user selection, and generate exactly one selected controlled variation package.
+
+Status rule:
+If the pack does not fit cleanly, do not fake certainty.
+Say:
+- Multiple plausible routes
+- Needs classification first
+- Not primarily a Statute of Frauds problem

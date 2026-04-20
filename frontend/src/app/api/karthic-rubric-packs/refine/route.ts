@@ -5,6 +5,7 @@ import type { ReasoningEffort } from '@/lib/legal-workflow-v2-types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const maxDuration = 120;
 
 type RequestBody = {
     id?: string;

@@ -73,12 +73,20 @@ export type QuestionVarianceMenuPromptInput = {
 export type QuestionVariancePackagePromptInput = {
     packet: FrankPacketV2;
     option: QuestionVarianceMenuOption;
+    selectedSwapOptions: QuestionVarianceMenuOption['exactSwapOptions'];
 };
 
-function resolveQuestionVarianceRoot() {
-    return path.basename(process.cwd()) === 'frontend'
-        ? path.resolve(process.cwd(), '../QuestionVariance')
-        : path.resolve(process.cwd(), 'QuestionVariance');
+function resolveQuestionVarianceRoots() {
+    const cwd = process.cwd();
+    return path.basename(cwd) === 'frontend'
+        ? [
+            path.resolve(cwd, '../Frank2_QuestionVarianceInstructions'),
+            path.resolve(cwd, '../QuestionVariance'),
+        ]
+        : [
+            path.resolve(cwd, 'Frank2_QuestionVarianceInstructions'),
+            path.resolve(cwd, 'QuestionVariance'),
+        ];
 }
 
 async function readQuestionVarianceAsset(fileName: string) {
@@ -86,9 +94,16 @@ async function readQuestionVarianceAsset(fileName: string) {
     if (cached) {
         return cached;
     }
-    const content = await fs.readFile(path.join(resolveQuestionVarianceRoot(), fileName), 'utf8');
-    assetCache.set(fileName, content);
-    return content;
+    for (const root of resolveQuestionVarianceRoots()) {
+        try {
+            const content = await fs.readFile(path.join(root, fileName), 'utf8');
+            assetCache.set(fileName, content);
+            return content;
+        } catch {
+            continue;
+        }
+    }
+    throw new Error(`QuestionVariance asset "${fileName}" was not found in any configured asset root.`);
 }
 
 export async function getQuestionVarianceCoreAssets() {
@@ -201,7 +216,10 @@ export async function buildQuestionVarianceMenuPrompt(input: QuestionVarianceMen
         'Use these exact enum values when they apply:',
         '- resolvedProvisionId: marriage | suretyship | one_year | land | ucc_2201 | executor | null',
         '- lane: lane_a | lane_b',
+        '- laneCode: A1 | A2 | A3 | A4 | B1 | B2',
         '- expectedAnswerReuse: reuse_as_is | cosmetic_edits_only | ambiguity_rewrite_required | unsafe',
+        '',
+        'Every option must describe the exact fact swap(s) available under that sub-lane. If a sub-lane allows multiple independent swaps inside the same legal question, include each swap separately in exactSwapOptions so the user can later choose one, several, or all of them.',
         '',
         'Output shape:',
         JSON.stringify({
@@ -210,11 +228,19 @@ export async function buildQuestionVarianceMenuPrompt(input: QuestionVarianceMen
                 options: [{
                     label: 'string',
                     lane: 'lane_a',
+                    laneCode: 'A1',
                     variationType: 'string',
                     whatChanges: 'string',
                     whyItFits: 'string',
                     expectedAnswerReuse: 'cosmetic_edits_only',
                     mainRedFlag: 'string',
+                    exactSwapOptions: [{
+                        id: 'swap_1',
+                        label: 'Change deposit amount',
+                        from: '$10',
+                        to: '$100',
+                        whatChanges: '$10 -> $100',
+                    }],
                 }],
             },
         }),
@@ -257,16 +283,21 @@ export async function buildQuestionVariancePackagePrompt(input: QuestionVariance
         '',
         'Use these exact enum values when they apply:',
         '- lane: lane_a | lane_b',
+        '- laneCode: A1 | A2 | A3 | A4 | B1 | B2',
         '- expectedResultType: same_likely_outcome | same_doctrine_different_fact_salience | missing_facts_bounded_uncertainty | unsafe_to_vary',
         '- variationStatus: safe | unsafe | ambiguity_test',
         '- answerReuseLevel: reuse_as_is | cosmetic_edits_only | ambiguity_rewrite_required | unsafe',
         '- status: ready | needs_targeted_revision | unsafe',
         '',
+        'Only apply the exact selected swap choices provided below. Do not silently add other swaps from the same sub-lane.',
+        '',
         'Output shape:',
         JSON.stringify({
             package: {
                 lane: 'lane_a',
+                laneCode: 'A1',
                 variationType: 'string',
+                selectedSwapOptionIds: ['swap_1'],
                 jurisdiction: 'string',
                 controllingDoctrine: 'string',
                 expectedResultType: 'same_likely_outcome',
@@ -287,6 +318,9 @@ export async function buildQuestionVariancePackagePrompt(input: QuestionVariance
         '',
         'Selected option:',
         JSON.stringify(input.option),
+        '',
+        'Selected exact swap choices:',
+        JSON.stringify(input.selectedSwapOptions ?? []),
         '',
         'Canonical reverse-engineered question:',
         input.packet.reverseEngineeredQuestion,

@@ -40,7 +40,7 @@ import {
 
 type WorkflowStageId = (typeof workflowStages)[number]['id'];
 
-const inputClassName = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none transition focus:border-teal-300 focus:ring-2 focus:ring-teal-100';
+const inputClassName = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[var(--accent-300)] focus:ring-2 focus:ring-[var(--accent-100)]';
 const textareaClassName = `${inputClassName} min-h-[220px] resize-y leading-6`;
 const panelClassName = 'rounded-3xl border border-slate-200 bg-white/92 p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)]';
 
@@ -72,7 +72,7 @@ function StageButton({
             className={clsx(
                 'rounded-2xl border p-4 text-left transition-all',
                 active
-                    ? 'border-teal-300 bg-teal-50 shadow-sm'
+                    ? 'border-[var(--accent-300)] bg-[var(--accent-50)] shadow-sm'
                     : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50',
             )}
         >
@@ -85,7 +85,7 @@ function StageButton({
                     className={clsx(
                         'rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]',
                         active
-                            ? 'border border-teal-200 bg-white text-teal-700'
+                            ? 'border border-[var(--accent-200)] bg-white text-[var(--accent-700)]'
                             : complete
                                 ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
                                 : 'border border-slate-200 bg-slate-50 text-slate-600',
@@ -118,7 +118,7 @@ function ModuleBar({ value, max }: { value: number; max: number }) {
     const percent = Math.max(0, Math.min(100, (value / max) * 100));
     return (
         <div className="rounded-full bg-slate-200">
-            <div className="h-2 rounded-full bg-gradient-to-r from-teal-500 to-sky-500" style={{ width: `${percent}%` }} />
+            <div className="h-2 rounded-full bg-gradient-to-r from-[var(--accent-600)] to-[var(--accent-300)]" style={{ width: `${percent}%` }} />
         </div>
     );
 }
@@ -151,7 +151,7 @@ function FrankView({
                             <ul className="mt-3 space-y-2 text-sm text-slate-700">
                                 {keyFacts.map((fact) => (
                                     <li key={fact} className="flex gap-2">
-                                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
+                                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent-600)]" />
                                         <span>{fact}</span>
                                     </li>
                                 ))}
@@ -215,7 +215,7 @@ function FrankView({
                     <button
                         type="button"
                         onClick={onNext}
-                        className="inline-flex items-center gap-2 rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-800 transition-colors hover:bg-teal-100"
+                        className="inline-flex items-center gap-2 rounded-xl border border-[var(--accent-300)] bg-[var(--accent-50)] px-4 py-2 text-sm font-semibold text-[var(--accent-800)] transition-colors hover:bg-[var(--accent-100)]"
                     >
                         Open Response Batch
                         <ChevronRight className="h-4 w-4" />
@@ -235,12 +235,12 @@ function ResponsesView({ onNext }: { onNext: () => void }) {
                     description="The benchmark question has been run across the full model roster and compressed into representative response families before rubric work begins."
                 />
                 <div className="mt-4 grid gap-4 2xl:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]">
-                    <div className="rounded-2xl border border-teal-200 bg-teal-50/80 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Execution</p>
+                    <div className="rounded-2xl border border-[var(--accent-200)] bg-[var(--accent-50)]/80 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-700)]">Execution</p>
                         <p className="mt-2 text-2xl font-black tracking-tight text-slate-900">{batchSummary.completionLabel}</p>
                         <p className="mt-3 text-sm leading-6 text-slate-700">{batchSummary.clusteringMethod}</p>
-                        <div className="mt-4 rounded-2xl border border-teal-200 bg-white p-3">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">Embedding Instruction</p>
+                        <div className="mt-4 rounded-2xl border border-[var(--accent-200)] bg-white p-3">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--accent-700)]">Embedding Instruction</p>
                             <p className="mt-2 text-sm text-slate-700">{batchSummary.embeddingInstruction}</p>
                         </div>
                     </div>
@@ -311,7 +311,7 @@ function ResponsesView({ onNext }: { onNext: () => void }) {
                     <button
                         type="button"
                         onClick={onNext}
-                        className="inline-flex items-center gap-2 rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-800 transition-colors hover:bg-teal-100"
+                        className="inline-flex items-center gap-2 rounded-xl border border-[var(--accent-300)] bg-[var(--accent-50)] px-4 py-2 text-sm font-semibold text-[var(--accent-800)] transition-colors hover:bg-[var(--accent-100)]"
                     >
                         Open Karthic
                         <ChevronRight className="h-4 w-4" />
@@ -386,7 +386,7 @@ function KarthicView({ onNext }: { onNext: () => void }) {
                                     <h3 className="text-lg font-bold text-slate-900">{module.title}</h3>
                                     <p className="mt-2 text-sm text-slate-600">{module.summary}</p>
                                 </div>
-                                <span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-teal-700">
+                                <span className="rounded-full border border-[var(--accent-200)] bg-[var(--accent-50)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent-700)]">
                                     {module.budget} pts
                                 </span>
                             </div>
@@ -427,7 +427,7 @@ function KarthicView({ onNext }: { onNext: () => void }) {
                     <button
                         type="button"
                         onClick={onNext}
-                        className="inline-flex items-center gap-2 rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-800 transition-colors hover:bg-teal-100"
+                        className="inline-flex items-center gap-2 rounded-xl border border-[var(--accent-300)] bg-[var(--accent-50)] px-4 py-2 text-sm font-semibold text-[var(--accent-800)] transition-colors hover:bg-[var(--accent-100)]"
                     >
                         Open Dasha
                         <ChevronRight className="h-4 w-4" />
@@ -454,17 +454,17 @@ function DashaView({
                     title="Dasha Leaderboard"
                     description="Centroid scores are propagated back to all member responses, then averaged at the model level."
                 />
-                <div className="mt-4 rounded-2xl border border-teal-200 bg-teal-50/80 p-4">
+                <div className="mt-4 rounded-2xl border border-[var(--accent-200)] bg-[var(--accent-50)]/80 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Primary cluster</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-700)]">Primary cluster</p>
                             <p className="mt-2 text-lg font-bold text-slate-900">
                                 {dashaSummary.primaryWinner} · {dashaSummary.primaryWinnerScore.toFixed(1)}
                             </p>
                             <p className="mt-2 text-sm text-slate-700">{dashaSummary.propagationLabel}</p>
                         </div>
-                        <div className="rounded-2xl border border-teal-200 bg-white px-4 py-3 text-right">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">Judged clusters</p>
+                        <div className="rounded-2xl border border-[var(--accent-200)] bg-white px-4 py-3 text-right">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--accent-700)]">Judged clusters</p>
                             <p className="mt-1 text-2xl font-black tracking-tight text-slate-900">{dashaSummary.judgedClusters}</p>
                         </div>
                     </div>
@@ -513,7 +513,7 @@ function DashaView({
                                 className={clsx(
                                     'rounded-2xl border p-4 text-left transition-all',
                                     cluster.id === selectedCluster.id
-                                        ? 'border-teal-300 bg-teal-50'
+                                        ? 'border-[var(--accent-300)] bg-[var(--accent-50)]'
                                         : 'border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-slate-50',
                                 )}
                             >
@@ -545,7 +545,7 @@ function DashaView({
                                     <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">
                                         Penalties {selectedCluster.penaltyTotal}
                                     </span>
-                                    <span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-teal-700">
+                                    <span className="rounded-full border border-[var(--accent-200)] bg-[var(--accent-50)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent-700)]">
                                         Final {selectedCluster.finalScore.toFixed(1)}
                                     </span>
                                 </div>
@@ -720,7 +720,7 @@ export default function DemosPage() {
                     </Link>
                     <Link
                         href="/"
-                        className="rounded-xl border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 transition-colors hover:bg-teal-100"
+                        className="rounded-xl border border-[var(--accent-300)] bg-[var(--accent-50)] px-3 py-2 text-sm font-semibold text-[var(--accent-800)] transition-colors hover:bg-[var(--accent-100)]"
                     >
                         Back Home
                     </Link>
@@ -730,7 +730,7 @@ export default function DemosPage() {
             <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
                 <div className="rounded-[28px] border border-slate-200 bg-white/94 p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
                     <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                        <span className="rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-teal-700">Statute of Frauds</span>
+                        <span className="rounded-full border border-[var(--accent-200)] bg-[var(--accent-50)] px-2.5 py-1 text-[var(--accent-700)]">Statute of Frauds</span>
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">Pack 10</span>
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">Marriage consideration</span>
                     </div>
@@ -750,7 +750,7 @@ export default function DemosPage() {
                         <ArrowRight className="h-4 w-4 text-slate-400" />
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">Karthic</span>
                         <ArrowRight className="h-4 w-4 text-slate-400" />
-                        <span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-teal-700">Dasha</span>
+                        <span className="rounded-full border border-[var(--accent-200)] bg-[var(--accent-50)] px-3 py-1.5 text-[var(--accent-700)]">Dasha</span>
                     </div>
                 </div>
 
@@ -801,7 +801,7 @@ export default function DemosPage() {
                 <aside className="space-y-5">
                     <div className={panelClassName}>
                         <div className="flex items-start gap-3">
-                            <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-teal-200 bg-teal-50 text-teal-700">
+                            <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--accent-200)] bg-[var(--accent-50)] text-[var(--accent-700)]">
                                 {activeStage === 'frank' ? <FileStack className="h-5 w-5" /> : null}
                                 {activeStage === 'responses' ? <Orbit className="h-5 w-5" /> : null}
                                 {activeStage === 'karthic' ? <BrainCircuit className="h-5 w-5" /> : null}
@@ -823,7 +823,7 @@ export default function DemosPage() {
                                     <div className="flex items-center gap-3">
                                         <div className={clsx(
                                             'inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold',
-                                            index <= activeStageIndex ? 'bg-teal-600 text-white' : 'bg-slate-200 text-slate-600',
+                                            index <= activeStageIndex ? 'bg-[var(--accent-600)] text-white' : 'bg-slate-200 text-slate-600',
                                         )}>
                                             {index + 1}
                                         </div>
@@ -833,7 +833,7 @@ export default function DemosPage() {
                                         </div>
                                     </div>
                                     {index <= activeStageIndex ? (
-                                        <CheckCircle2 className="h-4 w-4 text-teal-600" />
+                                        <CheckCircle2 className="h-4 w-4 text-[var(--accent-600)]" />
                                     ) : (
                                         <Workflow className="h-4 w-4 text-slate-400" />
                                     )}
@@ -855,7 +855,7 @@ export default function DemosPage() {
                             <button
                                 type="button"
                                 onClick={() => setActiveStage(nextStageId)}
-                                className="inline-flex items-center gap-2 rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-800 transition-colors hover:bg-teal-100"
+                                className="inline-flex items-center gap-2 rounded-xl border border-[var(--accent-300)] bg-[var(--accent-50)] px-4 py-2 text-sm font-semibold text-[var(--accent-800)] transition-colors hover:bg-[var(--accent-100)]"
                             >
                                 {activeStageMeta.actionLabel}
                                 <ChevronRight className="h-4 w-4" />
@@ -865,11 +865,11 @@ export default function DemosPage() {
 
                     <div className="rounded-3xl border border-slate-200 bg-slate-950 p-5 text-slate-100 shadow-sm">
                         <div className="flex items-start gap-3">
-                            <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-teal-400/40 bg-teal-500/10 text-teal-300">
+                            <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--accent-400)]/40 bg-[var(--accent-500)]/10 text-[var(--accent-300)]">
                                 {activeStage === 'dasha' ? <Bot className="h-5 w-5" /> : <Workflow className="h-5 w-5" />}
                             </div>
                             <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-300">Focus</p>
+                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-300)]">Focus</p>
                                 <p className="mt-3 text-sm leading-6 text-slate-200">
                                     {activeStage === 'frank' && 'Lock the source-grounded benchmark answer and the neutral legal question before any downstream model evaluation begins.'}
                                     {activeStage === 'responses' && 'Confirm the full 240-response batch, inspect the cluster families, and make sure the reasoning space is compressed cleanly before rubric drafting.'}

@@ -1494,7 +1494,7 @@ export default function LshRunsPage() {
                                     {availableOutlines.map((outline) => {
                                         const selected = selectedJudgeOutlineIds.includes(outline.id);
                                         return (
-                                            <label key={`lsh-judge-outline-${outline.id}`} className={`flex cursor-pointer items-start gap-2 px-2 py-1.5 ${selected ? 'bg-teal-50' : 'hover:bg-slate-50'}`}>
+                                            <label key={`lsh-judge-outline-${outline.id}`} className={`flex cursor-pointer items-start gap-2 px-2 py-1.5 ${selected ? 'bg-[var(--accent-50)]' : 'hover:bg-slate-50'}`}>
                                                 <input
                                                     type="checkbox"
                                                     checked={selected}
@@ -1518,7 +1518,7 @@ export default function LshRunsPage() {
                             type="button"
                             onClick={handleJudgeCluster}
                             disabled={isJudgingCluster || isBatchJudging}
-                            className="rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded-md border border-[var(--accent-300)] bg-[var(--accent-50)] px-3 py-1.5 text-xs font-semibold text-[var(--accent-800)] hover:bg-[var(--accent-100)] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {isJudgingCluster ? 'Grading cluster...' : `Grade ${selectedCluster.id === 'noise' ? 'Noise Cluster' : `Cluster ${selectedCluster.id}`}`}
                         </button>
@@ -1807,7 +1807,7 @@ export default function LshRunsPage() {
                                                 </div>
                                                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
                                                     <div
-                                                        className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"
+                                                        className="h-full rounded-full bg-gradient-to-r from-[var(--accent-600)] to-[var(--accent-300)]"
                                                         style={{ width: `${clampNumber((aspect.averageScore / 4) * 100, 0, 100)}%` }}
                                                     />
                                                 </div>
@@ -1991,7 +1991,7 @@ export default function LshRunsPage() {
                                 type="button"
                                 onClick={handleCompareSelected}
                                 disabled={selectedSavedGradeIds.length === 0}
-                                className="rounded border border-blue-300 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="rounded border border-[var(--accent-300)] bg-[var(--accent-50)] px-2 py-1 text-[11px] font-semibold text-[var(--accent-800)] hover:bg-[var(--accent-100)] disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 Compare selected ({selectedSavedGradeIds.length})
                             </button>
@@ -2029,7 +2029,7 @@ export default function LshRunsPage() {
                                         return (
                                             <div
                                                 key={grade.id}
-                                                className={`min-w-[210px] rounded border px-2 py-1.5 text-[11px] ${selected ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                                                className={`min-w-[210px] rounded border px-2 py-1.5 text-[11px] ${selected ? 'border-[var(--accent-300)] bg-[var(--accent-50)]' : 'border-slate-200 bg-white'}`}
                                             >
                                                 <label className="flex items-start gap-2">
                                                     <input
@@ -2130,7 +2130,7 @@ export default function LshRunsPage() {
                                                         </p>
                                                         <span
                                                             className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${row.provider === 'openai'
-                                                                ? 'border-blue-200 bg-blue-50 text-blue-700'
+                                                                ? 'border-[var(--accent-200)] bg-[var(--accent-50)] text-[var(--accent-700)]'
                                                                 : row.provider === 'anthropic'
                                                                     ? 'border-amber-200 bg-amber-50 text-amber-700'
                                                                     : 'border-emerald-200 bg-emerald-50 text-emerald-700'
@@ -2148,7 +2148,7 @@ export default function LshRunsPage() {
                                                             </div>
                                                             <div className="mt-0.5 h-2 overflow-hidden rounded-full bg-slate-200">
                                                                 <div
-                                                                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500"
+                                                                    className="h-full rounded-full bg-gradient-to-r from-[var(--accent-600)] to-[var(--accent-300)]"
                                                                     style={{ width: `${clampNumber(row.averageFinalScore, 0, 100)}%` }}
                                                                 />
                                                             </div>
@@ -2219,7 +2219,7 @@ export default function LshRunsPage() {
                 <header className="rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">LSH Run Atlas</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--accent-700)]">LSH Run Atlas</p>
                             <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Interactive Cluster Separation Map</h1>
                             <p className="mt-2 text-sm text-slate-600">
                                 Filter by model and cluster size, then click a cluster to inspect details without overlapping labels.
@@ -2237,10 +2237,10 @@ export default function LshRunsPage() {
                                 {isStreamConnected ? 'Live stream connected' : 'Live stream reconnecting'}
                             </span>
                             <Link
-                                href="/general-benchmarking"
-                                className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100"
+                                href="/legal-workflow"
+                                className="rounded-lg border border-[var(--accent-200)] bg-[var(--accent-50)] px-3 py-2 text-xs font-semibold text-[var(--accent-800)] hover:bg-[var(--accent-100)]"
                             >
-                                Open Benchmark Runner
+                                Open FKD Workflow
                             </Link>
                         </div>
                     </div>
@@ -2621,7 +2621,7 @@ export default function LshRunsPage() {
                                                 aria-label="Resize cluster view and inspector panels"
                                                 title="Drag to resize panels"
                                             >
-                                                <span className="h-24 w-1.5 rounded-full bg-slate-300 transition-colors group-hover:bg-blue-400" />
+                                                <span className="h-24 w-1.5 rounded-full bg-slate-300 transition-colors group-hover:bg-[var(--accent-400)]" />
                                             </button>
                                         </div>
 
@@ -2673,7 +2673,7 @@ export default function LshRunsPage() {
                                                                             </div>
                                                                             <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                                                                                 <div
-                                                                                    className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500"
+                                                                                    className="h-full rounded-full bg-gradient-to-r from-[var(--accent-300)] to-[var(--accent-600)]"
                                                                                     style={{ width: `${clampNumber(signal.score, 0, 100)}%` }}
                                                                                 />
                                                                             </div>
@@ -2738,12 +2738,12 @@ export default function LshRunsPage() {
                                                                                     key={`${focusCluster.id}-${member.id}`}
                                                                                     type="button"
                                                                                     onClick={() => setSelectedSampleMemberId(isSelected ? null : member.id)}
-                                                                                    className={`w-full rounded border px-2 py-1.5 text-left transition ${isSelected ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-300' : isActualCentroid ? 'border-teal-400 bg-teal-50 ring-1 ring-teal-300' : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100'}`}
+                                                                                    className={`w-full rounded border px-2 py-1.5 text-left transition ${isSelected ? 'border-[var(--accent-400)] bg-[var(--accent-50)] ring-1 ring-[var(--accent-300)]' : isActualCentroid ? 'border-[var(--accent-400)] bg-[var(--accent-50)] ring-1 ring-[var(--accent-300)]' : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100'}`}
                                                                                 >
                                                                                     <p className="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
                                                                                         {member.id} ({member.model})
                                                                                         {isActualCentroid && (
-                                                                                            <span className="rounded bg-teal-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                                                                                            <span className="rounded bg-[var(--accent-600)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
                                                                                                 Centroid
                                                                                             </span>
                                                                                         )}
@@ -2762,12 +2762,12 @@ export default function LshRunsPage() {
                                                                     if (!selectedMember) return null;
                                                                     const isActualCentroid = sampleMembersMode === 'centroid' && selectedMember.id === focusCluster.representative.id;
                                                                     return (
-                                                                        <div className={`mt-2 rounded-lg border-2 p-3 ${isActualCentroid ? 'border-teal-400 bg-teal-50/80' : 'border-blue-300 bg-blue-50/80'}`}>
+                                                                        <div className={`mt-2 rounded-lg border-2 p-3 ${isActualCentroid ? 'border-[var(--accent-400)] bg-[var(--accent-50)]/80' : 'border-[var(--accent-300)] bg-[var(--accent-50)]/80'}`}>
                                                                             <div className="flex items-center justify-between gap-2">
                                                                                 <p className="text-xs font-bold text-slate-800 flex items-center gap-2">
                                                                                     Full response: {selectedMember.id}
                                                                                     {isActualCentroid && (
-                                                                                        <span className="rounded bg-teal-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                                                                                        <span className="rounded bg-[var(--accent-600)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
                                                                                             Cluster centroid
                                                                                         </span>
                                                                                     )}
@@ -2822,16 +2822,16 @@ export default function LshRunsPage() {
                                                                                             <p className="bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">{label}</p>
                                                                                             <div className="grid grid-cols-2 divide-x divide-slate-200">
                                                                                                 <div className="p-2 min-w-0">
-                                                                                                    <p className="text-[10px] font-semibold text-teal-700 mb-1">Centroids</p>
+                                                                                                    <p className="text-[10px] font-semibold text-[var(--accent-700)] mb-1">Centroids</p>
                                                                                                     <div className="space-y-2 max-h-32 overflow-y-auto text-[10px] text-slate-600">
                                                                                                         {centroidTexts.map(({ id, model, text }) => {
                                                                                                             const isActualCentroid = id === focusCluster.representative.id;
                                                                                                             return (
-                                                                                                                <div key={id} className={`rounded border p-1.5 ${isActualCentroid ? 'border-teal-400 bg-teal-100 ring-1 ring-teal-300' : 'border-slate-100 bg-teal-50/30'}`}>
+                                                                                                                <div key={id} className={`rounded border p-1.5 ${isActualCentroid ? 'border-[var(--accent-400)] bg-[var(--accent-100)] ring-1 ring-[var(--accent-300)]' : 'border-slate-100 bg-[var(--accent-50)]/30'}`}>
                                                                                                                     <p className="font-semibold text-slate-700 flex items-center gap-1.5">
                                                                                                                         {id} ({model})
                                                                                                                         {isActualCentroid && (
-                                                                                                                            <span className="rounded bg-teal-600 px-1 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">Centroid</span>
+                                                                                                                            <span className="rounded bg-[var(--accent-600)] px-1 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">Centroid</span>
                                                                                                                         )}
                                                                                                                     </p>
                                                                                                                     <p className="mt-0.5 whitespace-pre-wrap">{text}</p>
@@ -2894,16 +2894,16 @@ export default function LshRunsPage() {
                                                                                                             <p className="bg-slate-100 px-3 py-2 text-sm font-bold uppercase tracking-wider text-slate-600">{label}</p>
                                                                                                             <div className="grid grid-cols-2 divide-x divide-slate-200">
                                                                                                                 <div className="p-4 min-w-0">
-                                                                                                                    <p className="text-sm font-semibold text-teal-700 mb-2">Centroids</p>
+                                                                                                                    <p className="text-sm font-semibold text-[var(--accent-700)] mb-2">Centroids</p>
                                                                                                                     <div className="space-y-3 text-sm text-slate-600">
                                                                                                                         {centroidTexts.map(({ id, model, text }) => {
                                                                                                                             const isActualCentroid = id === focusCluster.representative.id;
                                                                                                                             return (
-                                                                                                                                <div key={id} className={`rounded-lg border p-3 ${isActualCentroid ? 'border-teal-400 bg-teal-100 ring-2 ring-teal-300' : 'border-slate-200 bg-teal-50/40'}`}>
+                                                                                                                                <div key={id} className={`rounded-lg border p-3 ${isActualCentroid ? 'border-[var(--accent-400)] bg-[var(--accent-100)] ring-2 ring-[var(--accent-300)]' : 'border-slate-200 bg-[var(--accent-50)]/40'}`}>
                                                                                                                                     <p className="font-semibold text-slate-700 flex items-center gap-2">
                                                                                                                                         {id} ({model})
                                                                                                                                         {isActualCentroid && (
-                                                                                                                                            <span className="rounded bg-teal-600 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white">Cluster centroid</span>
+                                                                                                                                            <span className="rounded bg-[var(--accent-600)] px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white">Cluster centroid</span>
                                                                                                                                         )}
                                                                                                                                     </p>
                                                                                                                                     <p className="mt-2 whitespace-pre-wrap leading-relaxed">{text}</p>
@@ -2961,7 +2961,7 @@ export default function LshRunsPage() {
                                                                         onClick={() => setSelectedClusterId(cluster.id)}
                                                                         onMouseEnter={() => setHoveredClusterId(cluster.id)}
                                                                         onMouseLeave={() => setHoveredClusterId((current) => (current === cluster.id ? null : current))}
-                                                                        className={`flex w-full items-center justify-between rounded-md border px-2 py-1.5 text-left text-xs transition ${selected ? 'border-blue-300 bg-blue-50' : hovered ? 'border-slate-300 bg-slate-100' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
+                                                                        className={`flex w-full items-center justify-between rounded-md border px-2 py-1.5 text-left text-xs transition ${selected ? 'border-[var(--accent-300)] bg-[var(--accent-50)]' : hovered ? 'border-slate-300 bg-slate-100' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
                                                                     >
                                                                         <span className="inline-flex items-center gap-2 font-semibold text-slate-700">
                                                                             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: dominantColor }} />
@@ -3002,12 +3002,12 @@ export default function LshRunsPage() {
                                                 <p>
                                                     Enter a legal question below. The backend will fetch ~100+ responses from multiple models and cluster them using LSH + UMAP + HDBSCAN.
                                                 </p>
-                                                <div className="my-2 rounded-md bg-blue-50 p-3 text-blue-800 text-xs text-left">
+                                                <div className="my-2 rounded-md bg-[var(--accent-50)] p-3 text-[var(--accent-800)] text-xs text-left">
                                                     <strong>Note:</strong> This process will take a few minutes as it waits for all models to respond. Please do not close this window.
                                                 </div>
                                                 <textarea
                                                     rows={4}
-                                                    className="mt-2 block w-full rounded-md border-0 py-2 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6 px-3"
+                                                    className="mt-2 block w-full rounded-md border-0 px-3 py-2 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-[var(--accent-600)] sm:text-sm sm:leading-6"
                                                     placeholder="Enter a legal fact pattern or question..."
                                                     value={runQuestion}
                                                     onChange={(e) => setRunQuestion(e.target.value)}
@@ -3024,8 +3024,8 @@ export default function LshRunsPage() {
                                     <button
                                         type="button"
                                         className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto ${isRunningBenchmark || !runQuestion.trim()
-                                            ? 'bg-blue-400 cursor-not-allowed'
-                                            : 'bg-blue-600 hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                                            ? 'bg-[var(--accent-300)] cursor-not-allowed'
+                                            : 'bg-[var(--accent-600)] hover:bg-[var(--accent-500)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-600)]'
                                             }`}
                                         onClick={handleRunBenchmark}
                                         disabled={isRunningBenchmark || !runQuestion.trim()}

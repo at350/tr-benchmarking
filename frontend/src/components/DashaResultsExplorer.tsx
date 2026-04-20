@@ -179,7 +179,7 @@ function RunOverviewStrip({ data }: { data: DashaExplorerData }) {
     const overallWinner = data.clusters.find((cluster) => cluster.clusterId === data.overallWinningClusterId) ?? null;
 
     return (
-        <section className="rounded-[28px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.12),_transparent_42%),radial-gradient(circle_at_bottom_right,_rgba(30,64,175,0.10),_transparent_40%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-[0_16px_36px_rgba(15,23,42,0.06)]">
+        <section className="rounded-[28px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(31,116,184,0.12),_transparent_42%),radial-gradient(circle_at_bottom_right,_rgba(94,155,204,0.14),_transparent_40%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-[0_16px_36px_rgba(15,23,42,0.06)]">
             <div className="grid gap-4 xl:grid-cols-[1.4fr_repeat(5,minmax(0,1fr))]">
                 <div className="rounded-2xl border border-slate-200 bg-white/90 p-4">
                     <p className={mutedLabelClassName}>Run Overview</p>
@@ -187,17 +187,31 @@ function RunOverviewStrip({ data }: { data: DashaExplorerData }) {
                     <p className="mt-2 text-sm leading-6 text-slate-600">
                         {data.clusteringNotes || 'No clustering notes were recorded for this run.'}
                     </p>
+                    {data.trackSummary ? (
+                        <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Track summary</p>
+                            <p className="mt-1 text-sm text-slate-700">{data.trackSummary.trackSummary}</p>
+                            <p className="mt-2 text-xs text-slate-500">
+                                Vote split: {data.trackSummary.topCentroidVoteSplit} · Majority: {data.trackSummary.panelMajorityStatus}
+                            </p>
+                        </div>
+                    ) : null}
                     {overallWinner ? (
-                        <div className="mt-4 rounded-2xl border border-teal-200 bg-teal-50/70 p-3">
-                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-teal-700">Overall winner</p>
-                            <p className="mt-1 text-sm font-semibold text-teal-950">
-                                {overallWinner.clusterId} · Weighted {formatScore(overallWinner.weightedScore)} · {overallWinner.size} answers
+                        <div className="mt-4 rounded-2xl border border-[var(--accent-200)] bg-[var(--accent-50)]/70 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent-700)]">Overall winner</p>
+                            <p className="mt-1 text-sm font-semibold text-[var(--accent-950)]">
+                                {overallWinner.clusterId} · Final {formatScore(overallWinner.weightedScore)} · {overallWinner.size} answers
+                            </p>
+                            <p className="mt-1 text-xs text-[var(--accent-800)]">
+                                Subtotal {formatScore(overallWinner.subtotal)}
+                                {overallWinner.capApplied ? ` · Cap ${overallWinner.capApplied.code}` : ''}
+                                {overallWinner.penaltiesApplied.length > 0 ? ` · ${overallWinner.penaltiesApplied.length} penalty` : ''}
                             </p>
                             <div className="mt-2 flex flex-wrap gap-2">
                                 {overallWinner.modelBreakdown.map((entry) => (
                                     <span
                                         key={`${overallWinner.clusterId}_overview_${entry.modelKey}`}
-                                        className="rounded-full border border-teal-200 bg-white px-2 py-1 text-xs font-medium text-slate-700"
+                                        className="rounded-full border border-[var(--accent-200)] bg-white px-2 py-1 text-xs font-medium text-slate-700"
                                     >
                                         {entry.model} {formatPercentage(entry.count / Math.max(overallWinner.size, 1))} ({entry.count}/{overallWinner.size})
                                     </span>
@@ -342,7 +356,7 @@ function CompareView(input: {
                                                     className={clsx(
                                                         'w-full rounded-2xl border px-4 py-3 text-left transition-colors',
                                                         input.focusedModuleId === module.moduleId
-                                                            ? 'border-teal-300 bg-teal-50'
+                                                            ? 'border-[var(--accent-300)] bg-[var(--accent-50)]'
                                                             : 'border-slate-200 bg-slate-50 hover:border-slate-300',
                                                     )}
                                                     onClick={() => input.onModuleSelect(module.moduleId)}
@@ -395,7 +409,7 @@ function CompareView(input: {
                                             key={row.rowKey}
                                             className={clsx(
                                                 'transition-colors',
-                                                input.focusedRowKey === row.rowKey ? 'bg-teal-50/70' : 'hover:bg-slate-50/70',
+                                                input.focusedRowKey === row.rowKey ? 'bg-[var(--accent-50)]/70' : 'hover:bg-slate-50/70',
                                             )}
                                         >
                                             <td className="px-3 py-3">
@@ -413,7 +427,7 @@ function CompareView(input: {
                                                 <td key={`${row.rowKey}_${score.clusterId}`} className="px-3 py-3">
                                                     <div className={clsx(
                                                         'rounded-xl border px-3 py-2',
-                                                        score.isWinner ? 'border-teal-300 bg-teal-50 text-teal-900' : 'border-slate-200 bg-white text-slate-700',
+                                                        score.isWinner ? 'border-[var(--accent-300)] bg-[var(--accent-50)] text-[var(--accent-900)]' : 'border-slate-200 bg-white text-slate-700',
                                                     )}>
                                                         <div className="flex items-center justify-between gap-2">
                                                             <span className="font-semibold">{formatScore(score.score)}</span>
@@ -422,7 +436,7 @@ function CompareView(input: {
                                                             </span>
                                                         </div>
                                                         {score.isWinner ? (
-                                                            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-teal-700">Winner</p>
+                                                            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-700)]">Winner</p>
                                                         ) : null}
                                                     </div>
                                                 </td>
@@ -433,7 +447,7 @@ function CompareView(input: {
                                             <td className="px-3 py-3">
                                                 <span className={clsx(
                                                     'rounded-full px-2 py-1 text-xs font-semibold',
-                                                    row.margin >= 8 ? 'bg-teal-50 text-teal-700' : row.margin >= 4 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600',
+                                                    row.margin >= 8 ? 'bg-[var(--accent-50)] text-[var(--accent-700)]' : row.margin >= 4 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600',
                                                 )}>
                                                     {row.margin.toFixed(1)}
                                                 </span>
@@ -480,7 +494,7 @@ function DiagnoseView({ data, visibleModules, visibleRows }: { data: DashaExplor
                                     <p className="text-sm font-semibold text-slate-900">{module.label}</p>
                                     <p className="mt-1 text-xs text-slate-500">Rows {module.rowKeys.join(', ')}</p>
                                 </div>
-                                <span className="rounded-full bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-700">
+                                <span className="rounded-full bg-[var(--accent-50)] px-2 py-1 text-xs font-semibold text-[var(--accent-700)]">
                                     Leader: {module.winningClusterId ?? 'N/A'}
                                 </span>
                             </div>
@@ -539,7 +553,7 @@ function DiagnoseView({ data, visibleModules, visibleRows }: { data: DashaExplor
                             </p>
                         </div>
                         {overallWinner ? (
-                            <span className="rounded-full border border-teal-200 bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-700">
+                            <span className="rounded-full border border-[var(--accent-200)] bg-[var(--accent-50)] px-2 py-1 text-xs font-semibold text-[var(--accent-700)]">
                                 Overall winner: {overallWinner.clusterId}
                             </span>
                         ) : null}
@@ -588,7 +602,7 @@ function DiagnoseView({ data, visibleModules, visibleRows }: { data: DashaExplor
                                         key={`${row.rowKey}_${score.clusterId}_delta`}
                                         className={clsx(
                                             'rounded-full border px-2 py-1 text-xs font-semibold',
-                                            score.isWinner ? 'border-teal-200 bg-teal-50 text-teal-700' : 'border-slate-200 bg-white text-slate-700',
+                                            score.isWinner ? 'border-[var(--accent-200)] bg-[var(--accent-50)] text-[var(--accent-700)]' : 'border-slate-200 bg-white text-slate-700',
                                         )}
                                     >
                                         {score.clusterId}: {formatScore(score.score)}
@@ -648,20 +662,24 @@ function ExplainView({ data, visibleRows, comparisonClusters }: { data: DashaExp
                 </div>
                 <div className="mt-4 grid gap-4 xl:grid-cols-2">
                     {data.clusters.map((cluster) => (
-                        <details key={cluster.clusterId} className="group rounded-2xl border border-slate-200 bg-slate-50 open:border-teal-300 open:bg-white">
+                        <details key={cluster.clusterId} className="group rounded-2xl border border-slate-200 bg-slate-50 open:border-[var(--accent-300)] open:bg-white">
                             <summary className="cursor-pointer list-none px-4 py-4">
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <p className="text-base font-semibold text-slate-900">{cluster.clusterId}</p>
                                             {cluster.clusterId === data.overallWinningClusterId ? (
-                                                <span className="rounded-full bg-teal-50 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-teal-700">
+                                                <span className="rounded-full bg-[var(--accent-50)] px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-700)]">
                                                     Overall winner
                                                 </span>
                                             ) : null}
                                         </div>
                                         <p className="mt-1 text-sm text-slate-600">
-                                            {cluster.size} answers · Weighted {formatScore(cluster.weightedScore)} · {cluster.winsCount} row wins
+                                            {cluster.size} answers · Final {formatScore(cluster.weightedScore)} · Subtotal {formatScore(cluster.subtotal)} · {cluster.winsCount} row wins
+                                        </p>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            {cluster.representedModelCount} models represented
+                                            {cluster.dominantModelName ? ` · dominant ${cluster.dominantModelName} ${formatPercentage(cluster.dominantModelShare)}` : ''}
                                         </p>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
@@ -672,6 +690,46 @@ function ExplainView({ data, visibleRows, comparisonClusters }: { data: DashaExp
                                 <p className="mt-3 line-clamp-4 text-sm leading-6 text-slate-700">{cluster.representativeText}</p>
                             </summary>
                             <div className="border-t border-slate-200 px-4 py-4">
+                                {cluster.penaltiesApplied.length > 0 || cluster.capApplied || cluster.caseCitation.note ? (
+                                    <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3">
+                                        <p className={mutedLabelClassName}>Audit Notes</p>
+                                        <p className="mt-2 text-sm text-slate-700">{cluster.caseCitation.note || cluster.trackSummaryNote || 'No extra audit note saved.'}</p>
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {cluster.penaltiesApplied.map((penalty) => (
+                                                <span key={`${cluster.clusterId}_${penalty.code}`} className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">
+                                                    {penalty.code} -{penalty.points}
+                                                </span>
+                                            ))}
+                                            {cluster.capApplied ? (
+                                                <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-800">
+                                                    {cluster.capApplied.code} cap {cluster.capApplied.cap}
+                                                </span>
+                                            ) : null}
+                                            {cluster.caseCitation.caseVerificationReviewFlag ? (
+                                                <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                                                    Verification flagged
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                ) : null}
+                                {cluster.caseCitation.caseMentionStatus === 'mentioned' ? (
+                                    <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                        <p className={mutedLabelClassName}>Case Citation</p>
+                                        <p className="mt-2 text-sm text-slate-700">
+                                            {cluster.caseCitation.note || 'Case citation metadata was saved for this centroid.'}
+                                        </p>
+                                        {cluster.caseCitation.extractedCaseMentions.length > 0 ? (
+                                            <div className="mt-2 flex flex-wrap gap-2">
+                                                {cluster.caseCitation.extractedCaseMentions.map((item) => (
+                                                    <span key={`${cluster.clusterId}_${item}`} className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
+                                                        {item}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ) : null}
                                 <div className="flex flex-wrap gap-2">
                                     {cluster.modelBreakdown.map((model) => (
                                         <span key={`${cluster.clusterId}_${model.modelKey}`} className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
@@ -816,7 +874,7 @@ function ClusterSummaryGrid({ data }: { data: DashaExplorerData }) {
                         className={clsx(
                             'rounded-[24px] border p-4',
                             cluster.clusterId === data.overallWinningClusterId
-                                ? 'border-teal-300 bg-teal-50/60'
+                                ? 'border-[var(--accent-300)] bg-[var(--accent-50)]/60'
                                 : 'border-slate-200 bg-slate-50/60',
                         )}
                     >
@@ -825,7 +883,7 @@ function ClusterSummaryGrid({ data }: { data: DashaExplorerData }) {
                                 <div className="flex items-center gap-2">
                                     <p className="text-base font-semibold text-slate-900">{cluster.clusterId}</p>
                                     {cluster.clusterId === data.overallWinningClusterId ? (
-                                        <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-teal-700">
+                                        <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-700)]">
                                             Overall winner
                                         </span>
                                     ) : null}
@@ -862,7 +920,7 @@ function OverviewMetric({ label, value, tone, compact = false }: { label: string
                 className={clsx(
                     'mt-3 font-semibold text-slate-900',
                     compact ? 'text-base leading-6' : 'text-3xl',
-                    tone === 'teal' && 'text-teal-700',
+                    tone === 'teal' && 'text-[var(--accent-700)]',
                     tone === 'amber' && 'text-amber-700',
                     tone === 'rose' && 'text-rose-700',
                     tone === 'muted' && 'text-slate-400',
@@ -876,9 +934,9 @@ function OverviewMetric({ label, value, tone, compact = false }: { label: string
 
 function FocusChip({ label, onClear }: { label: string; onClear: () => void }) {
     return (
-        <span className="inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-800">
+        <span className="inline-flex items-center gap-2 rounded-full border border-[var(--accent-200)] bg-[var(--accent-50)] px-3 py-1 text-sm font-semibold text-[var(--accent-800)]">
             {label}
-            <button type="button" onClick={onClear} className="text-teal-700 hover:text-teal-900">×</button>
+            <button type="button" onClick={onClear} className="text-[var(--accent-700)] hover:text-[var(--accent-900)]">×</button>
         </span>
     );
 }
@@ -887,7 +945,7 @@ function StatChip({ label, value, tone }: { label: string; value: string; tone: 
     return (
         <div className={clsx(
             'rounded-xl border px-3 py-2',
-            tone === 'teal' && 'border-teal-200 bg-teal-50',
+            tone === 'teal' && 'border-[var(--accent-200)] bg-[var(--accent-50)]',
             tone === 'amber' && 'border-amber-200 bg-amber-50',
             tone === 'rose' && 'border-rose-200 bg-rose-50',
             tone === 'slate' && 'border-slate-200 bg-white',
@@ -905,7 +963,7 @@ function WinningClusterBadge({ row }: { row: DashaExplorerRow }) {
 
     return (
         <div className="space-y-2">
-            <span className="inline-flex rounded-full bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-700">
+            <span className="inline-flex rounded-full bg-[var(--accent-50)] px-2 py-1 text-xs font-semibold text-[var(--accent-700)]">
                 {row.winningClusterId}
             </span>
             <div className="flex flex-wrap gap-1">
@@ -924,7 +982,7 @@ function ScoreHeatCell({ score, isWinner, label }: { score: number | null; isWin
         <div
             className={clsx(
                 'rounded-2xl border px-4 py-4',
-                isWinner ? 'border-teal-300' : 'border-slate-200',
+                isWinner ? 'border-[var(--accent-300)]' : 'border-slate-200',
             )}
             style={{
                 background: score === null
@@ -934,7 +992,7 @@ function ScoreHeatCell({ score, isWinner, label }: { score: number | null; isWin
         >
             <p className="text-sm font-semibold text-slate-900">{formatScore(score)}</p>
             <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p>
-            {isWinner ? <p className="mt-1 text-xs font-semibold text-teal-700">Top module cluster</p> : <p className="mt-1 text-xs text-slate-500">Module average</p>}
+            {isWinner ? <p className="mt-1 text-xs font-semibold text-[var(--accent-700)]">Top module cluster</p> : <p className="mt-1 text-xs text-slate-500">Module average</p>}
         </div>
     );
 }
@@ -952,7 +1010,7 @@ function BarLine({ label, value, accent, trailing }: { label: string; value: num
                     <div
                         className={clsx(
                             'h-full rounded-full',
-                            accent === 'teal' && 'bg-teal-500',
+                            accent === 'teal' && 'bg-[var(--accent-500)]',
                             accent === 'amber' && 'bg-amber-500',
                             accent === 'rose' && 'bg-rose-500',
                             accent === 'slate' && 'bg-slate-500',
@@ -989,7 +1047,7 @@ function Notice({
     return (
         <div className={clsx(
             'rounded-2xl border px-4 py-4 text-sm',
-            tone === 'error' ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-teal-200 bg-teal-50 text-teal-900',
+            tone === 'error' ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-[var(--accent-200)] bg-[var(--accent-50)] text-[var(--accent-900)]',
         )}>
             <div className="flex items-start gap-3">
                 <div className="mt-0.5">{icon}</div>

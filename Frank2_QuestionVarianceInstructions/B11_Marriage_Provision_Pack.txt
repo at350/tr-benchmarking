@@ -1,0 +1,189 @@
+STATUTE OF FRAUDS PACK — MARRIAGE PROVISION
+
+Purpose:
+This pack helps the GPT handle promises made in consideration of marriage without overextending the marriage provision to every promise made by romantic partners, engaged couples, or spouses.
+
+Scope statement:
+Use this pack only when the likely controlling issue is whether marriage itself is the bargained-for consideration for a promise and therefore triggers a writing requirement under the governing source path.
+Do not use this pack just because the facts mention dating, engagement, marriage, divorce, cohabitation, or family relationships.
+
+Baseline source-of-truth rule:
+The benchmark answer and source materials control.
+This pack is a routing-and-variation guide, not a state-by-state family-law treatise.
+Do not import domestic-relations doctrines, equitable-distribution principles, or support obligations unless the source materials actually require them.
+
+Use this pack when:
+- a party allegedly promised money, property, a transfer, a settlement, or another benefit in exchange for marrying
+- the problem asks whether a premarital promise is enforceable without a writing
+- the key dispute is whether marriage is the consideration or merely the factual setting
+
+Do not use this pack when:
+- the promise was merely made while the parties were romantically involved
+- the promise is an ordinary post-marriage contract unless the source materials still treat marriage as the consideration
+- the controlling issue is family law, property division, or another doctrine outside the benchmark
+
+Default gate order:
+1. characterize the promise
+2. determine whether marriage is the consideration or merely background context
+3. determine whether the source path requires a signed writing and whether one exists
+4. evaluate only those substitute or enforcement theories actually supported by the source materials
+5. identify bounded uncertainty if the consideration structure or writing status is unclear
+
+Anchor facts that must stay fixed in Lane A:
+- whether marriage is the bargain or merely the backdrop
+- whether the promise was made before marriage, after marriage, or during a romantic relationship without marriage as consideration
+- whether any writing or signed memorandum exists
+- who is promising what to whom if that affects the consideration structure
+- whether the benchmark already treats a particular exception as available or unavailable
+
+Lane A safe variation zones:
+1. party-shell swaps
+Examples:
+- names
+- occupations
+- social status labels
+- city or state only if jurisdiction does not change
+
+2. asset-description swaps
+Examples:
+- “house” -> “condominium”
+- “stocks” -> “investment account”
+- “family cabin” -> “vacation property”
+Use only if the asset plays the same legal function and does not import a new property doctrine.
+
+3. salience injections that should not matter
+Examples:
+- high-value transfer
+- prestigious job title
+- well-known employer
+Use only if the extra detail does not create a new defense or a different doctrinal frame.
+
+Lane B ambiguity targets:
+1. consideration ambiguity
+Old:
+“I will transfer Blackacre to you if you marry me.”
+New:
+“I will transfer the property to you because of our relationship.”
+Why this matters:
+The new wording may no longer clearly show that marriage is the consideration.
+
+2. timing ambiguity
+Old:
+“One week before the wedding, A promised to give B an investment account if B married A.”
+New:
+“At some point before or around the marriage, A made the promise.”
+Why this matters:
+The omission may blur whether the promise was truly part of the marriage bargain.
+
+3. writing-status ambiguity
+Old:
+“The promise was never put in writing.”
+New:
+“The parties discussed the promise informally.”
+Why this matters:
+The answer should now identify that the existence and sufficiency of a writing matters.
+
+Unsafe variation patterns:
+- turning a premarital exchange-for-marriage promise into a general promise between spouses
+- changing who provided the consideration in a way that shifts the doctrine
+- silently changing the promise from marriage-related consideration to a property-distribution agreement
+- adding facts that trigger family-law doctrines not present in the benchmark
+- removing so much that the problem no longer reveals whether the marriage provision is even in play
+
+Recommended default menu seeds for B02:
+Option 1 — Lane A / Variable swap / Relationship-shell neutralization
+What changes:
+Names, occupations, and asset labels only.
+Expected answer reuse:
+Cosmetic edits only.
+Main red flag:
+Do not change whether marriage is the bargain.
+
+Option 2 — Lane A / Non-controlling salience injection
+What changes:
+Adds vivid but non-doctrinal detail about the promised asset or parties.
+Expected answer reuse:
+Reuse as-is or Cosmetic edits only.
+Main red flag:
+Do not create a new property or domestic-relations issue.
+
+Option 3 — Lane B / Marriage-consideration ambiguity
+What changes:
+Generalizes the language linking the promise to marriage.
+Expected answer reuse:
+Ambiguity rewrite required.
+Main red flag:
+Do not hide multiple unrelated doctrines at once.
+
+Worked micro examples:
+Safe Lane A:
+Old:
+“A promised B a vacation home if B married A. There was no writing.”
+New:
+“A software founder promised B an investment condo if B married A. There was no writing.”
+Why usually safe:
+The promise still appears to exchange a benefit for marriage and the writing status remains unchanged.
+
+Safe Lane B:
+Old:
+“Before the wedding, A promised to transfer a brokerage account to B if B married A.”
+New:
+“Before the relationship formally changed, A promised to transfer a brokerage account to B.”
+Why this works:
+The model should now identify that it is unclear whether marriage itself was the consideration.
+
+Unsafe:
+Old:
+“Before the wedding, A promised B land if B married A.”
+New:
+“Years into the marriage, A said B could have the land.”
+Why unsafe:
+The doctrinal trigger may change from a marriage-consideration promise to an ordinary intra-marital promise or a different doctrine entirely.
+
+Answer-shape emphasis:
+Jurisdiction / Governing-law assumption:
+Keep this brief unless the source materials make a jurisdiction-specific writing or exception rule important.
+
+Bottom-line outcome:
+State whether the promise likely falls within the marriage provision and whether the absence or presence of a writing matters.
+
+Controlling doctrine:
+Say plainly whether the key gate is “marriage as consideration” versus “marriage merely as background.”
+
+Transaction characterization:
+Describe the promise and why the relationship context either does or does not trigger the marriage provision.
+
+Trigger analysis:
+Focus on the bargain structure, not the romance narrative.
+
+Writing / compliance analysis:
+Explain whether the relevant writing exists and whether the benchmark path treats it as sufficient.
+
+Exception / substitute analysis:
+Stay narrow.
+Only include substitute or equitable theories if the benchmark answer already does so.
+
+Strongest counterargument:
+Usually the strongest response-side argument is that the promise was not actually made in consideration of marriage, or that an adequate writing exists.
+
+Bounded uncertainty:
+If the facts do not clearly show that marriage was the consideration, say exactly that.
+
+Rubric focus points:
+A strong answer should:
+- identify that romantic context alone does not trigger the marriage provision
+- state whether marriage is the consideration
+- keep the writing analysis tied to the correct trigger
+- avoid importing unrelated family-law doctrines
+- acknowledge bounded uncertainty when the bargain structure is missing or blurred
+
+Main red flags:
+- “engaged” or “married” is treated as automatically triggering the provision
+- the answer narrates relationship facts without isolating the consideration question
+- the updated answer quietly assumes a writing after a Lane B omission removed that fact
+- the variation changes pre-marital to post-marital timing without labeling that doctrinal shift
+- the model inserts domestic-relations terminology that the benchmark never used
+
+Status rule:
+Mark the package Ready only if the promise still clearly sits in the same marriage-provision lane, or if a Lane B ambiguity test clearly isolates the missing control fact.
+Otherwise mark Needs targeted revision or Unsafe.

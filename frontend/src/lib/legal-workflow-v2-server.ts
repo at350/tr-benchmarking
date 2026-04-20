@@ -19,6 +19,7 @@ import {
 } from '@/lib/legal-workflow-v2-constants';
 import {
     buildDashaClusterFailureModesPrompt,
+    buildDashaClusterAuditPrompt,
     buildDashaRowEvaluationPrompt,
     buildFrankBenchmarkPrompt,
     buildFrankExtractionMappingPrompt,
@@ -27,6 +28,7 @@ import {
     buildKarthicRefineRowsPrompt,
     buildKarthicSeedRowsPrompt,
     buildKarthicRowsPrompt,
+    getDashaInstructionBundle,
     getFrankV2AssetBundle,
 } from '@/lib/legal-workflow-v2-prompts';
 import {
@@ -39,14 +41,23 @@ import type {
     ArtifactRole,
     BenchmarkPosture,
     ConfusionPattern,
+    DashaAppliedCap,
+    DashaAppliedPenalty,
+    DashaCaseCitationAnalysis,
+    DashaCitationAccuracyStatus,
+    DashaClusterAnalysis,
     DashaClusterRecord,
     DashaComparisonRole,
     DashaJudgeSettings,
     DashaModelSummary,
+    DashaPanelMajorityStatus,
     DashaResponseRecord,
     DashaRunMode,
     DashaRunV2,
     DashaSelectedModel,
+    DashaSourceCaseReferenceStatus,
+    DashaTrackSummary,
+    FrankControllerCard,
     FrankGoldPacketMapping,
     FrankLikelyFailureModes,
     FrankPacketV2,
@@ -57,10 +68,16 @@ import type {
     FrankSourceExtractionSheet,
     FrankSourceIntakeChecklist,
     IntakeRating,
+    KarthicCapRule,
+    KarthicCaseCitationVerificationMode,
+    KarthicPenaltyRule,
     KarthicPreClusterRunV2,
     KarthicRefinementLogEntry,
     KarthicRubricPackV2,
     KarthicRubricRow,
+    KarthicRubricTrack,
+    KarthicRubricTrackId,
+    KarthicScoringPolicy,
     ModelProvider,
     ModuleSummary,
     PromptGenerationSettingsByKind,
@@ -81,6 +98,7 @@ import type {
     RubricRowResult,
     VariationExpectedResultType,
     VariationLane,
+    VariationLaneCode,
     VariationPackageStatus,
     VariationProvisionId,
     VariationReuseLevel,
@@ -125,6 +143,126 @@ const VALID_BENCHMARK_POSTURES = new Set<BenchmarkPosture>([
     'generalizable_only_with_supporting_authority',
     'portable_benchmark_under_stated_assumptions',
 ]);
+
+const DEFAULT_KARTHIC_POLICY_FILES = [
+    '08_Karthic_Rubric_Build_Spec_v1.md',
+    '09_Cross_Pack_Scoring_Overlays_Caps_Penalties_v1.md',
+    '50_Karthic_PreFill_Instructions.rtf',
+];
+
+const DEFAULT_KARTHIC_PENALTIES: Array<Omit<KarthicPenaltyRule, 'enabled' | 'notes'>> = [
+    {
+        code: 'P_ControllingDoctrineOmitted',
+        label: 'Controlling doctrine omitted',
+        points: 15,
+        appliesWhen: 'The answer never identifies the dispositive doctrine or controlling gate.',
+    },
+    {
+        code: 'P_WrongPackDriver',
+        label: 'Wrong-pack driver',
+        points: 15,
+        appliesWhen: 'The answer is materially driven by a doctrine from the wrong pack.',
+    },
+    {
+        code: 'P_MaterialRuleMisstatement',
+        label: 'Material rule misstatement',
+        points: 10,
+        appliesWhen: 'The answer states a black-letter rule or test incorrectly in an outcome-relevant way.',
+    },
+    {
+        code: 'P_MaterialFactOrRoleOrTimelineError',
+        label: 'Material fact, role, or timeline error',
+        points: 10,
+        appliesWhen: 'The answer misstates a key fact, role, quantity, or timing point.',
+    },
+    {
+        code: 'P_InventedComplianceFact',
+        label: 'Invented compliance fact',
+        points: 10,
+        appliesWhen: 'The answer invents a writing, signature, admission, payment, or similar compliance fact.',
+    },
+    {
+        code: 'P_ExceptionBleedOver',
+        label: 'Exception bleed-over',
+        points: 10,
+        appliesWhen: 'The answer uses one exception or workaround to cure a different independent barrier.',
+    },
+    {
+        code: 'P_IrrelevantDoctrine',
+        label: 'Irrelevant doctrine',
+        points: 5,
+        appliesWhen: 'The answer leans on an obviously inapplicable doctrine that distracts from the correct path.',
+    },
+    {
+        code: 'P_ExcessiveHedging',
+        label: 'Excessive hedging',
+        points: 5,
+        appliesWhen: 'The answer substitutes vague uncertainty for actual analysis.',
+    },
+    {
+        code: 'P_RelianceByPerformance',
+        label: 'Reliance by performance',
+        points: 5,
+        appliesWhen: 'The answer treats requested performance alone as reliance or detriment.',
+    },
+    {
+        code: 'P_JurisdictionDrift',
+        label: 'Jurisdiction drift',
+        points: 5,
+        appliesWhen: 'The answer imports a jurisdiction-specific rule without naming the assumption.',
+    },
+    {
+        code: 'P_HallucinatedCaseCitation',
+        label: 'Hallucinated case citation',
+        points: 10,
+        appliesWhen: 'The answer cites a case that cannot be verified as real or gives a materially fabricated citation.',
+    },
+    {
+        code: 'P_FalseDefinitenessOnDesignedAmbiguity',
+        label: 'False definiteness on designed ambiguity',
+        points: 10,
+        appliesWhen: 'Lane B packets omit a control fact, but the answer still forces a definitive result.',
+    },
+];
+
+const DEFAULT_KARTHIC_CAPS: Array<Omit<KarthicCapRule, 'enabled' | 'notes'>> = [
+    {
+        code: 'CAP_60_ControllingDoctrineOmitted',
+        label: 'Controller miss cap',
+        cap: 60,
+        appliesWhen: 'Use when the answer misses the most dispositive doctrine or controlling gate.',
+    },
+    {
+        code: 'CAP_60_WrongPackDriver',
+        label: 'Wrong-pack cap',
+        cap: 60,
+        appliesWhen: 'Use when the answer is fundamentally driven by the wrong doctrine family.',
+    },
+    {
+        code: 'CAP_70_NoClearConclusion',
+        label: 'No clear conclusion cap',
+        cap: 70,
+        appliesWhen: 'Use when the answer names key doctrines but never lands on a bottom-line outcome.',
+    },
+    {
+        code: 'CAP_75_InventedCoreCompliance',
+        label: 'Invented compliance cap',
+        cap: 75,
+        appliesWhen: 'Use when the answer depends on a hallucinated compliance fact.',
+    },
+    {
+        code: 'CAP_75_HallucinatedCoreAuthority',
+        label: 'Hallucinated authority cap',
+        cap: 75,
+        appliesWhen: 'Use when the answer’s conclusion depends on a hallucinated case citation.',
+    },
+    {
+        code: 'CAP_75_FalseDefinitenessOnDesignedAmbiguity',
+        label: 'False definiteness cap',
+        cap: 75,
+        appliesWhen: 'Use when Lane B ambiguity is ignored in an outcome-distorting way.',
+    },
+];
 
 type UploadFileInput = {
     role: ArtifactRole;
@@ -210,7 +348,7 @@ export async function draftFrankPacket(input: {
         });
 
         const intakeChecklist = normalizeIntakeChecklist(parsed.intakeChecklist);
-        const packet: FrankPacketV2 = {
+        const packet: FrankPacketV2 = withDerivedControllerCard({
             schemaVersion: 2,
             id,
             status: 'draft',
@@ -226,6 +364,7 @@ export async function draftFrankPacket(input: {
             intakeChecklist,
             sourceExtractionSheet: null,
             goldPacketMapping: null,
+            controllerCard: null,
             likelyFailureModes: null,
             benchmarkAnswer: '',
             reverseEngineeredQuestion: '',
@@ -247,7 +386,7 @@ export async function draftFrankPacket(input: {
             approvedAt: null,
             createdAt: now,
             updatedAt: now,
-        };
+        });
 
         await writeArtifact(DATA_DIRECTORIES.frank, packet.id, packet);
         return packet;
@@ -255,6 +394,31 @@ export async function draftFrankPacket(input: {
         await deleteUploadedArtifacts(id).catch(() => undefined);
         throw error;
     }
+}
+
+export async function draftFrankPacketFromTemplate(input: {
+    templatePacketId: string;
+    title?: string;
+    model?: string;
+    reasoningEffort?: ReasoningEffort;
+}): Promise<FrankPacketV2> {
+    const templatePacket = await getRequiredFrankPacket(input.templatePacketId);
+    if (templatePacket.sourceArtifacts.length === 0) {
+        throw new Error('Selected benchmark template does not contain any source artifacts.');
+    }
+
+    const files = await Promise.all(templatePacket.sourceArtifacts.map(async (artifact) => ({
+        role: artifact.role,
+        fileName: artifact.fileName,
+        bytes: new Uint8Array(await fs.readFile(artifact.storedPath)),
+    })));
+
+    return await draftFrankPacket({
+        title: input.title?.trim() || templatePacket.title,
+        files,
+        model: input.model,
+        reasoningEffort: input.reasoningEffort,
+    });
 }
 
 export async function generateFrankExtractionMapping(input: {
@@ -293,13 +457,7 @@ export async function generateFrankExtractionMapping(input: {
     const goldPacketMapping = normalizeGoldPacketMapping(parsed.goldPacketMapping);
     const likelyFailureModes = normalizeFailureModes(parsed.likelyFailureModes);
 
-    validateFrankExtractionMappingOrThrow({
-        sourceExtractionSheet,
-        goldPacketMapping,
-        likelyFailureModes,
-    });
-
-    const nextPacket: FrankPacketV2 = {
+    const nextPacket: FrankPacketV2 = withDerivedControllerCard({
         ...packet,
         phase: 'extraction_mapping',
         sourceExtractionSheet,
@@ -317,7 +475,14 @@ export async function generateFrankExtractionMapping(input: {
             },
         ],
         updatedAt: new Date().toISOString(),
-    };
+    });
+
+    validateFrankExtractionMappingOrThrow({
+        sourceExtractionSheet,
+        goldPacketMapping,
+        controllerCard: nextPacket.controllerCard,
+        likelyFailureModes,
+    });
     await writeArtifact(DATA_DIRECTORIES.frank, nextPacket.id, nextPacket);
     return nextPacket;
 }
@@ -348,7 +513,7 @@ export async function generateFrankBenchmark(input: {
     }));
 
     validateBenchmarkAnswerOrThrow(benchmarkAnswer);
-    const nextPacket: FrankPacketV2 = {
+    const nextPacket: FrankPacketV2 = withDerivedControllerCard({
         ...packet,
         phase: 'benchmark',
         benchmarkAnswer,
@@ -365,7 +530,7 @@ export async function generateFrankBenchmark(input: {
             },
         ],
         updatedAt: new Date().toISOString(),
-    };
+    });
     await writeArtifact(DATA_DIRECTORIES.frank, nextPacket.id, nextPacket);
     return nextPacket;
 }
@@ -398,7 +563,7 @@ export async function generateFrankQuestion(input: {
     }));
 
     validateReverseEngineeredQuestionOrThrow(questionText);
-    const nextPacket: FrankPacketV2 = {
+    const nextPacket: FrankPacketV2 = withDerivedControllerCard({
         ...packet,
         phase: 'question',
         reverseEngineeredQuestion: questionText,
@@ -415,7 +580,7 @@ export async function generateFrankQuestion(input: {
             },
         ],
         updatedAt: new Date().toISOString(),
-    };
+    });
     await writeArtifact(DATA_DIRECTORIES.frank, nextPacket.id, nextPacket);
     return nextPacket;
 }
@@ -518,13 +683,13 @@ export async function generateQuestionVarianceRoutingAndMenu(input: {
         });
     }
 
-    const nextPacket: FrankPacketV2 = {
+    const nextPacket: FrankPacketV2 = withDerivedControllerCard({
         ...packet,
         questionVariance: nextQuestionVariance,
         generationSettings,
         savedPrompts: nextSavedPrompts,
         updatedAt: new Date().toISOString(),
-    };
+    });
     await writeArtifact(DATA_DIRECTORIES.frank, nextPacket.id, nextPacket);
     return nextPacket;
 }
@@ -532,6 +697,7 @@ export async function generateQuestionVarianceRoutingAndMenu(input: {
 export async function generateQuestionVariancePackage(input: {
     id: string;
     optionId: string;
+    selectedSwapIds?: string[];
     model?: string;
     reasoningEffort?: ReasoningEffort;
 }) {
@@ -549,8 +715,13 @@ export async function generateQuestionVariancePackage(input: {
     if (!option) {
         throw new Error('Selected QuestionVariance option is not present in the current menu.');
     }
+    const selectedSwapIds = normalizeSelectedQuestionVarianceSwapIds(input.selectedSwapIds, option.exactSwapOptions);
+    if (option.exactSwapOptions.length > 0 && selectedSwapIds.length === 0) {
+        throw new Error('Select at least one exact variation before generating the package.');
+    }
+    const selectedSwapOptions = option.exactSwapOptions.filter((item) => selectedSwapIds.includes(item.id));
 
-    const prompt = await buildQuestionVariancePackagePrompt({ packet, option });
+    const prompt = await buildQuestionVariancePackagePrompt({ packet, option, selectedSwapOptions });
     const generationSettings = withUpdatedPromptGenerationSetting(
         packet.generationSettings,
         'question_variance_package_generation',
@@ -563,21 +734,26 @@ export async function generateQuestionVariancePackage(input: {
         model: generationSettings.question_variance_package_generation?.model,
         reasoningEffort: generationSettings.question_variance_package_generation?.reasoningEffort,
     });
-    const normalizedPackage = normalizeQuestionVariancePackage(parsed.package, option.id);
+    const normalizedPackage = normalizeQuestionVariancePackage(parsed.package, option.id, option, selectedSwapIds);
     validateQuestionVariancePackageOrThrow(normalizedPackage);
     if (!normalizedPackage) {
         throw new Error('QuestionVariance package returned an invalid payload.');
     }
 
-    const existingPackages = questionVariance.packages.filter((item) => item.selectedOptionId !== option.id);
+    const nextPackageSignature = buildQuestionVariancePackageSignature(option.id, selectedSwapIds);
+    const existingPackages = questionVariance.packages.filter((item) =>
+        buildQuestionVariancePackageSignature(item.selectedOptionId, item.selectedSwapOptionIds) !== nextPackageSignature,
+    );
     const nextPackage: QuestionVariancePackage = {
         ...normalizedPackage,
         id: `qv_pkg_${randomUUID().slice(0, 8)}`,
         selectedOptionId: option.id,
+        laneCode: option.laneCode,
+        selectedSwapOptionIds: selectedSwapIds,
         createdAt: new Date().toISOString(),
     };
 
-    const nextPacket: FrankPacketV2 = {
+    const nextPacket: FrankPacketV2 = withDerivedControllerCard({
         ...packet,
         questionVariance: {
             ...questionVariance,
@@ -597,7 +773,7 @@ export async function generateQuestionVariancePackage(input: {
             },
         ],
         updatedAt: new Date().toISOString(),
-    };
+    });
     await writeArtifact(DATA_DIRECTORIES.frank, nextPacket.id, nextPacket);
     return nextPacket;
 }
@@ -611,14 +787,14 @@ export async function setActiveQuestionVariancePackage(input: {
     if (!questionVariance.packages.some((item) => item.id === input.packageId)) {
         throw new Error('QuestionVariance package not found.');
     }
-    const nextPacket: FrankPacketV2 = {
+    const nextPacket: FrankPacketV2 = withDerivedControllerCard({
         ...packet,
         questionVariance: {
             ...questionVariance,
             activePackageId: input.packageId,
         },
         updatedAt: new Date().toISOString(),
-    };
+    });
     await writeArtifact(DATA_DIRECTORIES.frank, nextPacket.id, nextPacket);
     return nextPacket;
 }
@@ -628,7 +804,7 @@ export async function clearQuestionVarianceMenu(input: {
 }) {
     const packet = await getRequiredFrankPacket(input.id);
     const questionVariance = normalizeQuestionVarianceState(packet.questionVariance);
-    const nextPacket: FrankPacketV2 = {
+    const nextPacket: FrankPacketV2 = withDerivedControllerCard({
         ...packet,
         questionVariance: {
             ...questionVariance,
@@ -639,7 +815,7 @@ export async function clearQuestionVarianceMenu(input: {
             warnings: [],
         },
         updatedAt: new Date().toISOString(),
-    };
+    });
     await writeArtifact(DATA_DIRECTORIES.frank, nextPacket.id, nextPacket);
     return nextPacket;
 }
@@ -654,7 +830,7 @@ export async function clearQuestionVariancePackage(input: {
     const packages = packageId
         ? questionVariance.packages.filter((item) => item.id !== packageId)
         : [];
-    const nextPacket: FrankPacketV2 = {
+    const nextPacket: FrankPacketV2 = withDerivedControllerCard({
         ...packet,
         questionVariance: {
             ...questionVariance,
@@ -665,7 +841,7 @@ export async function clearQuestionVariancePackage(input: {
                 : null,
         },
         updatedAt: new Date().toISOString(),
-    };
+    });
     await writeArtifact(DATA_DIRECTORIES.frank, nextPacket.id, nextPacket);
     return nextPacket;
 }
@@ -673,7 +849,7 @@ export async function clearQuestionVariancePackage(input: {
 export async function saveFrankPacket(input: Partial<FrankPacketV2> & { id?: string }) {
     const existing = input.id ? await getFrankPacket(input.id) : null;
     const now = new Date().toISOString();
-    const packet: FrankPacketV2 = {
+    const packet: FrankPacketV2 = withDerivedControllerCard({
         schemaVersion: 2,
         id: existing?.id ?? normalizeNonEmptyString(input.id, `frank_v2_${Date.now()}_${randomUUID().slice(0, 8)}`),
         status: input.status === 'approved' ? 'approved' : existing?.status ?? 'draft',
@@ -692,6 +868,7 @@ export async function saveFrankPacket(input: Partial<FrankPacketV2> & { id?: str
             normalizePackId(input.selectedPack ?? existing?.selectedPack),
         ),
         goldPacketMapping: normalizeGoldPacketMapping(input.goldPacketMapping ?? existing?.goldPacketMapping),
+        controllerCard: null,
         likelyFailureModes: normalizeFailureModes(input.likelyFailureModes ?? existing?.likelyFailureModes),
         benchmarkAnswer: normalizeOptionalString(input.benchmarkAnswer, existing?.benchmarkAnswer ?? ''),
         reverseEngineeredQuestion: normalizeOptionalString(input.reverseEngineeredQuestion, existing?.reverseEngineeredQuestion ?? ''),
@@ -703,7 +880,7 @@ export async function saveFrankPacket(input: Partial<FrankPacketV2> & { id?: str
         approvedAt: input.status === 'approved' ? (existing?.approvedAt ?? now) : existing?.approvedAt ?? null,
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
-    };
+    });
 
     if (packet.benchmarkAnswer.trim()) {
         validateBenchmarkAnswerOrThrow(packet.benchmarkAnswer);
@@ -833,7 +1010,7 @@ export async function runKarthicPreCluster(input: {
 
 export async function seedKarthicRubricPack(input: {
     frankPacketId: string;
-    preClusterRunId: string;
+    preClusterRunId?: string;
     id?: string;
     model?: string;
     reasoningEffort?: ReasoningEffort;
@@ -845,52 +1022,89 @@ export async function seedKarthicRubricPack(input: {
     if (!frankPacket.selectedPack) {
         throw new Error('Frank packet is missing a selected pack.');
     }
-    const preClusterRun = await getRequiredKarthicPreClusterRun(input.preClusterRunId);
-    if (preClusterRun.frankPacketId !== frankPacket.id) {
-        throw new Error('Selected pre-Karthic cluster run does not belong to this Frank packet.');
-    }
-    if (preClusterRun.status !== 'completed') {
-        throw new Error('Pre-Karthic clustering must be completed before seed rubric generation can start.');
-    }
-
     const assets = await getFrankV2AssetBundle(frankPacket.selectedPack);
     const existing = input.id ? await getKarthicRubricPack(input.id) : null;
-    const prompt = buildKarthicSeedRowsPrompt({
-        packet: frankPacket,
-        assets,
-        questionText: frankPacket.reverseEngineeredQuestion,
-        questionSourceLabel: 'Canonical reverse-engineered question',
-        preClusterRun,
-    });
     const generationSettings = withUpdatedPromptGenerationSetting(
         existing?.generationSettings,
         'rubric_generation',
         input.model,
         input.reasoningEffort,
     );
-    const parsed = await generateJson({
-        operation: 'Karthic v2 seed rubric generation',
-        prompt,
-        model: generationSettings.rubric_generation?.model,
-        reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
-    });
-    const rows = normalizeRubricRows(parsed.rows);
-    validateRubricRowsOrThrow(rows);
+    const scoringPolicy = existing?.scoringPolicy ?? createDefaultKarthicScoringPolicy(frankPacket.controllerCard);
+    const selectedVariationPackage = getActiveQuestionVariancePackage(frankPacket);
+    const shouldBuildSelectedVariationTrack = frankPacket.controllerCard?.dual_rubric_mode === 'on' && Boolean(selectedVariationPackage);
+    const [basePrompt, selectedVariationPrompt] = await Promise.all([
+        buildKarthicSeedRowsPrompt({
+            packet: frankPacket,
+            assets,
+            questionText: frankPacket.reverseEngineeredQuestion,
+            benchmarkAnswer: frankPacket.benchmarkAnswer,
+            questionSourceLabel: 'Canonical reverse-engineered question',
+            trackLabel: 'Original question',
+            scoringPolicy,
+        }),
+        shouldBuildSelectedVariationTrack && selectedVariationPackage
+            ? buildKarthicSeedRowsPrompt({
+                packet: frankPacket,
+                assets,
+                questionText: selectedVariationPackage.variedLegalQuestion,
+                benchmarkAnswer: selectedVariationPackage.updatedModelAnswer,
+                questionSourceLabel: 'Selected variation question',
+                trackLabel: 'Selected variation',
+                scoringPolicy,
+                selectedVariationPackage,
+            })
+            : Promise.resolve(null),
+    ]);
+    const [baseParsed, selectedVariationParsed] = await Promise.all([
+        generateJson({
+            operation: 'Karthic v2 seed rubric generation',
+            prompt: basePrompt,
+            model: generationSettings.rubric_generation?.model,
+            reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
+        }),
+        selectedVariationPrompt
+            ? generateJson({
+                operation: 'Karthic v2 selected-variation seed rubric generation',
+                prompt: selectedVariationPrompt,
+                model: generationSettings.rubric_generation?.model,
+                reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
+            })
+            : Promise.resolve(null),
+    ]);
+    const baseRows = normalizeRubricRows(baseParsed.rows);
+    validateRubricRowsOrThrow(baseRows);
+
+    let selectedVariationRows: KarthicRubricRow[] | undefined;
+    if (selectedVariationParsed) {
+        selectedVariationRows = normalizeRubricRows(selectedVariationParsed.rows);
+        validateRubricRowsOrThrow(selectedVariationRows);
+    }
 
     const now = new Date().toISOString();
-    const pack: KarthicRubricPackV2 = {
+    const tracks = createKarthicRubricTracks(frankPacket, {
+        baseRows,
+        baseSeedRows: baseRows,
+        selectedVariationRows,
+        selectedVariationSeedRows: selectedVariationRows,
+    });
+    const pack = withActiveRubricTrackAliases({
         schemaVersion: 2,
         id: existing?.id ?? `karthic_v2_${Date.now()}_${randomUUID().slice(0, 8)}`,
         frankPacketId: frankPacket.id,
-        preClusterRunId: preClusterRun.id,
+        preClusterRunId: normalizeNullableString(input.preClusterRunId) ?? existing?.preClusterRunId ?? null,
         selectedPack: frankPacket.selectedPack,
+        controllerCard: frankPacket.controllerCard,
+        activeTrack: existing?.activeTrack ?? 'base',
+        tracks,
         questionSource: 'canonical',
         questionVariancePackageId: null,
-        questionText: frankPacket.reverseEngineeredQuestion,
+        questionText: '',
         status: existing?.status ?? 'draft',
-        seedRows: rows,
-        rows,
-        clusterFailureModes: preClusterRun.clusterFailureModes,
+        seedRows: [],
+        rows: [],
+        scoringPolicy,
+        clusterFailureModes: flattenLikelyFailureModes(frankPacket.likelyFailureModes),
         refinementLog: existing?.refinementLog ?? [],
         refinementStatus: 'seeded',
         generationSettings,
@@ -899,19 +1113,26 @@ export async function seedKarthicRubricPack(input: {
             {
                 id: `prompt_${randomUUID().slice(0, 8)}`,
                 kind: 'rubric_generation',
-                title: `Seed rubric prompt · ${new Date().toLocaleString()}`,
-                prompt,
+                title: `Seed base rubric prompt · ${new Date().toLocaleString()}`,
+                prompt: basePrompt,
                 createdAt: now,
             },
+            ...(selectedVariationPrompt ? [{
+                id: `prompt_${randomUUID().slice(0, 8)}`,
+                kind: 'rubric_generation' as const,
+                title: `Seed variation rubric prompt · ${new Date().toLocaleString()}`,
+                prompt: selectedVariationPrompt,
+                createdAt: now,
+            }] : []),
         ],
         comparisonMethodNote: normalizeNonEmptyString(
-            parsed.comparisonMethodNote,
+            baseParsed.comparisonMethodNote,
             existing?.comparisonMethodNote ?? 'Use benchmark-vs-centroid contrasts to keep only discriminative rubric rows.',
         ),
         approvedAt: existing?.approvedAt ?? null,
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
-    };
+    } satisfies KarthicRubricPackV2);
     await writeArtifact(DATA_DIRECTORIES.karthic, pack.id, pack);
     return pack;
 }
@@ -926,43 +1147,75 @@ export async function refineKarthicRubricPack(input: {
     if (!frankPacket.selectedPack) {
         throw new Error('Frank packet is missing a selected pack.');
     }
-    const preClusterRunId = normalizeNonEmptyString(existing.preClusterRunId, '');
-    if (!preClusterRunId) {
-        throw new Error('Seed rubric pack is missing its pre-Karthic cluster run.');
-    }
-    const preClusterRun = await getRequiredKarthicPreClusterRun(preClusterRunId);
-    if (preClusterRun.status !== 'completed') {
-        throw new Error('Pre-Karthic clustering must be completed before rubric refinement can run.');
-    }
     const assets = await getFrankV2AssetBundle(frankPacket.selectedPack);
-    const prompt = buildKarthicRefineRowsPrompt({
-        packet: frankPacket,
-        assets,
-        questionText: existing.questionText,
-        preClusterRun,
-        currentRows: existing.rows,
-    });
     const generationSettings = withUpdatedPromptGenerationSetting(
         existing.generationSettings,
         'rubric_generation',
         input.model,
         input.reasoningEffort,
     );
-    const parsed = await generateJson({
-        operation: 'Karthic v2 rubric refinement',
-        prompt,
-        model: generationSettings.rubric_generation?.model,
-        reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
-    });
-    const rows = normalizeRubricRows(parsed.rows);
-    validateRubricRowsOrThrow(rows);
-    const refinementLog = normalizeKarthicRefinementLog(parsed.refinementLog);
+    const selectedVariationPackage = getActiveQuestionVariancePackage(frankPacket);
+    const shouldRefineSelectedVariationTrack = Boolean(existing.tracks.selected_variation && selectedVariationPackage);
+    const [basePrompt, selectedVariationPrompt] = await Promise.all([
+        buildKarthicRefineRowsPrompt({
+            packet: frankPacket,
+            assets,
+            questionText: existing.tracks.base.questionText,
+            benchmarkAnswer: existing.tracks.base.benchmarkAnswer,
+            trackLabel: existing.tracks.base.label,
+            scoringPolicy: existing.scoringPolicy,
+            currentRows: existing.tracks.base.rows,
+        }),
+        shouldRefineSelectedVariationTrack && selectedVariationPackage
+            ? buildKarthicRefineRowsPrompt({
+                packet: frankPacket,
+                assets,
+                questionText: existing.tracks.selected_variation!.questionText,
+                benchmarkAnswer: existing.tracks.selected_variation!.benchmarkAnswer,
+                trackLabel: existing.tracks.selected_variation!.label,
+                scoringPolicy: existing.scoringPolicy,
+                selectedVariationPackage,
+                currentRows: existing.tracks.selected_variation!.rows,
+            })
+            : Promise.resolve(null),
+    ]);
+    const [baseParsed, selectedVariationParsed] = await Promise.all([
+        generateJson({
+            operation: 'Karthic v2 rubric refinement',
+            prompt: basePrompt,
+            model: generationSettings.rubric_generation?.model,
+            reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
+        }),
+        selectedVariationPrompt
+            ? generateJson({
+                operation: 'Karthic v2 selected-variation rubric refinement',
+                prompt: selectedVariationPrompt,
+                model: generationSettings.rubric_generation?.model,
+                reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
+            })
+            : Promise.resolve(null),
+    ]);
+    const baseRows = normalizeRubricRows(baseParsed.rows);
+    validateRubricRowsOrThrow(baseRows);
+    const baseRefinementLog = normalizeKarthicRefinementLog(baseParsed.refinementLog);
+    let selectedVariationRows = existing.tracks.selected_variation?.rows;
+    if (selectedVariationParsed) {
+        selectedVariationRows = normalizeRubricRows(selectedVariationParsed.rows);
+        validateRubricRowsOrThrow(selectedVariationRows);
+    }
     const now = new Date().toISOString();
-    const pack: KarthicRubricPackV2 = {
+    const updatedTracks = createKarthicRubricTracks(frankPacket, {
+        baseRows,
+        baseSeedRows: existing.tracks.base.seedRows,
+        selectedVariationRows,
+        selectedVariationSeedRows: existing.tracks.selected_variation?.seedRows,
+    });
+    const pack = withActiveRubricTrackAliases({
         ...existing,
-        rows,
-        clusterFailureModes: preClusterRun.clusterFailureModes,
-        refinementLog: refinementLog.length > 0 ? refinementLog : buildFallbackRefinementLog(existing.rows, rows),
+        controllerCard: frankPacket.controllerCard,
+        tracks: updatedTracks,
+        clusterFailureModes: flattenLikelyFailureModes(frankPacket.likelyFailureModes),
+        refinementLog: baseRefinementLog.length > 0 ? baseRefinementLog : buildFallbackRefinementLog(existing.tracks.base.rows, baseRows),
         refinementStatus: 'refined',
         generationSettings,
         savedPrompts: [
@@ -970,17 +1223,24 @@ export async function refineKarthicRubricPack(input: {
             {
                 id: `prompt_${randomUUID().slice(0, 8)}`,
                 kind: 'rubric_generation',
-                title: `Refine rubric prompt · ${new Date().toLocaleString()}`,
-                prompt,
+                title: `Refine base rubric prompt · ${new Date().toLocaleString()}`,
+                prompt: basePrompt,
                 createdAt: now,
             },
+            ...(selectedVariationPrompt ? [{
+                id: `prompt_${randomUUID().slice(0, 8)}`,
+                kind: 'rubric_generation' as const,
+                title: `Refine variation rubric prompt · ${new Date().toLocaleString()}`,
+                prompt: selectedVariationPrompt,
+                createdAt: now,
+            }] : []),
         ],
         comparisonMethodNote: normalizeNonEmptyString(
-            parsed.comparisonMethodNote,
+            baseParsed.comparisonMethodNote,
             existing.comparisonMethodNote || 'Use benchmark-vs-centroid contrasts to keep only discriminative rubric rows.',
         ),
         updatedAt: now,
-    };
+    } satisfies KarthicRubricPackV2);
     await writeArtifact(DATA_DIRECTORIES.karthic, pack.id, pack);
     return pack;
 }
@@ -1001,40 +1261,77 @@ export async function generateKarthicRubricPack(input: {
 
     const assets = await getFrankV2AssetBundle(frankPacket.selectedPack);
     const existing = input.id ? await getKarthicRubricPack(input.id) : null;
-    const prompt = buildKarthicRowsPrompt({
-        packet: frankPacket,
-        assets,
-        questionText: frankPacket.reverseEngineeredQuestion,
-        questionSourceLabel: 'Canonical reverse-engineered question',
-    });
     const generationSettings = withUpdatedPromptGenerationSetting(
         existing?.generationSettings,
         'rubric_generation',
         input.model,
         input.reasoningEffort,
     );
-    const parsed = await generateJson({
+    const scoringPolicy = existing?.scoringPolicy ?? createDefaultKarthicScoringPolicy(frankPacket.controllerCard);
+    const basePrompt = await buildKarthicRowsPrompt({
+        packet: frankPacket,
+        assets,
+        questionText: frankPacket.reverseEngineeredQuestion,
+        benchmarkAnswer: frankPacket.benchmarkAnswer,
+        questionSourceLabel: 'Canonical reverse-engineered question',
+        trackLabel: 'Original question',
+        scoringPolicy,
+    });
+    const baseParsed = await generateJson({
         operation: 'Karthic v2 row rubric generation',
-        prompt,
+        prompt: basePrompt,
         model: generationSettings.rubric_generation?.model,
         reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
     });
 
-    const rows = normalizeRubricRows(parsed.rows);
-    validateRubricRowsOrThrow(rows);
+    const baseRows = normalizeRubricRows(baseParsed.rows);
+    validateRubricRowsOrThrow(baseRows);
+    const selectedVariationPackage = getActiveQuestionVariancePackage(frankPacket);
+    let selectedVariationRows: KarthicRubricRow[] | undefined;
+    let selectedVariationPrompt: string | null = null;
+    if (frankPacket.controllerCard?.dual_rubric_mode === 'on' && selectedVariationPackage) {
+        selectedVariationPrompt = await buildKarthicRowsPrompt({
+            packet: frankPacket,
+            assets,
+            questionText: selectedVariationPackage.variedLegalQuestion,
+            benchmarkAnswer: selectedVariationPackage.updatedModelAnswer,
+            questionSourceLabel: 'Selected variation question',
+            trackLabel: 'Selected variation',
+            scoringPolicy,
+            selectedVariationPackage,
+        });
+        const selectedVariationParsed = await generateJson({
+            operation: 'Karthic v2 selected-variation rubric generation',
+            prompt: selectedVariationPrompt,
+            model: generationSettings.rubric_generation?.model,
+            reasoningEffort: generationSettings.rubric_generation?.reasoningEffort,
+        });
+        selectedVariationRows = normalizeRubricRows(selectedVariationParsed.rows);
+        validateRubricRowsOrThrow(selectedVariationRows);
+    }
     const now = new Date().toISOString();
-    const pack: KarthicRubricPackV2 = {
+    const tracks = createKarthicRubricTracks(frankPacket, {
+        baseRows,
+        baseSeedRows: existing?.tracks.base.seedRows ?? baseRows,
+        selectedVariationRows,
+        selectedVariationSeedRows: existing?.tracks.selected_variation?.seedRows ?? selectedVariationRows,
+    });
+    const pack = withActiveRubricTrackAliases({
         schemaVersion: 2,
         id: existing?.id ?? `karthic_v2_${Date.now()}_${randomUUID().slice(0, 8)}`,
         frankPacketId: frankPacket.id,
         preClusterRunId: existing?.preClusterRunId ?? null,
         selectedPack: frankPacket.selectedPack,
+        controllerCard: frankPacket.controllerCard,
+        activeTrack: existing?.activeTrack ?? 'base',
+        tracks,
         questionSource: 'canonical',
         questionVariancePackageId: null,
-        questionText: frankPacket.reverseEngineeredQuestion,
+        questionText: '',
         status: existing?.status ?? 'draft',
-        seedRows: existing?.seedRows ?? rows,
-        rows,
+        seedRows: [],
+        rows: [],
+        scoringPolicy,
         clusterFailureModes: existing?.clusterFailureModes ?? [],
         refinementLog: existing?.refinementLog ?? [],
         refinementStatus: existing?.refinementStatus ?? 'seeded',
@@ -1044,19 +1341,26 @@ export async function generateKarthicRubricPack(input: {
             {
                 id: `prompt_${randomUUID().slice(0, 8)}`,
                 kind: 'rubric_generation',
-                title: `Rubric prompt · ${new Date().toLocaleString()}`,
-                prompt,
+                title: `Base rubric prompt · ${new Date().toLocaleString()}`,
+                prompt: basePrompt,
                 createdAt: now,
             },
+            ...(selectedVariationPrompt ? [{
+                id: `prompt_${randomUUID().slice(0, 8)}`,
+                kind: 'rubric_generation' as const,
+                title: `Variation rubric prompt · ${new Date().toLocaleString()}`,
+                prompt: selectedVariationPrompt,
+                createdAt: now,
+            }] : []),
         ],
         comparisonMethodNote: normalizeNonEmptyString(
-            parsed.comparisonMethodNote,
+            baseParsed.comparisonMethodNote,
             existing?.comparisonMethodNote ?? 'Score each cluster representative against the approved row-level rubric rather than against freeform benchmark prose alone.',
         ),
         approvedAt: existing?.approvedAt ?? null,
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
-    };
+    } satisfies KarthicRubricPackV2);
     await writeArtifact(DATA_DIRECTORIES.karthic, pack.id, pack);
     return pack;
 }
@@ -1065,19 +1369,71 @@ export async function saveKarthicRubricPack(input: Partial<KarthicRubricPackV2> 
     const existing = input.id ? await getKarthicRubricPack(input.id) : null;
     const frankPacket = await getRequiredFrankPacket(input.frankPacketId);
     const now = new Date().toISOString();
-    const questionText = normalizeOptionalString(input.questionText, existing?.questionText ?? frankPacket.reverseEngineeredQuestion);
-    const pack: KarthicRubricPackV2 = {
+    const fallbackTracks = existing?.tracks ?? createKarthicRubricTracks(frankPacket);
+    const inputTracks = input.tracks ?? fallbackTracks;
+    const baseTrack = defaultRubricTrack({
+        ...fallbackTracks.base,
+        ...inputTracks.base,
+        id: 'base',
+        questionSource: 'canonical',
+        questionText: inputTracks.base?.questionText ?? fallbackTracks.base.questionText ?? frankPacket.reverseEngineeredQuestion,
+        benchmarkAnswer: inputTracks.base?.benchmarkAnswer ?? fallbackTracks.base.benchmarkAnswer ?? frankPacket.benchmarkAnswer,
+        seedRows: inputTracks.base?.seedRows ?? fallbackTracks.base.seedRows ?? input.seedRows ?? input.rows,
+        rows: inputTracks.base?.rows ?? fallbackTracks.base.rows ?? input.rows,
+    });
+    const selectedVariationTrack = frankPacket.controllerCard?.dual_rubric_mode === 'on'
+        ? defaultRubricTrack({
+            ...(fallbackTracks.selected_variation ?? buildSelectedVariationRubricTrack(frankPacket) ?? {
+                id: 'selected_variation' as const,
+                label: 'Selected variation',
+                questionSource: 'question_variance_active_package' as const,
+                questionText: '',
+                benchmarkAnswer: '',
+            }),
+            ...(inputTracks.selected_variation ?? {}),
+            id: 'selected_variation',
+            questionSource: 'question_variance_active_package',
+            questionText: inputTracks.selected_variation?.questionText
+                ?? fallbackTracks.selected_variation?.questionText
+                ?? buildSelectedVariationRubricTrack(frankPacket)?.questionText
+                ?? '',
+            benchmarkAnswer: inputTracks.selected_variation?.benchmarkAnswer
+                ?? fallbackTracks.selected_variation?.benchmarkAnswer
+                ?? buildSelectedVariationRubricTrack(frankPacket)?.benchmarkAnswer
+                ?? '',
+            questionVariancePackageId: inputTracks.selected_variation?.questionVariancePackageId
+                ?? fallbackTracks.selected_variation?.questionVariancePackageId
+                ?? buildSelectedVariationRubricTrack(frankPacket)?.questionVariancePackageId
+                ?? null,
+            seedRows: inputTracks.selected_variation?.seedRows ?? fallbackTracks.selected_variation?.seedRows,
+            rows: inputTracks.selected_variation?.rows ?? fallbackTracks.selected_variation?.rows,
+        })
+        : null;
+    const activeTrack = input.activeTrack ?? existing?.activeTrack ?? 'base';
+    const nextTracks: KarthicRubricPackV2['tracks'] = {
+        base: baseTrack,
+        selected_variation: selectedVariationTrack,
+    };
+    const pack = withActiveRubricTrackAliases({
         schemaVersion: 2,
         id: existing?.id ?? normalizeNonEmptyString(input.id, `karthic_v2_${Date.now()}_${randomUUID().slice(0, 8)}`),
         frankPacketId: frankPacket.id,
         preClusterRunId: normalizeNullableString(input.preClusterRunId) ?? existing?.preClusterRunId ?? null,
         selectedPack: frankPacket.selectedPack as FrankSofPackId,
+        controllerCard: frankPacket.controllerCard,
+        activeTrack: activeTrack === 'selected_variation' && !selectedVariationTrack ? 'base' : activeTrack,
+        tracks: nextTracks,
         questionSource: 'canonical',
         questionVariancePackageId: null,
-        questionText,
+        questionText: '',
         status: input.status === 'approved' ? 'approved' : existing?.status ?? 'draft',
-        seedRows: normalizeRubricRows(input.seedRows ?? existing?.seedRows ?? input.rows ?? existing?.rows ?? []),
-        rows: normalizeRubricRows(input.rows ?? existing?.rows ?? []),
+        seedRows: [],
+        rows: [],
+        scoringPolicy: normalizeKarthicScoringPolicy(
+            input.scoringPolicy ?? existing?.scoringPolicy,
+            existing?.scoringPolicy ?? createDefaultKarthicScoringPolicy(frankPacket.controllerCard),
+            frankPacket.controllerCard,
+        ),
         clusterFailureModes: normalizeStringArray(input.clusterFailureModes ?? existing?.clusterFailureModes ?? []),
         refinementLog: normalizeKarthicRefinementLog(input.refinementLog ?? existing?.refinementLog ?? []),
         refinementStatus: normalizeKarthicRefinementStatus(input.refinementStatus, existing?.refinementStatus ?? 'not_started'),
@@ -1090,12 +1446,12 @@ export async function saveKarthicRubricPack(input: Partial<KarthicRubricPackV2> 
         approvedAt: input.status === 'approved' ? (existing?.approvedAt ?? now) : existing?.approvedAt ?? null,
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
-    };
-    validateRubricRowsOrThrow(pack.rows);
+    } satisfies KarthicRubricPackV2);
+    validateRubricRowsOrThrow(pack.tracks.base.rows);
+    if (pack.tracks.selected_variation) {
+        validateRubricRowsOrThrow(pack.tracks.selected_variation.rows);
+    }
     if (pack.status === 'approved') {
-        if (!pack.preClusterRunId) {
-            throw new Error('A completed pre-Karthic cluster run is required before rubric approval.');
-        }
         if (pack.refinementStatus !== 'refined' && pack.refinementStatus !== 'approved') {
             throw new Error('Rubric refinement must be completed before approval.');
         }
@@ -1123,6 +1479,7 @@ export async function getDashaRun(id: string) {
 
 export async function runDashaEvaluation(input: {
     rubricPackId: string;
+    rubricTrackId?: KarthicRubricTrackId;
     runMode: DashaRunMode;
     files: UploadFileInput[];
     selectedModels: DashaSelectedModel[];
@@ -1140,6 +1497,7 @@ export async function runDashaEvaluation(input: {
     }
     return await createDraftDashaRun({
         pack,
+        rubricTrackId: input.rubricTrackId,
         runMode: input.runMode,
         files: input.files,
         selectedModels: input.selectedModels,
@@ -1200,6 +1558,7 @@ export function buildJudgeRubricFromPack(pack: KarthicRubricPackV2) {
 
 async function createDraftDashaRun(input: {
     pack: KarthicRubricPackV2;
+    rubricTrackId?: KarthicRubricTrackId;
     runMode: DashaRunMode;
     files: UploadFileInput[];
     selectedModels: DashaSelectedModel[];
@@ -1211,17 +1570,20 @@ async function createDraftDashaRun(input: {
     const id = `dasha_v2_${Date.now()}_${randomUUID().slice(0, 8)}`;
     const now = new Date().toISOString();
     const inputArtifacts = input.files.length > 0 ? await saveUploadedArtifacts(id, input.files) : [];
+    const rubricTrackId = input.rubricTrackId ?? input.pack.activeTrack;
+    const activeTrack = getRubricTrack(input.pack, rubricTrackId) ?? input.pack.tracks.base;
     const draftRun: DashaRunV2 = {
         schemaVersion: 2,
         id,
         rubricPackId: input.pack.id,
+        rubricTrackId,
         runMode: input.runMode,
         status: 'draft',
         workflowStage: 'cluster_pending',
         inputArtifacts,
-        questionText: normalizeNonEmptyString(input.questionText, input.pack.questionText),
-        questionSource: 'canonical',
-        questionVariancePackageId: null,
+        questionText: normalizeNonEmptyString(input.questionText, activeTrack.questionText),
+        questionSource: activeTrack.questionSource,
+        questionVariancePackageId: activeTrack.questionVariancePackageId,
         comparisonId: null,
         comparisonRole: null,
         selectedModels: input.selectedModels,
@@ -1233,6 +1595,7 @@ async function createDraftDashaRun(input: {
         validResponseCount: 0,
         responses: [],
         clusters: [],
+        clusterAnalyses: [],
         rowResults: [],
         moduleSummaries: [],
         weightedSummary: {
@@ -1241,6 +1604,7 @@ async function createDraftDashaRun(input: {
             notApplicableRowKeys: [],
         },
         modelSummaries: [],
+        trackSummary: null,
         clusteringMethod: 'pending',
         clusteringNotes: 'Dasha evaluation started and is running in the background.',
         createdAt: now,
@@ -1274,6 +1638,7 @@ async function finalizeDashaClustering(input: {
                 validResponseCount: validResponses.length,
                 responses,
                 clusters: clusteringResult.clusters,
+                clusterAnalyses: [],
                 rowResults: [],
                 moduleSummaries: [],
                 weightedSummary: {
@@ -1287,6 +1652,7 @@ async function finalizeDashaClustering(input: {
                     clusters: clusteringResult.clusters,
                     rowResults: [],
                 }),
+                trackSummary: null,
                 clusteringMethod: clusteringResult.method,
                 clusteringNotes: `${clusteringResult.notes} Row scoring was skipped because this run was started in clustering-only mode.`,
                 completedAt: new Date().toISOString(),
@@ -1325,20 +1691,37 @@ async function finalizeDashaJudging(input: {
             model: input.judgeModel ?? input.run.judgeSettings.model,
             reasoningEffort: input.judgeReasoningEffort ?? input.run.judgeSettings.reasoningEffort,
         });
+        const rubricTrack = getRubricTrack(input.pack, input.run.rubricTrackId) ?? input.pack.tracks.base;
+        const frankPacket = await getRequiredFrankPacket(input.pack.frankPacketId);
         const rowResults: RubricRowResult[] = await evaluateClustersAgainstRows({
             questionText: input.run.questionText,
-            pack: input.pack,
+            rows: rubricTrack.rows,
             clusters: input.run.clusters,
             responses: validResponses,
             judgeSettings,
         });
         const moduleSummaries = buildModuleSummaries(rowResults);
-        const weightedSummary = summarizeRowResults(rowResults);
+        const dashaInstructions = await getDashaInstructionBundle();
+        const clusterAnalyses = await analyzeDashaClusters({
+            run: input.run,
+            pack: input.pack,
+            frankPacket,
+            rowResults,
+            judgeSettings,
+            instructions: dashaInstructions,
+        });
+        const weightedSummary = summarizeDashaTrack(rowResults, clusterAnalyses);
+        const trackSummary = buildDashaTrackSummary({
+            run: input.run,
+            clusterAnalyses,
+        });
+        const finalScoreByClusterId = new Map(clusterAnalyses.map((analysis) => [analysis.clusterId, analysis.finalScore] as const));
         const modelSummaries = buildDashaModelSummaries({
             selectedModels: input.run.selectedModels,
             responses: input.run.responses,
             clusters: input.run.clusters,
             rowResults,
+            clusterScoreMap: finalScoreByClusterId,
         });
 
         const completedRun: DashaRunV2 = {
@@ -1346,10 +1729,12 @@ async function finalizeDashaJudging(input: {
             status: 'completed',
             workflowStage: 'judged',
             judgeSettings,
+            clusterAnalyses,
             rowResults,
             moduleSummaries,
             weightedSummary,
             modelSummaries,
+            trackSummary,
             completedAt: new Date().toISOString(),
         };
         await writeArtifact(DATA_DIRECTORIES.dasha, completedRun.id, completedRun);
@@ -1366,6 +1751,7 @@ async function finalizeFailedRun(run: DashaRunV2, errorMessage: string) {
         workflowStage: run.workflowStage,
         responses: [],
         clusters: [],
+        clusterAnalyses: [],
         rowResults: [],
         moduleSummaries: [],
         weightedSummary: {
@@ -1374,6 +1760,7 @@ async function finalizeFailedRun(run: DashaRunV2, errorMessage: string) {
             notApplicableRowKeys: [],
         },
         modelSummaries: [],
+        trackSummary: null,
         clusteringMethod: 'not_run',
         clusteringNotes: 'Dasha evaluation terminated before clustering completed.',
         errorMessage,
@@ -1383,15 +1770,387 @@ async function finalizeFailedRun(run: DashaRunV2, errorMessage: string) {
     return failedRun;
 }
 
+async function analyzeDashaClusters(input: {
+    run: DashaRunV2;
+    pack: KarthicRubricPackV2;
+    frankPacket: FrankPacketV2;
+    rowResults: RubricRowResult[];
+    judgeSettings: DashaJudgeSettings;
+    instructions: Awaited<ReturnType<typeof getDashaInstructionBundle>>;
+}) {
+    const responseById = new Map(input.run.responses.map((response) => [response.id, response] as const));
+    const workflowSourceCaseName = inferWorkflowSourceCaseName(input.frankPacket);
+    const workflowSourceCaseCitation = inferWorkflowSourceCaseCitation(input.frankPacket);
+    const sourceCaseMonitoring = workflowSourceCaseName ? 'on' as const : 'off' as const;
+
+    return await Promise.all(input.run.clusters.map(async (cluster) => {
+        const representative = responseById.get(cluster.representativeResponseId);
+        const clusterRowScores = buildClusterRowScoreSummary(cluster.id, input.rowResults);
+        const subtotal = computeClusterSubtotal(cluster.id, input.rowResults);
+        const modelBreakdown = cluster.modelBreakdown.map((entry) => ({
+            model: entry.model,
+            count: entry.count,
+            share: cluster.size > 0 ? roundToTwo(entry.count / cluster.size) : 0,
+        }));
+        const dominantModel = [...cluster.modelBreakdown].sort((left, right) => right.count - left.count || left.model.localeCompare(right.model))[0] ?? null;
+        const fallback = buildFallbackDashaClusterAnalysis({
+            run: input.run,
+            cluster,
+            subtotal,
+            representativeText: representative?.responseText ?? cluster.representativeText,
+        });
+
+        if (!representative) {
+            return fallback;
+        }
+
+        try {
+            const parsed = await generateJson({
+                operation: `Dasha cluster audit ${cluster.id}`,
+                prompt: buildDashaClusterAuditPrompt({
+                    instructions: input.instructions,
+                    questionText: input.run.questionText,
+                    rubricType: input.run.rubricTrackId === 'selected_variation' ? 'selected_variation_rubric' : 'base_rubric',
+                    evaluationTrack: input.run.rubricTrackId === 'selected_variation' ? 'evaluation_track_selected_variation' : 'evaluation_track_original',
+                    questionVersion: input.run.rubricTrackId === 'selected_variation' ? 'selected_variation' : 'original',
+                    representativeText: representative.responseText,
+                    clusterMetadata: {
+                        clusterId: cluster.id,
+                        clusterSizeTotal: cluster.size,
+                        modelBreakdown,
+                        representedModelCount: cluster.modelBreakdown.length,
+                        dominantModelName: dominantModel?.model ?? null,
+                        dominantModelShare: cluster.size > 0 && dominantModel ? roundToTwo(dominantModel.count / cluster.size) : 0,
+                    },
+                    rowScores: clusterRowScores,
+                    scoringPolicy: input.pack.scoringPolicy,
+                    caseCitationVerificationMode: input.pack.scoringPolicy.caseCitationVerificationMode,
+                    workflowSourceCaseName,
+                    workflowSourceCaseCitation,
+                    sourceCaseMonitoring,
+                }),
+                model: input.judgeSettings.model,
+                reasoningEffort: input.judgeSettings.reasoningEffort,
+                tools: shouldUseWebSearchForCitationAudit(representative.responseText, input.pack.scoringPolicy.caseCitationVerificationMode)
+                    ? [{
+                        type: 'web_search_preview',
+                        search_context_size: 'medium',
+                        user_location: {
+                            type: 'approximate',
+                            city: 'Chicago',
+                            region: 'Illinois',
+                            country: 'US',
+                            timezone: 'America/Chicago',
+                        },
+                    }]
+                    : undefined,
+            });
+
+            return normalizeDashaClusterAnalysis({
+                parsed,
+                fallback,
+                cluster,
+                run: input.run,
+                scoringPolicy: input.pack.scoringPolicy,
+                subtotal,
+            });
+        } catch {
+            return fallback;
+        }
+    }));
+}
+
+function buildClusterRowScoreSummary(clusterId: string, rowResults: RubricRowResult[]) {
+    return rowResults.map((row) => {
+        const evaluation = row.centroidEvaluations.find((item) => item.clusterId === clusterId);
+        return {
+            rowKey: row.rowKey,
+            rowTitle: row.rowTitle,
+            moduleLabel: RUBRIC_MODULE_LABELS[row.moduleId],
+            weight: row.weight,
+            score: evaluation?.score ?? null,
+            applicabilityStatus: evaluation?.applicabilityStatus ?? 'not_applicable',
+            rationale: evaluation?.rationale ?? 'No rationale recorded.',
+            differenceSummary: evaluation?.difference.differenceSummary ?? 'No difference summary recorded.',
+        };
+    });
+}
+
+function computeClusterSubtotal(clusterId: string, rowResults: RubricRowResult[]) {
+    let weightedTotal = 0;
+    let weightTotal = 0;
+    for (const row of rowResults) {
+        const evaluation = row.centroidEvaluations.find((item) => item.clusterId === clusterId);
+        if (evaluation?.applicabilityStatus !== 'applicable' || typeof evaluation.score !== 'number') {
+            continue;
+        }
+        weightedTotal += row.weight * evaluation.score;
+        weightTotal += row.weight;
+    }
+    return weightTotal > 0 ? roundToTwo(weightedTotal / weightTotal) : null;
+}
+
+function buildFallbackDashaClusterAnalysis(input: {
+    run: DashaRunV2;
+    cluster: DashaClusterRecord;
+    subtotal: number | null;
+    representativeText: string;
+}): DashaClusterAnalysis {
+    const extractedMentions = extractCaseLikeMentions(input.representativeText);
+    const dominantModel = [...input.cluster.modelBreakdown].sort((left, right) => right.count - left.count || left.model.localeCompare(right.model))[0] ?? null;
+    return {
+        clusterId: input.cluster.id,
+        evaluationTrack: input.run.rubricTrackId === 'selected_variation' ? 'evaluation_track_selected_variation' : 'evaluation_track_original',
+        questionVersion: input.run.rubricTrackId === 'selected_variation' ? 'selected_variation' : 'original',
+        rubricType: input.run.rubricTrackId === 'selected_variation' ? 'selected_variation_rubric' : 'base_rubric',
+        clusterSizeTotal: input.cluster.size,
+        representedModelCount: input.cluster.modelBreakdown.length,
+        dominantModelName: dominantModel?.model ?? null,
+        dominantModelCount: dominantModel?.count ?? 0,
+        dominantModelShare: input.cluster.size > 0 && dominantModel ? roundToTwo(dominantModel.count / input.cluster.size) : 0,
+        subtotal: input.subtotal,
+        penaltiesApplied: [],
+        capApplied: null,
+        finalScore: input.subtotal,
+        disagreementFlag: false,
+        zakReviewFlag: false,
+        trackSummaryNote: 'Fallback cluster audit used because the Dasha audit prompt did not complete.',
+        caseCitation: {
+            caseMentionStatus: extractedMentions.length > 0 ? 'mentioned' : 'none',
+            extractedCaseMentions: extractedMentions,
+            verifiedCaseMentions: [],
+            hallucinatedCaseMentions: [],
+            citationAccuracyStatus: extractedMentions.length > 0 ? 'hallucinated_or_unverifiable' : 'not_applicable',
+            sourceCaseReferenceStatus: extractedMentions.length > 0 ? 'other_case_only' : 'not_applicable',
+            sourceCaseReferenceNote: extractedMentions.length > 0 ? 'Case mentions detected but no completed verification pass was saved.' : 'No case mention detected.',
+            caseVerificationReviewFlag: false,
+            note: extractedMentions.length > 0
+                ? 'Case mentioned; verification fallback was used, so no hallucinated-authority penalty was applied automatically.'
+                : 'No case mentioned.',
+        },
+    };
+}
+
+function normalizeDashaClusterAnalysis(input: {
+    parsed: Record<string, unknown>;
+    fallback: DashaClusterAnalysis;
+    cluster: DashaClusterRecord;
+    run: DashaRunV2;
+    scoringPolicy: KarthicScoringPolicy;
+    subtotal: number | null;
+}): DashaClusterAnalysis {
+    const penaltyCodes = new Set(normalizeStringArray(input.parsed.triggeredPenaltyCodes));
+    const capCodes = new Set(normalizeStringArray(input.parsed.triggeredCapCodes));
+    const caseCitation = normalizeDashaCaseCitationAnalysis(
+        isRecord(input.parsed.caseCitation) ? input.parsed.caseCitation : null,
+        input.fallback.caseCitation,
+    );
+
+    if (caseCitation.hallucinatedCaseMentions.length > 0) {
+        penaltyCodes.add('P_HallucinatedCaseCitation');
+    }
+
+    const penaltiesApplied = input.scoringPolicy.penalties
+        .filter((rule) => rule.enabled && penaltyCodes.has(rule.code))
+        .map((rule) => ({
+            code: rule.code,
+            label: rule.label,
+            points: rule.points,
+            reason: normalizeNonEmptyString(getPenaltyReason(input.parsed, rule.code), rule.appliesWhen),
+        } satisfies DashaAppliedPenalty));
+
+    const capCandidates = input.scoringPolicy.caps
+        .filter((rule) => rule.enabled && capCodes.has(rule.code))
+        .map((rule) => ({
+            code: rule.code,
+            label: rule.label,
+            cap: rule.cap,
+            reason: normalizeNonEmptyString(getCapReason(input.parsed, rule.code), rule.appliesWhen),
+        } satisfies DashaAppliedCap))
+        .sort((left, right) => left.cap - right.cap || left.code.localeCompare(right.code));
+    const capApplied = capCandidates[0] ?? null;
+
+    const subtotal = input.subtotal;
+    const totalPenalty = penaltiesApplied.reduce((sum, penalty) => sum + penalty.points, 0);
+    const uncappedScore = typeof subtotal === 'number' ? roundToTwo(clampNumber(subtotal - totalPenalty, 0, 100)) : null;
+    const finalScore = typeof uncappedScore === 'number' && capApplied
+        ? roundToTwo(Math.min(uncappedScore, capApplied.cap))
+        : uncappedScore;
+    const dominantModel = [...input.cluster.modelBreakdown].sort((left, right) => right.count - left.count || left.model.localeCompare(right.model))[0] ?? null;
+
+    return {
+        clusterId: input.cluster.id,
+        evaluationTrack: input.fallback.evaluationTrack,
+        questionVersion: input.fallback.questionVersion,
+        rubricType: input.fallback.rubricType,
+        clusterSizeTotal: input.cluster.size,
+        representedModelCount: input.cluster.modelBreakdown.length,
+        dominantModelName: dominantModel?.model ?? null,
+        dominantModelCount: dominantModel?.count ?? 0,
+        dominantModelShare: input.cluster.size > 0 && dominantModel ? roundToTwo(dominantModel.count / input.cluster.size) : 0,
+        subtotal,
+        penaltiesApplied,
+        capApplied,
+        finalScore,
+        disagreementFlag: Boolean(input.parsed.disagreementFlag),
+        zakReviewFlag: false,
+        trackSummaryNote: normalizeNonEmptyString(input.parsed.trackSummaryNote, input.fallback.trackSummaryNote),
+        caseCitation,
+    };
+}
+
+function normalizeDashaCaseCitationAnalysis(
+    value: Record<string, unknown> | null,
+    fallback: DashaCaseCitationAnalysis,
+): DashaCaseCitationAnalysis {
+    if (!value) {
+        return fallback;
+    }
+    return {
+        caseMentionStatus: value.caseMentionStatus === 'mentioned' ? 'mentioned' : value.caseMentionStatus === 'none' ? 'none' : fallback.caseMentionStatus,
+        extractedCaseMentions: normalizeStringArray(value.extractedCaseMentions),
+        verifiedCaseMentions: normalizeStringArray(value.verifiedCaseMentions),
+        hallucinatedCaseMentions: normalizeStringArray(value.hallucinatedCaseMentions),
+        citationAccuracyStatus: normalizeDashaCitationAccuracyStatus(value.citationAccuracyStatus, fallback.citationAccuracyStatus),
+        sourceCaseReferenceStatus: normalizeDashaSourceCaseReferenceStatus(value.sourceCaseReferenceStatus, fallback.sourceCaseReferenceStatus),
+        sourceCaseReferenceNote: normalizeNonEmptyString(value.sourceCaseReferenceNote, fallback.sourceCaseReferenceNote),
+        caseVerificationReviewFlag: Boolean(value.caseVerificationReviewFlag),
+        note: normalizeNonEmptyString(value.note, fallback.note),
+    };
+}
+
+function normalizeDashaCitationAccuracyStatus(value: unknown, fallback: DashaCitationAccuracyStatus): DashaCitationAccuracyStatus {
+    return value === 'verified_correct'
+        || value === 'verified_partly_correct'
+        || value === 'hallucinated_or_unverifiable'
+        || value === 'not_applicable'
+        ? value
+        : fallback;
+}
+
+function normalizeDashaSourceCaseReferenceStatus(value: unknown, fallback: DashaSourceCaseReferenceStatus): DashaSourceCaseReferenceStatus {
+    return value === 'source_case_cited'
+        || value === 'other_case_only'
+        || value === 'source_case_and_other_cases'
+        || value === 'not_applicable'
+        ? value
+        : fallback;
+}
+
+function getPenaltyReason(parsed: Record<string, unknown>, code: string) {
+    const penalties = isRecord(parsed.penaltyReasons) ? parsed.penaltyReasons : null;
+    return penalties && typeof penalties[code] === 'string' ? penalties[code] : '';
+}
+
+function getCapReason(parsed: Record<string, unknown>, code: string) {
+    const caps = isRecord(parsed.capReasons) ? parsed.capReasons : null;
+    return caps && typeof caps[code] === 'string' ? caps[code] : '';
+}
+
+function summarizeDashaTrack(rowResults: RubricRowResult[], clusterAnalyses: DashaClusterAnalysis[]): WeightedSummary {
+    const bestCluster = chooseBestDashaCluster(clusterAnalyses);
+    const notApplicableRowKeys = rowResults
+        .filter((row) => row.applicabilityStatus !== 'applicable' || typeof row.winningScore !== 'number')
+        .map((row) => row.rowKey);
+
+    return {
+        applicableWeightTotal: rowResults
+            .filter((row) => row.applicabilityStatus === 'applicable' && typeof row.winningScore === 'number')
+            .reduce((sum, row) => sum + row.weight, 0),
+        weightedScore: bestCluster?.finalScore ?? null,
+        notApplicableRowKeys,
+    };
+}
+
+function buildDashaTrackSummary(input: {
+    run: DashaRunV2;
+    clusterAnalyses: DashaClusterAnalysis[];
+}): DashaTrackSummary | null {
+    if (input.clusterAnalyses.length === 0) {
+        return null;
+    }
+    const ranked = input.clusterAnalyses
+        .slice()
+        .sort((left, right) => compareDashaClusterAnalyses(left, right));
+    const best = ranked[0] ?? null;
+    const panelMajorityStatus: DashaPanelMajorityStatus = best ? 'majority' : 'not_applicable';
+    const questionVersion = input.run.rubricTrackId === 'selected_variation' ? 'selected_variation' : 'original';
+
+    return {
+        evaluationTrack: input.run.rubricTrackId === 'selected_variation' ? 'evaluation_track_selected_variation' : 'evaluation_track_original',
+        questionVersion,
+        rubricType: input.run.rubricTrackId === 'selected_variation' ? 'selected_variation_rubric' : 'base_rubric',
+        rankedCentroidList: ranked.map((analysis) => analysis.clusterId),
+        bestCentroidByScore: best?.clusterId ?? null,
+        bestCentroidScore: best?.finalScore ?? null,
+        topCentroidVoteSplit: best ? `${best.clusterId}: 1/1` : 'not_applicable',
+        panelMajorityStatus,
+        bestCentroidZakReviewFlag: false,
+        trackSummary: best
+            ? `Best centroid is ${best.clusterId} at ${formatNullableScore(best.finalScore)} after overlays/caps on the ${questionVersion} track.`
+            : 'No judged centroid summary is available.',
+    };
+}
+
+function chooseBestDashaCluster(clusterAnalyses: DashaClusterAnalysis[]) {
+    return clusterAnalyses.slice().sort(compareDashaClusterAnalyses)[0] ?? null;
+}
+
+function compareDashaClusterAnalyses(left: DashaClusterAnalysis, right: DashaClusterAnalysis) {
+    const finalDelta = (right.finalScore ?? -1) - (left.finalScore ?? -1);
+    if (finalDelta !== 0) {
+        return finalDelta;
+    }
+    const subtotalDelta = (right.subtotal ?? -1) - (left.subtotal ?? -1);
+    if (subtotalDelta !== 0) {
+        return subtotalDelta;
+    }
+    const sizeDelta = right.clusterSizeTotal - left.clusterSizeTotal;
+    if (sizeDelta !== 0) {
+        return sizeDelta;
+    }
+    return left.clusterId.localeCompare(right.clusterId);
+}
+
+function inferWorkflowSourceCaseName(packet: FrankPacketV2) {
+    return normalizeNullableString(packet.sourceExtractionSheet?.candidateSource)
+        ?? normalizeNullableString(packet.intakeChecklist?.candidateSource)
+        ?? normalizeNullableString(packet.title);
+}
+
+function inferWorkflowSourceCaseCitation(packet: FrankPacketV2) {
+    const text = packet.sourceArtifacts[0]?.extractedText ?? '';
+    const match = text.match(/\b\d{1,4}\s+[A-Z][A-Za-z.\d-]*\s+\d{1,4}\b/);
+    return match?.[0]?.trim() ?? null;
+}
+
+function shouldUseWebSearchForCitationAudit(text: string, mode: KarthicScoringPolicy['caseCitationVerificationMode']) {
+    return mode === 'on' && extractCaseLikeMentions(text).length > 0;
+}
+
+function extractCaseLikeMentions(text: string) {
+    const matches = [
+        ...text.matchAll(/\b([A-Z][A-Za-z'&.-]+(?:\s+[A-Z][A-Za-z'&.-]+){0,5}\s+v\.\s+[A-Z][A-Za-z'&.-]+(?:\s+[A-Z][A-Za-z'&.-]+){0,5})\b/g),
+        ...text.matchAll(/\b((?:In re|Ex parte)\s+[A-Z][A-Za-z'&.-]+(?:\s+[A-Z][A-Za-z'&.-]+){0,5})\b/g),
+    ]
+        .map((match) => match[1]?.trim() ?? '')
+        .filter(Boolean);
+    return [...new Set(matches)];
+}
+
+function formatNullableScore(value: number | null) {
+    return typeof value === 'number' ? value.toFixed(2) : 'N/A';
+}
+
 async function evaluateClustersAgainstRows(input: {
     questionText: string;
-    pack: KarthicRubricPackV2;
+    rows: KarthicRubricRow[];
     clusters: DashaClusterRecord[];
     responses: DashaResponseRecord[];
     judgeSettings: DashaJudgeSettings;
 }): Promise<RubricRowResult[]> {
     const responseById = new Map(input.responses.map((response) => [response.id, response]));
-    return await Promise.all(input.pack.rows.map(async (row) => {
+    return await Promise.all(input.rows.map(async (row) => {
         const rawCentroidEvaluations = await Promise.all(input.clusters.map(async (cluster) => {
             const representative = responseById.get(cluster.representativeResponseId);
             if (!representative) {
@@ -1595,6 +2354,17 @@ async function generateJson(input: {
     prompt: string;
     model?: string;
     reasoningEffort?: ReasoningEffort;
+    tools?: Array<{
+        type: 'web_search_preview';
+        search_context_size?: 'low' | 'medium' | 'high';
+        user_location?: {
+            type: 'approximate';
+            city?: string;
+            region?: string;
+            country?: string;
+            timezone?: string;
+        };
+    }>;
 }) {
     requireOpenAiApiKey(input.operation);
     const model = normalizeOpenAiJsonModel(input.model);
@@ -1610,6 +2380,17 @@ async function generateJson(input: {
                 };
             };
             reasoning?: { effort: 'low' | 'medium' | 'high'; summary: 'auto' };
+            tools?: Array<{
+                type: 'web_search_preview';
+                search_context_size?: 'low' | 'medium' | 'high';
+                user_location?: {
+                    type: 'approximate';
+                    city?: string;
+                    region?: string;
+                    country?: string;
+                    timezone?: string;
+                };
+            }>;
         } = {
             model,
             input: input.prompt,
@@ -1621,6 +2402,9 @@ async function generateJson(input: {
                 },
             },
         };
+        if (input.tools?.length) {
+            request.tools = input.tools;
+        }
         const mappedEffort = model.startsWith('gpt-5') ? mapReasoningEffort(input.reasoningEffort) : null;
         if (mappedEffort) {
             request.reasoning = {
@@ -1987,7 +2771,7 @@ function buildSourceText(artifacts: ArtifactRecord[], maxLength: number) {
 }
 
 function canGenerateFrankBenchmark(packet: FrankPacketV2) {
-    if (!packet.selectedPack || !packet.intakeChecklist || !packet.sourceExtractionSheet || !packet.goldPacketMapping || !packet.likelyFailureModes) {
+    if (!packet.selectedPack || !packet.intakeChecklist || !packet.sourceExtractionSheet || !packet.goldPacketMapping || !packet.controllerCard || !packet.likelyFailureModes) {
         return false;
     }
     if (packet.routingConfidence === 'weak') {
@@ -2020,14 +2804,249 @@ function hasSupportingAuthority(artifacts: ArtifactRecord[]) {
     return artifacts.some((artifact) => artifact.role === 'supporting_authority' || artifact.role === 'supplemental');
 }
 
+function withDerivedControllerCard(packet: FrankPacketV2): FrankPacketV2 {
+    return {
+        ...packet,
+        controllerCard: buildFrankControllerCard(packet),
+    };
+}
+
+function buildFrankControllerCard(packet: FrankPacketV2): FrankControllerCard | null {
+    if (!packet.selectedPack || !packet.sourceExtractionSheet || !packet.goldPacketMapping) {
+        return null;
+    }
+
+    const activePackage = packet.questionVariance.packages.find((item) => item.id === packet.questionVariance.activePackageId) ?? null;
+    const activeOption = packet.questionVariance.menu?.options.find((item) => item.id === activePackage?.selectedOptionId) ?? null;
+    const selectedLaneCode = inferControllerCardLaneCode(activeOption, activePackage);
+    const variationLane = selectedLaneCode === 'none'
+        ? 'none'
+        : selectedLaneCode.startsWith('A')
+            ? 'A'
+            : 'B';
+    const selectedVariationQuestionText = activePackage?.variedLegalQuestion ?? '';
+    const currentQuestionText = selectedVariationQuestionText || packet.reverseEngineeredQuestion;
+    const selectedVariationFactDeltas = activePackage?.swapLog.map((entry) => `${entry.from} -> ${entry.to}`) ?? [];
+    const selectedVariationSummary = activePackage
+        ? [activeOption?.label ?? activePackage.variationType, activePackage.whyTheAnswerShouldStayTheSameOrChange]
+            .filter(Boolean)
+            .join(' — ')
+        : '';
+
+    return {
+        selected_pack: packet.selectedPack,
+        doctrine_family: packet.goldPacketMapping.doctrineFamily,
+        jurisdiction_assumption: extractBenchmarkSection(packet.benchmarkAnswer, 'Jurisdiction assumption:'),
+        benchmark_posture: packet.goldPacketMapping.benchmarkPosture,
+        current_question_text: currentQuestionText,
+        gold_answer: packet.benchmarkAnswer,
+        likely_controlling_doctrine: extractBenchmarkSection(packet.benchmarkAnswer, 'Controlling doctrine:'),
+        correct_trigger_test: packet.goldPacketMapping.controllingTrigger,
+        trigger_facts: packet.sourceExtractionSheet.triggerFacts,
+        non_triggered_sibling_gates: packet.secondaryIssues,
+        required_gate_order: packet.goldPacketMapping.requiredGateOrder,
+        writing_status: inferControllerCardWritingStatus(currentQuestionText, packet.benchmarkAnswer),
+        strongest_counterargument: extractBenchmarkSection(packet.benchmarkAnswer, 'Strongest counterargument:'),
+        allowed_fallbacks: packet.goldPacketMapping.possibleSubstitutesExceptions,
+        fallback_limits: packet.goldPacketMapping.limitsOnSubstitutesExceptions,
+        omitted_control_fact: inferOmittedControlFact(selectedLaneCode, activePackage),
+        variation_lane: variationLane,
+        selected_lane_code: selectedLaneCode,
+        variation_menu_options: (packet.questionVariance.menu?.options ?? [])
+            .map((option) => option.laneCode || inferControllerCardLaneCode(option, null))
+            .filter((code, index, values) => values.indexOf(code) === index),
+        selected_variation_summary: selectedVariationSummary,
+        selected_variation_fact_deltas: selectedVariationFactDeltas,
+        rubric_patch_scope: selectedLaneCode === 'none' ? 'base rubric only' : 'selected variation only',
+        failure_bank: getFailureBankLabel(packet.selectedPack),
+        base_question_text: packet.reverseEngineeredQuestion,
+        base_gold_answer: packet.benchmarkAnswer,
+        selected_variation_question_text: selectedVariationQuestionText,
+        selected_variation_answer_posture: inferSelectedVariationAnswerPosture(activePackage),
+        dual_rubric_mode: selectedLaneCode === 'none' ? 'off' : 'on',
+        rubric_separation_rule: 'strict',
+        evaluation_tracks: selectedLaneCode === 'none' ? 'original_only' : 'original_and_selected_variation',
+    };
+}
+
+function getFailureBankLabel(packId: FrankSofPackId) {
+    switch (packId) {
+        case 'pack10':
+            return '11_FAILURE_BANK_ORAL_PROMISE.txt';
+        case 'pack20':
+            return '21_FAILURE_BANK_LAND.txt';
+        case 'pack30':
+            return '31_FAILURE_BANK_EXECUTOR.txt';
+        case 'pack40':
+            return '41_FAILURE_BANK_UCC_2201.txt';
+        default:
+            return '';
+    }
+}
+
+function inferControllerCardLaneCode(
+    option: QuestionVarianceMenuOption | null,
+    pkg: QuestionVariancePackage | null,
+): FrankControllerCard['selected_lane_code'] {
+    if (!option && !pkg) {
+        return 'none';
+    }
+    if (option?.laneCode) {
+        return option.laneCode;
+    }
+    if (pkg?.laneCode) {
+        return pkg.laneCode;
+    }
+    const candidateTexts = [
+        option?.label,
+        option?.variationType,
+        pkg?.variationType,
+        pkg?.selectedOptionId,
+    ].filter((value): value is string => Boolean(value));
+
+    return inferQuestionVarianceLaneCodeFromText(candidateTexts);
+}
+
+function inferControllerCardWritingStatus(questionText: string, benchmarkAnswer: string): FrankControllerCard['writing_status'] {
+    const haystack = `${questionText}\n${benchmarkAnswer}`.toLowerCase();
+    if (/\b(dispute|disputed|whether)\b.{0,40}\b(writing|signed|signature|memorandum)\b/.test(haystack)) {
+        return 'disputed';
+    }
+    if (/\b(no writing|not in writing|nothing was signed|unsigned|oral promise|oral agreement|lacks the required writing)\b/.test(haystack)) {
+        return 'absent';
+    }
+    if (/\b(signed writing|written agreement|written contract|signed memorandum|merchant confirmation|signed by the party)\b/.test(haystack)) {
+        return 'present';
+    }
+    return 'omitted';
+}
+
+function inferOmittedControlFact(
+    selectedLaneCode: FrankControllerCard['selected_lane_code'],
+    pkg: QuestionVariancePackage | null,
+) {
+    if (selectedLaneCode === 'none' || selectedLaneCode.startsWith('A')) {
+        return 'none';
+    }
+    return pkg?.swapLog[0]?.from
+        || pkg?.rubricPatchNotes[0]
+        || 'review needed';
+}
+
+function inferSelectedVariationAnswerPosture(
+    pkg: QuestionVariancePackage | null,
+): FrankControllerCard['selected_variation_answer_posture'] {
+    if (!pkg) {
+        return 'same_as_base';
+    }
+    switch (pkg.answerReuseLevel) {
+        case 'ambiguity_rewrite_required':
+            return 'ambiguity_rewrite';
+        case 'cosmetic_edits_only':
+            return 'localized_edit';
+        case 'reuse_as_is':
+        case 'unsafe':
+        default:
+            return 'same_as_base';
+    }
+}
+
+function normalizeFrankControllerCard(value: unknown): FrankControllerCard | null {
+    if (!isRecord(value)) {
+        return null;
+    }
+    return {
+        selected_pack: normalizePackId(value.selected_pack) ?? '',
+        doctrine_family: normalizeOptionalString(value.doctrine_family, ''),
+        jurisdiction_assumption: normalizeOptionalString(value.jurisdiction_assumption, ''),
+        benchmark_posture: normalizeOptionalString(value.benchmark_posture, ''),
+        current_question_text: normalizeOptionalString(value.current_question_text, ''),
+        gold_answer: normalizeOptionalString(value.gold_answer, ''),
+        likely_controlling_doctrine: normalizeOptionalString(value.likely_controlling_doctrine, ''),
+        correct_trigger_test: normalizeOptionalString(value.correct_trigger_test, ''),
+        trigger_facts: normalizeStringArray(value.trigger_facts),
+        non_triggered_sibling_gates: normalizeStringArray(value.non_triggered_sibling_gates),
+        required_gate_order: normalizeStringArray(value.required_gate_order),
+        writing_status: value.writing_status === 'present' || value.writing_status === 'absent' || value.writing_status === 'omitted' || value.writing_status === 'disputed'
+            ? value.writing_status
+            : 'omitted',
+        strongest_counterargument: normalizeOptionalString(value.strongest_counterargument, ''),
+        allowed_fallbacks: normalizeStringArray(value.allowed_fallbacks),
+        fallback_limits: normalizeStringArray(value.fallback_limits),
+        omitted_control_fact: normalizeOptionalString(value.omitted_control_fact, 'none'),
+        variation_lane: value.variation_lane === 'A' || value.variation_lane === 'B' || value.variation_lane === 'none'
+            ? value.variation_lane
+            : 'none',
+        selected_lane_code: value.selected_lane_code === 'A1' || value.selected_lane_code === 'A2' || value.selected_lane_code === 'A3' || value.selected_lane_code === 'A4' || value.selected_lane_code === 'B1' || value.selected_lane_code === 'B2' || value.selected_lane_code === 'none'
+            ? value.selected_lane_code
+            : 'none',
+        variation_menu_options: normalizeStringArray(value.variation_menu_options),
+        selected_variation_summary: normalizeOptionalString(value.selected_variation_summary, ''),
+        selected_variation_fact_deltas: normalizeStringArray(value.selected_variation_fact_deltas),
+        rubric_patch_scope: value.rubric_patch_scope === 'selected variation only' ? 'selected variation only' : 'base rubric only',
+        failure_bank: normalizeOptionalString(value.failure_bank, ''),
+        base_question_text: normalizeOptionalString(value.base_question_text, ''),
+        base_gold_answer: normalizeOptionalString(value.base_gold_answer, ''),
+        selected_variation_question_text: normalizeOptionalString(value.selected_variation_question_text, ''),
+        selected_variation_answer_posture: value.selected_variation_answer_posture === 'localized_edit' || value.selected_variation_answer_posture === 'ambiguity_rewrite'
+            ? value.selected_variation_answer_posture
+            : 'same_as_base',
+        dual_rubric_mode: value.dual_rubric_mode === 'on' ? 'on' : 'off',
+        rubric_separation_rule: 'strict',
+        evaluation_tracks: value.evaluation_tracks === 'original_and_selected_variation'
+            ? 'original_and_selected_variation'
+            : 'original_only',
+    };
+}
+
+function extractBenchmarkSection(
+    text: string,
+    heading: (typeof FRANK_V2_BENCHMARK_HEADINGS)[number],
+) {
+    if (!text.trim()) {
+        return '';
+    }
+    const targetHeadings = new Set(
+        FRANK_V2_BENCHMARK_HEADING_ALIASES[heading].map((value) => normalizeBenchmarkHeadingLabel(value)),
+    );
+    const allHeadings = new Map(
+        FRANK_V2_BENCHMARK_HEADINGS.flatMap((value) =>
+            FRANK_V2_BENCHMARK_HEADING_ALIASES[value].map((alias) => [normalizeBenchmarkHeadingLabel(alias), value] as const),
+        ),
+    );
+
+    const lines = text.replace(/\r/g, '').split('\n');
+    let capturing = false;
+    const collected: string[] = [];
+
+    for (const line of lines) {
+        const normalizedLine = normalizeBenchmarkHeadingLabel(line);
+        const matchedHeading = allHeadings.get(normalizedLine);
+        if (matchedHeading) {
+            if (capturing) {
+                break;
+            }
+            capturing = targetHeadings.has(normalizedLine);
+            continue;
+        }
+        if (capturing) {
+            collected.push(line);
+        }
+    }
+
+    return collected.join('\n').trim();
+}
+
 function validateFrankExtractionMappingOrThrow(input: {
     sourceExtractionSheet: FrankSourceExtractionSheet | null;
     goldPacketMapping: FrankGoldPacketMapping | null;
+    controllerCard: FrankControllerCard | null;
     likelyFailureModes: FrankLikelyFailureModes | null;
 }) {
     const missingSections = [
         !input.sourceExtractionSheet ? 'sourceExtractionSheet' : null,
         !input.goldPacketMapping ? 'goldPacketMapping' : null,
+        !input.controllerCard ? 'controllerCard' : null,
         !input.likelyFailureModes ? 'likelyFailureModes' : null,
     ].filter((value): value is string => Boolean(value));
 
@@ -2037,7 +3056,7 @@ function validateFrankExtractionMappingOrThrow(input: {
 }
 
 function validateFrankApprovalOrThrow(packet: FrankPacketV2) {
-    if (!packet.selectedPack || !packet.intakeChecklist || !packet.sourceExtractionSheet || !packet.goldPacketMapping || !packet.likelyFailureModes) {
+    if (!packet.selectedPack || !packet.intakeChecklist || !packet.sourceExtractionSheet || !packet.goldPacketMapping || !packet.controllerCard || !packet.likelyFailureModes) {
         throw new Error('All Frank phases through extraction and mapping must be completed before approval.');
     }
     if (!canGenerateFrankBenchmark(packet)) {
@@ -2174,6 +3193,179 @@ function validateRubricRowsOrThrow(rows: KarthicRubricRow[]) {
     }
 }
 
+function getActiveQuestionVariancePackage(packet: FrankPacketV2) {
+    const activePackageId = packet.questionVariance.activePackageId;
+    if (!activePackageId) {
+        return null;
+    }
+    return packet.questionVariance.packages.find((item) => item.id === activePackageId) ?? null;
+}
+
+function defaultRubricTrack(input: {
+    id: KarthicRubricTrackId;
+    label: string;
+    questionSource: QuestionSource;
+    questionVariancePackageId?: string | null;
+    questionText: string;
+    benchmarkAnswer: string;
+    seedRows?: KarthicRubricRow[];
+    rows?: KarthicRubricRow[];
+    preservationNotes?: string[];
+    patchNotes?: string[];
+    deltaSummary?: string[];
+}): KarthicRubricTrack {
+    const seedRows = normalizeRubricRows(input.seedRows ?? input.rows ?? []);
+    const rows = normalizeRubricRows(input.rows ?? input.seedRows ?? []);
+    return {
+        id: input.id,
+        label: input.label,
+        questionSource: input.questionSource,
+        questionVariancePackageId: input.questionVariancePackageId ?? null,
+        questionText: normalizeOptionalString(input.questionText, ''),
+        benchmarkAnswer: normalizeOptionalString(input.benchmarkAnswer, ''),
+        seedRows,
+        rows,
+        preservationNotes: normalizeStringArray(input.preservationNotes),
+        patchNotes: normalizeStringArray(input.patchNotes),
+        deltaSummary: normalizeStringArray(input.deltaSummary),
+    };
+}
+
+function buildBaseRubricTrack(packet: FrankPacketV2, rows?: KarthicRubricRow[], seedRows?: KarthicRubricRow[]) {
+    return defaultRubricTrack({
+        id: 'base',
+        label: 'Original question',
+        questionSource: 'canonical',
+        questionText: packet.reverseEngineeredQuestion,
+        benchmarkAnswer: packet.benchmarkAnswer,
+        rows,
+        seedRows,
+        preservationNotes: ['Base rubric stays tied to the original Frank question and benchmark answer.'],
+    });
+}
+
+function buildSelectedVariationRubricTrack(packet: FrankPacketV2, rows?: KarthicRubricRow[], seedRows?: KarthicRubricRow[]) {
+    const activePackage = getActiveQuestionVariancePackage(packet);
+    if (!activePackage) {
+        return null;
+    }
+    return defaultRubricTrack({
+        id: 'selected_variation',
+        label: 'Selected variation',
+        questionSource: 'question_variance_active_package',
+        questionVariancePackageId: activePackage.id,
+        questionText: activePackage.variedLegalQuestion,
+        benchmarkAnswer: activePackage.updatedModelAnswer,
+        rows,
+        seedRows,
+        preservationNotes: ['Selected-variation rubric stays tied only to the adopted Frank2 option.'],
+        patchNotes: activePackage.rubricPatchNotes,
+        deltaSummary: packet.controllerCard?.selected_variation_fact_deltas ?? [],
+    });
+}
+
+function createDefaultKarthicScoringPolicy(
+    controllerCard: FrankControllerCard | null,
+    mode: KarthicCaseCitationVerificationMode = 'off',
+): KarthicScoringPolicy {
+    return {
+        sourceFiles: mode === 'on'
+            ? [...DEFAULT_KARTHIC_POLICY_FILES, '58_Case_Citation_Verification_Protocol_v1.md']
+            : [...DEFAULT_KARTHIC_POLICY_FILES],
+        caseCitationVerificationMode: mode,
+        zakReviewPenaltyThreshold: 20,
+        penalties: DEFAULT_KARTHIC_PENALTIES
+            .filter((rule) => rule.code !== 'P_FalseDefinitenessOnDesignedAmbiguity' || controllerCard?.variation_lane === 'B')
+            .map((rule) => ({
+                ...rule,
+                enabled: rule.code !== 'P_HallucinatedCaseCitation' || mode === 'on',
+                notes: '',
+            })),
+        caps: DEFAULT_KARTHIC_CAPS
+            .filter((rule) => rule.code !== 'CAP_75_FalseDefinitenessOnDesignedAmbiguity' || controllerCard?.variation_lane === 'B')
+            .map((rule) => ({
+                ...rule,
+                enabled: rule.code !== 'CAP_75_HallucinatedCoreAuthority' || mode === 'on',
+                notes: '',
+            })),
+        notes: [
+            'Score rows first, then overlays, then at most one cap.',
+            'Keep penalties editable at the Karthic stage so Dasha inherits the approved policy instead of improvising it.',
+        ],
+    };
+}
+
+function getRubricTrack(
+    pack: Pick<KarthicRubricPackV2, 'tracks'>,
+    trackId: KarthicRubricTrackId,
+) {
+    return trackId === 'selected_variation'
+        ? pack.tracks.selected_variation
+        : pack.tracks.base;
+}
+
+function withActiveRubricTrackAliases(pack: KarthicRubricPackV2): KarthicRubricPackV2 {
+    const activeTrack = getRubricTrack(pack, pack.activeTrack) ?? pack.tracks.base;
+    return {
+        ...pack,
+        questionSource: activeTrack.questionSource,
+        questionVariancePackageId: activeTrack.questionVariancePackageId,
+        questionText: activeTrack.questionText,
+        seedRows: activeTrack.seedRows,
+        rows: activeTrack.rows,
+    };
+}
+
+function setPackTrackRows(
+    pack: KarthicRubricPackV2,
+    trackId: KarthicRubricTrackId,
+    input: Partial<Pick<KarthicRubricTrack, 'rows' | 'seedRows'>>,
+) {
+    const target = getRubricTrack(pack, trackId);
+    if (!target) {
+        return pack;
+    }
+    const nextTrack: KarthicRubricTrack = {
+        ...target,
+        rows: input.rows ? normalizeRubricRows(input.rows) : target.rows,
+        seedRows: input.seedRows ? normalizeRubricRows(input.seedRows) : target.seedRows,
+    };
+    const nextPack: KarthicRubricPackV2 = {
+        ...pack,
+        tracks: {
+            ...pack.tracks,
+            [trackId]: nextTrack,
+        },
+    };
+    return withActiveRubricTrackAliases(nextPack);
+}
+
+function createKarthicRubricTracks(
+    packet: FrankPacketV2,
+    input?: {
+        baseRows?: KarthicRubricRow[];
+        baseSeedRows?: KarthicRubricRow[];
+        selectedVariationRows?: KarthicRubricRow[];
+        selectedVariationSeedRows?: KarthicRubricRow[];
+    },
+) {
+    const base = buildBaseRubricTrack(packet, input?.baseRows, input?.baseSeedRows);
+    const selectedVariation = packet.controllerCard?.dual_rubric_mode === 'on'
+        ? buildSelectedVariationRubricTrack(packet, input?.selectedVariationRows, input?.selectedVariationSeedRows)
+        : null;
+    return {
+        base,
+        selected_variation: selectedVariation,
+    } satisfies KarthicRubricPackV2['tracks'];
+}
+
+function flattenLikelyFailureModes(modes: FrankLikelyFailureModes | null) {
+    if (!modes) {
+        return [] as string[];
+    }
+    return [modes.FM1, modes.FM2, modes.FM3, modes.FM4, modes.FM5].filter((value) => value.trim().length > 0);
+}
+
 function createEmptyQuestionVarianceState(): QuestionVarianceState {
     return {
         phase: 'routing',
@@ -2247,24 +3439,44 @@ function normalizeQuestionVarianceMenuOption(value: unknown): QuestionVarianceMe
     }
     const label = normalizeNonEmptyString(value.label, '');
     const lane = normalizeQuestionVarianceLane(value.lane, 'lane_a');
+    const laneCode = normalizeQuestionVarianceLaneCode(
+        value.laneCode,
+        inferQuestionVarianceLaneCodeFromText(
+            [
+                normalizeNullableString(value.label),
+                normalizeNullableString(value.variationType),
+                normalizeNullableString(value.id),
+            ],
+            lane === 'lane_a' ? 'A1' : 'B1',
+        ),
+    );
     const variationType = normalizeNonEmptyString(value.variationType, '');
     if (!label || !variationType) {
         return null;
     }
+    const exactSwapOptions = normalizeQuestionVarianceExactSwapOptions(value.exactSwapOptions, {
+        lane,
+        laneCode,
+        label,
+        whatChanges: normalizeNonEmptyString(value.whatChanges, 'What changes was not provided.'),
+    });
     return {
         id: buildQuestionVarianceOptionId({
             id: normalizeNullableString(value.id),
             lane,
+            laneCode,
             label,
             variationType,
         }),
         label,
         lane,
+        laneCode,
         variationType,
         whatChanges: normalizeNonEmptyString(value.whatChanges, 'What changes was not provided.'),
         whyItFits: normalizeNonEmptyString(value.whyItFits, 'Why it fits was not provided.'),
         expectedAnswerReuse: normalizeQuestionVarianceReuseLevel(value.expectedAnswerReuse, 'unsafe'),
         mainRedFlag: normalizeNonEmptyString(value.mainRedFlag, 'Main red flag was not provided.'),
+        exactSwapOptions,
     };
 }
 
@@ -2277,7 +3489,12 @@ function normalizeQuestionVariancePackages(value: unknown): QuestionVariancePack
     );
 }
 
-function normalizeQuestionVariancePackage(value: unknown, fallbackSelectedOptionId?: string): QuestionVariancePackage | null {
+function normalizeQuestionVariancePackage(
+    value: unknown,
+    fallbackSelectedOptionId?: string,
+    fallbackOption?: QuestionVarianceMenuOption,
+    fallbackSelectedSwapIds?: string[],
+): QuestionVariancePackage | null {
     if (!isRecord(value)) {
         return null;
     }
@@ -2285,11 +3502,27 @@ function normalizeQuestionVariancePackage(value: unknown, fallbackSelectedOption
     if (!variedLegalQuestion) {
         return null;
     }
+    const laneCode = normalizeQuestionVarianceLaneCode(
+        value.laneCode,
+        fallbackOption?.laneCode ?? inferQuestionVarianceLaneCodeFromText(
+            [
+                normalizeNullableString(value.variationType),
+                normalizeNullableString(value.selectedOptionId),
+            ],
+            normalizeQuestionVarianceLane(value.lane, 'lane_a') === 'lane_a' ? 'A1' : 'B1',
+        ),
+    );
+    const selectedSwapOptionIds = normalizeSelectedQuestionVarianceSwapIds(
+        Array.isArray(value.selectedSwapOptionIds) ? value.selectedSwapOptionIds : fallbackSelectedSwapIds,
+        fallbackOption?.exactSwapOptions ?? [],
+    );
     return {
         id: normalizeNonEmptyString(value.id, `qv_pkg_${randomUUID().slice(0, 8)}`),
         selectedOptionId: normalizeNonEmptyString(value.selectedOptionId, fallbackSelectedOptionId ?? ''),
         lane: normalizeQuestionVarianceLane(value.lane, 'lane_a'),
+        laneCode,
         variationType: normalizeNonEmptyString(value.variationType, 'Variation type unavailable'),
+        selectedSwapOptionIds,
         jurisdiction: normalizeNonEmptyString(value.jurisdiction, 'Jurisdiction not stated'),
         controllingDoctrine: normalizeNonEmptyString(value.controllingDoctrine, 'Controlling doctrine not provided'),
         expectedResultType: normalizeQuestionVarianceExpectedResultType(value.expectedResultType, 'unsafe_to_vary'),
@@ -2323,6 +3556,68 @@ function normalizeQuestionVarianceSwapLog(value: unknown) {
             return from || to ? { from, to } : null;
         })
         .filter((item): item is QuestionVariancePackage['swapLog'][number] => Boolean(item));
+}
+
+function normalizeQuestionVarianceExactSwapOptions(
+    value: unknown,
+    fallback: {
+        lane: VariationLane;
+        laneCode: VariationLaneCode;
+        label: string;
+        whatChanges: string;
+    },
+): QuestionVarianceMenuOption['exactSwapOptions'] {
+    const raw = Array.isArray(value) ? value : [];
+    const normalized = raw
+        .map((item, index) => {
+            if (!isRecord(item)) {
+                return null;
+            }
+            const label = normalizeNonEmptyString(item.label, '');
+            const from = normalizeNonEmptyString(item.from, '');
+            const to = normalizeNonEmptyString(item.to, '');
+            const whatChanges = normalizeNonEmptyString(item.whatChanges, '');
+            const derivedWhatChanges = whatChanges || [from, to].filter(Boolean).join(' -> ');
+            if (!label && !derivedWhatChanges) {
+                return null;
+            }
+            return {
+                id: normalizeNonEmptyString(
+                    item.id,
+                    sanitizeFileName(`${fallback.laneCode}_${label || derivedWhatChanges || index + 1}`.toLowerCase()),
+                ),
+                label: label || `Variation ${index + 1}`,
+                from,
+                to,
+                whatChanges: derivedWhatChanges || fallback.whatChanges,
+            };
+        })
+        .filter((item): item is QuestionVarianceMenuOption['exactSwapOptions'][number] => Boolean(item));
+    if (normalized.length > 0) {
+        return normalized;
+    }
+    return [{
+        id: sanitizeFileName(`${fallback.lane}_${fallback.laneCode}_${fallback.label}`.toLowerCase()),
+        label: fallback.label,
+        from: '',
+        to: '',
+        whatChanges: fallback.whatChanges,
+    }];
+}
+
+function normalizeSelectedQuestionVarianceSwapIds(
+    value: unknown,
+    exactSwapOptions: QuestionVarianceMenuOption['exactSwapOptions'],
+) {
+    const validIds = new Set(exactSwapOptions.map((item) => item.id));
+    if (validIds.size === 0) {
+        return [] as string[];
+    }
+    const requested = Array.isArray(value) ? value : [];
+    const normalized = requested
+        .map((item) => normalizeNullableString(item))
+        .filter((item): item is string => typeof item === 'string' && validIds.has(item));
+    return [...new Set(normalized)];
 }
 
 function validateQuestionVariancePrerequisitesOrThrow(packet: FrankPacketV2) {
@@ -2364,6 +3659,9 @@ function validateQuestionVariancePackageOrThrow(pkg: QuestionVariancePackage | n
     if (!pkg.selectedOptionId.trim()) {
         throw new Error('QuestionVariance package is missing its selected option reference.');
     }
+    if (pkg.selectedSwapOptionIds.length === 0) {
+        throw new Error('QuestionVariance package must include at least one selected exact swap.');
+    }
 }
 
 function retainPackagesForMenu(packages: QuestionVariancePackage[], options: QuestionVarianceMenuOption[]) {
@@ -2378,11 +3676,41 @@ function sortVariationPackagesByNewest(packages: QuestionVariancePackage[]) {
 function buildQuestionVarianceOptionId(input: {
     id: string | null;
     lane: VariationLane;
+    laneCode: VariationLaneCode;
     label: string;
     variationType: string;
 }) {
     return input.id?.trim()
-        || sanitizeFileName(`${input.lane}_${input.label}_${input.variationType}`.toLowerCase());
+        || sanitizeFileName(`${input.lane}_${input.laneCode}_${input.label}_${input.variationType}`.toLowerCase());
+}
+
+function buildQuestionVariancePackageSignature(selectedOptionId: string, selectedSwapOptionIds: string[]) {
+    return `${selectedOptionId}::${[...selectedSwapOptionIds].sort().join('|')}`;
+}
+
+function inferQuestionVarianceLaneCodeFromText(
+    values: Array<string | null | undefined>,
+    fallback: VariationLaneCode = 'A1',
+): VariationLaneCode {
+    const haystack = values.filter(Boolean).join(' ');
+    const match = haystack.match(/\b(A[1-4]|B[1-2])\b/i);
+    if (match) {
+        return match[1].toUpperCase() as VariationLaneCode;
+    }
+    const normalized = haystack.toLowerCase();
+    if (normalized.includes('variable swap')) return 'A1';
+    if (normalized.includes('threshold-preserving numeric shift')) return 'A2';
+    if (normalized.includes('specificity shift')) return 'A3';
+    if (normalized.includes('salience injection')) return 'A4';
+    if (normalized.includes('fact omission') || normalized.includes('ambiguity test')) return 'B1';
+    if (normalized.includes('controlled generalization')) return 'B2';
+    return fallback;
+}
+
+function normalizeQuestionVarianceLaneCode(value: unknown, fallback: VariationLaneCode): VariationLaneCode {
+    return value === 'A1' || value === 'A2' || value === 'A3' || value === 'A4' || value === 'B1' || value === 'B2'
+        ? value
+        : fallback;
 }
 
 function normalizeFrankPacket(value: unknown): FrankPacketV2 | null {
@@ -2390,7 +3718,7 @@ function normalizeFrankPacket(value: unknown): FrankPacketV2 | null {
         return null;
     }
     const sourceArtifacts = normalizeArtifacts(value.sourceArtifacts);
-    return {
+    return withDerivedControllerCard({
         schemaVersion: 2,
         id: normalizeNonEmptyString(value.id, `frank_v2_${randomUUID().slice(0, 8)}`),
         status: value.status === 'approved' ? 'approved' : 'draft',
@@ -2406,6 +3734,7 @@ function normalizeFrankPacket(value: unknown): FrankPacketV2 | null {
         intakeChecklist: normalizeIntakeChecklist(value.intakeChecklist),
         sourceExtractionSheet: normalizeSourceExtractionSheet(value.sourceExtractionSheet, normalizePackId(value.selectedPack)),
         goldPacketMapping: normalizeGoldPacketMapping(value.goldPacketMapping),
+        controllerCard: null,
         likelyFailureModes: normalizeFailureModes(value.likelyFailureModes),
         benchmarkAnswer: normalizeOptionalString(value.benchmarkAnswer, ''),
         reverseEngineeredQuestion: normalizeOptionalString(value.reverseEngineeredQuestion, ''),
@@ -2417,25 +3746,71 @@ function normalizeFrankPacket(value: unknown): FrankPacketV2 | null {
         approvedAt: typeof value.approvedAt === 'string' ? value.approvedAt : null,
         createdAt: normalizeNonEmptyString(value.createdAt, new Date().toISOString()),
         updatedAt: normalizeNonEmptyString(value.updatedAt, new Date().toISOString()),
-    };
+    });
 }
 
 function normalizeKarthicRubricPack(value: unknown): KarthicRubricPackV2 | null {
     if (!isRecord(value) || value.schemaVersion !== 2) {
         return null;
     }
-    return {
+    const tracksRecord = isRecord(value.tracks) ? value.tracks : null;
+    const controllerCard = normalizeFrankControllerCard(value.controllerCard);
+    const fallbackPolicy = createDefaultKarthicScoringPolicy(controllerCard);
+    const baseTrack = normalizeKarthicRubricTrack(
+        tracksRecord?.base,
+        buildBaseRubricTrack({
+            schemaVersion: 2,
+            id: '',
+            status: 'draft',
+            phase: 'question',
+            legalDomain: 'Statute of Frauds',
+            sourceFamily: 'uploaded_authority',
+            title: '',
+            selectedPack: normalizePackId(value.selectedPack),
+            routingReason: '',
+            secondaryIssues: [],
+            routingConfidence: null,
+            sourceArtifacts: [],
+            intakeChecklist: null,
+            sourceExtractionSheet: null,
+            goldPacketMapping: null,
+            controllerCard,
+            likelyFailureModes: null,
+            benchmarkAnswer: normalizeOptionalString(isRecord(tracksRecord?.base) ? tracksRecord.base.benchmarkAnswer : value.benchmarkAnswer, ''),
+            reverseEngineeredQuestion: normalizeOptionalString(isRecord(tracksRecord?.base) ? tracksRecord.base.questionText : value.questionText, ''),
+            questionVariance: createEmptyQuestionVarianceState(),
+            savedPrompts: [],
+            generationSettings: {},
+            benchmarkWarnings: [],
+            questionWarnings: [],
+            approvedAt: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        } satisfies FrankPacketV2, normalizeRubricRows(value.rows), normalizeRubricRows(value.seedRows ?? value.rows)),
+    )!;
+    const selectedVariationTrack = normalizeKarthicRubricTrack(
+        tracksRecord?.selected_variation,
+        null,
+    );
+    const pack = {
         schemaVersion: 2,
         id: normalizeNonEmptyString(value.id, `karthic_v2_${randomUUID().slice(0, 8)}`),
         frankPacketId: normalizeNonEmptyString(value.frankPacketId, ''),
         preClusterRunId: normalizeNullableString(value.preClusterRunId),
         selectedPack: normalizePackId(value.selectedPack) ?? 'pack10',
-        questionSource: normalizeQuestionSource(value.questionSource, 'canonical'),
-        questionVariancePackageId: normalizeNullableString(value.questionVariancePackageId),
-        questionText: normalizeOptionalString(value.questionText, ''),
+        controllerCard,
+        activeTrack: normalizeKarthicRubricTrackId(value.activeTrack, selectedVariationTrack ? 'base' : 'base'),
+        tracks: {
+            base: baseTrack,
+            selected_variation: selectedVariationTrack,
+        },
+        questionSource: 'canonical',
+        questionVariancePackageId: null,
+        questionText: '',
         status: value.status === 'approved' ? 'approved' : 'draft',
-        seedRows: normalizeRubricRows(value.seedRows ?? value.rows),
-        rows: normalizeRubricRows(value.rows),
+        seedRows: [],
+        rows: [],
+        scoringPolicy: normalizeKarthicScoringPolicy(value.scoringPolicy, fallbackPolicy, controllerCard),
         clusterFailureModes: normalizeStringArray(value.clusterFailureModes),
         refinementLog: normalizeKarthicRefinementLog(value.refinementLog),
         refinementStatus: normalizeKarthicRefinementStatus(value.refinementStatus, value.status === 'approved' ? 'approved' : 'not_started'),
@@ -2445,7 +3820,11 @@ function normalizeKarthicRubricPack(value: unknown): KarthicRubricPackV2 | null 
         approvedAt: typeof value.approvedAt === 'string' ? value.approvedAt : null,
         createdAt: normalizeNonEmptyString(value.createdAt, new Date().toISOString()),
         updatedAt: normalizeNonEmptyString(value.updatedAt, new Date().toISOString()),
-    };
+    } satisfies KarthicRubricPackV2;
+    return withActiveRubricTrackAliases({
+        ...pack,
+        activeTrack: pack.activeTrack === 'selected_variation' && !pack.tracks.selected_variation ? 'base' : pack.activeTrack,
+    });
 }
 
 function normalizeKarthicPreClusterRun(value: unknown): KarthicPreClusterRunV2 | null {
@@ -2481,6 +3860,7 @@ function normalizeDashaRun(value: unknown): DashaRunV2 | null {
         schemaVersion: 2,
         id: normalizeNonEmptyString(value.id, `dasha_v2_${randomUUID().slice(0, 8)}`),
         rubricPackId: normalizeNonEmptyString(value.rubricPackId, ''),
+        rubricTrackId: normalizeKarthicRubricTrackId(value.rubricTrackId, 'base'),
         runMode: value.runMode === 'cluster_only' ? 'cluster_only' : 'score_and_cluster',
         status: value.status === 'completed' || value.status === 'failed' ? value.status : 'draft',
         workflowStage: normalizeDashaWorkflowStage(value.workflowStage, value.status === 'completed' ? 'judged' : 'cluster_pending'),
@@ -2501,6 +3881,7 @@ function normalizeDashaRun(value: unknown): DashaRunV2 | null {
         validResponseCount: typeof value.validResponseCount === 'number' ? value.validResponseCount : undefined,
         responses: Array.isArray(value.responses) ? value.responses as DashaResponseRecord[] : [],
         clusters: Array.isArray(value.clusters) ? value.clusters as DashaClusterRecord[] : [],
+        clusterAnalyses: normalizeDashaClusterAnalyses(value.clusterAnalyses),
         rowResults: Array.isArray(value.rowResults) ? value.rowResults as RubricRowResult[] : [],
         moduleSummaries: Array.isArray(value.moduleSummaries) ? value.moduleSummaries as ModuleSummary[] : [],
         weightedSummary: isRecord(value.weightedSummary)
@@ -2511,6 +3892,7 @@ function normalizeDashaRun(value: unknown): DashaRunV2 | null {
             }
             : { applicableWeightTotal: 0, weightedScore: null, notApplicableRowKeys: [] },
         modelSummaries: normalizeDashaModelSummaries(value.modelSummaries),
+        trackSummary: normalizeDashaTrackSummary(value.trackSummary),
         clusteringMethod: normalizeOptionalString(value.clusteringMethod, 'unknown'),
         clusteringNotes: typeof value.clusteringNotes === 'string' ? value.clusteringNotes : null,
         errorMessage: typeof value.errorMessage === 'string' ? value.errorMessage : undefined,
@@ -2553,6 +3935,108 @@ function normalizeKarthicRefinementAction(value: unknown): KarthicRefinementLogE
         default:
             return 'kept';
     }
+}
+
+function normalizeKarthicRubricTrackId(value: unknown, fallback: KarthicRubricTrackId): KarthicRubricTrackId {
+    return value === 'selected_variation' || value === 'base'
+        ? value
+        : fallback;
+}
+
+function normalizeKarthicRubricTrack(value: unknown, fallback: KarthicRubricTrack | null): KarthicRubricTrack | null {
+    if (!isRecord(value)) {
+        return fallback;
+    }
+    const fallbackTrack = fallback ?? defaultRubricTrack({
+        id: 'base',
+        label: 'Original question',
+        questionSource: 'canonical',
+        questionText: '',
+        benchmarkAnswer: '',
+    });
+    return defaultRubricTrack({
+        id: normalizeKarthicRubricTrackId(value.id, fallbackTrack.id),
+        label: normalizeNonEmptyString(value.label, fallbackTrack.label),
+        questionSource: normalizeQuestionSource(value.questionSource, fallbackTrack.questionSource),
+        questionVariancePackageId: normalizeNullableString(value.questionVariancePackageId) ?? fallbackTrack.questionVariancePackageId,
+        questionText: normalizeOptionalString(value.questionText, fallbackTrack.questionText),
+        benchmarkAnswer: normalizeOptionalString(value.benchmarkAnswer, fallbackTrack.benchmarkAnswer),
+        seedRows: normalizeRubricRows(value.seedRows ?? fallbackTrack.seedRows),
+        rows: normalizeRubricRows(value.rows ?? fallbackTrack.rows),
+        preservationNotes: normalizeStringArray(value.preservationNotes ?? fallbackTrack.preservationNotes),
+        patchNotes: normalizeStringArray(value.patchNotes ?? fallbackTrack.patchNotes),
+        deltaSummary: normalizeStringArray(value.deltaSummary ?? fallbackTrack.deltaSummary),
+    });
+}
+
+function normalizeKarthicScoringPolicy(
+    value: unknown,
+    fallback: KarthicScoringPolicy,
+    controllerCard: FrankControllerCard | null,
+): KarthicScoringPolicy {
+    const record = isRecord(value) ? value : {};
+    const mode = normalizeKarthicCaseCitationVerificationMode(record.caseCitationVerificationMode, fallback.caseCitationVerificationMode);
+    return {
+        sourceFiles: normalizeStringArray(record.sourceFiles).length > 0
+            ? normalizeStringArray(record.sourceFiles)
+            : createDefaultKarthicScoringPolicy(controllerCard, mode).sourceFiles,
+        caseCitationVerificationMode: mode,
+        zakReviewPenaltyThreshold: clampNumber(toNumber(record.zakReviewPenaltyThreshold, fallback.zakReviewPenaltyThreshold), 1, 100),
+        penalties: normalizeKarthicPenaltyRules(record.penalties, fallback.penalties, controllerCard, mode),
+        caps: normalizeKarthicCapRules(record.caps, fallback.caps, controllerCard, mode),
+        notes: normalizeStringArray(record.notes ?? fallback.notes),
+    };
+}
+
+function normalizeKarthicCaseCitationVerificationMode(
+    value: unknown,
+    fallback: KarthicCaseCitationVerificationMode,
+): KarthicCaseCitationVerificationMode {
+    return value === 'on' || value === 'off'
+        ? value
+        : fallback;
+}
+
+function normalizeKarthicPenaltyRules(
+    value: unknown,
+    fallback: KarthicPenaltyRule[],
+    controllerCard: FrankControllerCard | null,
+    mode: KarthicCaseCitationVerificationMode,
+) {
+    const byCode = new Map((Array.isArray(value) ? value : []).filter(isRecord).map((item) => [String(item.code), item]));
+    return createDefaultKarthicScoringPolicy(controllerCard, mode).penalties.map((rule) => {
+        const override = byCode.get(rule.code);
+        const fallbackRule = fallback.find((item) => item.code === rule.code) ?? rule;
+        return {
+            code: rule.code,
+            label: normalizeNonEmptyString(override?.label, fallbackRule.label),
+            points: clampNumber(toNumber(override?.points, fallbackRule.points), 0, 25),
+            enabled: typeof override?.enabled === 'boolean' ? override.enabled : fallbackRule.enabled,
+            appliesWhen: normalizeNonEmptyString(override?.appliesWhen, fallbackRule.appliesWhen),
+            notes: normalizeOptionalString(override?.notes, fallbackRule.notes),
+        } satisfies KarthicPenaltyRule;
+    });
+}
+
+function normalizeKarthicCapRules(
+    value: unknown,
+    fallback: KarthicCapRule[],
+    controllerCard: FrankControllerCard | null,
+    mode: KarthicCaseCitationVerificationMode,
+) {
+    const byCode = new Map((Array.isArray(value) ? value : []).filter(isRecord).map((item) => [String(item.code), item]));
+    return createDefaultKarthicScoringPolicy(controllerCard, mode).caps.map((rule) => {
+        const override = byCode.get(rule.code);
+        const fallbackRule = fallback.find((item) => item.code === rule.code) ?? rule;
+        return {
+            code: rule.code,
+            label: normalizeNonEmptyString(override?.label, fallbackRule.label),
+            cap: clampNumber(toNumber(override?.cap, fallbackRule.cap), 1, 100),
+            enabled: typeof override?.enabled === 'boolean' ? override.enabled : fallbackRule.enabled,
+            appliesWhen: normalizeNonEmptyString(override?.appliesWhen, fallbackRule.appliesWhen),
+            notes: normalizeOptionalString(override?.notes, fallbackRule.notes),
+        } satisfies KarthicCapRule;
+    });
 }
 
 function normalizeKarthicRefinementStatus(value: unknown, fallback: KarthicRubricPackV2['refinementStatus']): KarthicRubricPackV2['refinementStatus'] {
@@ -2945,6 +4429,106 @@ function normalizeDashaModelSummaries(value: unknown): DashaModelSummary[] {
     return value
         .map((item) => normalizeDashaModelSummary(item))
         .filter((item): item is DashaModelSummary => Boolean(item));
+}
+
+function normalizeDashaClusterAnalyses(value: unknown): DashaClusterAnalysis[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .map((item) => normalizeDashaClusterAnalysisRecord(item))
+        .filter((item): item is DashaClusterAnalysis => Boolean(item));
+}
+
+function normalizeDashaClusterAnalysisRecord(value: unknown): DashaClusterAnalysis | null {
+    if (!isRecord(value)) {
+        return null;
+    }
+    const clusterId = normalizeNonEmptyString(value.clusterId, '');
+    if (!clusterId) {
+        return null;
+    }
+    return {
+        clusterId,
+        evaluationTrack: normalizeNonEmptyString(value.evaluationTrack, 'evaluation_track_original'),
+        questionVersion: normalizeNonEmptyString(value.questionVersion, 'original'),
+        rubricType: normalizeNonEmptyString(value.rubricType, 'base_rubric'),
+        clusterSizeTotal: clampNumber(Math.floor(toNumber(value.clusterSizeTotal, 0)), 0, 400),
+        representedModelCount: clampNumber(Math.floor(toNumber(value.representedModelCount, 0)), 0, 400),
+        dominantModelName: normalizeNullableString(value.dominantModelName),
+        dominantModelCount: clampNumber(Math.floor(toNumber(value.dominantModelCount, 0)), 0, 400),
+        dominantModelShare: typeof value.dominantModelShare === 'number' ? value.dominantModelShare : 0,
+        subtotal: typeof value.subtotal === 'number' ? value.subtotal : null,
+        penaltiesApplied: Array.isArray(value.penaltiesApplied)
+            ? value.penaltiesApplied
+                .map((entry) => {
+                    if (!isRecord(entry)) {
+                        return null;
+                    }
+                    const code = normalizeNonEmptyString(entry.code, '');
+                    if (!code) {
+                        return null;
+                    }
+                    return {
+                        code,
+                        label: normalizeNonEmptyString(entry.label, code),
+                        points: clampNumber(Math.floor(toNumber(entry.points, 0)), 0, 100),
+                        reason: normalizeNonEmptyString(entry.reason, ''),
+                    } satisfies DashaAppliedPenalty;
+                })
+                .filter((entry): entry is DashaAppliedPenalty => Boolean(entry))
+            : [],
+        capApplied: isRecord(value.capApplied)
+            ? {
+                code: normalizeNonEmptyString(value.capApplied.code, ''),
+                label: normalizeNonEmptyString(value.capApplied.label, ''),
+                cap: clampNumber(Math.floor(toNumber(value.capApplied.cap, 100)), 0, 100),
+                reason: normalizeNonEmptyString(value.capApplied.reason, ''),
+            }
+            : null,
+        finalScore: typeof value.finalScore === 'number' ? value.finalScore : null,
+        disagreementFlag: Boolean(value.disagreementFlag),
+        zakReviewFlag: Boolean(value.zakReviewFlag),
+        trackSummaryNote: normalizeNonEmptyString(value.trackSummaryNote, ''),
+        caseCitation: normalizeDashaCaseCitationAnalysis(
+            isRecord(value.caseCitation) ? value.caseCitation : null,
+            {
+                caseMentionStatus: 'none',
+                extractedCaseMentions: [],
+                verifiedCaseMentions: [],
+                hallucinatedCaseMentions: [],
+                citationAccuracyStatus: 'not_applicable',
+                sourceCaseReferenceStatus: 'not_applicable',
+                sourceCaseReferenceNote: '',
+                caseVerificationReviewFlag: false,
+                note: '',
+            },
+        ),
+    };
+}
+
+function normalizeDashaTrackSummary(value: unknown): DashaTrackSummary | null {
+    if (!isRecord(value)) {
+        return null;
+    }
+    return {
+        evaluationTrack: normalizeNonEmptyString(value.evaluationTrack, 'evaluation_track_original'),
+        questionVersion: normalizeNonEmptyString(value.questionVersion, 'original'),
+        rubricType: normalizeNonEmptyString(value.rubricType, 'base_rubric'),
+        rankedCentroidList: normalizeStringArray(value.rankedCentroidList),
+        bestCentroidByScore: normalizeNullableString(value.bestCentroidByScore),
+        bestCentroidScore: typeof value.bestCentroidScore === 'number' ? value.bestCentroidScore : null,
+        topCentroidVoteSplit: normalizeNonEmptyString(value.topCentroidVoteSplit, 'not_applicable'),
+        panelMajorityStatus: normalizeDashaPanelMajorityStatus(value.panelMajorityStatus),
+        bestCentroidZakReviewFlag: Boolean(value.bestCentroidZakReviewFlag),
+        trackSummary: normalizeNonEmptyString(value.trackSummary, ''),
+    };
+}
+
+function normalizeDashaPanelMajorityStatus(value: unknown): DashaPanelMajorityStatus {
+    return value === 'majority' || value === 'no_majority' || value === 'not_applicable'
+        ? value
+        : 'not_applicable';
 }
 
 function normalizeDashaModelSummary(value: unknown): DashaModelSummary | null {

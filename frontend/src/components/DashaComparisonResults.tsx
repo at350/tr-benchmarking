@@ -44,7 +44,7 @@ export function DashaComparisonResults({
                 </Notice>
             ) : null}
 
-            <section className="rounded-[28px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.12),_transparent_42%),radial-gradient(circle_at_bottom_right,_rgba(30,64,175,0.10),_transparent_40%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-[0_16px_36px_rgba(15,23,42,0.06)]">
+            <section className="rounded-[28px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(31,116,184,0.12),_transparent_42%),radial-gradient(circle_at_bottom_right,_rgba(94,155,204,0.14),_transparent_40%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-[0_16px_36px_rgba(15,23,42,0.06)]">
                 <div className="grid gap-4 xl:grid-cols-[1.4fr_repeat(3,minmax(0,1fr))]">
                     <div className="rounded-2xl border border-slate-200 bg-white/90 p-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Lane A comparison</p>
@@ -201,7 +201,7 @@ function RunCard({
 
 function Notice({ tone, title, children }: { tone: 'info' | 'error'; title: string; children: ReactNode }) {
     return (
-        <div className={tone === 'error' ? 'rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-900' : 'rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sky-900'}>
+        <div className={tone === 'error' ? 'rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-900' : 'rounded-2xl border border-[var(--accent-200)] bg-[var(--accent-50)] p-4 text-[var(--accent-900)]'}>
             <div className="flex items-start gap-3">
                 {tone === 'error' ? <XCircle className="mt-0.5 h-4 w-4" /> : <BarChart3 className="mt-0.5 h-4 w-4" />}
                 <div>
@@ -215,7 +215,7 @@ function Notice({ tone, title, children }: { tone: 'info' | 'error'; title: stri
 
 function MetricCard({ label, value, tone = 'slate' }: { label: string; value: string; tone?: 'slate' | 'teal' | 'rose' | 'amber' }) {
     const toneClassName = tone === 'teal'
-        ? 'border-teal-200 bg-teal-50/80 text-teal-950'
+        ? 'border-[var(--accent-200)] bg-[var(--accent-50)]/80 text-[var(--accent-950)]'
         : tone === 'rose'
             ? 'border-rose-200 bg-rose-50/80 text-rose-950'
             : tone === 'amber'
@@ -266,7 +266,7 @@ function deltaClassName(value: number | null) {
         return 'text-slate-500';
     }
     if (value > 0) {
-        return 'text-teal-700';
+        return 'text-[var(--accent-700)]';
     }
     if (value < 0) {
         return 'text-rose-700';
