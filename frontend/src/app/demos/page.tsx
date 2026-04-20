@@ -709,7 +709,7 @@ export default function DemosPage() {
             eyebrow="Workflow"
             title="Legal Workflow"
             subtitle="Source-grounded benchmark generation, clustered response analysis, rubric construction, and centroid-first judging for the Anglemire marriage-consideration question."
-            maxWidthClassName="max-w-[1600px]"
+            maxWidthClassName="max-w-none"
             actions={
                 <>
                     <Link

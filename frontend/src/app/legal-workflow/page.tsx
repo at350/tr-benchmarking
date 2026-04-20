@@ -189,7 +189,7 @@ const WORKFLOW_STAGES: WorkflowStageDefinition[] = [
         description: 'Frank Phase 2: source extraction sheet, gold-packet mapping, and likely failure modes.',
     },
     {
-        id: 'benchmark',	
+        id: 'benchmark',
         title: 'Benchmark Answer',
         shortLabel: 'Benchmark Answer',
         description: 'Frank Phase 3: clean benchmark answer with the fixed v2 headings.',
@@ -243,6 +243,7 @@ const WORKFLOW_STAGES: WorkflowStageDefinition[] = [
         description: 'Zak stage: SME escalation and instability review after Dasha when a packet needs human judgment.',
     },
 ];
+
 
 const WORKFLOW_BLOCKS: WorkflowBlockDefinition[] = [
     {
@@ -2559,18 +2560,9 @@ export function LegalWorkflowPageClient({
         >
             <div className="space-y-4 pb-28 sm:pb-32">
                 <section>
-                    <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-                        <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Pipeline Tabs</p>
-                            <p className="mt-1 text-sm text-slate-500">
-                                {isFrankOnlyMode
-                                    ? 'This Legal AutoEval tab is a Frank-only workflow for packet construction, benchmark drafting, and reverse-engineered question setup.'
-                                    : 'These switch between the major workflow blocks: Frank builds the packet, Karthic builds the rubric, Dasha runs judging, and Zak handles escalation.'}
-                            </p>
-                        </div>
+                    <div className="mb-3 flex flex-wrap items-end justify-end gap-3">
                         <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
-                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Current Tab</p>
-                            <p className="mt-1 font-semibold text-slate-900">{currentBlock?.title ?? 'Pipeline'}</p>
+                            <p className="font-semibold text-slate-900">{currentBlock?.title ?? 'Pipeline'}</p>
                         </div>
                     </div>
                     <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
@@ -2611,7 +2603,6 @@ export function LegalWorkflowPageClient({
                                     </div>
                                     <div className="text-right text-sm text-slate-500">
                                         <p>{buildBlockProgressLabel(currentBlock?.id ?? 'frank', currentStage.id, currentBlockStepIndex, currentBlock?.stages.length ?? 1)}</p>
-                                        <p className="mt-1">{currentBlockNextStage ? `Next up: ${formatWorkflowStepLabel(currentBlockNextStage.id)}` : 'Final step in this block'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -2637,9 +2628,6 @@ export function LegalWorkflowPageClient({
                                     >
                                         Previous
                                     </button>
-                                    <div className="text-sm text-slate-500">
-                                        {currentBlockNextStage ? `Next: ${currentBlockNextStage.title}` : 'Final step in this block'}
-                                    </div>
                                     <button
                                         className={primaryButtonClassName}
                                         disabled={!currentBlockNextStage || Boolean(nextStageBlockedReason)}
@@ -3009,9 +2997,6 @@ function StageBlockCard({
             disabled={!block.unlocked}
             className={buildStageBlockCardClassName(block)}
         >
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                {block.active ? 'Active Tab' : 'Pipeline Tab'}
-            </p>
             <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--accent-200)] bg-white text-[var(--accent-800)]">
                 {icon}
             </div>
@@ -3021,7 +3006,6 @@ function StageBlockCard({
                     {block.statusLabel}
                 </span>
             </div>
-            <p className="mt-2 max-w-md text-sm leading-7 text-slate-600">{block.description}</p>
         </button>
     );
 }
@@ -3143,7 +3127,6 @@ function StageGuideOverlay({
                     aria-controls="stage-guide-overlay-panel"
                 >
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Stage Guide</p>
                         <p className="mt-1 text-sm font-semibold text-slate-900">
                             {WORKFLOW_STAGES.find((stage) => stage.id === stageId)?.title ?? 'Workflow Stage'}
                         </p>
@@ -3167,7 +3150,6 @@ function StageGuideCard({ stageId, promptPreview }: { stageId: WorkflowStageId; 
     const phaseNumber = getFrankPhaseNumber(stageId);
     return (
         <aside className="rounded-2xl border border-slate-200 bg-slate-50/95 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Stage Guide</p>
             <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                 {phaseNumber !== null ? `Frank Phase ${phaseNumber}` : stageId === 'source' ? 'Source Setup' : WORKFLOW_STAGES.find((stage) => stage.id === stageId)?.title ?? 'Workflow Stage'}
             </p>

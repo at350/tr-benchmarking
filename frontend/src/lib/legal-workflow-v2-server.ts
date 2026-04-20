@@ -4683,17 +4683,50 @@ async function ensureDirectory(directoryKey: keyof typeof DATA_DIRECTORIES | str
 async function listArtifacts<T>(directoryKey: keyof typeof DATA_DIRECTORIES | string) {
     const directory = await ensureDirectory(directoryKey);
     const entries = await fs.readdir(directory, { withFileTypes: true }).catch(() => []);
-    const items: T[] = [];
+    const itemsById = new Map<string, { item: T; fileName: string }>();
+    const anonymousItems: T[] = [];
     for (const entry of entries) {
         if (!entry.isFile() || path.extname(entry.name) !== '.json') {
             continue;
         }
         const record = await safeReadJson<T>(path.join(directory, entry.name));
         if (record) {
-            items.push(record);
+            const recordId = typeof (record as Record<string, unknown>).id === 'string'
+                ? String((record as Record<string, unknown>).id).trim()
+                : '';
+            if (!recordId) {
+                anonymousItems.push(record);
+                continue;
+            }
+
+            const existing = itemsById.get(recordId);
+            if (!existing) {
+                itemsById.set(recordId, { item: record, fileName: entry.name });
+                continue;
+            }
+
+            const canonicalFileName = `${sanitizeFileName(recordId)}.json`;
+            const existingIsCanonical = existing.fileName === canonicalFileName;
+            const nextIsCanonical = entry.name === canonicalFileName;
+
+            if (nextIsCanonical && !existingIsCanonical) {
+                itemsById.set(recordId, { item: record, fileName: entry.name });
+                continue;
+            }
+            if (existingIsCanonical && !nextIsCanonical) {
+                continue;
+            }
+
+            const existingUpdatedAt = String((existing.item as Record<string, unknown>).updatedAt ?? '');
+            const nextUpdatedAt = String((record as Record<string, unknown>).updatedAt ?? '');
+            if (nextUpdatedAt.localeCompare(existingUpdatedAt) > 0) {
+                itemsById.set(recordId, { item: record, fileName: entry.name });
+            }
         }
     }
-    return items.sort((left, right) => String((right as Record<string, unknown>).updatedAt ?? '').localeCompare(String((left as Record<string, unknown>).updatedAt ?? '')));
+    return [...itemsById.values(), ...anonymousItems.map((item) => ({ item, fileName: '' }))]
+        .map((entry) => entry.item)
+        .sort((left, right) => String((right as Record<string, unknown>).updatedAt ?? '').localeCompare(String((left as Record<string, unknown>).updatedAt ?? '')));
 }
 
 async function readArtifact<T>(directoryKey: keyof typeof DATA_DIRECTORIES | string, id: string) {

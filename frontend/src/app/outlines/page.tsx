@@ -50,7 +50,7 @@ export default function OutlinesPage() {
             eyebrow="Outlines"
             title="Legal Outlines Library"
             subtitle="Browse and preview PDF outlines available for rubric-first generation and judge referencing."
-            maxWidthClassName="max-w-7xl"
+            maxWidthClassName="max-w-none"
         >
             <section className="rounded-2xl border border-slate-200 bg-white/95 p-5 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">

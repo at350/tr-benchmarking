@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 type PanelCardProps = {
     href?: string;
     title: string;
-    description: string;
+    description?: string;
     icon?: ReactNode;
     children?: ReactNode;
     badge?: string;
@@ -20,8 +20,8 @@ export function PanelCard({ href, title, description, icon, children, badge }: P
                 {badge && <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-600">{badge}</span>}
             </div>
             <h3 className="mt-4 text-xl font-bold text-slate-900">{title}</h3>
-            <p className="mt-2 text-sm text-slate-600">{description}</p>
-            {children && <div className="mt-4">{children}</div>}
+            {description ? <p className="mt-2 text-sm text-slate-600">{description}</p> : null}
+            {children && <div className={`${description ? 'mt-4' : 'mt-2'}`}>{children}</div>}
         </div>
     );
 
