@@ -69,6 +69,11 @@ export function DashaResultsExplorer({ run }: DashaResultsExplorerProps) {
                     {run.errorMessage || 'Dasha stopped before clustering or rubric scoring completed.'}
                 </Notice>
             ) : null}
+            {run.status === 'cancelled' ? (
+                <Notice tone="info" icon={<AlertTriangle className="h-4 w-4" />} title="Run stopped">
+                    {run.errorMessage || 'Dasha was stopped before clustering or rubric scoring completed.'}
+                </Notice>
+            ) : null}
             {run.status === 'draft' && run.workflowStage === 'cluster_pending' ? (
                 <Notice tone="info" icon={<Workflow className="h-4 w-4" />} title="Clustering in progress">
                     {run.clusteringNotes || 'Dasha is still generating responses and clustering this run.'}

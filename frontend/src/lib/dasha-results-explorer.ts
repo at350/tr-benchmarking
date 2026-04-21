@@ -519,6 +519,9 @@ function buildSummarySentence(input: {
     runStatus: DashaRunV2['status'];
     workflowStage: DashaRunV2['workflowStage'];
 }) {
+    if (input.runStatus === 'cancelled') {
+        return 'This run was stopped before Dasha could produce a complete cluster analysis.';
+    }
     if (input.runStatus === 'failed') {
         return 'This run failed before Dasha could produce a complete cluster analysis.';
     }

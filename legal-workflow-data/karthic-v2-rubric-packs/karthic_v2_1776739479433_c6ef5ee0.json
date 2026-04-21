@@ -56,7 +56,19 @@
     "selected_variation_answer_posture": "same_as_base",
     "dual_rubric_mode": "off",
     "rubric_separation_rule": "strict",
-    "evaluation_tracks": "original_only"
+    "evaluation_tracks": "original_only",
+    "packet_status": "ready_for_dasha",
+    "frank_phase_complete": 3,
+    "rubric_status": "locked",
+    "evaluation_status": "ready",
+    "workflow_source_type": "statute",
+    "workflow_source_case_name": "none",
+    "workflow_source_case_citation": "none",
+    "case_citation_verification_mode": "on",
+    "source_case_monitoring": "off",
+    "case_citation_scoring_rule": "hallucinated_only_penalty",
+    "case_verification_operating_mode": "cautious",
+    "case_existence_check_method": "web_search"
   },
   "activeTrack": "base",
   "tracks": {
@@ -524,7 +536,7 @@
   "questionSource": "canonical",
   "questionVariancePackageId": null,
   "questionText": "Reverse-Engineered Question:\nUnder Texas law, a county hires a towing company to handle all impound towing for a five-year term. The towing company orally agrees with a local dispatch business that, in exchange for sharing part of the revenue, the dispatch business will coordinate the calls and provide related support for the full five-year period. Two years later, the county ends the towing program early, and the dispatch business stops receiving work. The towing company then refuses to pay the dispatch business any remaining amounts, and the dispatch business sues to enforce the oral agreement. Is the agreement enforceable? Analyze.",
-  "status": "draft",
+  "status": "approved",
   "seedRows": [
     {
       "key": "A",
@@ -977,7 +989,7 @@
       "09_Cross_Pack_Scoring_Overlays_Caps_Penalties_v1.md",
       "50_Karthic_PreFill_Instructions.rtf"
     ],
-    "caseCitationVerificationMode": "off",
+    "caseCitationVerificationMode": "on",
     "zakReviewPenaltyThreshold": 20,
     "penalties": [
       {
@@ -1106,7 +1118,7 @@
         "code": "CAP_75_HallucinatedCoreAuthority",
         "label": "Hallucinated authority cap",
         "cap": 75,
-        "enabled": false,
+        "enabled": true,
         "appliesWhen": "Use when the answer’s conclusion depends on a hallucinated case citation.",
         "notes": ""
       }
@@ -1216,7 +1228,7 @@
       "sourceClusterIds": []
     }
   ],
-  "refinementStatus": "refined",
+  "refinementStatus": "approved",
   "savedPrompts": [
     {
       "id": "prompt_fe563f90",
@@ -1271,7 +1283,7 @@
     }
   },
   "comparisonMethodNote": "Prefill audit: selected_pack fixed; doctrine_family fixed but jurisdiction-sensitive; jurisdiction_assumption fixed but jurisdiction-sensitive; benchmark_posture fixed; current_question_text fixed; gold_answer fixed; likely_controlling_doctrine fixed; correct_trigger_test fixed; trigger_facts fixed; non_triggered_sibling_gates fixed; required_gate_order fixed; writing_status fixed; strongest_counterargument fixed; allowed_fallbacks fixed; fallback_limits fixed; omitted_control_fact fixed as none; output_shell fixed; doctrine_guide_or_pack fixed; failure_bank fixed; variation_lane fixed as none; human_weight_overrides none provided; selected_lane_code fixed as none; variation_menu_options fixed; selected_variation_summary fixed as none; selected_variation_fact_deltas fixed as none; rubric_patch_scope fixed as base rubric only; selected_question_variance package fixed as none; scoring_policy fixed; likely_failure_modes fixed; current_rubric_rows fixed but generic and rewritten; cluster representatives not used; cluster failure modes not used. Module weights retained at 28/40/19/13 with row distribution A12/K8/J8, B9/C19/D6/E6, F7/G7/H5, I5/L4/M4. No cluster data was available, so refinement was driven only by the controller card, gold answer, Pack 10 doctrine pack, Pack 10 failure bank, and scoring policy. No new failure labels were proposed; existing bank labels were sufficient. All rows are anchor rows and the surviving overlap is handled by row-level distinctness notes.",
-  "approvedAt": null,
+  "approvedAt": "2026-04-21T13:10:27.790Z",
   "createdAt": "2026-04-21T02:44:39.433Z",
-  "updatedAt": "2026-04-21T02:55:41.777Z"
+  "updatedAt": "2026-04-21T13:10:27.790Z"
 }

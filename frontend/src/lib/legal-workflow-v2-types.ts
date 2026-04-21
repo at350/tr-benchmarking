@@ -663,6 +663,7 @@ export type WeightedSummary = {
 };
 
 export type DashaWorkflowStage = 'cluster_pending' | 'clustered' | 'judged';
+export type DashaRunStatus = Extract<WorkflowStatus, 'draft' | 'completed' | 'failed'> | 'cancelled';
 
 export type DashaRunV2 = {
     schemaVersion: 2;
@@ -670,7 +671,7 @@ export type DashaRunV2 = {
     rubricPackId: string;
     rubricTrackId: KarthicRubricTrackId;
     runMode: DashaRunMode;
-    status: Extract<WorkflowStatus, 'draft' | 'completed' | 'failed'>;
+    status: DashaRunStatus;
     workflowStage: DashaWorkflowStage;
     inputArtifacts: ArtifactRecord[];
     questionText: string;
@@ -699,6 +700,8 @@ export type DashaRunV2 = {
     clusteringMethod: string;
     clusteringNotes: string | null;
     errorMessage?: string;
+    cancelRequestedAt: string | null;
+    cancelledAt: string | null;
     createdAt: string;
     completedAt: string | null;
 };

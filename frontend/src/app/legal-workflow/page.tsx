@@ -797,6 +797,9 @@ export function LegalWorkflowPageClient({
                 if (item?.status === 'draft' && item.workflowStage === 'clustered') {
                     setStatusMessage('Dasha clustering completed. Review the clustered results or continue to judging.');
                 }
+                if (item?.status === 'cancelled') {
+                    setStatusMessage('Dasha run stopped.');
+                }
                 if (item?.status === 'failed') {
                     setErrorMessage(item.errorMessage || 'Dasha run failed.');
                 }
@@ -1568,6 +1571,42 @@ export function LegalWorkflowPageClient({
             goToStage('dasha_results');
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to judge clustered Dasha run.');
+            setStatusMessage(null);
+        }
+    }
+
+    async function stopPendingDashaRun() {
+        if (!selectedRun || selectedRun.status !== 'draft' || selectedRun.workflowStage !== 'cluster_pending') {
+            setErrorMessage('Select a pending Dasha run first.');
+            return;
+        }
+
+        setErrorMessage(null);
+        setStatusMessage('Stopping Dasha run...');
+        try {
+            await runBusyWorkflowAction(
+                { id: 'stop_dasha', label: 'Stopping Dasha run' },
+                async () => {
+                    const response = await fetch(`/api/dasha-runs/${selectedRun.id}/stop`, {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                    });
+                    const json = await readJsonResponse<{ item?: DashaRunV2; error?: string }>(response, 'Failed to stop Dasha run.');
+                    if (!response.ok) {
+                        throw new Error(json.error || 'Failed to stop Dasha run.');
+                    }
+
+                    const stoppedRun = json.item as DashaRunV2;
+                    setDashaRuns((current) => sortRuns([
+                        stoppedRun,
+                        ...current.filter((run) => run.id !== stoppedRun.id),
+                    ]));
+                    setSelectedRunId(stoppedRun.id);
+                    setStatusMessage('Dasha run stopped.');
+                },
+            );
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to stop Dasha run.');
             setStatusMessage(null);
         }
     }
@@ -2760,13 +2799,23 @@ export function LegalWorkflowPageClient({
                                             ))}
                                         </select>
                                     </Field>
-                                    <button className={primaryButtonClassName} disabled={isWorkflowActionPending || hasPendingDashaRun} onClick={() => void runDasha()}>
-                                        {isActionPending('run_dasha')
-                                            ? 'Starting Dasha...'
-                                            : hasPendingDashaRun
-                                                ? 'Dasha Clustering Running...'
-                                                : selectedDashaPack?.tracks.selected_variation ? 'Run Both Dasha Clustering Passes' : 'Run Dasha Clustering'}
-                                    </button>
+                                    <div className="flex flex-wrap gap-3">
+                                        <button className={primaryButtonClassName} disabled={isWorkflowActionPending || hasPendingDashaRun} onClick={() => void runDasha()}>
+                                            {isActionPending('run_dasha')
+                                                ? 'Starting Dasha...'
+                                                : hasPendingDashaRun
+                                                    ? 'Dasha Clustering Running...'
+                                                    : selectedDashaPack?.tracks.selected_variation ? 'Run Both Dasha Clustering Passes' : 'Run Dasha Clustering'}
+                                        </button>
+                                        <button
+                                            className={secondaryButtonClassName}
+                                            disabled={isWorkflowActionPending || !selectedRun || selectedRun.status !== 'draft' || selectedRun.workflowStage !== 'cluster_pending'}
+                                            onClick={() => void stopPendingDashaRun()}
+                                            type="button"
+                                        >
+                                            {isActionPending('stop_dasha') ? 'Stopping...' : 'Stop Pending Run'}
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
                                     {selectedRun ? (
@@ -4345,10 +4394,14 @@ function buildRunManagerDashaStat(runs: DashaRunV2[]) {
     if (runs.length === 0) {
         return null;
     }
+    const cancelled = runs.filter((run) => run.status === 'cancelled').length;
     const failed = runs.filter((run) => run.status === 'failed').length;
     const running = runs.filter((run) => run.status === 'draft' && run.workflowStage === 'cluster_pending').length;
     const judged = runs.filter((run) => run.status === 'completed' && run.workflowStage === 'judged').length;
     const clustered = runs.filter((run) => run.workflowStage === 'clustered').length;
+    if (cancelled > 0) {
+        return `Dasha ${cancelled} stopped`;
+    }
     if (failed > 0) {
         return `Dasha ${failed} failed`;
     }

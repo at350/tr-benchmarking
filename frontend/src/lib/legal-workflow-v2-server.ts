@@ -137,6 +137,15 @@ const DEFAULT_OPENAI_TEXT_MODEL = 'gpt-5.4-mini';
 const DEFAULT_ANTHROPIC_JUDGE_MODEL = 'claude-opus-4-6';
 const DEFAULT_GEMINI_JUDGE_MODEL = 'gemini-3.1-pro-preview';
 const DEFAULT_DASHA_JUDGE_AGGREGATION_RULE: DashaJudgeAggregationRule = 'mean_final_score_then_strict_majority_first_place_votes';
+const activeDashaAbortControllers = new Map<string, AbortController>();
+
+class DashaRunCancelledError extends Error {
+    constructor(message = 'Dasha run cancelled by user.') {
+        super(message);
+        this.name = 'DashaRunCancelledError';
+    }
+}
+
 const DEFAULT_DASHA_JUDGE_SETTINGS: DashaJudgeSettings = {
     provider: 'openai',
     model: DEFAULT_OPENAI_JSON_MODEL,
@@ -307,6 +316,7 @@ type GenerateModelOptions = {
     messages: ChatMessage[];
     temperature: number;
     reasoningEffort?: ReasoningEffort;
+    signal?: AbortSignal;
 };
 
 export async function listFrankPackets() {
@@ -1629,6 +1639,34 @@ export async function executeDashaRun(id: string) {
     });
 }
 
+export async function stopDashaRun(id: string) {
+    const run = await getRequiredDashaRun(id);
+    if (run.status === 'completed' || run.status === 'failed' || run.status === 'cancelled') {
+        return run;
+    }
+
+    const now = new Date().toISOString();
+    const cancelledRun: DashaRunV2 = {
+        ...run,
+        status: 'cancelled',
+        clusteringNotes: run.workflowStage === 'cluster_pending'
+            ? 'Dasha run was cancelled by user before clustering completed.'
+            : 'Dasha run was cancelled by user.',
+        errorMessage: 'Cancelled by user.',
+        cancelRequestedAt: run.cancelRequestedAt ?? now,
+        cancelledAt: now,
+        completedAt: now,
+    };
+    await writeArtifact(DATA_DIRECTORIES.dasha, cancelledRun.id, cancelledRun);
+
+    const abortController = activeDashaAbortControllers.get(id);
+    if (abortController && !abortController.signal.aborted) {
+        abortController.abort(new DashaRunCancelledError());
+    }
+
+    return cancelledRun;
+}
+
 export async function judgeDashaRun(id: string, input?: {
     judgeModels?: DashaJudgeModelSelection[];
     judgeModel?: string;
@@ -1727,6 +1765,8 @@ async function createDraftDashaRun(input: {
         trackSummary: null,
         clusteringMethod: 'pending',
         clusteringNotes: 'Dasha evaluation started and is running in the background.',
+        cancelRequestedAt: null,
+        cancelledAt: null,
         createdAt: now,
         completedAt: null,
     };
@@ -1738,18 +1778,25 @@ async function finalizeDashaClustering(input: {
     run: DashaRunV2;
     pack: KarthicRubricPackV2;
 }) {
+    const abortController = new AbortController();
+    activeDashaAbortControllers.set(input.run.id, abortController);
     try {
+        throwIfDashaRunCancelled(abortController.signal);
         const responses = await generateDashaResponses(
             input.run.questionText,
             input.run.selectedModels,
             clampNumber(Math.floor(toNumber(input.run.requestedResponseCount, 120)), 1, 400),
+            abortController.signal,
         );
+        throwIfDashaRunCancelled(abortController.signal);
         const validResponses = responses.filter((response) => !response.error && response.responseText.trim());
         if (validResponses.length === 0) {
             return await finalizeFailedRun(input.run, 'No valid model responses were generated.');
         }
 
+        throwIfRunWasCancelled(await getDashaRun(input.run.id));
         const clusteringResult = await clusterResponses(validResponses);
+        throwIfRunWasCancelled(await getDashaRun(input.run.id));
         if (input.run.runMode === 'cluster_only') {
             const completedRun: DashaRunV2 = {
                 ...input.run,
@@ -1775,6 +1822,8 @@ async function finalizeDashaClustering(input: {
                 trackSummary: null,
                 clusteringMethod: clusteringResult.method,
                 clusteringNotes: `${clusteringResult.notes} Row scoring was skipped because this run was started in clustering-only mode.`,
+                cancelRequestedAt: null,
+                cancelledAt: null,
                 completedAt: new Date().toISOString(),
             };
             await writeArtifact(DATA_DIRECTORIES.dasha, completedRun.id, completedRun);
@@ -1790,12 +1839,19 @@ async function finalizeDashaClustering(input: {
             clusters: clusteringResult.clusters,
             clusteringMethod: clusteringResult.method,
             clusteringNotes: clusteringResult.notes,
+            cancelRequestedAt: null,
+            cancelledAt: null,
             completedAt: null,
         };
         await writeArtifact(DATA_DIRECTORIES.dasha, clusteredRun.id, clusteredRun);
         return clusteredRun;
     } catch (error) {
+        if (isDashaRunCancelledError(error)) {
+            return await finalizeCancelledRun(input.run);
+        }
         return await finalizeFailedRun(input.run, error instanceof Error ? error.message : 'Failed to run Dasha evaluation.');
+    } finally {
+        activeDashaAbortControllers.delete(input.run.id);
     }
 }
 
@@ -1867,6 +1923,8 @@ async function finalizeDashaJudging(input: {
             weightedSummary,
             modelSummaries,
             trackSummary,
+            cancelRequestedAt: null,
+            cancelledAt: null,
             completedAt: new Date().toISOString(),
         };
         await writeArtifact(DATA_DIRECTORIES.dasha, completedRun.id, completedRun);
@@ -1899,10 +1957,51 @@ async function finalizeFailedRun(run: DashaRunV2, errorMessage: string) {
         clusteringMethod: 'not_run',
         clusteringNotes: 'Dasha evaluation terminated before clustering completed.',
         errorMessage,
+        cancelRequestedAt: run.cancelRequestedAt,
+        cancelledAt: null,
         completedAt: new Date().toISOString(),
     };
     await writeArtifact(DATA_DIRECTORIES.dasha, failedRun.id, failedRun);
     return failedRun;
+}
+
+async function finalizeCancelledRun(run: DashaRunV2) {
+    const existing = await getDashaRun(run.id);
+    if (existing?.status === 'cancelled') {
+        return existing;
+    }
+
+    const now = new Date().toISOString();
+    const cancelledRun: DashaRunV2 = {
+        ...run,
+        status: 'cancelled',
+        clusteringMethod: run.clusteringMethod === 'pending' ? 'not_run' : run.clusteringMethod,
+        clusteringNotes: 'Dasha run was cancelled by user before completion.',
+        errorMessage: 'Cancelled by user.',
+        cancelRequestedAt: run.cancelRequestedAt ?? now,
+        cancelledAt: now,
+        completedAt: now,
+    };
+    await writeArtifact(DATA_DIRECTORIES.dasha, cancelledRun.id, cancelledRun);
+    return cancelledRun;
+}
+
+function throwIfDashaRunCancelled(signal?: AbortSignal | null) {
+    if (signal?.aborted) {
+        throw signal.reason instanceof Error ? signal.reason : new DashaRunCancelledError();
+    }
+}
+
+function throwIfRunWasCancelled(run: DashaRunV2 | null) {
+    if (run?.status === 'cancelled') {
+        throw new DashaRunCancelledError();
+    }
+}
+
+function isDashaRunCancelledError(error: unknown) {
+    return error instanceof DashaRunCancelledError
+        || (error instanceof Error && error.name === 'AbortError')
+        || (error instanceof Error && error.message.toLowerCase().includes('cancel'));
 }
 
 type DashaSingleJudgeArtifacts = {
@@ -3231,9 +3330,15 @@ async function generateText(input: {
     }
 }
 
-async function generateDashaResponses(questionText: string, selectedModels: DashaSelectedModel[], sampleCount: number) {
+async function generateDashaResponses(
+    questionText: string,
+    selectedModels: DashaSelectedModel[],
+    sampleCount: number,
+    signal?: AbortSignal,
+) {
     const samplingPlan = buildDashaSamplingPlan(selectedModels, sampleCount);
     const tasks = samplingPlan.map((task) => async (): Promise<DashaResponseRecord> => {
+        throwIfDashaRunCancelled(signal);
         const id = `response_${randomUUID().slice(0, 8)}`;
         const modelKey = `${task.selectedModel.provider}::${task.selectedModel.model}`;
         try {
@@ -3244,6 +3349,7 @@ async function generateDashaResponses(questionText: string, selectedModels: Dash
                 messages: [{ role: 'user', content: questionText }],
                 temperature: task.temperature,
                 reasoningEffort: task.selectedModel.reasoningEffort ?? 'medium',
+                signal,
             });
             return {
                 id,
@@ -3255,6 +3361,9 @@ async function generateDashaResponses(questionText: string, selectedModels: Dash
                 clusterId: '',
             };
         } catch (error) {
+            if (isDashaRunCancelledError(error)) {
+                throw error;
+            }
             return {
                 id,
                 modelKey,
@@ -3267,7 +3376,7 @@ async function generateDashaResponses(questionText: string, selectedModels: Dash
             };
         }
     });
-    return await runWithConcurrency(tasks, 8);
+    return await runWithConcurrency(tasks, 8, signal);
 }
 
 function buildDashaSamplingPlan(selectedModels: DashaSelectedModel[], sampleCount: number) {
@@ -3296,7 +3405,7 @@ function buildSampleTemperature(selectedModel: DashaSelectedModel, sampleIndex: 
     return roundToTwo(clampNumber(baseTemperature + offsets[sampleIndex % offsets.length], 0.2, 1));
 }
 
-async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, concurrency: number) {
+async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, concurrency: number, signal?: AbortSignal) {
     if (tasks.length === 0) {
         return [] as T[];
     }
@@ -3305,11 +3414,13 @@ async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, concurrency
     let nextIndex = 0;
     await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, async () => {
         while (nextIndex < tasks.length) {
+            throwIfDashaRunCancelled(signal);
             const currentIndex = nextIndex;
             nextIndex += 1;
             results[currentIndex] = await tasks[currentIndex]();
         }
     }));
+    throwIfDashaRunCancelled(signal);
     return results;
 }
 
@@ -4836,7 +4947,7 @@ function normalizeDashaRun(value: unknown): DashaRunV2 | null {
         rubricPackId: normalizeNonEmptyString(value.rubricPackId, ''),
         rubricTrackId: normalizeKarthicRubricTrackId(value.rubricTrackId, 'base'),
         runMode: value.runMode === 'cluster_only' ? 'cluster_only' : 'score_and_cluster',
-        status: value.status === 'completed' || value.status === 'failed' ? value.status : 'draft',
+        status: normalizeDashaRunStatus(value.status),
         workflowStage: normalizeDashaWorkflowStage(value.workflowStage, value.status === 'completed' ? 'judged' : 'cluster_pending'),
         inputArtifacts: normalizeArtifacts(value.inputArtifacts),
         questionText: normalizeOptionalString(value.questionText, ''),
@@ -4873,6 +4984,8 @@ function normalizeDashaRun(value: unknown): DashaRunV2 | null {
         clusteringMethod: normalizeOptionalString(value.clusteringMethod, 'unknown'),
         clusteringNotes: typeof value.clusteringNotes === 'string' ? value.clusteringNotes : null,
         errorMessage: typeof value.errorMessage === 'string' ? value.errorMessage : undefined,
+        cancelRequestedAt: typeof value.cancelRequestedAt === 'string' ? value.cancelRequestedAt : null,
+        cancelledAt: typeof value.cancelledAt === 'string' ? value.cancelledAt : null,
         createdAt: normalizeNonEmptyString(value.createdAt, new Date().toISOString()),
         completedAt: typeof value.completedAt === 'string' ? value.completedAt : null,
     };
@@ -5025,6 +5138,17 @@ function normalizeKarthicRefinementStatus(value: unknown, fallback: KarthicRubri
             return value;
         default:
             return fallback;
+    }
+}
+
+function normalizeDashaRunStatus(value: unknown): DashaRunV2['status'] {
+    switch (value) {
+        case 'completed':
+        case 'failed':
+        case 'cancelled':
+            return value;
+        default:
+            return 'draft';
     }
 }
 
@@ -6202,12 +6326,12 @@ function buildFallbackRefinementLog(previousRows: KarthicRubricRow[], nextRows: 
     });
 }
 
-async function generateModelResponse({ provider, model, systemPrompt, messages, temperature, reasoningEffort }: GenerateModelOptions) {
+async function generateModelResponse({ provider, model, systemPrompt, messages, temperature, reasoningEffort, signal }: GenerateModelOptions) {
     if (provider === 'anthropic') {
-        return await generateAnthropicResponse({ model, systemPrompt, messages, temperature });
+        return await generateAnthropicResponse({ model, systemPrompt, messages, temperature, signal });
     }
     if (provider === 'gemini') {
-        return await generateGeminiResponse({ model, systemPrompt, messages, temperature, reasoningEffort });
+        return await generateGeminiResponse({ model, systemPrompt, messages, temperature, reasoningEffort, signal });
     }
     const isResponsesApi = model.startsWith('gpt-5');
     if (isResponsesApi) {
@@ -6233,14 +6357,14 @@ async function generateModelResponse({ provider, model, systemPrompt, messages, 
                 summary: 'auto',
             };
         }
-        const response = await getOpenAiClient().responses.create(request);
+        const response = await getOpenAiClient().responses.create(request, { signal });
         return extractResponsesText(response);
     }
     const response = await getOpenAiClient().chat.completions.create({
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
         temperature,
-    });
+    }, { signal });
     return response.choices[0]?.message?.content || '';
 }
 
@@ -6249,12 +6373,14 @@ async function generateAnthropicResponse(input: {
     systemPrompt: string;
     messages: ChatMessage[];
     temperature: number;
+    signal?: AbortSignal;
 }) {
     if (!process.env.ANTHROPIC_API_KEY) {
         throw new Error('ANTHROPIC_API_KEY is not set.');
     }
     const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
+        signal: input.signal,
         headers: {
             'content-type': 'application/json',
             'x-api-key': process.env.ANTHROPIC_API_KEY,
@@ -6284,6 +6410,7 @@ async function generateGeminiResponse(input: {
     messages: ChatMessage[];
     temperature: number;
     reasoningEffort?: ReasoningEffort;
+    signal?: AbortSignal;
 }) {
     if (!process.env.GEMINI_API_KEY) {
         throw new Error('GEMINI_API_KEY is not set.');
@@ -6297,6 +6424,7 @@ async function generateGeminiResponse(input: {
     }
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${input.model}:generateContent`, {
         method: 'POST',
+        signal: input.signal,
         headers: {
             'content-type': 'application/json',
             'x-goog-api-key': process.env.GEMINI_API_KEY,
