@@ -638,10 +638,14 @@ export function buildDashaClusterAuditPrompt(input: {
         differenceSummary: string;
     }>;
     scoringPolicy: KarthicScoringPolicy;
+    workflowSourceType: 'case' | 'statute' | 'Restatement' | 'doctrine source' | 'mixed';
     caseCitationVerificationMode: 'on' | 'off';
     workflowSourceCaseName: string | null;
     workflowSourceCaseCitation: string | null;
     sourceCaseMonitoring: 'on' | 'off';
+    caseCitationScoringRule: 'metadata_only' | 'hallucinated_only_penalty';
+    caseVerificationOperatingMode: 'cautious' | 'demo_search_fail_equals_nonexistent';
+    caseExistenceCheckMethod: 'web_search';
 }) {
     return [
         'You are running the Dasha cluster-audit pass after row scoring has already been completed.',
@@ -674,10 +678,14 @@ export function buildDashaClusterAuditPrompt(input: {
         '',
         `Scoring policy:\n${JSON.stringify(input.scoringPolicy, null, 2)}`,
         '',
+        `workflow_source_type: ${input.workflowSourceType}`,
         `case_citation_verification_mode: ${input.caseCitationVerificationMode}`,
         `workflow_source_case_name: ${input.workflowSourceCaseName ?? 'not_available'}`,
         `workflow_source_case_citation: ${input.workflowSourceCaseCitation ?? 'not_available'}`,
         `source_case_monitoring: ${input.sourceCaseMonitoring}`,
+        `case_citation_scoring_rule: ${input.caseCitationScoringRule}`,
+        `case_verification_operating_mode: ${input.caseVerificationOperatingMode}`,
+        `case_existence_check_method: ${input.caseExistenceCheckMethod}`,
         '',
         'Return JSON with exactly this shape:',
         JSON.stringify({

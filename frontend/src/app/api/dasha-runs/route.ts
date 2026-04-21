@@ -4,7 +4,7 @@ import { spawn } from 'child_process';
 import { NextResponse } from 'next/server';
 
 import { listDashaRuns, runDashaEvaluation } from '@/lib/legal-workflow-v2-server';
-import type { ArtifactRole, DashaRunMode, DashaSelectedModel, KarthicRubricTrackId, ReasoningEffort } from '@/lib/legal-workflow-v2-types';
+import type { ArtifactRole, DashaJudgeModelSelection, DashaRunMode, DashaSelectedModel, KarthicRubricTrackId, ReasoningEffort } from '@/lib/legal-workflow-v2-types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -32,6 +32,7 @@ export async function POST(req: Request) {
         const runMode = String(formData.get('runMode') || 'score_and_cluster').trim() as DashaRunMode;
         const selectedModelsRaw = String(formData.get('selectedModels') || '').trim();
         const sampleCountRaw = String(formData.get('sampleCount') || '').trim();
+        const judgeModelsRaw = String(formData.get('judgeModels') || '').trim();
         const judgeModel = String(formData.get('judgeModel') || '').trim();
         const judgeReasoningEffort = String(formData.get('judgeReasoningEffort') || '').trim() as ReasoningEffort;
         const files = formData.getAll('files');
@@ -55,6 +56,15 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'selectedModels must be valid JSON.' }, { status: 400 });
         }
 
+        let judgeModels: DashaJudgeModelSelection[] | undefined;
+        if (judgeModelsRaw) {
+            try {
+                judgeModels = JSON.parse(judgeModelsRaw) as DashaJudgeModelSelection[];
+            } catch {
+                return NextResponse.json({ error: 'judgeModels must be valid JSON.' }, { status: 400 });
+            }
+        }
+
         const normalizedFiles = await Promise.all(files.map(async (entry, index) => {
             if (!(entry instanceof File)) {
                 throw new Error('Invalid file upload.');
@@ -75,6 +85,7 @@ export async function POST(req: Request) {
             files: normalizedFiles,
             selectedModels,
             sampleCount,
+            judgeModels,
             judgeModel: judgeModel || undefined,
             judgeReasoningEffort: judgeReasoningEffort || undefined,
         });

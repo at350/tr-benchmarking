@@ -50,7 +50,12 @@ import type {
     DashaClusterAnalysis,
     DashaClusterRecord,
     DashaComparisonRole,
+    DashaJudgeAggregationRule,
+    DashaJudgeModelSelection,
+    DashaJudgePanelHomogeneityStatus,
+    DashaJudgePanelMode,
     DashaJudgeSettings,
+    DashaJudgeVoteRecord,
     DashaModelSummary,
     DashaPanelMajorityStatus,
     DashaResponseRecord,
@@ -129,10 +134,22 @@ const DATA_DIRECTORIES = {
 
 const DEFAULT_OPENAI_JSON_MODEL = 'gpt-4.1-mini';
 const DEFAULT_OPENAI_TEXT_MODEL = 'gpt-5.4-mini';
+const DEFAULT_ANTHROPIC_JUDGE_MODEL = 'claude-opus-4-6';
+const DEFAULT_GEMINI_JUDGE_MODEL = 'gemini-3.1-pro-preview';
+const DEFAULT_DASHA_JUDGE_AGGREGATION_RULE: DashaJudgeAggregationRule = 'mean_final_score_then_strict_majority_first_place_votes';
 const DEFAULT_DASHA_JUDGE_SETTINGS: DashaJudgeSettings = {
     provider: 'openai',
     model: DEFAULT_OPENAI_JSON_MODEL,
     reasoningEffort: 'medium',
+    selectedJudgeModels: [{
+        provider: 'openai',
+        model: DEFAULT_OPENAI_JSON_MODEL,
+        reasoningEffort: 'medium',
+    }],
+    panelMode: 'single_model',
+    panelSize: 1,
+    homogeneityStatus: 'homogeneous',
+    aggregationRule: DEFAULT_DASHA_JUDGE_AGGREGATION_RULE,
 };
 const PACK_IDS = new Set<FrankSofPackId>(['pack10', 'pack20', 'pack30', 'pack40']);
 const ROW_KEYS = new Set<RubricRowKey>(RUBRIC_ROW_SPECS.map((row) => row.key));
@@ -1102,7 +1119,7 @@ export async function seedKarthicRubricPack(input: {
         frankPacketId: frankPacket.id,
         preClusterRunId: normalizeNullableString(input.preClusterRunId) ?? existing?.preClusterRunId ?? null,
         selectedPack: frankPacket.selectedPack,
-        controllerCard: frankPacket.controllerCard,
+        controllerCard: buildKarthicWorkflowControllerCard(frankPacket.controllerCard, scoringPolicy, existing?.status ?? 'draft'),
         activeTrack: existing?.activeTrack ?? 'base',
         tracks,
         questionSource: 'canonical',
@@ -1220,7 +1237,7 @@ export async function refineKarthicRubricPack(input: {
     });
     const pack = withActiveRubricTrackAliases({
         ...existing,
-        controllerCard: frankPacket.controllerCard,
+        controllerCard: buildKarthicWorkflowControllerCard(frankPacket.controllerCard, existing.scoringPolicy, existing.status),
         tracks: updatedTracks,
         clusterFailureModes: flattenLikelyFailureModes(frankPacket.likelyFailureModes),
         refinementLog: baseRefinementLog.length > 0 ? baseRefinementLog : buildFallbackRefinementLog(existing.tracks.base.rows, baseRows),
@@ -1330,7 +1347,7 @@ export async function generateKarthicRubricPack(input: {
         frankPacketId: frankPacket.id,
         preClusterRunId: existing?.preClusterRunId ?? null,
         selectedPack: frankPacket.selectedPack,
-        controllerCard: frankPacket.controllerCard,
+        controllerCard: buildKarthicWorkflowControllerCard(frankPacket.controllerCard, scoringPolicy, existing?.status ?? 'draft'),
         activeTrack: existing?.activeTrack ?? 'base',
         tracks,
         questionSource: 'canonical',
@@ -1428,7 +1445,15 @@ export async function saveKarthicRubricPack(input: Partial<KarthicRubricPackV2> 
         frankPacketId: frankPacket.id,
         preClusterRunId: normalizeNullableString(input.preClusterRunId) ?? existing?.preClusterRunId ?? null,
         selectedPack: frankPacket.selectedPack as FrankSofPackId,
-        controllerCard: frankPacket.controllerCard,
+        controllerCard: buildKarthicWorkflowControllerCard(
+            frankPacket.controllerCard,
+            normalizeKarthicScoringPolicy(
+                input.scoringPolicy ?? existing?.scoringPolicy,
+                existing?.scoringPolicy ?? createDefaultKarthicScoringPolicy(frankPacket.controllerCard),
+                frankPacket.controllerCard,
+            ),
+            input.status === 'approved' ? 'approved' : existing?.status ?? 'draft',
+        ),
         activeTrack: activeTrack === 'selected_variation' && !selectedVariationTrack ? 'base' : activeTrack,
         tracks: nextTracks,
         questionSource: 'canonical',
@@ -1545,6 +1570,7 @@ export async function runDashaEvaluation(input: {
     selectedModels: DashaSelectedModel[];
     sampleCount: number;
     questionText?: string;
+    judgeModels?: DashaJudgeModelSelection[];
     judgeModel?: string;
     judgeReasoningEffort?: ReasoningEffort;
 }) {
@@ -1563,6 +1589,7 @@ export async function runDashaEvaluation(input: {
         selectedModels: input.selectedModels,
         sampleCount: input.sampleCount,
         questionText: input.questionText,
+        judgeModels: input.judgeModels,
         judgeModel: input.judgeModel,
         judgeReasoningEffort: input.judgeReasoningEffort,
     });
@@ -1581,6 +1608,7 @@ export async function executeDashaRun(id: string) {
 }
 
 export async function judgeDashaRun(id: string, input?: {
+    judgeModels?: DashaJudgeModelSelection[];
     judgeModel?: string;
     judgeReasoningEffort?: ReasoningEffort;
 }) {
@@ -1592,6 +1620,7 @@ export async function judgeDashaRun(id: string, input?: {
     return await finalizeDashaJudging({
         run,
         pack,
+        judgeModels: input?.judgeModels,
         judgeModel: input?.judgeModel,
         judgeReasoningEffort: input?.judgeReasoningEffort,
     });
@@ -1624,6 +1653,7 @@ async function createDraftDashaRun(input: {
     selectedModels: DashaSelectedModel[];
     sampleCount: number;
     questionText?: string;
+    judgeModels?: DashaJudgeModelSelection[];
     judgeModel?: string;
     judgeReasoningEffort?: ReasoningEffort;
 }) {
@@ -1632,6 +1662,11 @@ async function createDraftDashaRun(input: {
     const inputArtifacts = input.files.length > 0 ? await saveUploadedArtifacts(id, input.files) : [];
     const rubricTrackId = input.rubricTrackId ?? input.pack.activeTrack;
     const activeTrack = getRubricTrack(input.pack, rubricTrackId) ?? input.pack.tracks.base;
+    const judgeSettings = normalizeDashaJudgeSettings({
+        selectedJudgeModels: input.judgeModels,
+        model: input.judgeModel,
+        reasoningEffort: input.judgeReasoningEffort,
+    });
     const draftRun: DashaRunV2 = {
         schemaVersion: 2,
         id,
@@ -1647,10 +1682,13 @@ async function createDraftDashaRun(input: {
         comparisonId: null,
         comparisonRole: null,
         selectedModels: input.selectedModels,
-        judgeSettings: normalizeDashaJudgeSettings({
-            model: input.judgeModel,
-            reasoningEffort: input.judgeReasoningEffort,
-        }),
+        judgeSettings,
+        judgeModelRoster: judgeSettings.selectedJudgeModels,
+        judgePanelMode: judgeSettings.panelMode,
+        judgePanelSize: judgeSettings.panelSize,
+        judgePanelHomogeneityStatus: judgeSettings.homogeneityStatus,
+        judgeAggregationRule: judgeSettings.aggregationRule,
+        judgeVoteRecord: [],
         requestedResponseCount: clampNumber(Math.floor(toNumber(input.sampleCount, 120)), 1, 400),
         validResponseCount: 0,
         responses: [],
@@ -1742,38 +1780,38 @@ async function finalizeDashaClustering(input: {
 async function finalizeDashaJudging(input: {
     run: DashaRunV2;
     pack: KarthicRubricPackV2;
+    judgeModels?: DashaJudgeModelSelection[];
     judgeModel?: string;
     judgeReasoningEffort?: ReasoningEffort;
 }) {
     try {
         const validResponses = input.run.responses.filter((response) => !response.error && response.responseText.trim());
         const judgeSettings = normalizeDashaJudgeSettings({
+            selectedJudgeModels: input.judgeModels,
             model: input.judgeModel ?? input.run.judgeSettings.model,
             reasoningEffort: input.judgeReasoningEffort ?? input.run.judgeSettings.reasoningEffort,
         });
         const rubricTrack = getRubricTrack(input.pack, input.run.rubricTrackId) ?? input.pack.tracks.base;
         const frankPacket = await getRequiredFrankPacket(input.pack.frankPacketId);
-        const rowResults: RubricRowResult[] = await evaluateClustersAgainstRows({
-            questionText: input.run.questionText,
-            rows: rubricTrack.rows,
-            clusters: input.run.clusters,
-            responses: validResponses,
-            judgeSettings,
-        });
-        const moduleSummaries = buildModuleSummaries(rowResults);
         const dashaInstructions = await getDashaInstructionBundle();
-        const clusterAnalyses = await analyzeDashaClusters({
+        const panelArtifacts = await evaluateDashaJudgePanel({
             run: input.run,
             pack: input.pack,
             frankPacket,
-            rowResults,
             judgeSettings,
+            rows: rubricTrack.rows,
+            responses: validResponses,
             instructions: dashaInstructions,
         });
+        const rowResults = panelArtifacts.rowResults;
+        const moduleSummaries = buildModuleSummaries(rowResults);
+        const clusterAnalyses = panelArtifacts.clusterAnalyses;
         const weightedSummary = summarizeDashaTrack(rowResults, clusterAnalyses);
         const trackSummary = buildDashaTrackSummary({
             run: input.run,
+            judgeSettings,
             clusterAnalyses,
+            judgeVoteRecord: panelArtifacts.judgeVoteRecord,
         });
         const finalizedClusterAnalyses = trackSummary?.bestCentroidZakReviewFlag
             ? clusterAnalyses.map((analysis) => ({
@@ -1795,6 +1833,12 @@ async function finalizeDashaJudging(input: {
             status: 'completed',
             workflowStage: 'judged',
             judgeSettings,
+            judgeModelRoster: judgeSettings.selectedJudgeModels,
+            judgePanelMode: judgeSettings.panelMode,
+            judgePanelSize: judgeSettings.panelSize,
+            judgePanelHomogeneityStatus: judgeSettings.homogeneityStatus,
+            judgeAggregationRule: judgeSettings.aggregationRule,
+            judgeVoteRecord: panelArtifacts.judgeVoteRecord,
             clusterAnalyses: finalizedClusterAnalyses,
             rowResults,
             moduleSummaries,
@@ -1839,6 +1883,318 @@ async function finalizeFailedRun(run: DashaRunV2, errorMessage: string) {
     return failedRun;
 }
 
+type DashaSingleJudgeArtifacts = {
+    judge: DashaJudgeModelSelection;
+    rowResults: RubricRowResult[];
+    clusterAnalyses: DashaClusterAnalysis[];
+    voteRecord: DashaJudgeVoteRecord;
+};
+
+async function evaluateDashaJudgePanel(input: {
+    run: DashaRunV2;
+    pack: KarthicRubricPackV2;
+    frankPacket: FrankPacketV2;
+    rows: KarthicRubricRow[];
+    responses: DashaResponseRecord[];
+    judgeSettings: DashaJudgeSettings;
+    instructions: Awaited<ReturnType<typeof getDashaInstructionBundle>>;
+}) {
+    const judgeArtifacts: DashaSingleJudgeArtifacts[] = [];
+
+    for (const judge of input.judgeSettings.selectedJudgeModels) {
+        const singleJudgeSettings = normalizeDashaJudgeSettings({
+            selectedJudgeModels: [judge],
+        });
+        const rowResults = await evaluateClustersAgainstRows({
+            questionText: input.run.questionText,
+            rows: input.rows,
+            clusters: input.run.clusters,
+            responses: input.responses,
+            judgeSettings: singleJudgeSettings,
+        });
+        const clusterAnalyses = await analyzeDashaClusters({
+            run: input.run,
+            pack: input.pack,
+            frankPacket: input.frankPacket,
+            rowResults,
+            judgeSettings: singleJudgeSettings,
+            instructions: input.instructions,
+        });
+        judgeArtifacts.push({
+            judge,
+            rowResults,
+            clusterAnalyses,
+            voteRecord: buildDashaJudgeVoteRecord({
+                judge,
+                clusterAnalyses,
+            }),
+        });
+    }
+
+    return {
+        rowResults: aggregateDashaJudgeRowResults({
+            judgeArtifacts,
+            rows: input.rows,
+            clusters: input.run.clusters,
+        }),
+        clusterAnalyses: aggregateDashaJudgeClusterAnalyses({
+            judgeArtifacts,
+            clusters: input.run.clusters,
+        }),
+        judgeVoteRecord: judgeArtifacts.map((artifact) => artifact.voteRecord),
+    };
+}
+
+function buildDashaJudgeVoteRecord(input: {
+    judge: DashaJudgeModelSelection;
+    clusterAnalyses: DashaClusterAnalysis[];
+}): DashaJudgeVoteRecord {
+    const ranked = input.clusterAnalyses.slice().sort(compareDashaClusterAnalyses);
+    const best = ranked[0] ?? null;
+    return {
+        judgeId: `${input.judge.provider}::${input.judge.model}::${input.judge.reasoningEffort}`,
+        provider: input.judge.provider,
+        model: input.judge.model,
+        reasoningEffort: input.judge.reasoningEffort,
+        modelFamily: getDashaJudgeModelFamily(input.judge.provider, input.judge.model),
+        rankedCentroidList: ranked.map((analysis) => analysis.clusterId),
+        topCentroidId: best?.clusterId ?? null,
+        topCentroidScore: best?.finalScore ?? null,
+        centroidFinalScores: ranked.map((analysis) => ({
+            clusterId: analysis.clusterId,
+            subtotal: analysis.subtotal,
+            finalScore: analysis.finalScore,
+        })),
+    };
+}
+
+function aggregateDashaJudgeRowResults(input: {
+    judgeArtifacts: DashaSingleJudgeArtifacts[];
+    rows: KarthicRubricRow[];
+    clusters: DashaClusterRecord[];
+}): RubricRowResult[] {
+    if (input.judgeArtifacts.length === 0) {
+        return [];
+    }
+    const judgeCount = input.judgeArtifacts.length;
+    const clusterById = new Map(input.clusters.map((cluster) => [cluster.id, cluster] as const));
+
+    return input.rows.map((row) => {
+        const rowBundles = input.judgeArtifacts
+            .map((artifact) => artifact.rowResults.find((result) => result.rowKey === row.key) ?? null)
+            .filter((result): result is RubricRowResult => Boolean(result));
+
+        const centroidEvaluations = input.clusters.map((cluster) => {
+            const judgeEvaluations = rowBundles
+                .map((result) => result.centroidEvaluations.find((evaluation) => evaluation.clusterId === cluster.id) ?? null)
+                .filter((evaluation): evaluation is RubricRowCentroidEvaluation => Boolean(evaluation));
+            return aggregateJudgeCentroidEvaluation({
+                clusterId: cluster.id,
+                judgeCount,
+                judgeEvaluations,
+                fallbackNaGuidance: row.naGuidance,
+            });
+        }).filter((evaluation): evaluation is RubricRowCentroidEvaluation => Boolean(evaluation));
+
+        const winning = chooseWinningCentroid(centroidEvaluations, input.clusters);
+        const applicableJudgeCount = rowBundles.filter((result) => result.applicabilityStatus === 'applicable').length;
+
+        return {
+            rowKey: row.key,
+            moduleId: row.moduleId,
+            rowTitle: row.title,
+            weight: row.weight,
+            applicabilityStatus: winning?.applicabilityStatus ?? 'not_applicable',
+            applicabilityExplanation: applicableJudgeCount > 0
+                ? `Applicable according to ${applicableJudgeCount}/${judgeCount} judges.`
+                : row.naGuidance,
+            centroidEvaluations,
+            winningCentroidId: winning?.clusterId ?? null,
+            winningScore: winning?.score ?? null,
+            rationale: winning
+                ? `Panel aggregate across ${judgeCount} judges. ${winning.rationale}`.trim()
+                : 'No applicable centroid satisfied this row after panel aggregation.',
+            winningModelMix: winning ? (clusterById.get(winning.clusterId)?.modelBreakdown ?? []) : [],
+        };
+    });
+}
+
+function aggregateJudgeCentroidEvaluation(input: {
+    clusterId: string;
+    judgeCount: number;
+    judgeEvaluations: RubricRowCentroidEvaluation[];
+    fallbackNaGuidance: string;
+}): RubricRowCentroidEvaluation | null {
+    if (input.judgeEvaluations.length === 0) {
+        return null;
+    }
+    const applicable = input.judgeEvaluations.filter((evaluation) => evaluation.applicabilityStatus === 'applicable' && typeof evaluation.score === 'number');
+    const representative = applicable[0] ?? input.judgeEvaluations[0];
+    const meanScore = averageNullableNumbers(applicable.map((evaluation) => evaluation.score));
+    const meanConfidence = averageNullableNumbers(input.judgeEvaluations.map((evaluation) => evaluation.confidence));
+
+    return {
+        clusterId: input.clusterId,
+        applicabilityStatus: applicable.length > 0 ? 'applicable' : 'not_applicable',
+        applicabilityExplanation: applicable.length > 0
+            ? `Applicable according to ${applicable.length}/${input.judgeCount} judges.`
+            : input.fallbackNaGuidance,
+        score: applicable.length > 0 ? meanScore : null,
+        confidence: meanConfidence,
+        rationale: applicable.length > 0
+            ? `Mean panel score across ${applicable.length}/${input.judgeCount} judges. ${representative?.rationale ?? ''}`.trim()
+            : representative?.rationale ?? 'No judge marked this centroid applicable for the row.',
+        difference: representative?.difference ?? {
+            matchedGoldenPoints: [],
+            missingGoldenPoints: [],
+            extraCentroidPoints: [],
+            contradictionPoints: [],
+            differenceSummary: 'No difference summary recorded.',
+        },
+        metadataTags: representative?.metadataTags ?? {
+            bottomLineOutcome: 'No clear conclusion',
+            outcomeCorrectness: 'Indeterminate',
+            reasoningAlignment: 'Wrong result / poor reasoning',
+            jurisdictionAssumption: 'Not clearly stated',
+        },
+    };
+}
+
+function aggregateDashaJudgeClusterAnalyses(input: {
+    judgeArtifacts: DashaSingleJudgeArtifacts[];
+    clusters: DashaClusterRecord[];
+}): DashaClusterAnalysis[] {
+    const judgeCount = input.judgeArtifacts.length;
+    return input.clusters.map((cluster) => {
+        const analyses = input.judgeArtifacts
+            .map((artifact) => artifact.clusterAnalyses.find((analysis) => analysis.clusterId === cluster.id) ?? null)
+            .filter((analysis): analysis is DashaClusterAnalysis => Boolean(analysis));
+        const representative = analyses[0];
+        const dominantModel = [...cluster.modelBreakdown].sort((left, right) => right.count - left.count || left.model.localeCompare(right.model))[0] ?? null;
+
+        return {
+            clusterId: cluster.id,
+            evaluationTrack: representative?.evaluationTrack ?? 'evaluation_track_original',
+            questionVersion: representative?.questionVersion ?? 'original',
+            rubricType: representative?.rubricType ?? 'base_rubric',
+            clusterSizeTotal: cluster.size,
+            representedModelCount: cluster.modelBreakdown.length,
+            dominantModelName: dominantModel?.model ?? null,
+            dominantModelCount: dominantModel?.count ?? 0,
+            dominantModelShare: cluster.size > 0 && dominantModel ? roundToTwo(dominantModel.count / cluster.size) : 0,
+            subtotal: averageNullableNumbers(analyses.map((analysis) => analysis.subtotal)),
+            penaltiesApplied: aggregateDashaJudgePenalties(analyses, judgeCount),
+            capApplied: aggregateDashaJudgeCap(analyses, judgeCount),
+            finalScore: averageNullableNumbers(analyses.map((analysis) => analysis.finalScore)),
+            disagreementFlag: analyses.some((analysis) => analysis.disagreementFlag),
+            zakReviewFlag: false,
+            trackSummaryNote: judgeCount > 1
+                ? `Panel aggregate from ${judgeCount} judges.`
+                : representative?.trackSummaryNote ?? '',
+            caseCitation: aggregateDashaJudgeCaseCitationAnalyses(analyses),
+        };
+    });
+}
+
+function aggregateDashaJudgePenalties(analyses: DashaClusterAnalysis[], judgeCount: number): DashaAppliedPenalty[] {
+    const penaltyMap = new Map<string, { penalty: DashaAppliedPenalty; count: number }>();
+    for (const analysis of analyses) {
+        for (const penalty of analysis.penaltiesApplied) {
+            const existing = penaltyMap.get(penalty.code);
+            if (existing) {
+                existing.count += 1;
+            } else {
+                penaltyMap.set(penalty.code, { penalty, count: 1 });
+            }
+        }
+    }
+    return [...penaltyMap.values()]
+        .sort((left, right) => right.count - left.count || left.penalty.code.localeCompare(right.penalty.code))
+        .map(({ penalty, count }) => ({
+            ...penalty,
+            reason: `Triggered by ${count}/${judgeCount} judges. ${penalty.reason}`.trim(),
+        }));
+}
+
+function aggregateDashaJudgeCap(analyses: DashaClusterAnalysis[], judgeCount: number): DashaAppliedCap | null {
+    const capMap = new Map<string, { cap: DashaAppliedCap; count: number }>();
+    for (const analysis of analyses) {
+        if (!analysis.capApplied) {
+            continue;
+        }
+        const existing = capMap.get(analysis.capApplied.code);
+        if (existing) {
+            existing.count += 1;
+        } else {
+            capMap.set(analysis.capApplied.code, { cap: analysis.capApplied, count: 1 });
+        }
+    }
+    const selected = [...capMap.values()]
+        .sort((left, right) => right.count - left.count || left.cap.cap - right.cap.cap || left.cap.code.localeCompare(right.cap.code))[0];
+    return selected
+        ? {
+            ...selected.cap,
+            reason: `Triggered by ${selected.count}/${judgeCount} judges. ${selected.cap.reason}`.trim(),
+        }
+        : null;
+}
+
+function aggregateDashaJudgeCaseCitationAnalyses(analyses: DashaClusterAnalysis[]): DashaCaseCitationAnalysis {
+    const fallback = analyses[0]?.caseCitation ?? {
+        caseMentionStatus: 'none' as const,
+        extractedCaseMentions: [],
+        verifiedCaseMentions: [],
+        hallucinatedCaseMentions: [],
+        citedCaseCountTotal: 0,
+        verifiedCaseCount: 0,
+        hallucinatedCaseCount: 0,
+        caseExistenceSummary: 'no_case' as const,
+        citationAccuracyStatus: 'not_applicable' as const,
+        sourceCaseReferenceStatus: 'not_applicable' as const,
+        sourceCaseReferenceNote: 'No case mention detected.',
+        caseVerificationReviewFlag: false,
+        note: 'No case mentioned.',
+    };
+    const extractedCaseMentions = [...new Set(analyses.flatMap((analysis) => analysis.caseCitation.extractedCaseMentions))];
+    const verifiedCaseMentions = [...new Set(analyses.flatMap((analysis) => analysis.caseCitation.verifiedCaseMentions))];
+    const hallucinatedCaseMentions = [...new Set(analyses.flatMap((analysis) => analysis.caseCitation.hallucinatedCaseMentions))];
+    const caseMentionStatus = analyses.some((analysis) => analysis.caseCitation.caseMentionStatus === 'mentioned') ? 'mentioned' : 'none';
+    const sourceStatuses = analyses.map((analysis) => analysis.caseCitation.sourceCaseReferenceStatus);
+    const sourceCaseReferenceStatus = sourceStatuses.includes('source_case_and_other_cases')
+        ? 'source_case_and_other_cases'
+        : sourceStatuses.includes('source_case_cited')
+            ? 'source_case_cited'
+            : sourceStatuses.includes('other_case_only')
+                ? 'other_case_only'
+                : 'not_applicable';
+
+    return {
+        caseMentionStatus,
+        extractedCaseMentions,
+        verifiedCaseMentions,
+        hallucinatedCaseMentions,
+        citedCaseCountTotal: extractedCaseMentions.length,
+        verifiedCaseCount: verifiedCaseMentions.length,
+        hallucinatedCaseCount: hallucinatedCaseMentions.length,
+        caseExistenceSummary: hallucinatedCaseMentions.length > 0
+            ? verifiedCaseMentions.length > 0 ? 'mixed' : 'all_unverified'
+            : verifiedCaseMentions.length > 0 ? 'all_verified' : caseMentionStatus === 'mentioned' ? 'all_unverified' : 'no_case',
+        citationAccuracyStatus: hallucinatedCaseMentions.length > 0
+            ? 'hallucinated_or_unverifiable'
+            : verifiedCaseMentions.length > 0
+                ? 'verified_correct'
+                : caseMentionStatus === 'mentioned'
+                    ? 'hallucinated_or_unverifiable'
+                    : 'not_applicable',
+        sourceCaseReferenceStatus,
+        sourceCaseReferenceNote: fallback.sourceCaseReferenceNote,
+        caseVerificationReviewFlag: analyses.some((analysis) => analysis.caseCitation.caseVerificationReviewFlag),
+        note: analyses.length > 1
+            ? `Panel aggregate from ${analyses.length} judges. ${fallback.note}`.trim()
+            : fallback.note,
+    };
+}
+
 async function analyzeDashaClusters(input: {
     run: DashaRunV2;
     pack: KarthicRubricPackV2;
@@ -1848,9 +2204,7 @@ async function analyzeDashaClusters(input: {
     instructions: Awaited<ReturnType<typeof getDashaInstructionBundle>>;
 }) {
     const responseById = new Map(input.run.responses.map((response) => [response.id, response] as const));
-    const workflowSourceCaseName = inferWorkflowSourceCaseName(input.frankPacket);
-    const workflowSourceCaseCitation = inferWorkflowSourceCaseCitation(input.frankPacket);
-    const sourceCaseMonitoring = workflowSourceCaseName ? 'on' as const : 'off' as const;
+    const caseVerificationContext = buildDashaCaseVerificationContext(input.pack, input.frankPacket);
 
     return await Promise.all(input.run.clusters.map(async (cluster) => {
         const representative = responseById.get(cluster.representativeResponseId);
@@ -1867,6 +2221,9 @@ async function analyzeDashaClusters(input: {
             cluster,
             subtotal,
             representativeText: representative?.responseText ?? cluster.representativeText,
+            caseVerificationOperatingMode: caseVerificationContext.caseVerificationOperatingMode,
+            workflowSourceCaseName: caseVerificationContext.workflowSourceCaseName,
+            workflowSourceCaseCitation: caseVerificationContext.workflowSourceCaseCitation,
         });
 
         if (!representative) {
@@ -1893,14 +2250,19 @@ async function analyzeDashaClusters(input: {
                     },
                     rowScores: clusterRowScores,
                     scoringPolicy: input.pack.scoringPolicy,
-                    caseCitationVerificationMode: input.pack.scoringPolicy.caseCitationVerificationMode,
-                    workflowSourceCaseName,
-                    workflowSourceCaseCitation,
-                    sourceCaseMonitoring,
+                    workflowSourceType: caseVerificationContext.workflowSourceType,
+                    caseCitationVerificationMode: caseVerificationContext.caseCitationVerificationMode,
+                    workflowSourceCaseName: caseVerificationContext.workflowSourceCaseName,
+                    workflowSourceCaseCitation: caseVerificationContext.workflowSourceCaseCitation,
+                    sourceCaseMonitoring: caseVerificationContext.sourceCaseMonitoring,
+                    caseCitationScoringRule: caseVerificationContext.caseCitationScoringRule,
+                    caseVerificationOperatingMode: caseVerificationContext.caseVerificationOperatingMode,
+                    caseExistenceCheckMethod: caseVerificationContext.caseExistenceCheckMethod,
                 }),
+                provider: input.judgeSettings.provider,
                 model: input.judgeSettings.model,
                 reasoningEffort: input.judgeSettings.reasoningEffort,
-                tools: shouldUseWebSearchForCitationAudit(representative.responseText, input.pack.scoringPolicy.caseCitationVerificationMode)
+                tools: shouldUseWebSearchForCitationAudit(representative.responseText, caseVerificationContext.caseCitationVerificationMode)
                     ? [{
                         type: 'web_search_preview',
                         search_context_size: 'medium',
@@ -1922,6 +2284,7 @@ async function analyzeDashaClusters(input: {
                 run: input.run,
                 scoringPolicy: input.pack.scoringPolicy,
                 subtotal,
+                caseVerificationOperatingMode: caseVerificationContext.caseVerificationOperatingMode,
             });
         } catch {
             return fallback;
@@ -1964,9 +2327,18 @@ function buildFallbackDashaClusterAnalysis(input: {
     cluster: DashaClusterRecord;
     subtotal: number | null;
     representativeText: string;
+    caseVerificationOperatingMode: FrankControllerCard['case_verification_operating_mode'];
+    workflowSourceCaseName: string | null;
+    workflowSourceCaseCitation: string | null;
 }): DashaClusterAnalysis {
     const extractedMentions = extractCaseLikeMentions(input.representativeText);
     const dominantModel = [...input.cluster.modelBreakdown].sort((left, right) => right.count - left.count || left.model.localeCompare(right.model))[0] ?? null;
+    const cautiousMode = input.caseVerificationOperatingMode === 'cautious';
+    const sourceCaseReferenceStatus = classifySourceCaseReferenceStatus({
+        extractedCaseMentions: extractedMentions,
+        workflowSourceCaseName: input.workflowSourceCaseName,
+        workflowSourceCaseCitation: input.workflowSourceCaseCitation,
+    });
     return {
         clusterId: input.cluster.id,
         evaluationTrack: input.run.rubricTrackId === 'selected_variation' ? 'evaluation_track_selected_variation' : 'evaluation_track_original',
@@ -1988,17 +2360,19 @@ function buildFallbackDashaClusterAnalysis(input: {
             caseMentionStatus: extractedMentions.length > 0 ? 'mentioned' : 'none',
             extractedCaseMentions: extractedMentions,
             verifiedCaseMentions: [],
-            hallucinatedCaseMentions: [],
+            hallucinatedCaseMentions: cautiousMode ? [] : extractedMentions,
             citedCaseCountTotal: extractedMentions.length,
             verifiedCaseCount: 0,
-            hallucinatedCaseCount: extractedMentions.length,
+            hallucinatedCaseCount: cautiousMode ? 0 : extractedMentions.length,
             caseExistenceSummary: extractedMentions.length > 0 ? 'all_unverified' : 'no_case',
             citationAccuracyStatus: extractedMentions.length > 0 ? 'hallucinated_or_unverifiable' : 'not_applicable',
-            sourceCaseReferenceStatus: extractedMentions.length > 0 ? 'other_case_only' : 'not_applicable',
-            sourceCaseReferenceNote: extractedMentions.length > 0 ? 'Case mentions detected but no completed verification pass was saved.' : 'No case mention detected.',
-            caseVerificationReviewFlag: false,
+            sourceCaseReferenceStatus,
+            sourceCaseReferenceNote: buildSourceCaseReferenceNote(sourceCaseReferenceStatus),
+            caseVerificationReviewFlag: cautiousMode && extractedMentions.length > 0,
             note: extractedMentions.length > 0
-                ? 'Case mentioned; verification fallback was used, so no hallucinated-authority penalty was applied automatically.'
+                ? cautiousMode
+                    ? 'Case mentioned; could not be verified.'
+                    : 'Case mentioned; no web-verifiable authority match found in demo mode.'
                 : 'No case mentioned.',
         },
     };
@@ -2011,12 +2385,14 @@ function normalizeDashaClusterAnalysis(input: {
     run: DashaRunV2;
     scoringPolicy: KarthicScoringPolicy;
     subtotal: number | null;
+    caseVerificationOperatingMode: FrankControllerCard['case_verification_operating_mode'];
 }): DashaClusterAnalysis {
     const penaltyCodes = new Set(normalizeStringArray(input.parsed.triggeredPenaltyCodes));
     const capCodes = new Set(normalizeStringArray(input.parsed.triggeredCapCodes));
     const caseCitation = normalizeDashaCaseCitationAnalysis(
         isRecord(input.parsed.caseCitation) ? input.parsed.caseCitation : null,
         input.fallback.caseCitation,
+        input.caseVerificationOperatingMode,
     );
 
     if (caseCitation.hallucinatedCaseMentions.length > 0) {
@@ -2075,11 +2451,12 @@ function normalizeDashaClusterAnalysis(input: {
 function normalizeDashaCaseCitationAnalysis(
     value: Record<string, unknown> | null,
     fallback: DashaCaseCitationAnalysis,
+    caseVerificationOperatingMode: FrankControllerCard['case_verification_operating_mode'] = 'cautious',
 ): DashaCaseCitationAnalysis {
     if (!value) {
-        return fallback;
+        return applyCaseCitationVerificationModeRules(fallback, caseVerificationOperatingMode);
     }
-    return {
+    return applyCaseCitationVerificationModeRules({
         caseMentionStatus: value.caseMentionStatus === 'mentioned' ? 'mentioned' : value.caseMentionStatus === 'none' ? 'none' : fallback.caseMentionStatus,
         extractedCaseMentions: normalizeStringArray(value.extractedCaseMentions),
         verifiedCaseMentions: normalizeStringArray(value.verifiedCaseMentions),
@@ -2093,7 +2470,33 @@ function normalizeDashaCaseCitationAnalysis(
         sourceCaseReferenceNote: normalizeNonEmptyString(value.sourceCaseReferenceNote, fallback.sourceCaseReferenceNote),
         caseVerificationReviewFlag: Boolean(value.caseVerificationReviewFlag),
         note: normalizeNonEmptyString(value.note, fallback.note),
-    };
+    }, caseVerificationOperatingMode);
+}
+
+function applyCaseCitationVerificationModeRules(
+    analysis: DashaCaseCitationAnalysis,
+    caseVerificationOperatingMode: FrankControllerCard['case_verification_operating_mode'],
+): DashaCaseCitationAnalysis {
+    if (analysis.caseMentionStatus !== 'mentioned') {
+        return analysis;
+    }
+    const hasVerifiedCases = analysis.verifiedCaseMentions.length > 0 || analysis.verifiedCaseCount > 0;
+    const hasHallucinatedCases = analysis.hallucinatedCaseMentions.length > 0 || analysis.hallucinatedCaseCount > 0;
+    const ambiguousVerification = !hasVerifiedCases && !hasHallucinatedCases;
+
+    if (caseVerificationOperatingMode === 'cautious' && ambiguousVerification) {
+        return {
+            ...analysis,
+            hallucinatedCaseMentions: [],
+            hallucinatedCaseCount: 0,
+            caseExistenceSummary: 'all_unverified',
+            citationAccuracyStatus: 'hallucinated_or_unverifiable',
+            caseVerificationReviewFlag: true,
+            note: 'Case mentioned; could not be verified.',
+        };
+    }
+
+    return analysis;
 }
 
 function normalizeDashaCitationAccuracyStatus(value: unknown, fallback: DashaCitationAccuracyStatus): DashaCitationAccuracyStatus {
@@ -2150,7 +2553,9 @@ function summarizeDashaTrack(rowResults: RubricRowResult[], clusterAnalyses: Das
 
 function buildDashaTrackSummary(input: {
     run: DashaRunV2;
+    judgeSettings: DashaJudgeSettings;
     clusterAnalyses: DashaClusterAnalysis[];
+    judgeVoteRecord: DashaJudgeVoteRecord[];
 }): DashaTrackSummary | null {
     if (input.clusterAnalyses.length === 0) {
         return null;
@@ -2160,26 +2565,26 @@ function buildDashaTrackSummary(input: {
         .sort((left, right) => compareDashaClusterAnalyses(left, right));
     const best = ranked[0] ?? null;
     const questionVersion = input.run.rubricTrackId === 'selected_variation' ? 'selected_variation' : 'original';
-    const disputedCentroidIds = best
-        ? ranked
-            .filter((analysis) => (analysis.finalScore ?? -1) === (best.finalScore ?? -1))
-            .map((analysis) => analysis.clusterId)
+    const voteCounts = buildDashaJudgeVoteCounts(input.judgeVoteRecord, ranked.map((analysis) => analysis.clusterId));
+    const topVoteEntry = voteCounts[0] ?? null;
+    const panelMajorityStatus: DashaPanelMajorityStatus = input.judgeVoteRecord.length === 0
+        ? 'not_applicable'
+        : topVoteEntry && topVoteEntry.voteCount > input.judgeVoteRecord.length / 2
+            ? 'majority'
+            : 'no_majority';
+    const disputedCentroidIds = panelMajorityStatus === 'no_majority'
+        ? buildDisputedCentroidIds(voteCounts)
         : [];
-    const panelMajorityStatus: DashaPanelMajorityStatus = !best
-        ? 'not_applicable'
-        : disputedCentroidIds.length > 1
-            ? 'no_majority'
-            : 'majority';
-    const topCentroidVoteSplit = !best
-        ? 'not_applicable'
-        : disputedCentroidIds.length > 1
-            ? `tie_on_final_score: ${disputedCentroidIds.join(', ')}`
-            : `${best.clusterId}: 1/1`;
+    const topCentroidVoteSplit = buildDashaTopCentroidVoteSplit(voteCounts, input.judgeVoteRecord.length);
 
     return {
         evaluationTrack: input.run.rubricTrackId === 'selected_variation' ? 'evaluation_track_selected_variation' : 'evaluation_track_original',
         questionVersion,
         rubricType: input.run.rubricTrackId === 'selected_variation' ? 'selected_variation_rubric' : 'base_rubric',
+        judgePanelMode: input.judgeSettings.panelMode,
+        judgeModelRoster: input.judgeSettings.selectedJudgeModels,
+        judgePanelHomogeneityStatus: input.judgeSettings.homogeneityStatus,
+        judgeAggregationRule: input.judgeSettings.aggregationRule,
         rankedCentroidList: ranked.map((analysis) => analysis.clusterId),
         disputedCentroidIds,
         bestCentroidByScore: best?.clusterId ?? null,
@@ -2189,8 +2594,8 @@ function buildDashaTrackSummary(input: {
         bestCentroidZakReviewFlag: panelMajorityStatus === 'no_majority',
         trackSummary: best
             ? panelMajorityStatus === 'no_majority'
-                ? `Top centroid decision is disputed on the ${questionVersion} track because ${disputedCentroidIds.join(', ')} are tied at ${formatNullableScore(best.finalScore)} after overlays/caps.`
-                : `Best centroid is ${best.clusterId} at ${formatNullableScore(best.finalScore)} after overlays/caps on the ${questionVersion} track.`
+                ? `Top centroid decision is disputed on the ${questionVersion} track because no centroid won a strict majority of first-place judge votes.`
+                : `Best centroid is ${best.clusterId} at ${formatNullableScore(best.finalScore)} after panel aggregation on the ${questionVersion} track.`
             : 'No judged centroid summary is available.',
     };
 }
@@ -2213,6 +2618,48 @@ function compareDashaClusterAnalyses(left: DashaClusterAnalysis, right: DashaClu
         return sizeDelta;
     }
     return left.clusterId.localeCompare(right.clusterId);
+}
+
+function buildDashaJudgeVoteCounts(judgeVoteRecord: DashaJudgeVoteRecord[], rankedClusterIds: string[]) {
+    const voteMap = new Map(rankedClusterIds.map((clusterId) => [clusterId, 0]));
+    for (const vote of judgeVoteRecord) {
+        if (!vote.topCentroidId) {
+            continue;
+        }
+        voteMap.set(vote.topCentroidId, (voteMap.get(vote.topCentroidId) ?? 0) + 1);
+    }
+    return [...voteMap.entries()]
+        .map(([clusterId, voteCount]) => ({ clusterId, voteCount }))
+        .sort((left, right) => right.voteCount - left.voteCount || rankedClusterIds.indexOf(left.clusterId) - rankedClusterIds.indexOf(right.clusterId));
+}
+
+function buildDisputedCentroidIds(voteCounts: Array<{ clusterId: string; voteCount: number }>) {
+    const topVoteCount = voteCounts[0]?.voteCount ?? 0;
+    if (topVoteCount <= 0) {
+        return [];
+    }
+    const leaders = voteCounts.filter((entry) => entry.voteCount === topVoteCount).map((entry) => entry.clusterId);
+    if (leaders.length > 1) {
+        return leaders;
+    }
+    const contenders = voteCounts.filter((entry) => entry.voteCount > 0).map((entry) => entry.clusterId);
+    return contenders.length > 0 ? contenders : leaders;
+}
+
+function buildDashaTopCentroidVoteSplit(voteCounts: Array<{ clusterId: string; voteCount: number }>, judgeCount: number) {
+    if (judgeCount <= 0 || voteCounts.length === 0) {
+        return 'not_applicable';
+    }
+    return voteCounts
+        .map((entry) => `${entry.clusterId}: ${entry.voteCount}/${judgeCount}`)
+        .join(', ');
+}
+
+function averageNullableNumbers(values: Array<number | null | undefined>) {
+    const numericValues = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+    return numericValues.length > 0
+        ? roundToTwo(numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length)
+        : null;
 }
 
 async function ensureAutomaticZakReview(run: DashaRunV2) {
@@ -2277,11 +2724,14 @@ async function buildZakReviewFromRun(input: {
         dualRubricMode: input.pack.controllerCard?.dual_rubric_mode ?? 'off',
         selectedLaneCode: input.pack.controllerCard?.selected_lane_code ?? 'none',
         topCentroidVoteSplit: input.run.trackSummary?.topCentroidVoteSplit ?? 'not_applicable',
+        judgeModelRoster: input.run.judgeModelRoster,
+        judgePanelMode: input.run.judgePanelMode,
+        judgeAggregationRule: input.run.judgeAggregationRule,
         disputedCentroidIds,
         packetReviewReady,
         printablePacketStatus,
         printablePacketContentsSummary: packetReviewReady
-            ? `Active question, ${rubricTrack.rows.length} rubric rows, and ${disputedCentroids.length} disputed centroid packet(s) are assembled for SME review.`
+            ? `Active question, ${rubricTrack.rows.length} rubric rows, ${disputedCentroids.length} disputed centroid packet(s), judge panel metadata, and the real top-centroid vote split are assembled for SME review.`
             : 'The Zak packet is incomplete because the active rubric or disputed centroid materials are missing.',
         printablePacketCanBeAssembled: packetReviewReady,
         activeQuestionText: input.run.questionText,
@@ -2356,16 +2806,68 @@ function normalizeRubricModuleIdFromLabel(label: string): RubricModuleId {
     return (match?.[0] as RubricModuleId | undefined) ?? 'module1';
 }
 
-function inferWorkflowSourceCaseName(packet: FrankPacketV2) {
-    return normalizeNullableString(packet.sourceExtractionSheet?.candidateSource)
-        ?? normalizeNullableString(packet.intakeChecklist?.candidateSource)
-        ?? normalizeNullableString(packet.title);
+function buildDashaCaseVerificationContext(
+    pack: Pick<KarthicRubricPackV2, 'controllerCard' | 'scoringPolicy'>,
+    frankPacket: Pick<FrankPacketV2, 'controllerCard'>,
+) {
+    const controllerCard = pack.controllerCard ?? frankPacket.controllerCard;
+    const workflowSourceCaseName = normalizeNullableControllerCardValue(controllerCard?.workflow_source_case_name);
+    const workflowSourceCaseCitation = normalizeNullableControllerCardValue(controllerCard?.workflow_source_case_citation);
+    return {
+        workflowSourceType: controllerCard?.workflow_source_type ?? 'mixed',
+        caseCitationVerificationMode: controllerCard?.case_citation_verification_mode ?? pack.scoringPolicy.caseCitationVerificationMode,
+        workflowSourceCaseName,
+        workflowSourceCaseCitation,
+        sourceCaseMonitoring: controllerCard?.source_case_monitoring ?? 'off',
+        caseCitationScoringRule: controllerCard?.case_citation_scoring_rule ?? 'hallucinated_only_penalty',
+        caseVerificationOperatingMode: controllerCard?.case_verification_operating_mode ?? 'cautious',
+        caseExistenceCheckMethod: controllerCard?.case_existence_check_method ?? 'web_search',
+    };
 }
 
-function inferWorkflowSourceCaseCitation(packet: FrankPacketV2) {
-    const text = packet.sourceArtifacts[0]?.extractedText ?? '';
-    const match = text.match(/\b\d{1,4}\s+[A-Z][A-Za-z.\d-]*\s+\d{1,4}\b/);
-    return match?.[0]?.trim() ?? null;
+function classifySourceCaseReferenceStatus(input: {
+    extractedCaseMentions: string[];
+    workflowSourceCaseName: string | null;
+    workflowSourceCaseCitation: string | null;
+}): DashaCaseCitationAnalysis['sourceCaseReferenceStatus'] {
+    if (input.extractedCaseMentions.length === 0) {
+        return 'not_applicable';
+    }
+    const hasSourceReference = input.workflowSourceCaseName
+        ? input.extractedCaseMentions.some((mention) => {
+            const mentionNormalized = normalizeForSimilarity(mention);
+            const sourceNormalized = normalizeForSimilarity(input.workflowSourceCaseName ?? '');
+            return mentionNormalized.includes(sourceNormalized)
+                || sourceNormalized.includes(mentionNormalized)
+                || jaccardSimilarity(mentionNormalized, sourceNormalized) > 0.55;
+        })
+        : false;
+    if (hasSourceReference) {
+        return input.extractedCaseMentions.length > 1
+            ? 'source_case_and_other_cases'
+            : 'source_case_cited';
+    }
+    return 'other_case_only';
+}
+
+function buildSourceCaseReferenceNote(status: DashaCaseCitationAnalysis['sourceCaseReferenceStatus']) {
+    if (status === 'source_case_and_other_cases' || status === 'source_case_cited') {
+        return 'Response cites the workflow source case used to build this benchmark.';
+    }
+    if (status === 'other_case_only') {
+        return 'Response cites cases other than the workflow source case.';
+    }
+    return 'No case mention detected.';
+}
+
+function normalizeNullableControllerCardValue(value: unknown) {
+    if (typeof value !== 'string') {
+        return null;
+    }
+    const normalized = value.trim();
+    return normalized && normalized.toLowerCase() !== 'none'
+        ? normalized
+        : null;
 }
 
 function shouldUseWebSearchForCitationAudit(text: string, mode: KarthicScoringPolicy['caseCitationVerificationMode']) {
@@ -2448,6 +2950,7 @@ async function evaluateRowAgainstResponse(input: {
         const parsed = await generateJson({
             operation: `Dasha row evaluation ${input.row.key}`,
             prompt,
+            provider: input.judgeSettings.provider,
             model: input.judgeSettings.model,
             reasoningEffort: input.judgeSettings.reasoningEffort,
         });
@@ -2596,6 +3099,7 @@ function heuristicRowEvaluation(input: {
 async function generateJson(input: {
     operation: string;
     prompt: string;
+    provider?: ModelProvider;
     model?: string;
     reasoningEffort?: ReasoningEffort;
     tools?: Array<{
@@ -2610,9 +3114,25 @@ async function generateJson(input: {
         };
     }>;
 }) {
-    requireOpenAiApiKey(input.operation);
-    const model = normalizeOpenAiJsonModel(input.model);
+    const provider = normalizeModelProvider(input.provider, 'openai');
+    const model = normalizeJudgeModelForProvider(provider, input.model);
     try {
+        if (provider !== 'openai') {
+            const response = await generateModelResponse({
+                provider,
+                model,
+                systemPrompt: 'Return only a JSON object that satisfies the requested shape. Do not wrap the JSON in markdown.',
+                messages: [{ role: 'user', content: input.prompt }],
+                temperature: 0.1,
+                reasoningEffort: input.reasoningEffort,
+            });
+            const parsed = parseJsonObjectResponse(response);
+            if (!parsed) {
+                throw new Error('Model returned invalid JSON.');
+            }
+            return parsed;
+        }
+        requireOpenAiApiKey(input.operation);
         const request: {
             model: string;
             input: string;
@@ -2657,13 +3177,14 @@ async function generateJson(input: {
             };
         }
         const response = await getOpenAiClient().responses.create(request);
-        const parsed = safeJsonParse<Record<string, unknown>>(extractResponsesText(response));
+        const parsed = parseJsonObjectResponse(extractResponsesText(response));
         if (!parsed) {
             throw new Error('Model returned invalid JSON.');
         }
         return parsed;
     } catch (error) {
-        throw new Error(`${input.operation} failed: ${describeError(error, 'OpenAI request failed.')}`);
+        const providerLabel = provider === 'anthropic' ? 'Anthropic' : provider === 'gemini' ? 'Gemini' : 'OpenAI';
+        throw new Error(`${input.operation} failed: ${describeError(error, `${providerLabel} request failed.`)}`);
     }
 }
 
@@ -3076,6 +3597,10 @@ function buildFrankControllerCard(packet: FrankPacketV2): FrankControllerCard | 
             .filter(Boolean)
             .join(' — ')
         : '';
+    const workflowSourceType = inferControllerCardWorkflowSourceType(packet);
+    const workflowSourceCaseName = inferControllerCardWorkflowSourceCaseName(packet, workflowSourceType);
+    const workflowSourceCaseCitation = inferControllerCardWorkflowSourceCaseCitation(packet, workflowSourceType);
+    const caseCitationVerificationMode: FrankControllerCard['case_citation_verification_mode'] = 'off';
 
     return {
         selected_pack: packet.selectedPack,
@@ -3110,6 +3635,18 @@ function buildFrankControllerCard(packet: FrankPacketV2): FrankControllerCard | 
         dual_rubric_mode: selectedLaneCode === 'none' ? 'off' : 'on',
         rubric_separation_rule: 'strict',
         evaluation_tracks: selectedLaneCode === 'none' ? 'original_only' : 'original_and_selected_variation',
+        packet_status: inferControllerCardPacketStatus(packet),
+        frank_phase_complete: inferControllerCardFrankPhaseComplete(packet),
+        rubric_status: 'not_started',
+        evaluation_status: 'not_ready',
+        workflow_source_type: workflowSourceType,
+        workflow_source_case_name: workflowSourceCaseName,
+        workflow_source_case_citation: workflowSourceCaseCitation,
+        case_citation_verification_mode: caseCitationVerificationMode,
+        source_case_monitoring: inferControllerCardSourceCaseMonitoring(workflowSourceType, workflowSourceCaseName, workflowSourceCaseCitation),
+        case_citation_scoring_rule: 'hallucinated_only_penalty',
+        case_verification_operating_mode: 'cautious',
+        case_existence_check_method: 'web_search',
     };
 }
 
@@ -3195,11 +3732,107 @@ function inferSelectedVariationAnswerPosture(
     }
 }
 
+function inferControllerCardFrankPhaseComplete(packet: FrankPacketV2): FrankControllerCard['frank_phase_complete'] {
+    if (packet.reverseEngineeredQuestion.trim()) {
+        return 3;
+    }
+    if (packet.benchmarkAnswer.trim()) {
+        return 2;
+    }
+    return 1;
+}
+
+function inferControllerCardPacketStatus(packet: FrankPacketV2): FrankControllerCard['packet_status'] {
+    if (!packet.benchmarkAnswer.trim()) {
+        return 'phase1_only';
+    }
+    if (!packet.reverseEngineeredQuestion.trim()) {
+        return 'benchmark_complete';
+    }
+    const readyForKarthic = Boolean(
+        packet.selectedPack
+        && packet.sourceExtractionSheet
+        && packet.goldPacketMapping
+        && packet.sourceExtractionSheet.triggerFacts.length > 0
+        && packet.goldPacketMapping.requiredGateOrder.length > 0
+        && extractBenchmarkSection(packet.benchmarkAnswer, 'Strongest counterargument:').trim(),
+    );
+    if (!readyForKarthic) {
+        return 'question_complete';
+    }
+    return 'ready_for_karthic';
+}
+
+function inferControllerCardWorkflowSourceType(packet: FrankPacketV2): FrankControllerCard['workflow_source_type'] {
+    const sourceLabel = [
+        packet.sourceExtractionSheet?.sourceTypeAuthorityLevel,
+        packet.intakeChecklist?.sourceTypeAuthorityLevel,
+        packet.sourceArtifacts[0]?.fileName,
+        packet.sourceArtifacts[0]?.extractedText.slice(0, 1200),
+    ]
+        .filter(Boolean)
+        .join('\n')
+        .toLowerCase();
+    if (sourceLabel.includes('restatement')) {
+        return 'Restatement';
+    }
+    if (sourceLabel.includes('statute') || sourceLabel.includes('ucc') || sourceLabel.includes(' code ') || sourceLabel.includes('§')) {
+        return 'statute';
+    }
+    if (sourceLabel.includes('treatise') || sourceLabel.includes('hornbook') || sourceLabel.includes('doctrine source')) {
+        return 'doctrine source';
+    }
+    const candidateSource = normalizeNonEmptyString(
+        packet.sourceExtractionSheet?.candidateSource,
+        packet.intakeChecklist?.candidateSource ?? packet.title,
+    );
+    if (packet.sourceArtifacts.some((artifact) => artifact.role === 'anchor_case') || /\b(v\.|in re|ex parte)\b/i.test(candidateSource)) {
+        return 'case';
+    }
+    return packet.sourceArtifacts.length > 1 ? 'mixed' : 'mixed';
+}
+
+function inferControllerCardWorkflowSourceCaseName(
+    packet: FrankPacketV2,
+    workflowSourceType: FrankControllerCard['workflow_source_type'],
+) {
+    if (workflowSourceType !== 'case') {
+        return 'none';
+    }
+    return normalizeNonEmptyString(
+        packet.sourceExtractionSheet?.candidateSource,
+        packet.intakeChecklist?.candidateSource ?? packet.title,
+    );
+}
+
+function inferControllerCardWorkflowSourceCaseCitation(
+    packet: FrankPacketV2,
+    workflowSourceType: FrankControllerCard['workflow_source_type'],
+) {
+    if (workflowSourceType !== 'case') {
+        return 'none';
+    }
+    const text = packet.sourceArtifacts[0]?.extractedText ?? '';
+    const match = text.match(/\b\d{1,4}\s+[A-Z][A-Za-z.\d-]*\s+\d{1,4}\b/);
+    return match?.[0]?.trim() ?? 'none';
+}
+
+function inferControllerCardSourceCaseMonitoring(
+    workflowSourceType: FrankControllerCard['workflow_source_type'],
+    workflowSourceCaseName: string,
+    workflowSourceCaseCitation: string,
+): FrankControllerCard['source_case_monitoring'] {
+    return workflowSourceType === 'case'
+        && (workflowSourceCaseName !== 'none' || workflowSourceCaseCitation !== 'none')
+        ? 'on'
+        : 'off';
+}
+
 function normalizeFrankControllerCard(value: unknown): FrankControllerCard | null {
     if (!isRecord(value)) {
         return null;
     }
-    return {
+    const normalized = {
         selected_pack: normalizePackId(value.selected_pack) ?? '',
         doctrine_family: normalizeOptionalString(value.doctrine_family, ''),
         jurisdiction_assumption: normalizeOptionalString(value.jurisdiction_assumption, ''),
@@ -3240,6 +3873,52 @@ function normalizeFrankControllerCard(value: unknown): FrankControllerCard | nul
         evaluation_tracks: value.evaluation_tracks === 'original_and_selected_variation'
             ? 'original_and_selected_variation'
             : 'original_only',
+    } satisfies Omit<
+        FrankControllerCard,
+        | 'packet_status'
+        | 'frank_phase_complete'
+        | 'rubric_status'
+        | 'evaluation_status'
+        | 'workflow_source_type'
+        | 'workflow_source_case_name'
+        | 'workflow_source_case_citation'
+        | 'case_citation_verification_mode'
+        | 'source_case_monitoring'
+        | 'case_citation_scoring_rule'
+        | 'case_verification_operating_mode'
+        | 'case_existence_check_method'
+    >;
+    const inferredPacketStatus: FrankControllerCard['packet_status'] = normalized.current_question_text.trim()
+        ? 'ready_for_karthic'
+        : normalized.gold_answer.trim()
+            ? 'benchmark_complete'
+            : 'phase1_only';
+    return {
+        ...normalized,
+        packet_status: value.packet_status === 'phase1_only' || value.packet_status === 'benchmark_complete' || value.packet_status === 'question_complete' || value.packet_status === 'ready_for_karthic' || value.packet_status === 'ready_for_dasha'
+            ? value.packet_status
+            : inferredPacketStatus,
+        frank_phase_complete: value.frank_phase_complete === 1 || value.frank_phase_complete === 2 || value.frank_phase_complete === 3
+            ? value.frank_phase_complete
+            : (normalized.current_question_text.trim() ? 3 : normalized.gold_answer.trim() ? 2 : 1),
+        rubric_status: value.rubric_status === 'draft' || value.rubric_status === 'locked'
+            ? value.rubric_status
+            : 'not_started',
+        evaluation_status: value.evaluation_status === 'ready' ? 'ready' : 'not_ready',
+        workflow_source_type: value.workflow_source_type === 'case' || value.workflow_source_type === 'statute' || value.workflow_source_type === 'Restatement' || value.workflow_source_type === 'doctrine source' || value.workflow_source_type === 'mixed'
+            ? value.workflow_source_type
+            : 'mixed',
+        workflow_source_case_name: normalizeOptionalString(value.workflow_source_case_name, 'none'),
+        workflow_source_case_citation: normalizeOptionalString(value.workflow_source_case_citation, 'none'),
+        case_citation_verification_mode: normalizeKarthicCaseCitationVerificationMode(value.case_citation_verification_mode, 'off'),
+        source_case_monitoring: value.source_case_monitoring === 'on' ? 'on' : 'off',
+        case_citation_scoring_rule: value.case_citation_scoring_rule === 'metadata_only'
+            ? 'metadata_only'
+            : 'hallucinated_only_penalty',
+        case_verification_operating_mode: value.case_verification_operating_mode === 'demo_search_fail_equals_nonexistent'
+            ? 'demo_search_fail_equals_nonexistent'
+            : 'cautious',
+        case_existence_check_method: 'web_search',
     };
 }
 
@@ -3512,30 +4191,52 @@ function createDefaultKarthicScoringPolicy(
     controllerCard: FrankControllerCard | null,
     mode: KarthicCaseCitationVerificationMode = 'off',
 ): KarthicScoringPolicy {
+    const effectiveMode = controllerCard?.case_citation_verification_mode === 'on'
+        ? controllerCard.case_citation_verification_mode
+        : mode;
     return {
-        sourceFiles: mode === 'on'
+        sourceFiles: effectiveMode === 'on'
             ? [...DEFAULT_KARTHIC_POLICY_FILES, '58_Case_Citation_Verification_Protocol_v2.md']
             : [...DEFAULT_KARTHIC_POLICY_FILES],
-        caseCitationVerificationMode: mode,
+        caseCitationVerificationMode: effectiveMode,
         zakReviewPenaltyThreshold: 20,
         penalties: DEFAULT_KARTHIC_PENALTIES
             .filter((rule) => rule.code !== 'P_FalseDefinitenessOnDesignedAmbiguity' || controllerCard?.variation_lane === 'B')
             .map((rule) => ({
                 ...rule,
-                enabled: rule.code !== 'P_HallucinatedCaseCitation' || mode === 'on',
+                enabled: rule.code !== 'P_HallucinatedCaseCitation' || effectiveMode === 'on',
                 notes: '',
             })),
         caps: DEFAULT_KARTHIC_CAPS
             .filter((rule) => rule.code !== 'CAP_75_FalseDefinitenessOnDesignedAmbiguity' || controllerCard?.variation_lane === 'B')
             .map((rule) => ({
                 ...rule,
-                enabled: rule.code !== 'CAP_75_HallucinatedCoreAuthority' || mode === 'on',
+                enabled: rule.code !== 'CAP_75_HallucinatedCoreAuthority' || effectiveMode === 'on',
                 notes: '',
             })),
         notes: [
             'Score rows first, then overlays, then at most one cap.',
             'Keep penalties editable at the Karthic stage so Dasha inherits the approved policy instead of improvising it.',
         ],
+    };
+}
+
+function buildKarthicWorkflowControllerCard(
+    controllerCard: FrankControllerCard | null,
+    scoringPolicy: KarthicScoringPolicy,
+    status: KarthicRubricPackV2['status'],
+): FrankControllerCard | null {
+    if (!controllerCard) {
+        return null;
+    }
+    const rubricStatus: FrankControllerCard['rubric_status'] = status === 'approved' ? 'locked' : 'draft';
+    const packetStatus: FrankControllerCard['packet_status'] = status === 'approved' ? 'ready_for_dasha' : 'ready_for_karthic';
+    return {
+        ...controllerCard,
+        packet_status: packetStatus,
+        rubric_status: rubricStatus,
+        evaluation_status: status === 'approved' ? 'ready' : 'not_ready',
+        case_citation_verification_mode: scoringPolicy.caseCitationVerificationMode,
     };
 }
 
@@ -4100,6 +4801,13 @@ function normalizeDashaRun(value: unknown): DashaRunV2 | null {
     if (!isRecord(value) || value.schemaVersion !== 2) {
         return null;
     }
+    const judgeSettings = normalizeDashaJudgeSettings(isRecord(value.judgeSettings)
+        ? {
+            selectedJudgeModels: Array.isArray(value.judgeSettings.selectedJudgeModels) ? value.judgeSettings.selectedJudgeModels : null,
+            model: typeof value.judgeSettings.model === 'string' ? value.judgeSettings.model : null,
+            reasoningEffort: typeof value.judgeSettings.reasoningEffort === 'string' ? value.judgeSettings.reasoningEffort : null,
+        }
+        : null);
     return {
         schemaVersion: 2,
         id: normalizeNonEmptyString(value.id, `dasha_v2_${randomUUID().slice(0, 8)}`),
@@ -4115,12 +4823,15 @@ function normalizeDashaRun(value: unknown): DashaRunV2 | null {
         comparisonId: normalizeNullableString(value.comparisonId),
         comparisonRole: normalizeDashaComparisonRole(value.comparisonRole),
         selectedModels: Array.isArray(value.selectedModels) ? value.selectedModels as DashaSelectedModel[] : [],
-        judgeSettings: normalizeDashaJudgeSettings(isRecord(value.judgeSettings)
-            ? {
-                model: typeof value.judgeSettings.model === 'string' ? value.judgeSettings.model : null,
-                reasoningEffort: typeof value.judgeSettings.reasoningEffort === 'string' ? value.judgeSettings.reasoningEffort : null,
-            }
-            : null),
+        judgeSettings,
+        judgeModelRoster: normalizeDashaJudgeModelSelections(value.judgeModelRoster).length > 0
+            ? normalizeDashaJudgeModelSelections(value.judgeModelRoster)
+            : judgeSettings.selectedJudgeModels,
+        judgePanelMode: normalizeDashaJudgePanelMode(value.judgePanelMode, judgeSettings.panelMode),
+        judgePanelSize: clampNumber(Math.floor(toNumber(value.judgePanelSize, judgeSettings.panelSize)), 1, 12),
+        judgePanelHomogeneityStatus: normalizeDashaJudgePanelHomogeneityStatus(value.judgePanelHomogeneityStatus, judgeSettings.homogeneityStatus),
+        judgeAggregationRule: normalizeDashaJudgeAggregationRule(value.judgeAggregationRule, judgeSettings.aggregationRule),
+        judgeVoteRecord: normalizeDashaJudgeVoteRecord(value.judgeVoteRecord),
         requestedResponseCount: typeof value.requestedResponseCount === 'number' ? value.requestedResponseCount : undefined,
         validResponseCount: typeof value.validResponseCount === 'number' ? value.validResponseCount : undefined,
         responses: Array.isArray(value.responses) ? value.responses as DashaResponseRecord[] : [],
@@ -4618,17 +5329,106 @@ function normalizeOpenAiTextModel(model?: string) {
 }
 
 function normalizeDashaJudgeSettings(value: {
+    provider?: ModelProvider | string | null;
+    selectedJudgeModels?: unknown;
     model?: string | null;
     reasoningEffort?: ReasoningEffort | string | null;
 } | null | undefined): DashaJudgeSettings {
+    const selectedJudgeModels = normalizeDashaJudgeModelSelections(value?.selectedJudgeModels);
+    const fallbackProvider = normalizeModelProvider(value?.provider, 'openai');
+    const fallbackReasoningEffort = normalizeReasoningEffortValue(
+        value?.reasoningEffort,
+        DEFAULT_DASHA_JUDGE_SETTINGS.reasoningEffort,
+    );
+    const fallbackModel = normalizeJudgeModelForProvider(fallbackProvider, value?.model ?? undefined);
+    const normalizedModels = selectedJudgeModels.length > 0
+        ? selectedJudgeModels
+        : [{
+            provider: fallbackProvider,
+            model: fallbackModel,
+            reasoningEffort: fallbackReasoningEffort,
+        }];
+    const primaryJudge = normalizedModels[0] ?? DEFAULT_DASHA_JUDGE_SETTINGS.selectedJudgeModels[0];
+    const panelMode = normalizedModels.length > 1 ? 'multi_model_panel' : 'single_model';
+    const homogeneityStatus = getDashaJudgePanelHomogeneityStatus(normalizedModels);
+
     return {
-        provider: 'openai',
-        model: normalizeOpenAiJsonModel(value?.model ?? undefined),
-        reasoningEffort: normalizeReasoningEffortValue(
-            value?.reasoningEffort,
-            DEFAULT_DASHA_JUDGE_SETTINGS.reasoningEffort,
-        ),
+        provider: primaryJudge.provider,
+        model: primaryJudge.model,
+        reasoningEffort: primaryJudge.reasoningEffort,
+        selectedJudgeModels: normalizedModels,
+        panelMode,
+        panelSize: normalizedModels.length,
+        homogeneityStatus,
+        aggregationRule: DEFAULT_DASHA_JUDGE_AGGREGATION_RULE,
     };
+}
+
+function normalizeDashaJudgeModelSelections(value: unknown): DashaJudgeModelSelection[] {
+    const raw = Array.isArray(value) ? value : [];
+    const seen = new Set<string>();
+    const normalized = raw
+        .map((entry) => {
+            if (!isRecord(entry)) {
+                return null;
+            }
+            const model = typeof entry.model === 'string' ? entry.model.trim() : '';
+            if (!model) {
+                return null;
+            }
+            const provider = normalizeModelProvider(entry.provider, 'openai');
+            const reasoningEffort = normalizeReasoningEffortValue(entry.reasoningEffort, DEFAULT_DASHA_JUDGE_SETTINGS.reasoningEffort);
+            const key = `${provider}::${model}::${reasoningEffort}`;
+            if (seen.has(key)) {
+                return null;
+            }
+            seen.add(key);
+            return {
+                provider,
+                model,
+                reasoningEffort,
+            };
+        })
+        .filter((entry): entry is DashaJudgeModelSelection => Boolean(entry));
+    return normalized;
+}
+
+function normalizeDashaJudgePanelMode(value: unknown, fallback: DashaJudgePanelMode): DashaJudgePanelMode {
+    return value === 'single_model' || value === 'multi_model_panel'
+        ? value
+        : fallback;
+}
+
+function normalizeDashaJudgePanelHomogeneityStatus(value: unknown, fallback: DashaJudgePanelHomogeneityStatus): DashaJudgePanelHomogeneityStatus {
+    return value === 'homogeneous' || value === 'heterogeneous'
+        ? value
+        : fallback;
+}
+
+function normalizeDashaJudgeAggregationRule(value: unknown, fallback: DashaJudgeAggregationRule): DashaJudgeAggregationRule {
+    return value === DEFAULT_DASHA_JUDGE_AGGREGATION_RULE
+        ? value
+        : fallback;
+}
+
+function getDashaJudgePanelHomogeneityStatus(selectedJudgeModels: DashaJudgeModelSelection[]): DashaJudgePanelHomogeneityStatus {
+    const families = new Set(selectedJudgeModels.map((judge) => getDashaJudgeModelFamily(judge.provider, judge.model)));
+    return families.size > 1 ? 'heterogeneous' : 'homogeneous';
+}
+
+function getDashaJudgeModelFamily(provider: ModelProvider, model: string) {
+    const normalized = model.trim().toLowerCase();
+    if (provider === 'openai' && normalized.startsWith('gpt-')) {
+        return 'gpt';
+    }
+    if (provider === 'anthropic' && normalized.startsWith('claude-')) {
+        return 'claude';
+    }
+    if (provider === 'gemini' && normalized.startsWith('gemini-')) {
+        return 'gemini';
+    }
+    const family = normalized.split('-')[0]?.trim();
+    return family || 'unknown';
 }
 
 function getNestedString(value: Record<string, unknown>, parentKey: string, childKey: string) {
@@ -4660,8 +5460,14 @@ function normalizeNullableString(value: unknown) {
 
 function parseModelKey(modelKey: string) {
     const [provider, ...modelParts] = modelKey.split('::');
+    if (modelParts.length === 0) {
+        return {
+            provider: 'openai' as ModelProvider,
+            model: provider,
+        };
+    }
     return {
-        provider: provider as ModelProvider,
+        provider: normalizeModelProvider(provider, 'openai'),
         model: modelParts.join('::'),
     };
 }
@@ -4763,6 +5569,10 @@ function normalizeDashaTrackSummary(value: unknown): DashaTrackSummary | null {
         evaluationTrack: normalizeNonEmptyString(value.evaluationTrack, 'evaluation_track_original'),
         questionVersion: normalizeNonEmptyString(value.questionVersion, 'original'),
         rubricType: normalizeNonEmptyString(value.rubricType, 'base_rubric'),
+        judgePanelMode: normalizeDashaJudgePanelMode(value.judgePanelMode, 'single_model'),
+        judgeModelRoster: normalizeDashaJudgeModelSelections(value.judgeModelRoster),
+        judgePanelHomogeneityStatus: normalizeDashaJudgePanelHomogeneityStatus(value.judgePanelHomogeneityStatus, 'homogeneous'),
+        judgeAggregationRule: normalizeDashaJudgeAggregationRule(value.judgeAggregationRule, DEFAULT_DASHA_JUDGE_AGGREGATION_RULE),
         rankedCentroidList: normalizeStringArray(value.rankedCentroidList),
         disputedCentroidIds: normalizeStringArray(value.disputedCentroidIds),
         bestCentroidByScore: normalizeNullableString(value.bestCentroidByScore),
@@ -4778,6 +5588,49 @@ function normalizeDashaPanelMajorityStatus(value: unknown): DashaPanelMajoritySt
     return value === 'majority' || value === 'no_majority' || value === 'not_applicable'
         ? value
         : 'not_applicable';
+}
+
+function normalizeDashaJudgeVoteRecord(value: unknown): DashaJudgeVoteRecord[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .map((entry, index) => {
+            if (!isRecord(entry)) {
+                return null;
+            }
+            const provider = normalizeModelProvider(entry.provider, 'openai');
+            const model = normalizeJudgeModelForProvider(provider, typeof entry.model === 'string' ? entry.model : undefined);
+            return {
+                judgeId: normalizeNonEmptyString(entry.judgeId, `judge_${index + 1}`),
+                provider,
+                model,
+                reasoningEffort: normalizeReasoningEffortValue(entry.reasoningEffort, DEFAULT_DASHA_JUDGE_SETTINGS.reasoningEffort),
+                modelFamily: normalizeNonEmptyString(entry.modelFamily, getDashaJudgeModelFamily(provider, model)),
+                rankedCentroidList: normalizeStringArray(entry.rankedCentroidList),
+                topCentroidId: normalizeNullableString(entry.topCentroidId),
+                topCentroidScore: typeof entry.topCentroidScore === 'number' ? entry.topCentroidScore : null,
+                centroidFinalScores: Array.isArray(entry.centroidFinalScores)
+                    ? entry.centroidFinalScores
+                        .map((scoreEntry) => {
+                            if (!isRecord(scoreEntry)) {
+                                return null;
+                            }
+                            const clusterId = normalizeNonEmptyString(scoreEntry.clusterId, '');
+                            if (!clusterId) {
+                                return null;
+                            }
+                            return {
+                                clusterId,
+                                subtotal: typeof scoreEntry.subtotal === 'number' ? scoreEntry.subtotal : null,
+                                finalScore: typeof scoreEntry.finalScore === 'number' ? scoreEntry.finalScore : null,
+                            };
+                        })
+                        .filter((scoreEntry): scoreEntry is DashaJudgeVoteRecord['centroidFinalScores'][number] => Boolean(scoreEntry))
+                    : [],
+            } satisfies DashaJudgeVoteRecord;
+        })
+        .filter((entry): entry is DashaJudgeVoteRecord => Boolean(entry));
 }
 
 function normalizeZakReview(value: unknown): ZakReviewV1 | null {
@@ -4801,6 +5654,9 @@ function normalizeZakReview(value: unknown): ZakReviewV1 | null {
             selected_lane_code: value.selectedLaneCode,
         })?.selected_lane_code ?? 'none',
         topCentroidVoteSplit: normalizeNonEmptyString(value.topCentroidVoteSplit, 'not_applicable'),
+        judgeModelRoster: normalizeDashaJudgeModelSelections(value.judgeModelRoster),
+        judgePanelMode: normalizeDashaJudgePanelMode(value.judgePanelMode, 'single_model'),
+        judgeAggregationRule: normalizeDashaJudgeAggregationRule(value.judgeAggregationRule, DEFAULT_DASHA_JUDGE_AGGREGATION_RULE),
         disputedCentroidIds: normalizeStringArray(value.disputedCentroidIds),
         packetReviewReady: Boolean(value.packetReviewReady),
         printablePacketStatus: value.printablePacketStatus === 'ready' ? 'ready' : 'not_ready',
@@ -5043,6 +5899,29 @@ function safeJsonParse<T = Record<string, unknown>>(value: string) {
     }
 }
 
+function parseJsonObjectResponse(value: string) {
+    const direct = safeJsonParse<Record<string, unknown>>(value);
+    if (direct && isRecord(direct)) {
+        return direct;
+    }
+    const fencedMatch = value.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fencedMatch?.[1]) {
+        const fenced = safeJsonParse<Record<string, unknown>>(fencedMatch[1].trim());
+        if (fenced && isRecord(fenced)) {
+            return fenced;
+        }
+    }
+    const objectStart = value.indexOf('{');
+    const objectEnd = value.lastIndexOf('}');
+    if (objectStart >= 0 && objectEnd > objectStart) {
+        const sliced = safeJsonParse<Record<string, unknown>>(value.slice(objectStart, objectEnd + 1));
+        if (sliced && isRecord(sliced)) {
+            return sliced;
+        }
+    }
+    return null;
+}
+
 function sanitizeFileName(value: string) {
     return value
         .replace(/[^a-zA-Z0-9._-]+/g, '_')
@@ -5071,6 +5950,26 @@ function getOpenAiClient() {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function normalizeModelProvider(value: unknown, fallback: ModelProvider): ModelProvider {
+    return value === 'openai' || value === 'anthropic' || value === 'gemini'
+        ? value
+        : fallback;
+}
+
+function getDefaultJudgeModelForProvider(provider: ModelProvider) {
+    if (provider === 'anthropic') {
+        return DEFAULT_ANTHROPIC_JUDGE_MODEL;
+    }
+    if (provider === 'gemini') {
+        return DEFAULT_GEMINI_JUDGE_MODEL;
+    }
+    return DEFAULT_OPENAI_JSON_MODEL;
+}
+
+function normalizeJudgeModelForProvider(provider: ModelProvider, model?: string) {
+    return model?.trim() || getDefaultJudgeModelForProvider(provider);
 }
 
 function getRepoRoot() {

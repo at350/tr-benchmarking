@@ -14,6 +14,7 @@ import {
 } from '@/lib/legal-workflow-v2-constants';
 import type {
     ArtifactRole,
+    DashaJudgeModelSelection,
     DashaJudgeSettings,
     DashaRunV2,
     DashaSelectedModel,
@@ -136,10 +137,28 @@ const DEFAULT_SELECTED_MODEL_KEYS = [
     'gemini::gemini-3.1-pro-preview',
 ];
 
+const DEFAULT_DASHA_JUDGE_MODEL_KEYS = [
+    'openai::gpt-5.4',
+    'anthropic::claude-opus-4-6',
+    'gemini::gemini-3.1-pro-preview',
+];
+
 const DEFAULT_DASHA_JUDGE_SETTINGS: DashaJudgeSettings = {
     provider: 'openai',
-    model: 'gpt-4.1-mini',
+    model: 'gpt-5.4',
     reasoningEffort: 'medium',
+    selectedJudgeModels: DEFAULT_DASHA_JUDGE_MODEL_KEYS.map((modelKey) => {
+        const { provider, model } = parseClientModelKey(modelKey);
+        return {
+            provider,
+            model,
+            reasoningEffort: 'medium',
+        };
+    }),
+    panelMode: 'multi_model_panel',
+    panelSize: DEFAULT_DASHA_JUDGE_MODEL_KEYS.length,
+    homogeneityStatus: 'heterogeneous',
+    aggregationRule: 'mean_final_score_then_strict_majority_first_place_votes',
 };
 
 const BENCHMARK_CASE_QUICK_SELECTS: BenchmarkCaseQuickSelect[] = [
@@ -663,7 +682,7 @@ export function LegalWorkflowPageClient({
         if (selectedRun?.judgeSettings) {
             setJudgeSettingsDraft(clone(selectedRun.judgeSettings));
         }
-    }, [selectedRun?.id, selectedRun?.judgeSettings.model, selectedRun?.judgeSettings.reasoningEffort]);
+    }, [selectedRun?.id, selectedRun?.judgeSettings]);
 
     useEffect(() => {
         if (!selectedZakId && visibleZakReviews.length > 0) {
@@ -895,11 +914,7 @@ export function LegalWorkflowPageClient({
             return;
         }
         if (openDashaJudgeTarget === 'run_default') {
-            setDashaJudgeSettings((current) => ({
-                ...current,
-                model: judgeSettingsDraft.model,
-                reasoningEffort: judgeSettingsDraft.reasoningEffort,
-            }));
+            setDashaJudgeSettings(clone(judgeSettingsDraft));
         }
         setOpenDashaJudgeTarget(null);
     }
@@ -1255,6 +1270,10 @@ export function LegalWorkflowPageClient({
             setErrorMessage('Select an approved rubric pack first.');
             return;
         }
+        if (dashaJudgeSettings.selectedJudgeModels.length === 0) {
+            setErrorMessage('Select at least one judge model for Dasha.');
+            return;
+        }
         if (selectedModelKeys.length === 0) {
             setErrorMessage('Select at least one model for Dasha.');
             return;
@@ -1273,6 +1292,7 @@ export function LegalWorkflowPageClient({
                 formData.set('runMode', 'score_and_cluster');
                 formData.set('sampleCount', sampleCount || '120');
                 formData.set('selectedModels', JSON.stringify(buildSelectedModels(selectedModelKeys)));
+                formData.set('judgeModels', JSON.stringify(dashaJudgeSettings.selectedJudgeModels));
                 formData.set('judgeModel', dashaJudgeSettings.model);
                 formData.set('judgeReasoningEffort', dashaJudgeSettings.reasoningEffort);
                 const response = await fetch('/api/dasha-runs', {
@@ -1312,6 +1332,10 @@ export function LegalWorkflowPageClient({
                 : 'Select a clustered Dasha run first.');
             return;
         }
+        if (judgeSettingsDraft.selectedJudgeModels.length === 0) {
+            setErrorMessage('Select at least one judge model before running Dasha judging.');
+            return;
+        }
         setErrorMessage(null);
         setStatusMessage(runsToJudge.length > 1 ? 'Judging clustered Dasha runs...' : 'Judging clustered Dasha run...');
         try {
@@ -1321,6 +1345,7 @@ export function LegalWorkflowPageClient({
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
+                        judgeModels: judgeSettingsDraft.selectedJudgeModels,
                         judgeModel: judgeSettingsDraft.model,
                         judgeReasoningEffort: judgeSettingsDraft.reasoningEffort,
                     }),
@@ -2478,7 +2503,7 @@ export function LegalWorkflowPageClient({
                                 <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
                                     {selectedRun ? (
                                         <>
-                                            <ReadOnlyTextCard title="Selected Dasha run" text={`${selectedRun.id}\nTrack: ${selectedRun.rubricTrackId === 'selected_variation' ? 'Selected variation' : 'Original question'}\nStatus: ${selectedRun.status}\nWorkflow stage: ${selectedRun.workflowStage}\nClusters: ${selectedRun.clusters.length}\nJudge: ${formatGenerationSettingInline(selectedRun.judgeSettings)}`} />
+                                            <ReadOnlyTextCard title="Selected Dasha run" text={`${selectedRun.id}\nTrack: ${selectedRun.rubricTrackId === 'selected_variation' ? 'Selected variation' : 'Original question'}\nStatus: ${selectedRun.status}\nWorkflow stage: ${selectedRun.workflowStage}\nClusters: ${selectedRun.clusters.length}\nJudge panel: ${formatDashaJudgeSettingsInline(selectedRun.judgeSettings)}`} />
                                             <ReadOnlyTextCard title="Clustering notes" text={selectedRun.clusteringNotes ?? 'No clustering notes saved for this run.'} />
                                         </>
                                     ) : (
@@ -2513,14 +2538,14 @@ export function LegalWorkflowPageClient({
                                 </Field>
                                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Judge override</p>
-                                    <p className="mt-1 text-sm text-slate-600">Adjust the judge model for this clustered run before Dasha scores the centroids.</p>
+                                    <p className="mt-1 text-sm text-slate-600">Adjust the judge panel for this clustered run before Dasha scores the centroids.</p>
                                     <div className="mt-4 flex flex-wrap items-center gap-3">
                                         <JudgeSettingsButton
                                             setting={judgeSettingsDraft}
                                             onClick={() => openDashaJudgeSettings('judge_override')}
                                         />
                                         <p className="text-sm text-slate-500">
-                                            Starts from the run’s saved judge setting and can be changed before judging.
+                                            Starts from the run’s saved judge panel and can be changed before judging.
                                         </p>
                                     </div>
                                 </div>
@@ -2625,8 +2650,8 @@ export function LegalWorkflowPageClient({
                                 <div className="space-y-4">
                                     {selectedRun ? (
                                         <>
-                                            <ReadOnlyTextCard title="Selected Dasha run" text={`${selectedRun.id}\nStatus: ${selectedRun.status}\nRun mode: ${selectedRun.runMode}\nTrack: ${selectedRun.rubricTrackId === 'selected_variation' ? 'Selected variation' : 'Original question'}\nVote split: ${selectedRun.trackSummary?.topCentroidVoteSplit ?? 'not_applicable'}\nMajority: ${selectedRun.trackSummary?.panelMajorityStatus ?? 'not_applicable'}`} />
-                                            <ReadOnlyTextCard title="Zak packet status" text={selectedZakReview ? `${selectedZakReview.id}\nInvocation: ${selectedZakReview.invocationMode}\nPrintable packet: ${selectedZakReview.printablePacketStatus}\nDisputed centroids: ${selectedZakReview.disputedCentroidIds.join(', ') || 'None'}\nScore lock: ${selectedZakReview.scoreLockStatus}` : 'No Zak review packet has been created for this run yet.'} />
+                                            <ReadOnlyTextCard title="Selected Dasha run" text={`${selectedRun.id}\nStatus: ${selectedRun.status}\nRun mode: ${selectedRun.runMode}\nTrack: ${selectedRun.rubricTrackId === 'selected_variation' ? 'Selected variation' : 'Original question'}\nJudge panel: ${formatDashaJudgeSettingsInline(selectedRun.judgeSettings)}\nVote split: ${selectedRun.trackSummary?.topCentroidVoteSplit ?? 'not_applicable'}\nMajority: ${selectedRun.trackSummary?.panelMajorityStatus ?? 'not_applicable'}`} />
+                                            <ReadOnlyTextCard title="Zak packet status" text={selectedZakReview ? `${selectedZakReview.id}\nInvocation: ${selectedZakReview.invocationMode}\nPrintable packet: ${selectedZakReview.printablePacketStatus}\nJudge panel mode: ${selectedZakReview.judgePanelMode}\nJudge roster: ${selectedZakReview.judgeModelRoster.map((judge) => `${judge.provider}:${judge.model}`).join(', ') || 'None'}\nAggregation: ${selectedZakReview.judgeAggregationRule}\nVote split: ${selectedZakReview.topCentroidVoteSplit}\nDisputed centroids: ${selectedZakReview.disputedCentroidIds.join(', ') || 'None'}\nScore lock: ${selectedZakReview.scoreLockStatus}` : 'No Zak review packet has been created for this run yet.'} />
                                         </>
                                     ) : (
                                         <EmptyPanelCopy text="Run and judge Dasha first, then create or inspect the corresponding Zak review packet here." />
@@ -2793,11 +2818,7 @@ export function LegalWorkflowPageClient({
                 <JudgeSettingsModal
                     targetLabel={openDashaJudgeTarget === 'run_default' ? 'Dasha Judge Configuration' : 'Dasha Judge Override'}
                     value={judgeSettingsDraft}
-                    onChange={(value) => setJudgeSettingsDraft((current) => ({
-                        ...current,
-                        model: value.model,
-                        reasoningEffort: value.reasoningEffort,
-                    }))}
+                    onChange={setJudgeSettingsDraft}
                     onClose={() => setOpenDashaJudgeTarget(null)}
                     onSave={saveDashaJudgeSettings}
                 />
@@ -2994,13 +3015,102 @@ function buildClientFrankApprovalBlockReason(packet: FrankPacketV2) {
 
 function buildSelectedModels(selectedModelKeys: string[]): DashaSelectedModel[] {
     return selectedModelKeys.map((modelKey) => {
-        const [provider, model] = modelKey.split('::');
+        const { provider, model } = parseClientModelKey(modelKey);
         return {
-            provider: provider as ModelProvider,
+            provider,
             model,
             reasoningEffort: provider === 'anthropic' ? undefined : 'medium',
         };
     });
+}
+
+function buildDashaJudgeSettings(selectedJudgeModels: DashaJudgeModelSelection[], reasoningEffort: ReasoningEffort): DashaJudgeSettings {
+    const dedupedModels = selectedJudgeModels
+        .filter((judge, index, values) => values.findIndex((candidate) => candidate.provider === judge.provider && candidate.model === judge.model) === index);
+    const normalizedModels = dedupedModels.length > 0
+        ? dedupedModels.map((judge) => ({
+            provider: judge.provider,
+            model: judge.model,
+            reasoningEffort,
+        }))
+        : DEFAULT_DASHA_JUDGE_SETTINGS.selectedJudgeModels.map((judge) => ({
+            provider: judge.provider,
+            model: judge.model,
+            reasoningEffort,
+        }));
+    const modelFamilies = new Set(normalizedModels.map((judge) => getJudgeModelFamily(judge.provider, judge.model)));
+    const primaryJudge = normalizedModels[0] ?? DEFAULT_DASHA_JUDGE_SETTINGS.selectedJudgeModels[0];
+    return {
+        provider: primaryJudge.provider,
+        model: primaryJudge.model,
+        reasoningEffort,
+        selectedJudgeModels: normalizedModels,
+        panelMode: normalizedModels.length > 1 ? 'multi_model_panel' : 'single_model',
+        panelSize: normalizedModels.length,
+        homogeneityStatus: modelFamilies.size > 1 ? 'heterogeneous' : 'homogeneous',
+        aggregationRule: 'mean_final_score_then_strict_majority_first_place_votes',
+    };
+}
+
+function buildDashaJudgeSettingsFromModelKeys(modelKeys: string[], reasoningEffort: ReasoningEffort): DashaJudgeSettings {
+    return buildDashaJudgeSettings(
+        modelKeys.map((modelKey) => {
+            const { provider, model } = parseClientModelKey(modelKey);
+            return {
+                provider,
+                model,
+                reasoningEffort,
+            };
+        }),
+        reasoningEffort,
+    );
+}
+
+function getDashaJudgeModelKeys(setting: DashaJudgeSettings) {
+    return setting.selectedJudgeModels.map((judge) => buildClientModelKey(judge.provider, judge.model));
+}
+
+function buildClientModelKey(provider: ModelProvider, model: string) {
+    return `${provider}::${model}`;
+}
+
+function parseClientModelKey(modelKey: string) {
+    const [rawProvider, ...modelParts] = modelKey.split('::');
+    if (modelParts.length === 0) {
+        return {
+            provider: 'openai' as ModelProvider,
+            model: rawProvider,
+        };
+    }
+    const provider: ModelProvider = rawProvider === 'anthropic' || rawProvider === 'gemini' || rawProvider === 'openai'
+        ? rawProvider
+        : 'openai';
+    return {
+        provider,
+        model: modelParts.join('::'),
+    };
+}
+
+function getModelOptionLabel(provider: ModelProvider, model: string) {
+    return MODEL_OPTIONS_BY_PROVIDER[provider].find((option) => option.value === model)?.label ?? model;
+}
+
+function getJudgeModelFamily(provider: ModelProvider, model: string) {
+    const normalized = model.trim().toLowerCase();
+    if (provider === 'openai' && normalized.startsWith('gpt-')) {
+        return 'gpt';
+    }
+    if (provider === 'anthropic' && normalized.startsWith('claude-')) {
+        return 'claude';
+    }
+    if (provider === 'gemini' && normalized.startsWith('gemini-')) {
+        return 'gemini';
+    }
+    return normalized.split('-')[0] || normalized;
+}
+
+function panelSupportsDashaJudgeReasoningEffort(setting: DashaJudgeSettings) {
+    return setting.selectedJudgeModels.some((judge) => supportsReasoningEffortControl(judge.provider, judge.model));
 }
 
 function sortByUpdated<T extends { updatedAt?: string }>(items: T[]) {
@@ -3052,6 +3162,12 @@ function buildDashaClusterOutputsJson(run: DashaRunV2) {
         runMode: run.runMode,
         questionText: run.questionText,
         judgeSettings: run.judgeSettings,
+        judgeModelRoster: run.judgeModelRoster,
+        judgePanelMode: run.judgePanelMode,
+        judgePanelSize: run.judgePanelSize,
+        judgePanelHomogeneityStatus: run.judgePanelHomogeneityStatus,
+        judgeAggregationRule: run.judgeAggregationRule,
+        judgeVoteRecord: run.judgeVoteRecord,
         requestedResponseCount: run.requestedResponseCount ?? run.responses.length,
         validResponseCount: run.validResponseCount ?? run.responses.filter((response) => !response.error && response.responseText.trim()).length,
         clusteringMethod: run.clusteringMethod,
@@ -3432,7 +3548,7 @@ function JudgeSettingsButton({
 }) {
     return (
         <button className={secondaryButtonClassName} type="button" onClick={onClick}>
-            Model: {formatGenerationSettingInline(setting)}
+            Judges: {formatDashaJudgeSettingsInline(setting)}
         </button>
     );
 }
@@ -3523,58 +3639,93 @@ function JudgeSettingsModal({
 }: {
     targetLabel: string;
     value: DashaJudgeSettings;
-    onChange: (value: Pick<DashaJudgeSettings, 'model' | 'reasoningEffort'>) => void;
+    onChange: (value: DashaJudgeSettings) => void;
     onClose: () => void;
     onSave: () => void;
 }) {
-    const modelOptions = MODEL_OPTIONS_BY_PROVIDER.openai;
-    const supportsReasoning = supportsReasoningEffortControl('openai', value.model);
+    const selectedModelKeys = getDashaJudgeModelKeys(value);
+    const supportsReasoning = panelSupportsDashaJudgeReasoningEffort(value);
+    const defaultPrimaryJudgeKey = buildClientModelKey(DEFAULT_DASHA_JUDGE_SETTINGS.provider, DEFAULT_DASHA_JUDGE_SETTINGS.model);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
-            <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Model Selection</p>
                         <p className="mt-1 text-lg font-semibold text-slate-900">{targetLabel}</p>
                         <p className="mt-2 text-sm text-slate-600">
-                            Choose the OpenAI model Dasha should use when scoring clustered representatives against the approved rubric.
+                            Choose the judge roster Dasha should use when scoring clustered representatives against the approved rubric.
                         </p>
                     </div>
                 </div>
                 <div className="mt-4 space-y-4">
-                    <Field label="Model">
-                        <select
-                            className={inputClassName}
-                            value={value.model}
-                            onChange={(event) => onChange({
-                                model: event.target.value,
-                                reasoningEffort: value.reasoningEffort,
-                            })}
-                        >
-                            {modelOptions.map((option) => (
-                                <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                        </select>
+                    <Field label="Judge models">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <p className="text-sm text-slate-600">
+                                    {selectedModelKeys.length} selected
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:text-slate-900"
+                                        type="button"
+                                        onClick={() => onChange(buildDashaJudgeSettingsFromModelKeys(
+                                            (['openai', 'anthropic', 'gemini'] as ModelProvider[]).flatMap((provider) => MODEL_OPTIONS_BY_PROVIDER[provider].map((option) => buildClientModelKey(provider, option.value))),
+                                            value.reasoningEffort,
+                                        ))}
+                                    >
+                                        Select all
+                                    </button>
+                                    <button
+                                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:text-slate-900"
+                                        type="button"
+                                        onClick={() => onChange(buildDashaJudgeSettingsFromModelKeys([defaultPrimaryJudgeKey], value.reasoningEffort))}
+                                    >
+                                        Keep one
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="mt-3">
+                                <ModelSelectionPanel
+                                    selectedModelKeys={selectedModelKeys}
+                                    onToggleModel={(modelKey, checked) => {
+                                        const nextKeys = checked
+                                            ? [...selectedModelKeys, modelKey]
+                                            : selectedModelKeys.filter((selectedKey) => selectedKey !== modelKey);
+                                        onChange(buildDashaJudgeSettingsFromModelKeys(nextKeys, value.reasoningEffort));
+                                    }}
+                                />
+                            </div>
+                        </div>
                     </Field>
                     <Field label="Reasoning effort">
                         <select
                             className={inputClassName}
                             value={supportsReasoning ? value.reasoningEffort : 'medium'}
                             disabled={!supportsReasoning}
-                            onChange={(event) => onChange({
-                                model: value.model,
-                                reasoningEffort: event.target.value as ReasoningEffort,
-                            })}
+                            onChange={(event) => onChange(buildDashaJudgeSettingsFromModelKeys(
+                                selectedModelKeys,
+                                event.target.value as ReasoningEffort,
+                            ))}
                         >
                             {REASONING_OPTIONS.map((option) => (
                                 <option key={option.value} value={option.value}>{option.label}</option>
                             ))}
                         </select>
                     </Field>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+                        <p className="font-semibold text-slate-900">Panel behavior</p>
+                        <p className="mt-1">
+                            Dasha now runs each selected judge independently, averages final centroid scores across the panel, and computes the Zak trigger from actual first-place judge votes.
+                        </p>
+                        <p className="mt-2 text-slate-600">
+                            OpenAI judges can also use web-backed citation lookup during cluster audit when that mode is enabled. Claude and Gemini judges still contribute row scoring and vote records, but their structured audits run without that OpenAI-only tool path.
+                        </p>
+                    </div>
                     {!supportsReasoning ? (
                         <p className="text-sm text-slate-500">
-                            This model uses its default reasoning behavior for Dasha judging.
+                            The selected judge roster uses default reasoning behavior for Dasha judging.
                         </p>
                     ) : null}
                 </div>
@@ -3592,15 +3743,22 @@ function JudgeSettingsModal({
 }
 
 function formatGenerationSettingInline(setting: Pick<FrankGenerationSettings, 'model' | 'reasoningEffort'>) {
-    const modelLabel = getOpenAiModelLabel(setting.model);
+    const modelLabel = getModelOptionLabel('openai', setting.model);
     const supportsReasoning = supportsReasoningEffortControl('openai', setting.model);
     return supportsReasoning
         ? `${modelLabel} · ${setting.reasoningEffort}`
         : modelLabel;
 }
 
-function getOpenAiModelLabel(model: string) {
-    return MODEL_OPTIONS_BY_PROVIDER.openai.find((option) => option.value === model)?.label ?? model;
+function formatDashaJudgeSettingsInline(setting: DashaJudgeSettings) {
+    const labels = setting.selectedJudgeModels.map((judge) => `${getModelOptionLabel(judge.provider, judge.model)} (${PROVIDER_LABELS[judge.provider]})`);
+    const roster = labels.join(', ');
+    const suffix = setting.panelMode === 'multi_model_panel'
+        ? `${setting.panelSize} judges`
+        : 'single judge';
+    return panelSupportsDashaJudgeReasoningEffort(setting)
+        ? `${suffix} · ${roster} · ${setting.reasoningEffort}`
+        : `${suffix} · ${roster}`;
 }
 
 function Banner({ tone, text }: { tone: 'info' | 'warning' | 'error'; text: string }) {

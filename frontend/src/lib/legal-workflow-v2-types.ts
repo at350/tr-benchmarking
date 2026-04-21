@@ -194,6 +194,15 @@ export type FrankControllerCardRubricPatchScope = 'base rubric only' | 'selected
 export type FrankControllerCardSelectedVariationAnswerPosture = 'same_as_base' | 'localized_edit' | 'ambiguity_rewrite';
 export type FrankControllerCardDualRubricMode = 'off' | 'on';
 export type FrankControllerCardEvaluationTracks = 'original_only' | 'original_and_selected_variation';
+export type FrankControllerCardPacketStatus = 'phase1_only' | 'benchmark_complete' | 'question_complete' | 'ready_for_karthic' | 'ready_for_dasha';
+export type FrankControllerCardFrankPhaseComplete = 1 | 2 | 3;
+export type FrankControllerCardRubricStatus = 'not_started' | 'draft' | 'locked';
+export type FrankControllerCardEvaluationStatus = 'not_ready' | 'ready';
+export type FrankControllerCardWorkflowSourceType = 'case' | 'statute' | 'Restatement' | 'doctrine source' | 'mixed';
+export type FrankControllerCardSourceCaseMonitoring = 'off' | 'on';
+export type FrankControllerCardCaseCitationScoringRule = 'metadata_only' | 'hallucinated_only_penalty';
+export type FrankControllerCardCaseVerificationOperatingMode = 'cautious' | 'demo_search_fail_equals_nonexistent';
+export type FrankControllerCardCaseExistenceCheckMethod = 'web_search';
 
 export type FrankControllerCard = {
     selected_pack: FrankSofPackId | '';
@@ -226,6 +235,18 @@ export type FrankControllerCard = {
     dual_rubric_mode: FrankControllerCardDualRubricMode;
     rubric_separation_rule: 'strict';
     evaluation_tracks: FrankControllerCardEvaluationTracks;
+    packet_status: FrankControllerCardPacketStatus;
+    frank_phase_complete: FrankControllerCardFrankPhaseComplete;
+    rubric_status: FrankControllerCardRubricStatus;
+    evaluation_status: FrankControllerCardEvaluationStatus;
+    workflow_source_type: FrankControllerCardWorkflowSourceType;
+    workflow_source_case_name: string;
+    workflow_source_case_citation: string;
+    case_citation_verification_mode: KarthicCaseCitationVerificationMode;
+    source_case_monitoring: FrankControllerCardSourceCaseMonitoring;
+    case_citation_scoring_rule: FrankControllerCardCaseCitationScoringRule;
+    case_verification_operating_mode: FrankControllerCardCaseVerificationOperatingMode;
+    case_existence_check_method: FrankControllerCardCaseExistenceCheckMethod;
 };
 
 export type FrankSavedPromptKind =
@@ -419,10 +440,25 @@ export type DashaSelectedModel = {
     temperature?: number;
 };
 
-export type DashaJudgeSettings = {
-    provider: 'openai';
+export type DashaJudgePanelMode = 'single_model' | 'multi_model_panel';
+export type DashaJudgePanelHomogeneityStatus = 'homogeneous' | 'heterogeneous';
+export type DashaJudgeAggregationRule = 'mean_final_score_then_strict_majority_first_place_votes';
+
+export type DashaJudgeModelSelection = {
+    provider: ModelProvider;
     model: string;
     reasoningEffort: ReasoningEffort;
+};
+
+export type DashaJudgeSettings = {
+    provider: ModelProvider;
+    model: string;
+    reasoningEffort: ReasoningEffort;
+    selectedJudgeModels: DashaJudgeModelSelection[];
+    panelMode: DashaJudgePanelMode;
+    panelSize: number;
+    homogeneityStatus: DashaJudgePanelHomogeneityStatus;
+    aggregationRule: DashaJudgeAggregationRule;
 };
 
 export type DashaCaseMentionStatus = 'none' | 'mentioned';
@@ -438,6 +474,22 @@ export type DashaSourceCaseReferenceStatus =
     | 'other_case_only'
     | 'source_case_and_other_cases';
 export type DashaPanelMajorityStatus = 'majority' | 'no_majority' | 'not_applicable';
+
+export type DashaJudgeVoteRecord = {
+    judgeId: string;
+    provider: ModelProvider;
+    model: string;
+    reasoningEffort: ReasoningEffort;
+    modelFamily: string;
+    rankedCentroidList: string[];
+    topCentroidId: string | null;
+    topCentroidScore: number | null;
+    centroidFinalScores: Array<{
+        clusterId: string;
+        subtotal: number | null;
+        finalScore: number | null;
+    }>;
+};
 
 export type DashaAppliedPenalty = {
     code: string;
@@ -539,6 +591,10 @@ export type DashaTrackSummary = {
     evaluationTrack: string;
     questionVersion: string;
     rubricType: string;
+    judgePanelMode: DashaJudgePanelMode;
+    judgeModelRoster: DashaJudgeModelSelection[];
+    judgePanelHomogeneityStatus: DashaJudgePanelHomogeneityStatus;
+    judgeAggregationRule: DashaJudgeAggregationRule;
     rankedCentroidList: string[];
     disputedCentroidIds: string[];
     bestCentroidByScore: string | null;
@@ -624,6 +680,12 @@ export type DashaRunV2 = {
     comparisonRole: DashaComparisonRole | null;
     selectedModels: DashaSelectedModel[];
     judgeSettings: DashaJudgeSettings;
+    judgeModelRoster: DashaJudgeModelSelection[];
+    judgePanelMode: DashaJudgePanelMode;
+    judgePanelSize: number;
+    judgePanelHomogeneityStatus: DashaJudgePanelHomogeneityStatus;
+    judgeAggregationRule: DashaJudgeAggregationRule;
+    judgeVoteRecord: DashaJudgeVoteRecord[];
     requestedResponseCount?: number;
     validResponseCount?: number;
     responses: DashaResponseRecord[];
@@ -759,6 +821,9 @@ export type ZakReviewV1 = {
     dualRubricMode: 'on' | 'off';
     selectedLaneCode: FrankControllerCardSelectedLaneCode;
     topCentroidVoteSplit: string;
+    judgeModelRoster: DashaJudgeModelSelection[];
+    judgePanelMode: DashaJudgePanelMode;
+    judgeAggregationRule: DashaJudgeAggregationRule;
     disputedCentroidIds: string[];
     packetReviewReady: boolean;
     printablePacketStatus: ZakPrintablePacketStatus;
