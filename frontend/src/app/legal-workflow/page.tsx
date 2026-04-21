@@ -1,7 +1,7 @@
 'use client';
 
 import { startTransition, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Loader2, Network, Scale, ScrollText, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Check, CheckCircle2, ChevronDown, ChevronRight, Loader2, Network, Pencil, Save, Scale, ScrollText, ShieldAlert, Trash2, X } from 'lucide-react';
 
 import { DashaResultsExplorer } from '@/components/DashaResultsExplorer';
 import { AppShell } from '@/components/ui/AppShell';
@@ -466,6 +466,9 @@ export function LegalWorkflowPageClient({
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [activeAction, setActiveAction] = useState<WorkflowActionState | null>(null);
+    const [isRunManagerCollapsed, setIsRunManagerCollapsed] = useState(false);
+    const [isRunRenameMode, setIsRunRenameMode] = useState(false);
+    const [runRenameDraft, setRunRenameDraft] = useState('');
     const [isStatusDockCollapsed, setIsStatusDockCollapsed] = useState(false);
     const [visibleStage, setVisibleStage] = useState<WorkflowStageId>('source');
     const [isStageGuideOpen, setIsStageGuideOpen] = useState(true);
@@ -586,6 +589,82 @@ export function LegalWorkflowPageClient({
         () => visibleZakReviews.find((review) => review.id === selectedZakId) ?? visibleZakReviews[0] ?? null,
         [selectedZakId, visibleZakReviews],
     );
+    const currentRunContext = useMemo(() => {
+        const stageShortLabel = WORKFLOW_STAGES.find((stage) => stage.id === visibleStage)?.shortLabel ?? 'Run';
+        const rubricPackFromRun = selectedRun
+            ? rubricPacks.find((pack) => pack.id === selectedRun.rubricPackId) ?? null
+            : null;
+        const isFrankStage = visibleStage === 'source'
+            || visibleStage === 'routing_intake'
+            || visibleStage === 'extraction_mapping'
+            || visibleStage === 'benchmark'
+            || visibleStage === 'question';
+        const isRubricStage = visibleStage === 'seed_rubric'
+            || visibleStage === 'refine_rubric'
+            || visibleStage === 'approve_rubric';
+        const selectedRubricPack = selectedRubricId
+            ? rubricPacks.find((pack) => pack.id === selectedRubricId) ?? null
+            : null;
+        const frankPacket = isFrankStage
+            ? frankEditor ?? (selectedFrankId ? frankPackets.find((packet) => packet.id === selectedFrankId) ?? null : null)
+            : isRubricStage
+                ? (rubricEditor
+                    ? (frankEditor?.id === rubricEditor.frankPacketId
+                        ? frankEditor
+                        : frankPackets.find((packet) => packet.id === rubricEditor.frankPacketId) ?? null)
+                    : selectedRubricPack
+                        ? frankPackets.find((packet) => packet.id === selectedRubricPack.frankPacketId) ?? null
+                        : frankEditor ?? null)
+                : (() => {
+                    const activeRubric = rubricPackFromRun ?? selectedDashaPack ?? selectedRubricPack ?? rubricEditor;
+                    if (!activeRubric) {
+                        return frankEditor ?? (selectedFrankId ? frankPackets.find((packet) => packet.id === selectedFrankId) ?? null : null);
+                    }
+                    return frankEditor?.id === activeRubric.frankPacketId
+                        ? frankEditor
+                        : frankPackets.find((packet) => packet.id === activeRubric.frankPacketId) ?? null;
+                })();
+        const rubricPack = isFrankStage
+            ? (frankPacket
+                ? [rubricEditor, selectedRubricPack]
+                    .find((pack): pack is KarthicRubricPackV2 => Boolean(pack && pack.frankPacketId === frankPacket.id))
+                    ?? null
+                : null)
+            : isRubricStage
+                ? rubricEditor ?? selectedRubricPack
+                : rubricPackFromRun ?? selectedDashaPack ?? selectedRubricPack ?? rubricEditor;
+        const rubricPackIds = new Set(
+            rubricPacks
+                .filter((pack) => pack.frankPacketId === frankPacket?.id)
+                .map((pack) => pack.id),
+        );
+        const relatedDashaRuns = rubricPackIds.size > 0
+            ? dashaRuns.filter((run) => rubricPackIds.has(run.rubricPackId))
+            : [];
+
+        return {
+            frankPacket,
+            rubricPack,
+            name: frankPacket?.title ?? selectedRun?.id ?? rubricPack?.id ?? 'No run selected',
+            stats: [
+                stageShortLabel,
+                frankPacket ? `Frank ${frankPacket.status}` : null,
+                rubricPack ? `Rubric ${rubricPack.status === 'approved' ? 'approved' : rubricPack.refinementStatus}` : null,
+                buildRunManagerDashaStat(relatedDashaRuns),
+            ].filter((item): item is string => Boolean(item)),
+        };
+    }, [
+        dashaRuns,
+        frankEditor,
+        frankPackets,
+        rubricEditor,
+        rubricPacks,
+        selectedDashaPack,
+        selectedFrankId,
+        selectedRubricId,
+        selectedRun,
+        visibleStage,
+    ]);
     useEffect(() => {
         setHasMounted(true);
     }, []);
@@ -790,6 +869,36 @@ export function LegalWorkflowPageClient({
         if (pack.status === 'approved') {
             setDashaRubricPackId(pack.id);
         }
+    }
+
+    function openWorkflowRun(packetId: string) {
+        const packet = frankPackets.find((item) => item.id === packetId);
+        if (!packet) {
+            return;
+        }
+        applyFrankPacket(packet);
+
+        const linkedRubricPacks = sortByUpdated(rubricPacks.filter((item) => item.frankPacketId === packet.id));
+        const linkedRuns = sortRuns(dashaRuns.filter((run) => linkedRubricPacks.some((pack) => pack.id === run.rubricPackId)));
+        const nextRun = linkedRuns[0] ?? null;
+        const nextRubric = nextRun
+            ? linkedRubricPacks.find((item) => item.id === nextRun.rubricPackId) ?? linkedRubricPacks[0] ?? null
+            : linkedRubricPacks[0] ?? null;
+
+        if (nextRubric) {
+            applyRubricPack(nextRubric);
+            setDashaRubricPackId(nextRun?.rubricPackId ?? nextRubric.id);
+        } else {
+            setSelectedRubricId('');
+            setRubricEditor(null);
+            setDashaRubricPackId('');
+        }
+
+        setSelectedRunId(nextRun?.id ?? '');
+        const nextZakReview = nextRun
+            ? sortByUpdated(zakReviews.filter((review) => review.dashaRunId === nextRun.id))[0] ?? null
+            : null;
+        setSelectedZakId(nextZakReview?.id ?? '');
     }
 
     function updateRubricEditor(mutator: (current: KarthicRubricPackV2) => KarthicRubricPackV2) {
@@ -997,30 +1106,61 @@ export function LegalWorkflowPageClient({
         }
     }
 
+    async function persistFrankPacket(
+        packet: FrankPacketV2,
+        options: {
+            actionId: string;
+            actionLabel: string;
+            pendingMessage: string;
+            successMessage: string;
+            errorMessage: string;
+        },
+    ) {
+        return await runBusyWorkflowAction(
+            { id: options.actionId, label: options.actionLabel },
+            async () => {
+                setErrorMessage(null);
+                setStatusMessage(options.pendingMessage);
+                try {
+                    const response = await fetch('/api/frank-packets', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify(packet),
+                    });
+                    const json = await readJsonResponse<{ item?: FrankPacketV2; error?: string }>(response, options.errorMessage);
+                    if (!response.ok) {
+                        throw new Error(json.error || options.errorMessage);
+                    }
+                    const item = json.item as FrankPacketV2;
+                    setFrankPackets((current) => sortByUpdated([item, ...current.filter((savedPacket) => savedPacket.id !== item.id)]));
+                    if (selectedFrankId === item.id || frankEditor?.id === item.id) {
+                        applyFrankPacket(item);
+                    }
+                    setStatusMessage(options.successMessage);
+                    return item;
+                } catch (error) {
+                    setErrorMessage(error instanceof Error ? error.message : options.errorMessage);
+                    setStatusMessage(null);
+                    return null;
+                }
+            },
+        );
+    }
+
     async function saveFrank(status: FrankPacketV2['status']) {
         if (!frankEditor) {
             return;
         }
-        setErrorMessage(null);
-        setStatusMessage(status === 'approved' ? 'Approving Frank packet...' : 'Saving Frank packet...');
-        try {
-            const response = await fetch('/api/frank-packets', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify(frankEditor ? { ...frankEditor, status } : null),
-            });
-            const json = await readJsonResponse<{ item?: FrankPacketV2; error?: string }>(response, 'Failed to save Frank packet.');
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to save Frank packet.');
-            }
-            const item = json.item as FrankPacketV2;
-            applyFrankPacket(item);
-            setFrankPackets((current) => sortByUpdated([item, ...current.filter((packet) => packet.id !== item.id)]));
-            setStatusMessage(status === 'approved' ? 'Frank packet approved.' : 'Frank packet saved.');
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to save Frank packet.');
-            setStatusMessage(null);
-        }
+        await persistFrankPacket(
+            { ...frankEditor, status },
+            {
+                actionId: status === 'approved' ? 'approve_frank' : 'save_frank',
+                actionLabel: status === 'approved' ? 'Approving Frank packet' : 'Saving Frank packet',
+                pendingMessage: status === 'approved' ? 'Approving Frank packet...' : 'Saving Frank packet...',
+                successMessage: status === 'approved' ? 'Frank packet approved.' : 'Frank packet saved.',
+                errorMessage: 'Failed to save Frank packet.',
+            },
+        );
     }
 
     async function generateVariationMenu() {
@@ -1131,35 +1271,64 @@ export function LegalWorkflowPageClient({
     }
 
     async function deleteFrank(id: string) {
-        setErrorMessage(null);
-        setStatusMessage('Deleting Frank packet...');
-        try {
-            const response = await fetch('/api/frank-packets', {
-                method: 'DELETE',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ id }),
-            });
-            const json = await readJsonResponse<{ deletedId?: string; error?: string }>(response, 'Failed to delete Frank packet.');
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to delete Frank packet.');
-            }
-            const nextPackets = frankPackets.filter((packet) => packet.id !== id);
-            setFrankPackets(nextPackets);
-            if (selectedFrankId === id) {
-                const nextPacket = nextPackets[0] ?? null;
-                if (nextPacket) {
-                    applyFrankPacket(nextPacket);
-                } else {
-                    setSelectedFrankId('');
-                    setFrankEditor(null);
-                    goToStage('source');
+        await runBusyWorkflowAction(
+            { id: 'delete_frank', label: 'Deleting run' },
+            async () => {
+                setErrorMessage(null);
+                setStatusMessage('Deleting run...');
+                try {
+                    const linkedRubricIds = new Set(rubricPacks.filter((pack) => pack.frankPacketId === id).map((pack) => pack.id));
+                    const linkedRunIds = new Set(dashaRuns.filter((run) => linkedRubricIds.has(run.rubricPackId)).map((run) => run.id));
+                    const response = await fetch('/api/frank-packets', {
+                        method: 'DELETE',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ id, cascade: true }),
+                    });
+                    const json = await readJsonResponse<{ deletedId?: string; error?: string }>(response, 'Failed to delete Frank packet.');
+                    if (!response.ok) {
+                        throw new Error(json.error || 'Failed to delete Frank packet.');
+                    }
+                    const nextPackets = frankPackets.filter((packet) => packet.id !== id);
+                    setFrankPackets(nextPackets);
+                    setRubricPacks((current) => current.filter((pack) => !linkedRubricIds.has(pack.id)));
+                    setDashaRuns((current) => current.filter((run) => !linkedRunIds.has(run.id)));
+                    setZakReviews((current) => current.filter((review) => !linkedRunIds.has(review.dashaRunId)));
+                    if (selectedFrankId === id || currentRunContext.frankPacket?.id === id) {
+                        const nextPacket = nextPackets[0] ?? null;
+                        if (nextPacket) {
+                            openWorkflowRun(nextPacket.id);
+                        } else {
+                            setSelectedFrankId('');
+                            setFrankEditor(null);
+                            setSelectedRubricId('');
+                            setRubricEditor(null);
+                            setDashaRubricPackId('');
+                            setSelectedRunId('');
+                            setSelectedZakId('');
+                            goToStage('source');
+                        }
+                    } else {
+                        if (linkedRubricIds.has(selectedRubricId)) {
+                            setSelectedRubricId('');
+                            setRubricEditor(null);
+                        }
+                        if (linkedRunIds.has(selectedRunId)) {
+                            setSelectedRunId('');
+                        }
+                        if (linkedRunIds.has(selectedRun?.id ?? '')) {
+                            setSelectedZakId('');
+                        }
+                        if (linkedRubricIds.has(dashaRubricPackId)) {
+                            setDashaRubricPackId('');
+                        }
+                    }
+                    setStatusMessage('Run deleted.');
+                } catch (error) {
+                    setErrorMessage(error instanceof Error ? error.message : 'Failed to delete Frank packet.');
+                    setStatusMessage(null);
                 }
-            }
-            setStatusMessage('Frank packet deleted.');
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to delete Frank packet.');
-            setStatusMessage(null);
-        }
+            },
+        );
     }
 
     async function seedRubricPack() {
@@ -1229,40 +1398,68 @@ export function LegalWorkflowPageClient({
         }
     }
 
+    async function persistRubricPack(
+        pack: KarthicRubricPackV2,
+        options: {
+            actionId: string;
+            actionLabel: string;
+            pendingMessage: string;
+            successMessage: string;
+            errorMessage: string;
+        },
+    ) {
+        return await runBusyWorkflowAction(
+            { id: options.actionId, label: options.actionLabel },
+            async () => {
+                setErrorMessage(null);
+                setStatusMessage(options.pendingMessage);
+                try {
+                    const response = await fetch('/api/karthic-rubric-packs', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify(pack),
+                    });
+                    const json = await readJsonResponse<{ item?: KarthicRubricPackV2; error?: string }>(response, options.errorMessage);
+                    if (!response.ok) {
+                        throw new Error(json.error || options.errorMessage);
+                    }
+                    const item = json.item as KarthicRubricPackV2;
+                    setRubricPacks((current) => sortByUpdated([item, ...current.filter((savedPack) => savedPack.id !== item.id)]));
+                    if (selectedRubricId === item.id || rubricEditor?.id === item.id) {
+                        applyRubricPack(item);
+                    }
+                    if (item.status === 'approved') {
+                        setDashaRubricPackId(item.id);
+                    }
+                    setStatusMessage(options.successMessage);
+                    return item;
+                } catch (error) {
+                    setErrorMessage(error instanceof Error ? error.message : options.errorMessage);
+                    setStatusMessage(null);
+                    return null;
+                }
+            },
+        );
+    }
+
     async function saveRubric(status: KarthicRubricPackV2['status']) {
         if (!rubricEditor) {
             setErrorMessage('Select a rubric pack first.');
             return;
         }
-        setErrorMessage(null);
-        setStatusMessage(status === 'approved' ? 'Approving Karthic rubric pack...' : 'Saving Karthic rubric pack...');
-        try {
-            const response = await fetch('/api/karthic-rubric-packs', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    ...rubricEditor,
-                    status,
-                }),
-            });
-            const json = await readJsonResponse<{ item?: KarthicRubricPackV2; error?: string }>(
-                response,
-                status === 'approved' ? 'Failed to approve Karthic rubric pack.' : 'Failed to save rubric pack.',
-            );
-            if (!response.ok) {
-                throw new Error(json.error || 'Failed to save rubric pack.');
-            }
-            const item = json.item as KarthicRubricPackV2;
-            applyRubricPack(item);
-            setRubricPacks((current) => sortByUpdated([item, ...current.filter((pack) => pack.id !== item.id)]));
-            if (item.status === 'approved') {
-                setDashaRubricPackId(item.id);
-            }
-            setStatusMessage(status === 'approved' ? 'Karthic rubric pack approved.' : 'Karthic rubric pack saved.');
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to save rubric pack.');
-            setStatusMessage(null);
-        }
+        await persistRubricPack(
+            {
+                ...rubricEditor,
+                status,
+            },
+            {
+                actionId: status === 'approved' ? 'approve_rubric' : 'save_rubric',
+                actionLabel: status === 'approved' ? 'Approving Karthic rubric pack' : 'Saving Karthic rubric pack',
+                pendingMessage: status === 'approved' ? 'Approving Karthic rubric pack...' : 'Saving Karthic rubric pack...',
+                successMessage: status === 'approved' ? 'Karthic rubric pack approved.' : 'Karthic rubric pack saved.',
+                errorMessage: status === 'approved' ? 'Failed to approve Karthic rubric pack.' : 'Failed to save rubric pack.',
+            },
+        );
     }
 
     async function runDasha() {
@@ -1407,6 +1604,90 @@ export function LegalWorkflowPageClient({
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to create Zak review packet.');
             setStatusMessage(null);
+        }
+    }
+
+    const isRunSavePending = activeAction?.id === 'save_frank' || activeAction?.id === 'save_rubric';
+    const canSaveCurrentStage = visibleStage === 'source'
+        || visibleStage === 'routing_intake'
+        || visibleStage === 'extraction_mapping'
+        || visibleStage === 'benchmark'
+        || visibleStage === 'question'
+        ? Boolean(frankEditor)
+        : visibleStage === 'seed_rubric'
+            || visibleStage === 'refine_rubric'
+            || visibleStage === 'approve_rubric'
+            ? Boolean(rubricEditor)
+            : false;
+    const runSaveButtonLabel = canSaveCurrentStage
+        ? isRunSavePending
+            ? 'Saving...'
+            : 'Save'
+        : visibleStage === 'dasha_cluster'
+            || visibleStage === 'dasha_judge'
+            || visibleStage === 'dasha_results'
+            || visibleStage === 'zak_review'
+            ? 'Auto-saved'
+            : 'Save';
+    const runManagerOptions = frankPackets.map((packet) => ({
+        id: packet.id,
+        label: `${packet.title} · ${formatFrankPacketPhase(packet.phase)}`,
+    }));
+
+    async function saveCurrentStage() {
+        if (visibleStage === 'seed_rubric' || visibleStage === 'refine_rubric' || visibleStage === 'approve_rubric') {
+            if (!rubricEditor) {
+                setErrorMessage('Select a rubric pack first.');
+                return;
+            }
+            await saveRubric(rubricEditor.status);
+            return;
+        }
+        if (
+            visibleStage === 'source'
+            || visibleStage === 'routing_intake'
+            || visibleStage === 'extraction_mapping'
+            || visibleStage === 'benchmark'
+            || visibleStage === 'question'
+        ) {
+            if (!frankEditor) {
+                setErrorMessage('Select a Frank packet first.');
+                return;
+            }
+            await saveFrank(frankEditor.status);
+            return;
+        }
+        setStatusMessage('Dasha and Zak artifacts save automatically.');
+    }
+
+    async function renameCurrentRun() {
+        const nextTitle = runRenameDraft.trim();
+        const sourcePacket = currentRunContext.frankPacket
+            ? (frankEditor?.id === currentRunContext.frankPacket.id ? frankEditor : currentRunContext.frankPacket)
+            : null;
+        if (!sourcePacket) {
+            setErrorMessage('Select a run first.');
+            return;
+        }
+        if (!nextTitle) {
+            setErrorMessage('Run name cannot be empty.');
+            return;
+        }
+        const renamed = await persistFrankPacket(
+            {
+                ...sourcePacket,
+                title: nextTitle,
+            },
+            {
+                actionId: 'rename_run',
+                actionLabel: 'Renaming run',
+                pendingMessage: 'Renaming run...',
+                successMessage: 'Run renamed.',
+                errorMessage: 'Failed to rename run.',
+            },
+        );
+        if (renamed) {
+            setIsRunRenameMode(false);
         }
     }
 
@@ -1734,6 +2015,18 @@ export function LegalWorkflowPageClient({
         }
     }, [errorMessage]);
 
+    useEffect(() => {
+        if (errorMessage) {
+            setIsRunManagerCollapsed(false);
+        }
+    }, [errorMessage]);
+
+    useEffect(() => {
+        if (!isRunRenameMode) {
+            setRunRenameDraft(currentRunContext.frankPacket?.title ?? currentRunContext.name);
+        }
+    }, [currentRunContext.frankPacket?.id, currentRunContext.frankPacket?.title, currentRunContext.name, isRunRenameMode]);
+
     async function runBusyWorkflowAction<T>(action: WorkflowActionState, work: () => Promise<T>) {
         setActiveAction(action);
         try {
@@ -1821,12 +2114,6 @@ export function LegalWorkflowPageClient({
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <button className={secondaryButtonClassName} disabled={isWorkflowActionPending} onClick={() => void deleteFrank(frankEditor.id)}>
-                            {isActionPending('delete_frank') ? 'Deleting...' : 'Delete Packet'}
-                        </button>
-                        <button className={secondaryButtonClassName} disabled={isWorkflowActionPending} onClick={() => void saveFrank('draft')}>
-                            {isActionPending('save_frank') ? 'Saving...' : 'Save Frank Packet'}
-                        </button>
                         <button
                             className={primaryButtonClassName}
                             disabled={isWorkflowActionPending || Boolean(frankApprovalBlockedReason)}
@@ -1903,10 +2190,7 @@ export function LegalWorkflowPageClient({
                                         className={inputClassName}
                                         value={selectedFrankId}
                                         onChange={(event) => {
-                                            const packet = frankPackets.find((item) => item.id === event.target.value);
-                                            if (packet) {
-                                                applyFrankPacket(packet);
-                                            }
+                                            openWorkflowRun(event.target.value);
                                         }}
                                     >
                                         <option value="">Select a packet</option>
@@ -1937,13 +2221,6 @@ export function LegalWorkflowPageClient({
                             <div className="mt-4 space-y-4">
                                 {renderFrankSummaryCard()}
                                 <div className="grid gap-4 lg:grid-cols-2">
-                                    <Field label="Title">
-                                        <input
-                                            className={inputClassName}
-                                            value={frankEditor.title}
-                                            onChange={(event) => setFrankEditor((current) => current ? { ...current, title: event.target.value } : current)}
-                                        />
-                                    </Field>
                                     <Field label="Selected pack">
                                         <select
                                             className={inputClassName}
@@ -2057,9 +2334,6 @@ export function LegalWorkflowPageClient({
                                         setting={getGenerationSetting('benchmark_generation')}
                                         onClick={() => openGenerationSettings('benchmark_generation')}
                                     />
-                                    <button className={secondaryButtonClassName} disabled={isWorkflowActionPending} onClick={() => void saveFrank('draft')}>
-                                        {isActionPending('save_frank') ? 'Saving...' : 'Save Phase 3 Draft'}
-                                    </button>
                                 </div>
                                 {frankEditor.benchmarkWarnings.length > 0 ? (
                                     <WarningList title="Benchmark warnings" items={frankEditor.benchmarkWarnings} />
@@ -2104,9 +2378,6 @@ export function LegalWorkflowPageClient({
                                         setting={getGenerationSetting('question_generation')}
                                         onClick={() => openGenerationSettings('question_generation')}
                                     />
-                                    <button className={secondaryButtonClassName} disabled={isWorkflowActionPending} onClick={() => void saveFrank('draft')}>
-                                        {isActionPending('save_frank') ? 'Saving...' : 'Save Phase 4 Draft'}
-                                    </button>
                                 </div>
                                 <div className="rounded-2xl border border-[var(--accent-200)] bg-[linear-gradient(180deg,rgba(240,253,250,0.96),rgba(248,250,252,0.98))] p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
                                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -2314,9 +2585,6 @@ export function LegalWorkflowPageClient({
                                             {isActionPending('approve_rubric') ? 'Approving...' : 'Approve Rubric Pack'}
                                         </button>
                                     ) : null}
-                                    <button className={secondaryButtonClassName} disabled={isWorkflowActionPending} onClick={() => void saveRubric('draft')}>
-                                        {isActionPending('save_rubric') ? 'Saving...' : 'Save Draft'}
-                                    </button>
                                     <GenerationSettingsButton
                                         setting={getGenerationSetting('rubric_generation')}
                                         onClick={() => openGenerationSettings('rubric_generation')}
@@ -2680,15 +2948,41 @@ export function LegalWorkflowPageClient({
                 titleClassName={titleClassName}
                 subtitle={subtitle}
             >
-                <div className="space-y-6 pb-28 sm:pb-32" />
-                <WorkflowStatusDock
-                    collapsed={isStatusDockCollapsed}
-                    tone="progress"
-                    title="Loading workflow data"
-                    message="Loading Frank v2 workflow data..."
-                    detail="The floating status dock keeps progress and errors visible without taking over the top of the page."
-                    onToggle={() => setIsStatusDockCollapsed((current) => !current)}
-                />
+                <div className="space-y-6 pb-56 sm:pb-40" />
+                <div className="fixed inset-x-4 bottom-4 z-50 space-y-3 sm:left-auto sm:w-[360px]">
+                    <RunManagerDock
+                        collapsed={isRunManagerCollapsed}
+                        runName="No run selected"
+                        stats={[]}
+                        runs={[]}
+                        selectedRunId=""
+                        canSave={false}
+                        saveLabel="Save"
+                        savePending={false}
+                        canRename={false}
+                        canDelete={false}
+                        renamePending={false}
+                        deletePending={false}
+                        isRenameMode={false}
+                        renameDraft=""
+                        onRenameDraftChange={() => {}}
+                        onToggle={() => setIsRunManagerCollapsed((current) => !current)}
+                        onSelectRun={() => {}}
+                        onSave={() => {}}
+                        onStartRename={() => {}}
+                        onCancelRename={() => {}}
+                        onConfirmRename={() => {}}
+                        onDelete={() => {}}
+                    />
+                    <WorkflowStatusDock
+                        collapsed={isStatusDockCollapsed}
+                        tone="progress"
+                        title="Loading workflow data"
+                        message="Loading Frank v2 workflow data..."
+                        detail="The floating status dock keeps progress and errors visible without taking over the top of the page."
+                        onToggle={() => setIsStatusDockCollapsed((current) => !current)}
+                    />
+                </div>
             </AppShell>
         );
     }
@@ -2700,7 +2994,7 @@ export function LegalWorkflowPageClient({
             titleClassName={titleClassName}
             subtitle={subtitle}
         >
-            <div className="space-y-4 pb-28 sm:pb-32">
+            <div className="space-y-4 pb-56 sm:pb-40">
                 <section>
                     <div className="mb-3 flex flex-wrap items-end justify-end gap-3">
                         <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
@@ -2797,14 +3091,43 @@ export function LegalWorkflowPageClient({
                     </div>
                 </section>
             </div>
-            <WorkflowStatusDock
-                collapsed={isStatusDockCollapsed}
-                tone={statusDockTone}
-                title={statusDockTitle}
-                message={statusDockMessage}
-                detail={statusDockDetail}
-                onToggle={() => setIsStatusDockCollapsed((current) => !current)}
-            />
+            <div className="fixed inset-x-4 bottom-4 z-50 space-y-3 sm:left-auto sm:w-[360px]">
+                <RunManagerDock
+                    collapsed={isRunManagerCollapsed}
+                    runName={currentRunContext.name}
+                    stats={currentRunContext.stats}
+                    runs={runManagerOptions}
+                    selectedRunId={currentRunContext.frankPacket?.id ?? ''}
+                    canSave={canSaveCurrentStage}
+                    saveLabel={runSaveButtonLabel}
+                    savePending={Boolean(isRunSavePending)}
+                    canRename={Boolean(currentRunContext.frankPacket)}
+                    canDelete={Boolean(currentRunContext.frankPacket)}
+                    renamePending={activeAction?.id === 'rename_run'}
+                    deletePending={activeAction?.id === 'delete_frank'}
+                    isRenameMode={isRunRenameMode}
+                    renameDraft={runRenameDraft}
+                    onRenameDraftChange={setRunRenameDraft}
+                    onToggle={() => setIsRunManagerCollapsed((current) => !current)}
+                    onSelectRun={(packetId) => openWorkflowRun(packetId)}
+                    onSave={() => void saveCurrentStage()}
+                    onStartRename={() => setIsRunRenameMode(true)}
+                    onCancelRename={() => {
+                        setIsRunRenameMode(false);
+                        setRunRenameDraft(currentRunContext.frankPacket?.title ?? currentRunContext.name);
+                    }}
+                    onConfirmRename={() => void renameCurrentRun()}
+                    onDelete={() => currentRunContext.frankPacket ? void deleteFrank(currentRunContext.frankPacket.id) : undefined}
+                />
+                <WorkflowStatusDock
+                    collapsed={isStatusDockCollapsed}
+                    tone={statusDockTone}
+                    title={statusDockTitle}
+                    message={statusDockMessage}
+                    detail={statusDockDetail}
+                    onToggle={() => setIsStatusDockCollapsed((current) => !current)}
+                />
+            </div>
             {openGenerationTarget ? (
                 <GenerationSettingsModal
                     targetLabel={WORKFLOW_GENERATION_TARGET_LABELS[openGenerationTarget]}
@@ -3815,43 +4138,230 @@ function WorkflowStatusDock({
                 : 'Ready';
 
     return (
-        <div className="fixed inset-x-4 bottom-4 z-50 sm:left-auto sm:w-[360px]">
-            <div className={`overflow-hidden rounded-2xl border backdrop-blur ${shellClassName}`}>
-                <button
-                    type="button"
-                    className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left"
-                    onClick={onToggle}
-                    aria-expanded={!collapsed}
-                    aria-controls="workflow-status-dock-body"
+        <div className={`overflow-hidden rounded-2xl border backdrop-blur ${shellClassName}`}>
+            <button
+                type="button"
+                className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left"
+                onClick={onToggle}
+                aria-expanded={!collapsed}
+                aria-controls="workflow-status-dock-body"
+            >
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${badgeClassName}`}>
+                            {icon}
+                            {collapsedSummary}
+                        </span>
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Workflow Status</p>
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-current">{title}</p>
+                    <p className="mt-1 line-clamp-2 text-sm text-slate-600">{message}</p>
+                </div>
+                <span className="rounded-full border border-slate-200 bg-white/80 p-1 text-slate-600">
+                    {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </span>
+            </button>
+            {!collapsed ? (
+                <div
+                    id="workflow-status-dock-body"
+                    className="border-t border-black/5 px-4 pb-4 pt-3"
+                    aria-live={tone === 'error' ? 'assertive' : 'polite'}
                 >
-                    <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${badgeClassName}`}>
-                                {icon}
-                                {collapsedSummary}
-                            </span>
-                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Workflow Status</p>
-                        </div>
-                        <p className="mt-2 text-sm font-semibold text-current">{title}</p>
-                        <p className="mt-1 line-clamp-2 text-sm text-slate-600">{message}</p>
-                    </div>
-                    <span className="rounded-full border border-slate-200 bg-white/80 p-1 text-slate-600">
-                        {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </span>
-                </button>
-                {!collapsed ? (
-                    <div
-                        id="workflow-status-dock-body"
-                        className="border-t border-black/5 px-4 pb-4 pt-3"
-                        aria-live={tone === 'error' ? 'assertive' : 'polite'}
-                    >
-                        <p className="text-sm font-medium text-current">{message}</p>
-                        <p className="mt-2 text-xs leading-5 text-slate-600">{detail}</p>
-                    </div>
-                ) : null}
-            </div>
+                    <p className="text-sm font-medium text-current">{message}</p>
+                    <p className="mt-2 text-xs leading-5 text-slate-600">{detail}</p>
+                </div>
+            ) : null}
         </div>
     );
+}
+
+function RunManagerDock({
+    collapsed,
+    runName,
+    stats,
+    runs,
+    selectedRunId,
+    canSave,
+    saveLabel,
+    savePending,
+    canRename,
+    canDelete,
+    renamePending,
+    deletePending,
+    isRenameMode,
+    renameDraft,
+    onRenameDraftChange,
+    onToggle,
+    onSelectRun,
+    onSave,
+    onStartRename,
+    onCancelRename,
+    onConfirmRename,
+    onDelete,
+}: {
+    collapsed: boolean;
+    runName: string;
+    stats: string[];
+    runs: Array<{ id: string; label: string }>;
+    selectedRunId: string;
+    canSave: boolean;
+    saveLabel: string;
+    savePending: boolean;
+    canRename: boolean;
+    canDelete: boolean;
+    renamePending: boolean;
+    deletePending: boolean;
+    isRenameMode: boolean;
+    renameDraft: string;
+    onRenameDraftChange: (value: string) => void;
+    onToggle: () => void;
+    onSelectRun: (runId: string) => void;
+    onSave: () => void;
+    onStartRename: () => void;
+    onCancelRename: () => void;
+    onConfirmRename: () => void;
+    onDelete: () => void;
+}) {
+    const statsText = stats.join(' · ');
+
+    return (
+        <div className="overflow-hidden rounded-2xl border border-[var(--accent-200)] bg-white/95 shadow-[0_18px_45px_rgba(31,116,184,0.14)] backdrop-blur">
+            <button
+                type="button"
+                className="flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left"
+                onClick={onToggle}
+                aria-expanded={!collapsed}
+                aria-controls="workflow-run-dock-body"
+            >
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center rounded-full border border-[var(--accent-200)] bg-[var(--accent-50)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--accent-800)]">
+                            Run
+                        </span>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Current Run</p>
+                    </div>
+                    <p className="mt-1 truncate text-sm font-semibold text-slate-900">{runName}</p>
+                    {statsText ? <p className="mt-0.5 truncate text-[11px] text-slate-500">{statsText}</p> : null}
+                </div>
+                <span className="rounded-full border border-slate-200 bg-white/80 p-1 text-slate-600">
+                    {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </span>
+            </button>
+            {!collapsed ? (
+                <div id="workflow-run-dock-body" className="border-t border-black/5 px-3 pb-3 pt-2.5">
+                    {isRenameMode ? (
+                        <div className="flex items-center gap-1.5">
+                            <input
+                                className={compactRunInputClassName}
+                                value={renameDraft}
+                                onChange={(event) => onRenameDraftChange(event.target.value)}
+                            />
+                            <CompactIconButton
+                                ariaLabel="Confirm rename"
+                                disabled={renamePending}
+                                icon={<Check className="h-3.5 w-3.5" />}
+                                onClick={onConfirmRename}
+                                title={renamePending ? 'Renaming…' : 'Rename'}
+                            />
+                            <CompactIconButton
+                                ariaLabel="Cancel rename"
+                                icon={<X className="h-3.5 w-3.5" />}
+                                onClick={onCancelRename}
+                                title="Cancel"
+                            />
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-1.5">
+                            <select
+                                className={compactRunSelectClassName}
+                                value={selectedRunId}
+                                onChange={(event) => onSelectRun(event.target.value)}
+                            >
+                                <option value="">Select run</option>
+                                {runs.map((run) => (
+                                    <option key={run.id} value={run.id}>{run.label}</option>
+                                ))}
+                            </select>
+                            <CompactIconButton
+                                ariaLabel={saveLabel}
+                                disabled={!canSave || savePending}
+                                icon={<Save className="h-3.5 w-3.5" />}
+                                onClick={onSave}
+                                title={saveLabel}
+                            />
+                            <CompactIconButton
+                                ariaLabel="Rename run"
+                                disabled={!canRename || renamePending}
+                                icon={<Pencil className="h-3.5 w-3.5" />}
+                                onClick={onStartRename}
+                                title="Rename"
+                            />
+                            <CompactIconButton
+                                ariaLabel="Delete run"
+                                disabled={!canDelete || deletePending}
+                                icon={<Trash2 className="h-3.5 w-3.5" />}
+                                onClick={onDelete}
+                                title={deletePending ? 'Deleting…' : 'Delete'}
+                                tone="danger"
+                            />
+                        </div>
+                    )}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
+function CompactIconButton({
+    ariaLabel,
+    disabled,
+    icon,
+    onClick,
+    title,
+    tone = 'default',
+}: {
+    ariaLabel: string;
+    disabled?: boolean;
+    icon: ReactNode;
+    onClick: () => void;
+    title: string;
+    tone?: 'default' | 'danger';
+}) {
+    return (
+        <button
+            aria-label={ariaLabel}
+            className={tone === 'danger' ? compactDangerIconButtonClassName : compactIconButtonClassName}
+            disabled={disabled}
+            onClick={onClick}
+            title={title}
+            type="button"
+        >
+            {icon}
+        </button>
+    );
+}
+
+function buildRunManagerDashaStat(runs: DashaRunV2[]) {
+    if (runs.length === 0) {
+        return null;
+    }
+    const failed = runs.filter((run) => run.status === 'failed').length;
+    const running = runs.filter((run) => run.status === 'draft' && run.workflowStage === 'cluster_pending').length;
+    const judged = runs.filter((run) => run.status === 'completed' && run.workflowStage === 'judged').length;
+    const clustered = runs.filter((run) => run.workflowStage === 'clustered').length;
+    if (failed > 0) {
+        return `Dasha ${failed} failed`;
+    }
+    if (running > 0) {
+        return `Dasha ${running} running`;
+    }
+    if (judged > 0) {
+        return `Dasha ${judged}/${runs.length} judged`;
+    }
+    if (clustered > 0) {
+        return `Dasha ${clustered}/${runs.length} clustered`;
+    }
+    return `Dasha ${runs.length} saved`;
 }
 
 function Panel({ children }: { children: ReactNode }) {
@@ -4247,3 +4757,7 @@ const inputClassName = 'w-full rounded-xl border border-slate-300 bg-white px-3 
 const textareaClassName = 'min-h-[110px] w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400';
 const primaryButtonClassName = 'rounded-xl border border-[var(--accent-300)] bg-[var(--accent-50)] px-4 py-2 text-sm font-semibold text-[var(--accent-800)] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';
 const secondaryButtonClassName = 'rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';
+const compactRunInputClassName = 'min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400';
+const compactRunSelectClassName = 'min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400';
+const compactIconButtonClassName = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';
+const compactDangerIconButtonClassName = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';

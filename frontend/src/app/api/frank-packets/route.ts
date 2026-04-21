@@ -8,6 +8,7 @@ export const revalidate = 0;
 
 type DeleteFrankRequest = {
     id?: string;
+    cascade?: boolean;
 };
 
 export async function GET() {
@@ -41,7 +42,7 @@ export async function DELETE(req: Request) {
         if (!body.id?.trim()) {
             return NextResponse.json({ error: 'id is required.' }, { status: 400 });
         }
-        await deleteFrankPacket(body.id);
+        await deleteFrankPacket(body.id, { cascade: body.cascade === true });
         return NextResponse.json({
             ok: true,
             id: body.id,

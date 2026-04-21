@@ -321,15 +321,37 @@ export async function getFrankPacket(id: string) {
     return item ? normalizeFrankPacket(item) : null;
 }
 
-export async function deleteFrankPacket(id: string) {
+export async function deleteFrankPacket(id: string, options?: { cascade?: boolean }) {
     const packet = await getFrankPacket(id);
     if (!packet) {
         throw new Error('Frank packet not found.');
     }
 
     const rubricRefs = (await listKarthicRubricPacks()).filter((item) => item.frankPacketId === id);
-    if (rubricRefs.length > 0) {
+    if (rubricRefs.length > 0 && !options?.cascade) {
         throw new Error('Cannot delete Frank packet while it is linked to a rubric pack.');
+    }
+
+    if (options?.cascade) {
+        const rubricIds = new Set(rubricRefs.map((item) => item.id));
+        const dashaRefs = (await listDashaRuns()).filter((item) => rubricIds.has(item.rubricPackId));
+        const dashaIds = new Set(dashaRefs.map((item) => item.id));
+        const zakRefs = (await listZakReviews()).filter((item) => dashaIds.has(item.dashaRunId));
+        const karthicPreClusterRefs = (await listKarthicPreClusterRuns()).filter((item) => item.frankPacketId === id);
+
+        for (const review of zakRefs) {
+            await deleteArtifact(DATA_DIRECTORIES.zak, review.id);
+        }
+        for (const run of dashaRefs) {
+            await deleteUploadedArtifacts(run.id);
+            await deleteArtifact(DATA_DIRECTORIES.dasha, run.id);
+        }
+        for (const pack of rubricRefs) {
+            await deleteArtifact(DATA_DIRECTORIES.karthic, pack.id);
+        }
+        for (const run of karthicPreClusterRefs) {
+            await deleteArtifact(DATA_DIRECTORIES.karthicPreCluster, run.id);
+        }
     }
 
     await deleteUploadedArtifacts(id);
