@@ -440,6 +440,24 @@ const WORKFLOW_GENERATION_TARGET_LABELS: Record<WorkflowGenerationTarget, string
 };
 
 type WorkflowPageMode = 'full' | 'frank_only';
+type ZakDisputeCheckState = 'disputed' | 'clear' | 'not_ready';
+type ZakDisputeCheckResult = {
+    state: ZakDisputeCheckState;
+    label: string;
+    summary: string;
+    voteSplit: string;
+    majorityText: string;
+    judgeCount: number;
+    strictMajorityCount: number;
+    topVoteCount: number;
+    leadingCentroidIds: string[];
+    disputedCentroidIds: string[];
+    bestCentroidByScore: string | null;
+    bestCentroidScore: number | null;
+    panelMajorityStatus: 'majority' | 'no_majority' | 'not_applicable';
+    judgeSelections: string[];
+    comparisonNote: string;
+};
 
 function clone<T>(value: T): T {
     return JSON.parse(JSON.stringify(value)) as T;
@@ -505,6 +523,7 @@ export function LegalWorkflowPageClient({
     const [dashaJudgeSettings, setDashaJudgeSettings] = useState<DashaJudgeSettings>(clone(DEFAULT_DASHA_JUDGE_SETTINGS));
     const [judgeSettingsDraft, setJudgeSettingsDraft] = useState<DashaJudgeSettings>(clone(DEFAULT_DASHA_JUDGE_SETTINGS));
     const [openDashaJudgeTarget, setOpenDashaJudgeTarget] = useState<DashaJudgeModalTarget | null>(null);
+    const [zakDisputeCheckResult, setZakDisputeCheckResult] = useState<ZakDisputeCheckResult | null>(null);
     const workflowBlocks = useMemo(
         () => isFrankOnlyMode ? WORKFLOW_BLOCKS.filter((block) => block.id === 'frank') : WORKFLOW_BLOCKS,
         [isFrankOnlyMode],
@@ -605,6 +624,10 @@ export function LegalWorkflowPageClient({
         }
         return visibleZakReviews.find((review) => review.id === selectedZakId) ?? visibleZakReviews[0] ?? null;
     }, [isStartNewMode, selectedZakId, visibleZakReviews]);
+    const selectedRunDisputeCheck = useMemo(
+        () => buildZakDisputeCheck(selectedRun),
+        [selectedRun],
+    );
     const currentRunContext = useMemo(() => {
         const stageShortLabel = WORKFLOW_STAGES.find((stage) => stage.id === visibleStage)?.shortLabel ?? 'Run';
         const rubricPackFromRun = selectedRun
@@ -832,6 +855,10 @@ export function LegalWorkflowPageClient({
             setJudgeSettingsDraft(clone(selectedRun.judgeSettings));
         }
     }, [selectedRun?.id, selectedRun?.judgeSettings]);
+
+    useEffect(() => {
+        setZakDisputeCheckResult(selectedRunDisputeCheck);
+    }, [selectedRunDisputeCheck]);
 
     useEffect(() => {
         if (isStartNewMode) {
@@ -1762,6 +1789,29 @@ export function LegalWorkflowPageClient({
             setErrorMessage(error instanceof Error ? error.message : 'Failed to create Zak review packet.');
             setStatusMessage(null);
         }
+    }
+
+    function runZakDisputeCheck() {
+        if (!selectedRun) {
+            setErrorMessage('Select a judged Dasha run first.');
+            return;
+        }
+        const nextResult = buildZakDisputeCheck(selectedRun);
+        setZakDisputeCheckResult(nextResult);
+        setErrorMessage(null);
+        if (!nextResult) {
+            setStatusMessage('No Zak dispute check result is available.');
+            return;
+        }
+        if (nextResult.state === 'disputed') {
+            setStatusMessage('Zak dispute check completed. This run is disputed and eligible for Zak escalation.');
+            return;
+        }
+        if (nextResult.state === 'clear') {
+            setStatusMessage('Zak dispute check completed. This run has a strict-majority centroid and does not require automatic Zak escalation.');
+            return;
+        }
+        setStatusMessage('Zak dispute check completed, but the selected run is not ready for dispute evaluation yet.');
     }
 
     const isRunSavePending = activeAction?.id === 'save_frank' || activeAction?.id === 'save_rubric';
@@ -3032,10 +3082,9 @@ export function LegalWorkflowPageClient({
                         <SectionHeader title={currentStage.title} description={currentStage.description} />
                         <div className="mt-4 space-y-4">
                             <Banner
-                                tone={selectedRun?.trackSummary?.bestCentroidZakReviewFlag ? 'warning' : 'info'}
-                                text={selectedRun?.trackSummary?.bestCentroidZakReviewFlag
-                                    ? 'This judged Dasha run triggered Zak under the simplified rule because the best-centroid decision ended in a disputed no-majority result.'
-                                    : 'Zak follows the simplified Dasha rule: disputed best-centroid decisions trigger automatic review packets, and manual review packets remain available for judged runs.'}
+                                tone={zakDisputeCheckResult?.state === 'disputed' ? 'warning' : 'info'}
+                                text={zakDisputeCheckResult?.summary
+                                    ?? 'Zak follows the simplified Dasha rule: disputed best-centroid decisions trigger automatic review packets, and manual review packets remain available for judged runs.'}
                             />
                             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr),320px]">
                                 <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
@@ -3044,20 +3093,29 @@ export function LegalWorkflowPageClient({
                                             <option value="">Select judged Dasha run</option>
                                             {visibleDashaRuns.filter((run) => run.status === 'completed' && run.workflowStage === 'judged').map((run) => (
                                                 <option key={run.id} value={run.id}>
-                                                    {run.id} · {run.rubricTrackId === 'selected_variation' ? 'variation' : 'base'}
+                                                    {run.id} · {run.rubricTrackId === 'selected_variation' ? 'variation' : 'base'} · {formatZakRunDisputeLabel(run)}
                                                 </option>
                                             ))}
                                         </select>
                                     </Field>
                                     <div className="flex flex-wrap items-center gap-3">
                                         <button
+                                            className={secondaryButtonClassName}
+                                            disabled={isWorkflowActionPending || !selectedRun || selectedRun.status !== 'completed' || selectedRun.workflowStage !== 'judged'}
+                                            onClick={runZakDisputeCheck}
+                                            type="button"
+                                        >
+                                            Run Dispute Check
+                                        </button>
+                                        <button
                                             className={primaryButtonClassName}
                                             disabled={isWorkflowActionPending || !selectedRun || selectedRun.status !== 'completed' || selectedRun.workflowStage !== 'judged'}
                                             onClick={() => void createZakReview('manual_review')}
+                                            type="button"
                                         >
                                             Create Zak Review Packet
                                         </button>
-                                        {selectedRun?.trackSummary?.bestCentroidZakReviewFlag ? (
+                                        {zakDisputeCheckResult?.state === 'disputed' ? (
                                             <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-amber-800">
                                                 Auto-triggered run
                                             </span>
@@ -3085,7 +3143,8 @@ export function LegalWorkflowPageClient({
                                 <div className="space-y-4">
                                     {selectedRun ? (
                                         <>
-                                            <ReadOnlyTextCard title="Selected Dasha run" text={`${selectedRun.id}\nStatus: ${selectedRun.status}\nRun mode: ${selectedRun.runMode}\nTrack: ${selectedRun.rubricTrackId === 'selected_variation' ? 'Selected variation' : 'Original question'}\nJudge panel: ${formatDashaJudgeSettingsInline(selectedRun.judgeSettings)}\nVote split: ${selectedRun.trackSummary?.topCentroidVoteSplit ?? 'not_applicable'}\nMajority: ${selectedRun.trackSummary?.panelMajorityStatus ?? 'not_applicable'}`} />
+                                            <ZakDisputeCheckCard result={zakDisputeCheckResult} />
+                                            <ReadOnlyTextCard title="Selected Dasha run" text={`${selectedRun.id}\nStatus: ${selectedRun.status}\nRun mode: ${selectedRun.runMode}\nTrack: ${selectedRun.rubricTrackId === 'selected_variation' ? 'Selected variation' : 'Original question'}\nJudge panel: ${formatDashaJudgeSettingsInline(selectedRun.judgeSettings)}\nDispute status: ${zakDisputeCheckResult?.label ?? 'Not checked'}\nVote split: ${zakDisputeCheckResult?.voteSplit ?? selectedRun.trackSummary?.topCentroidVoteSplit ?? 'not_applicable'}\nMajority: ${zakDisputeCheckResult?.panelMajorityStatus ?? selectedRun.trackSummary?.panelMajorityStatus ?? 'not_applicable'}`} />
                                             <ReadOnlyTextCard title="Zak packet status" text={selectedZakReview ? `${selectedZakReview.id}\nInvocation: ${selectedZakReview.invocationMode}\nPrintable packet: ${selectedZakReview.printablePacketStatus}\nJudge panel mode: ${selectedZakReview.judgePanelMode}\nJudge roster: ${selectedZakReview.judgeModelRoster.map((judge) => `${judge.provider}:${judge.model}`).join(', ') || 'None'}\nAggregation: ${selectedZakReview.judgeAggregationRule}\nVote split: ${selectedZakReview.topCentroidVoteSplit}\nDisputed centroids: ${selectedZakReview.disputedCentroidIds.join(', ') || 'None'}\nScore lock: ${selectedZakReview.scoreLockStatus}` : 'No Zak review packet has been created for this run yet.'} />
                                         </>
                                     ) : (
@@ -4627,6 +4686,81 @@ function ReadOnlyTextCard({ title, text }: { title: string; text: string }) {
     );
 }
 
+function ZakDisputeCheckCard({ result }: { result: ZakDisputeCheckResult | null }) {
+    if (!result) {
+        return <EmptyPanelCopy text="Select a judged Dasha run to see the Zak dispute check." />;
+    }
+
+    const shellClassName = result.state === 'disputed'
+        ? 'border-amber-200 bg-amber-50'
+        : result.state === 'clear'
+            ? 'border-emerald-200 bg-emerald-50'
+            : 'border-slate-200 bg-slate-50';
+    const badgeClassName = result.state === 'disputed'
+        ? 'border-amber-200 bg-amber-100 text-amber-800'
+        : result.state === 'clear'
+            ? 'border-emerald-200 bg-emerald-100 text-emerald-800'
+            : 'border-slate-200 bg-slate-200 text-slate-700';
+    const icon = result.state === 'disputed'
+        ? <AlertTriangle className="h-4 w-4" />
+        : result.state === 'clear'
+            ? <CheckCircle2 className="h-4 w-4" />
+            : <Scale className="h-4 w-4" />;
+    const centroidsText = result.disputedCentroidIds.length > 0
+        ? result.disputedCentroidIds.join(', ')
+        : result.bestCentroidByScore ?? 'None';
+
+    return (
+        <div className={`rounded-2xl border p-4 ${shellClassName}`}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Zak dispute check</p>
+                    <p className="mt-1 text-lg font-semibold text-slate-900">{result.label}</p>
+                    <p className="mt-1 text-sm text-slate-700">{result.summary}</p>
+                </div>
+                <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] ${badgeClassName}`}>
+                    {icon}
+                    {result.label}
+                </span>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <ZakDisputeMetric label="Vote balance" value={result.majorityText} />
+                <ZakDisputeMetric
+                    label="Top by score"
+                    value={result.bestCentroidByScore
+                        ? `${result.bestCentroidByScore}${typeof result.bestCentroidScore === 'number' ? ` · ${result.bestCentroidScore.toFixed(2)}` : ''}`
+                        : 'None'}
+                />
+                <ZakDisputeMetric label="Centroids under review" value={centroidsText} />
+            </div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                <div className="rounded-xl border border-white/70 bg-white/70 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">First-place vote split</p>
+                    <p className="mt-2 text-sm font-medium text-slate-800">{result.voteSplit}</p>
+                </div>
+                <div className="rounded-xl border border-white/70 bg-white/70 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Judge picks</p>
+                    <div className="mt-2 space-y-1.5 text-sm text-slate-700">
+                        {result.judgeSelections.map((selection) => (
+                            <p key={selection}>{selection}</p>
+                        ))}
+                    </div>
+                </div>
+            </div>
+            <p className="mt-3 text-xs text-slate-500">{result.comparisonNote}</p>
+        </div>
+    );
+}
+
+function ZakDisputeMetric({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-xl border border-white/70 bg-white/70 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p>
+            <p className="mt-2 text-sm font-medium text-slate-800">{value}</p>
+        </div>
+    );
+}
+
 function WarningList({ title, items }: { title: string; items: string[] }) {
     return (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
@@ -4966,3 +5100,133 @@ const compactRunSelectClassName = 'min-w-0 flex-1 rounded-lg border border-slate
 const compactIconButtonClassName = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';
 const compactDangerIconButtonClassName = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';
 const compactTextButtonClassName = 'inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';
+
+function formatZakRunDisputeLabel(run: DashaRunV2) {
+    return buildZakDisputeCheck(run)?.label.toLowerCase() ?? 'not ready';
+}
+
+function buildZakDisputeCheck(run: DashaRunV2 | null): ZakDisputeCheckResult | null {
+    if (!run) {
+        return null;
+    }
+
+    if (run.status !== 'completed' || run.workflowStage !== 'judged') {
+        return {
+            state: 'not_ready',
+            label: 'Not Ready',
+            summary: 'This run has not completed Dasha judging yet, so Zak cannot evaluate whether the top centroid is disputed.',
+            voteSplit: 'not_applicable',
+            majorityText: 'No judged panel result is available yet.',
+            judgeCount: 0,
+            strictMajorityCount: 0,
+            topVoteCount: 0,
+            leadingCentroidIds: [],
+            disputedCentroidIds: [],
+            bestCentroidByScore: run.trackSummary?.bestCentroidByScore ?? null,
+            bestCentroidScore: run.trackSummary?.bestCentroidScore ?? null,
+            panelMajorityStatus: 'not_applicable',
+            judgeSelections: [],
+            comparisonNote: 'Complete Dasha judging before running the Zak dispute check.',
+        };
+    }
+
+    const rankedCentroidList = dedupeStrings([
+        ...(run.trackSummary?.rankedCentroidList ?? []),
+        ...run.judgeVoteRecord.flatMap((vote) => vote.rankedCentroidList),
+        ...run.clusterAnalyses.map((analysis) => analysis.clusterId),
+        ...run.clusters.map((cluster) => cluster.id),
+    ]);
+    const voteMap = new Map(rankedCentroidList.map((clusterId) => [clusterId, 0]));
+    run.judgeVoteRecord.forEach((vote) => {
+        if (!vote.topCentroidId) {
+            return;
+        }
+        voteMap.set(vote.topCentroidId, (voteMap.get(vote.topCentroidId) ?? 0) + 1);
+    });
+
+    const voteEntries = [...voteMap.entries()]
+        .map(([clusterId, voteCount]) => ({ clusterId, voteCount }))
+        .sort((left, right) => right.voteCount - left.voteCount || rankedCentroidList.indexOf(left.clusterId) - rankedCentroidList.indexOf(right.clusterId));
+    const judgeCount = run.judgeVoteRecord.length;
+    const strictMajorityCount = judgeCount > 0 ? Math.floor(judgeCount / 2) + 1 : 0;
+    const topVoteCount = voteEntries[0]?.voteCount ?? 0;
+    const leadingCentroidIds = topVoteCount > 0
+        ? voteEntries.filter((entry) => entry.voteCount === topVoteCount).map((entry) => entry.clusterId)
+        : [];
+    const disputedCentroidIds = topVoteCount <= 0
+        ? []
+        : leadingCentroidIds.length > 1
+            ? leadingCentroidIds
+            : voteEntries.filter((entry) => entry.voteCount > 0).map((entry) => entry.clusterId);
+    const panelMajorityStatus = judgeCount === 0
+        ? 'not_applicable'
+        : topVoteCount >= strictMajorityCount
+            ? 'majority'
+            : 'no_majority';
+    const state: ZakDisputeCheckState = panelMajorityStatus === 'no_majority'
+        ? 'disputed'
+        : panelMajorityStatus === 'majority'
+            ? 'clear'
+            : 'not_ready';
+    const label = state === 'disputed'
+        ? 'Disputed'
+        : state === 'clear'
+            ? 'No Dispute'
+            : 'Not Ready';
+    const voteSplit = voteEntries.length > 0
+        ? voteEntries.map((entry) => `${entry.clusterId}: ${entry.voteCount}/${judgeCount}`).join(', ')
+        : 'not_applicable';
+    const majorityText = judgeCount > 0
+        ? `${topVoteCount}/${judgeCount} first-place votes; ${strictMajorityCount} needed for a strict majority.`
+        : 'No judge votes recorded.';
+    const summary = state === 'disputed'
+        ? leadingCentroidIds.length > 1
+            ? `Disputed result. No strict majority and the panel is tied at the top between ${leadingCentroidIds.join(', ')}.`
+            : `Disputed result. ${leadingCentroidIds[0] ?? 'No centroid'} leads with ${topVoteCount}/${judgeCount} first-place votes, but ${strictMajorityCount} are required.`
+        : state === 'clear'
+            ? `No dispute. ${leadingCentroidIds[0] ?? run.trackSummary?.bestCentroidByScore ?? 'The top centroid'} won a strict majority with ${topVoteCount}/${judgeCount} first-place votes.`
+            : 'This run is not ready for dispute evaluation.';
+    const bestCentroidByScore = run.trackSummary?.bestCentroidByScore ?? rankedCentroidList[0] ?? null;
+    const bestCentroidScore = run.trackSummary?.bestCentroidScore ?? null;
+    const judgeSelections = run.judgeVoteRecord.map((vote) => `${formatJudgeVoteLabel(vote.provider, vote.model, vote.reasoningEffort)} -> ${vote.topCentroidId ?? 'no vote'}`);
+    const storedDisputedIds = run.trackSummary?.disputedCentroidIds ?? [];
+    const storedStatus = run.trackSummary?.panelMajorityStatus ?? 'not_applicable';
+    const comparisonNote = run.trackSummary
+        ? storedStatus === panelMajorityStatus && arraysEqual(storedDisputedIds, disputedCentroidIds)
+            ? 'Stored Zak trigger fields match the live dispute check.'
+            : 'Stored Zak trigger fields do not match the live dispute check. Review the run metadata before using Zak.'
+        : 'No stored track summary was found for this run.';
+
+    return {
+        state,
+        label,
+        summary,
+        voteSplit,
+        majorityText,
+        judgeCount,
+        strictMajorityCount,
+        topVoteCount,
+        leadingCentroidIds,
+        disputedCentroidIds,
+        bestCentroidByScore,
+        bestCentroidScore,
+        panelMajorityStatus,
+        judgeSelections,
+        comparisonNote,
+    };
+}
+
+function formatJudgeVoteLabel(provider: ModelProvider, model: string, reasoningEffort: ReasoningEffort) {
+    return `${PROVIDER_LABELS[provider]} ${model} (${reasoningEffort})`;
+}
+
+function dedupeStrings(values: string[]) {
+    return [...new Set(values.filter((value) => value.trim().length > 0))];
+}
+
+function arraysEqual(left: string[], right: string[]) {
+    if (left.length !== right.length) {
+        return false;
+    }
+    return left.every((value, index) => value === right[index]);
+}
