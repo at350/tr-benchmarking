@@ -268,25 +268,25 @@ const WORKFLOW_STAGES: WorkflowStageDefinition[] = [
 const WORKFLOW_BLOCKS: WorkflowBlockDefinition[] = [
     {
         id: 'frank',
-        title: 'Frank',
+        title: 'Frank (build the benchmark case)',
         description: 'Packet construction and benchmark setup.',
         stageIds: ['source', 'routing_intake', 'extraction_mapping', 'benchmark', 'question'],
     },
     {
         id: 'karthic',
-        title: 'Karthic',
+        title: 'Karthic (build the scoring rubric)',
         description: 'Rubric construction and refinement.',
         stageIds: ['seed_rubric', 'refine_rubric', 'approve_rubric'],
     },
     {
         id: 'dasha',
-        title: 'Dasha',
+        title: 'Dasha (cluster and judge model answers)',
         description: 'Clustered judging and score inspection.',
         stageIds: ['dasha_cluster', 'dasha_judge', 'dasha_results'],
     },
     {
         id: 'zak',
-        title: 'Zak',
+        title: 'Zak (review disputed results)',
         description: 'Escalation and SME review.',
         stageIds: ['zak_review'],
     },
@@ -574,10 +574,21 @@ export function LegalWorkflowPageClient({
         : selectedDashaPack
             ? ['base']
             : [];
+    const expectedDashaTrackIdsKey = expectedDashaTrackIds.join('|');
+    const expectedDashaTrackIdSet = new Set(expectedDashaTrackIds);
     const visibleDashaRuns = useMemo(
         () => dashaRubricPackId ? dashaRuns.filter((run) => run.rubricPackId === dashaRubricPackId) : dashaRuns,
         [dashaRubricPackId, dashaRuns],
     );
+    const relevantDashaRuns = expectedDashaTrackIds.length > 0
+        ? visibleDashaRuns.filter((run) => expectedDashaTrackIdSet.has(run.rubricTrackId))
+        : visibleDashaRuns;
+    const pendingDashaRunIds = relevantDashaRuns
+        .filter((run) => run.status === 'draft' && run.workflowStage === 'cluster_pending')
+        .map((run) => run.id)
+        .sort();
+    const hasPendingDashaRuns = pendingDashaRunIds.length > 0;
+    const pendingDashaRunIdsKey = pendingDashaRunIds.join('|');
     const selectedRun = useMemo(() => {
         if (isStartNewMode && !selectedRunId) {
             return null;
@@ -835,10 +846,11 @@ export function LegalWorkflowPageClient({
     }, [isStartNewMode, selectedZakId, visibleZakReviews]);
 
     useEffect(() => {
-        if (!selectedRunId || selectedRun?.status !== 'draft' || selectedRun?.workflowStage !== 'cluster_pending') {
+        if (!hasPendingDashaRuns) {
             return;
         }
 
+        const expectedTrackIdSet = new Set(expectedDashaTrackIdsKey ? expectedDashaTrackIdsKey.split('|') : []);
         let cancelled = false;
         const intervalId = window.setInterval(async () => {
             try {
@@ -852,18 +864,34 @@ export function LegalWorkflowPageClient({
                 }
                 const refreshedRuns = sortRuns(Array.isArray(runJson.items) ? runJson.items as DashaRunV2[] : []);
                 setDashaRuns(refreshedRuns);
-                const item = refreshedRuns.find((run) => run.id === selectedRunId);
-                if (item?.status === 'completed' && item.workflowStage === 'judged') {
+                const refreshedVisibleRuns = dashaRubricPackId
+                    ? refreshedRuns.filter((run) => run.rubricPackId === dashaRubricPackId)
+                    : refreshedRuns;
+                const refreshedRelevantRuns = expectedTrackIdSet.size > 0
+                    ? refreshedVisibleRuns.filter((run) => expectedTrackIdSet.has(run.rubricTrackId))
+                    : refreshedVisibleRuns;
+                const refreshedPendingRuns = refreshedRelevantRuns.filter((run) => run.status === 'draft' && run.workflowStage === 'cluster_pending');
+                const selectedItem = selectedRunId
+                    ? refreshedRuns.find((run) => run.id === selectedRunId)
+                    : null;
+                const allRelevantRunsJudged = refreshedRelevantRuns.length > 0
+                    && refreshedRelevantRuns.every((run) => run.status === 'completed' && run.workflowStage === 'judged');
+                const allRelevantRunsClustered = refreshedRelevantRuns.length > 0
+                    && (expectedTrackIdSet.size > 0
+                        ? [...expectedTrackIdSet].every((trackId) => refreshedRelevantRuns.some((run) => run.rubricTrackId === trackId && (run.workflowStage === 'clustered' || run.workflowStage === 'judged' || run.status === 'completed')))
+                        : refreshedRelevantRuns.every((run) => run.workflowStage === 'clustered' || run.workflowStage === 'judged' || run.status === 'completed'));
+
+                if (allRelevantRunsJudged || (selectedItem?.status === 'completed' && selectedItem.workflowStage === 'judged')) {
                     setStatusMessage('Dasha judging completed.');
                 }
-                if (item?.status === 'draft' && item.workflowStage === 'clustered') {
+                if (refreshedPendingRuns.length === 0 && (allRelevantRunsClustered || (selectedItem?.status === 'draft' && selectedItem.workflowStage === 'clustered'))) {
                     setStatusMessage('Dasha clustering completed. Review the clustered results or continue to judging.');
                 }
-                if (item?.status === 'cancelled') {
+                if (selectedItem?.status === 'cancelled') {
                     setStatusMessage('Dasha run stopped.');
                 }
-                if (item?.status === 'failed') {
-                    setErrorMessage(item.errorMessage || 'Dasha run failed.');
+                if (selectedItem?.status === 'failed') {
+                    setErrorMessage(selectedItem.errorMessage || 'Dasha run failed.');
                 }
             } catch (error) {
                 if (!cancelled) {
@@ -876,7 +904,7 @@ export function LegalWorkflowPageClient({
             cancelled = true;
             window.clearInterval(intervalId);
         };
-    }, [selectedRun?.status, selectedRun?.workflowStage, selectedRunId]);
+    }, [dashaRubricPackId, expectedDashaTrackIdsKey, hasPendingDashaRuns, pendingDashaRunIdsKey, selectedRunId]);
 
     async function loadAll() {
         setIsLoading(true);
