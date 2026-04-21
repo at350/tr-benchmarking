@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "id": "zak_v1_1776738650983_45512350",
+  "status": "draft",
+  "invocationMode": "manual_review",
+  "dashaRunId": "dasha_v2_1776438870000_0c991aa5",
+  "rubricPackId": "karthic_v2_1776407981575_ed1eeefc",
+  "rubricTrackId": "base",
+  "frankPacketId": "frank_v2_1776404467558_f0e1f6d5",
+  "evaluationTrack": "evaluation_track_original",
+  "questionVersion": "original",
+  "rubricType": "base_rubric",
+  "dualRubricMode": "off",
+  "selectedLaneCode": "none",
+  "topCentroidVoteSplit": "not_applicable",
+  "disputedCentroidIds": [],
+  "packetReviewReady": false,
+  "printablePacketStatus": "not_ready",
+  "printablePacketContentsSummary": "The Zak packet is incomplete because the active rubric or disputed centroid materials are missing.",
+  "printablePacketCanBeAssembled": false,
+  "activeQuestionText": "In Texas, a towing contractor orally agreed with several subcontractor towing companies that, for the five-year term of the contractor’s government towing contract, the subcontractors would provide towing and storage services and in return would receive a share of the work or related benefits. No signed writing was ever made. The contractor later argued that the arrangement could have ended sooner if the government towing program was terminated early. Is the agreement enforceable? Analyze.",
+  "activeRubricRows": [
+    {
+      "key": "A",
+      "moduleId": "module1",
+      "title": "Issue spotting + prioritization",
+      "description": "Whether the answer identifies the dispositive issue early and prioritizes the controlling path before secondary issues.",
+      "weight": 15,
+      "naGuidance": "Mark row A not applicable only if the question packet does not materially trigger this issue.",
+      "goldenTarget": {
+        "summary": "Assess whether the answer correctly handles issue spotting + prioritization.",
+        "goldenContains": [
+          "The answer should directly address issue spotting + prioritization."
+        ],
+        "allowedOmissions": [],
+        "contradictionFlags": [],
+        "comparisonGuidance": "Compare the centroid against row A as the evaluation lens."
+      }
+    },
+    {
+      "key": "K",
+      "moduleId": "module1",
+      "title": "Barrier stacking + exception mapping",
+      "description": "Whether the answer keeps independent legal barriers separate and maps each exception only to the barrier it can actually address.",
+      "weight": 8,
+      "naGuidance": "Mark row K not applicable only if the question packet does not materially trigger this issue.",
+      "goldenTarget": {
+        "summary": "Assess whether the answer correctly handles barrier stacking + exception mapping.",
+        "goldenContains": [
+          "The answer should directly address barrier stacking + exception mapping."
+        ],
+        "allowedOmissions": [],
+        "contradictionFlags": [],
+        "comparisonGuidance": "Compare the centroid against row K as the evaluation lens."
+      }
+    },
+    {
+      "key": "J",
+      "moduleId": "module1",
+      "title": "Clear bottom line + structured reasoning",
+      "description": "Whether the answer gives a clear conclusion, ties it to the controlling doctrine, and keeps uncertainty bounded and specific.",
+      "weight": 5,
+      "naGuidance": "Mark row J not applicable only if the question packet does not materially trigger this issue.",
+      "goldenTarget": {
+        "summary": "Assess whether the answer correctly handles clear bottom line + structured reasoning.",
+        "goldenContains": [
+          "The answer should directly address clear bottom line + structured reasoning."
+        ],
+        "allowedOmissions": [],
+        "contradictionFlags": [],
+        "comparisonGuidance": "Compare the centroid against row J as the evaluation lens."
+      }
+    },
+    {
+      "key": "B",
+      "moduleId": "module2",
+      "title": "Transaction / formation characterization",
+      "description": "Whether the answer correctly characterizes the transaction or promise structure relevant to the selected pack.",
+      "weight": 11,
+      "naGuidance": "Mark row B not applicable only if the question packet does not materially trigger this issue.",
+      "goldenTarget": {
+        "summary": "Assess whether the answer correctly handles transaction / formation characterization.",
+        "goldenContains": [
+          "The answer should directly address transaction / formation characterization."
+        ],
+        "allowedOmissions": [],
+        "contradictionFlags": [],
+        "comparisonGuidance": "Compare the centroid against row B as the evaluation lens."
+      }
+    },
+    {
+      "key": "C",
+      "moduleId": "module2",
+      "title": "Controlling doctrine gate identification + correct trigger",
+      "description": "Whether the answer identifies the controlling Statute of Frauds gate first and states the correct trigger test.",
+      "weight": 15,
+      "naGuidance": "Mark row C not applicable only if the question packet does not materially trigger this issue.",
+      "goldenTarget": {
+        "summary": "Assess whether the answer correctly handles controlling doctrine gate identification + correct trigger.",
+        "goldenContains": [
+          "The answer should directly address controlling doctrine gate identification + correct trigger."
+        ],
+        "allowedOmissions": [],
+        "contradictionFlags": [],
+        "comparisonGuidance": "Compare the centroid against row C as the evaluation lens."
+      }
+    },
+    {
+      "key": "D",
+      "moduleId": "module2",
+      "title": "Secondary gate or major subissue #1",
+      "description": "Whether the answer correctly handles the first pack-specific secondary gate or subissue when it is genuinely triggered.",
+      "weight": 5,
+      "naGuidance": "Mark row D not applicable only if the question packet does not materially trigger this issue.",
+      "goldenTarget": {
+        "summary": "Assess whether the answer correctly handles secondary gate or major subissue #1.",
+        "goldenContains": [
+          "The answer should directly address secondary gate or major subissue #1."
+        ],
+        "allowedOmissions": [],
+        "contradictionFlags": [],
+        "comparisonGuidance": "Compare the centroid against row D as the evaluation lens."
+      }
+    },
+    {
+      "key": "E",
+      "moduleId": "module2",
+      "title": "Secondary gate or major subissue #2 / doctrinal nuance",
+      "description": "Whether the answer correctly handles a second pack-specific nuance without displacing the main controller.",
+      "weight": 9,
+      "naGuidance": "Mark row E not applicable only if the question packet does not materially trigger this issue.",
+      "goldenTarget": {
+        "summary": "Assess whether the answer correctly handles secondary gate or major subissue #2 / doctrinal nuance.",
+        "goldenContains": [
+          "The answer should directly address secondary gate or major subissue #2 / doctrinal nuance."
+        ],
+        "allowedOmissions": [],
+        "contradictionFlags": [],
+        "comparisonGuidance": "Compare the centroid against row E as the evaluation lens."
+      }
+    },
+    {
+      "key": "F",
+      "moduleId": "module3",
+      "title": "Exceptions / workarounds + limits",
+      "description": "Whether fallback doctrines and exceptions are analyzed only after the main gates and with their limits stated precisely.",
+      "weight": 7,
+      "naGuidance": "Mark row F not applicable only if the question packet does not materially trigger this issue.",
+      "goldenTarget": {
+        "summary": "Assess whether the answer correctly handles exceptions / workarounds + limits.",
+        "goldenContains": [
+          "The answer should directly address exceptions / workarounds + limits."
+        ],
+        "allowedOmissions": [],
+        "contradictionFlags": [],
+        "comparisonGuidance": "Compare the centroid against row F as the evaluation lens."
+      }
+    },
+    {
+      "key": "G",
+      "moduleId": "module3",
+      "title": "Reliance / estoppel / causation rigor or closest fallback analogue",
+      "description": "Whether reliance-based or conduct-dependent fallback theories are analyzed element-by-element rather than assumed.",
+      "weight": 7,
+      "naGuidance": "Mark row G not applicable only if the question packet does not materially trigger this issue.",
+      "goldenTarget": {
+        "summary": "Assess whether the answer correctly handles reliance / estoppel / causation rigor or closest fallback analogue.",
+        "goldenContains": [
+          "The answer should directly address reliance / estoppel / causation rigor or closest fallback analogue."
+        ],
+        "allowedOmissions": [],
+        "contradictionFlags": [],
+        "comparisonGuidance": "Compare the centroid against row G as the evaluation lens."
+      }
+    },
+    {
+      "key": "H",
+      "moduleId": "module3",
+      "title": "Defenses / conditions / competing doctrines",
+      "description": "Whether defenses and competing doctrines are kept secondary and accurately framed.",
+      "weight": 5,
+      "naGuidance": "Mark row H not applicable only if the question packet does not materially trigger this issue.",
+      "goldenTarget": {
+        "summary": "Assess whether the answer correctly handles defenses / conditions / competing doctrines.",
+        "goldenContains": [
+          "The answer should directly address defenses / conditions / competing doctrines."
+        ],
+        "allowedOmissions": [],
+        "contradictionFlags": [],
+        "comparisonGuidance": "Compare the centroid against row H as the evaluation lens."
+      }
+    },
+    {
+      "key": "I",
+      "moduleId": "module4",
+      "title": "Factual fidelity + internal consistency",
+      "description": "Whether the answer stays faithful to the facts, avoids inventions, and remains internally consistent.",
+      "weight": 5,
+      "naGuidance": "Mark row I not applicable only if the question packet does not materially trigger this issue.",
+      "goldenTarget": {
+        "summary": "Assess whether the answer correctly handles factual fidelity + internal consistency.",
+        "goldenContains": [
+          "The answer should directly address factual fidelity + internal consistency."
+        ],
+        "allowedOmissions": [],
+        "contradictionFlags": [],
+        "comparisonGuidance": "Compare the centroid against row I as the evaluation lens."
+      }
+    },
+    {
+      "key": "L",
+      "moduleId": "module4",
+      "title": "Scope calibration / claim discipline",
+      "description": "Whether the answer avoids false universals, keeps jurisdictional uncertainty bounded, and stays within the benchmark posture.",
+      "weight": 4,
+      "naGuidance": "Mark row L not applicable only if the question packet does not materially trigger this issue.",
+      "goldenTarget": {
+        "summary": "Assess whether the answer correctly handles scope calibration / claim discipline.",
+        "goldenContains": [
+          "The answer should directly address scope calibration / claim discipline."
+        ],
+        "allowedOmissions": [],
+        "contradictionFlags": [],
+        "comparisonGuidance": "Compare the centroid against row L as the evaluation lens."
+      }
+    },
+    {
+      "key": "M",
+      "moduleId": "module4",
+      "title": "Relevance discipline / prompt adherence",
+      "description": "Whether the answer stays on the target enforceability path and follows the requested answer shape.",
+      "weight": 4,
+      "naGuidance": "Mark row M not applicable only if the question packet does not materially trigger this issue.",
+      "goldenTarget": {
+        "summary": "Assess whether the answer correctly handles relevance discipline / prompt adherence.",
+        "goldenContains": [
+          "The answer should directly address relevance discipline / prompt adherence."
+        ],
+        "allowedOmissions": [],
+        "contradictionFlags": [],
+        "comparisonGuidance": "Compare the centroid against row M as the evaluation lens."
+      }
+    }
+  ],
+  "disputedCentroids": [],
+  "scoringSheet": [],
+  "decisionRecord": {
+    "smeSelectedBestCentroid": "none",
+    "smeConfidence": "not_provided",
+    "controllingRowsDrivingDecision": [],
+    "rubricInstabilityNotes": "",
+    "upstreamRevisionNeededNotes": ""
+  },
+  "scoreLockStatus": "not_ready",
+  "upstreamRevisionTarget": "none",
+  "dispositionNote": "Manual Zak review packet created from the selected judged Dasha run.",
+  "exportAvailabilityNote": "The structured Zak review packet is ready for on-screen SME review and can drive a combined printable export from the same stored fields.",
+  "createdAt": "2026-04-21T02:30:50.983Z",
+  "updatedAt": "2026-04-21T02:30:50.983Z",
+  "completedAt": null
+}

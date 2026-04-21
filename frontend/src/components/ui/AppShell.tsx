@@ -16,13 +16,14 @@ const NAV_ITEMS = [
 type AppShellProps = {
     eyebrow?: string;
     title: string;
+    titleClassName?: string;
     subtitle?: string;
     actions?: ReactNode;
     children: ReactNode;
     maxWidthClassName?: string;
 };
 
-export function AppShell({ title, actions, children, maxWidthClassName = 'max-w-none' }: AppShellProps) {
+export function AppShell({ title, titleClassName, actions, children, maxWidthClassName = 'max-w-none' }: AppShellProps) {
     const pathname = usePathname();
 
     return (
@@ -31,7 +32,7 @@ export function AppShell({ title, actions, children, maxWidthClassName = 'max-w-
                 <header className="rounded-2xl border border-slate-200 bg-white/92 p-4 shadow-[0_12px_35px_rgba(15,23,42,0.09)] backdrop-blur sm:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">{title}</h1>
+                            <h1 className={`text-2xl font-extrabold tracking-tight sm:text-3xl ${titleClassName ?? 'text-slate-900'}`}>{title}</h1>
                         </div>
                         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
                     </div>

@@ -430,6 +430,7 @@ type LegalWorkflowPageClientProps = {
     pageMode?: WorkflowPageMode;
     eyebrow?: string;
     title?: string;
+    titleClassName?: string;
     subtitle?: string;
 };
 
@@ -437,6 +438,7 @@ export function LegalWorkflowPageClient({
     pageMode = 'full',
     eyebrow = 'Workflow v2',
     title = 'FKD Pipeline Redo',
+    titleClassName,
     subtitle = 'A grouped Frank / Karthic / Dasha / Zak workflow with smaller substeps inside each block.',
 }: LegalWorkflowPageClientProps) {
     const isFrankOnlyMode = pageMode === 'frank_only';
@@ -2650,6 +2652,7 @@ export function LegalWorkflowPageClient({
             <AppShell
                 eyebrow={eyebrow}
                 title={title}
+                titleClassName={titleClassName}
                 subtitle={subtitle}
             >
                 <div className="space-y-6 pb-28 sm:pb-32" />
@@ -2669,6 +2672,7 @@ export function LegalWorkflowPageClient({
         <AppShell
             eyebrow={eyebrow}
             title={title}
+            titleClassName={titleClassName}
             subtitle={subtitle}
         >
             <div className="space-y-4 pb-28 sm:pb-32">
