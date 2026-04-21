@@ -1,0 +1,261 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2869
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 # 00A \'97 Packet Schema and Enums\
+\
+STATUS: ACTIVE SCHEMA FILE\
+\
+PURPOSE\
+This file is the single source of truth for shared field names and enum values reused across Frank, Karthic, and Dasha.\
+\
+RULE\
+If a shared field name or enum label in another file conflicts with this file, this file controls.\
+Human-readable files may vary slightly in punctuation, but not in field meaning.\
+\
+OWNER KEY\
+- Frank = creates or locks the field\
+- Karthic = consumes Frank packet fields and emits rubric artifacts\
+- Dasha = consumes Frank packet fields and Karthic rubric artifacts and emits evaluation exports\
+\
+PHASE KEY\
+- F = Frank packet stage\
+- K = Karthic rubric stage\
+- D = Dasha evaluation stage\
+\
+CANONICAL SHARED FIELDS\
+\
+1. Benchmark posture\
+- `benchmark_posture`\
+  Allowed values:\
+  - `Narrow source-grounded benchmark only`\
+  - `Generalizable only with supporting authority`\
+  - `Portable benchmark under stated assumptions`\
+  Owner: Frank\
+  Consumers: Karthic, Dasha\
+  Required phases: F, K, D\
+\
+2. Variation and dual-rubric fields\
+- `variation_lane`\
+  Allowed values: `none / A / B`\
+  Owner: Frank\
+  Consumers: Karthic, Dasha\
+  Required phases: F, K, D\
+\
+- `selected_lane_code`\
+  Allowed values: `none / A1 / A2 / A3 / A4 / B1 / B2`\
+  Owner: Frank\
+  Consumers: Karthic, Dasha\
+  Required phases: F, K, D\
+\
+- `selected_variation_answer_posture`\
+  Allowed values: `same_as_base / localized_edit / ambiguity_rewrite`\
+  Owner: Frank\
+  Consumers: Karthic, Dasha\
+  Required phases: F, K, D\
+\
+- `dual_rubric_mode`\
+  Allowed values: `off / on`\
+  Owner: Frank\
+  Consumers: Karthic, Dasha\
+  Required phases: F, K, D\
+\
+- `rubric_separation_rule`\
+  Allowed values: `strict`\
+  Owner: Frank\
+  Consumers: Karthic, Dasha\
+  Required phases: F, K, D\
+\
+- `evaluation_tracks`\
+  Allowed values: `original_only / original_and_selected_variation`\
+  Owner: Frank\
+  Consumers: Karthic, Dasha\
+  Required phases: F, K, D\
+\
+- `base_question_text`\
+  Type: free text\
+  Owner: Frank\
+  Consumers: Karthic, Dasha\
+  Required phases: F when `dual_rubric_mode = on`\
+\
+- `base_gold_answer`\
+  Type: free text\
+  Owner: Frank\
+  Consumers: Karthic, Dasha\
+  Required phases: F when `dual_rubric_mode = on`\
+\
+- `selected_variation_question_text`\
+  Type: free text\
+  Owner: Frank\
+  Consumers: Karthic, Dasha\
+  Required phases: F when `selected_lane_code != none`\
+\
+3. Source-case monitoring fields\
+- `workflow_source_type`\
+  Allowed values: `case / statute / Restatement / doctrine source / mixed`\
+  Owner: Frank\
+  Consumers: Dasha\
+  Required phases: F, D\
+\
+- `workflow_source_case_name`\
+  Allowed values: `none / [name]`\
+  Owner: Frank\
+  Consumers: Dasha\
+  Required phases: F, D\
+\
+- `workflow_source_case_citation`\
+  Allowed values: `none / [citation]`\
+  Owner: Frank\
+  Consumers: Dasha\
+  Required phases: F, D\
+\
+- `source_case_monitoring`\
+  Allowed values: `off / on`\
+  Owner: Frank\
+  Consumers: Dasha\
+  Required phases: F, D\
+\
+Mapping rule\
+- Step 1 intake aliases `canonical_source_case_name`, `canonical_source_case_citation`, and `source_case_monitoring_relevant`\
+  must map into `workflow_source_case_name`, `workflow_source_case_citation`, and `source_case_monitoring` in the locked controller card.\
+\
+4. Case-citation verification fields\
+- `case_citation_verification_mode`\
+  Allowed values: `off / on`\
+  Owner: Frank\
+  Consumers: Karthic, Dasha\
+  Required phases: F, K, D\
+\
+- `case_citation_scoring_rule`\
+  Allowed values: `metadata_only / hallucinated_only_penalty`\
+  Owner: Frank\
+  Consumers: Dasha\
+  Required phases: F, D\
+\
+- `case_mention_status`\
+  Allowed values: `none / mentioned`\
+  Owner: Dasha\
+  Consumers: exports and QA review\
+  Required phases: D when `case_citation_verification_mode = on`\
+\
+- `citation_accuracy_status`\
+  Allowed values: `not_applicable / verified_correct / verified_partly_correct / hallucinated_or_unverifiable`\
+  Owner: Dasha\
+  Consumers: exports and QA review\
+  Required phases: D when `case_citation_verification_mode = on`\
+\
+- `source_case_reference_status`\
+  Allowed values: `not_applicable / source_case_cited / other_case_only / source_case_and_other_cases`\
+  Owner: Dasha\
+  Consumers: exports and QA review\
+  Required phases: D when `case_citation_verification_mode = on`\
+\
+- `case_verification_review_flag`\
+  Allowed values: `no / yes`\
+  Owner: Dasha\
+  Consumers: exports and QA review\
+  Required phases: D when `case_citation_verification_mode = on`\
+\
+5. Handoff-state fields\
+- `packet_status`\
+  Allowed values: `phase1_only / benchmark_complete / question_complete / ready_for_karthic / ready_for_dasha`\
+  Owner: Frank\
+  Consumers: Karthic, Dasha\
+  Required phases: F, K, D\
+\
+- `frank_phase_complete`\
+  Allowed values: `1 / 2 / 3`\
+  Owner: Frank\
+  Consumers: Karthic, Dasha\
+  Required phases: F, K, D\
+\
+- `rubric_status`\
+  Allowed values: `not_started / draft / locked`\
+  Owner: Frank before rubric drafting; Karthic when updating rubric state\
+  Consumers: Dasha\
+  Required phases: F, K, D\
+\
+- `evaluation_status`\
+  Allowed values: `not_ready / ready`\
+  Owner: Frank before Dasha; Dasha may confirm but should not silently rewrite upstream state\
+  Consumers: Dasha\
+  Required phases: F, D\
+\
+6. Dasha track and centroid metadata\
+- `evaluation_track`\
+  Allowed values: `evaluation_track_original / evaluation_track_selected_variation`\
+  Owner: Dasha\
+  Consumers: exports\
+  Required phases: D\
+\
+- `rubric_type`\
+  Allowed values: `base / selected_variation`\
+  Owner: Dasha\
+  Consumers: exports\
+  Required phases: D when `dual_rubric_mode = on`\
+\
+- `judge_panel_mode`\
+  Allowed values: `single_model / multi_model_panel`\
+  Owner: run configuration\
+  Consumers: Dasha outputs\
+  Required phases: D\
+\
+- `judge_panel_homogeneity_status`\
+  Allowed values: `homogeneous / heterogeneous`\
+  Owner: run configuration or Dasha\
+  Consumers: Dasha outputs\
+  Required phases: D\
+\
+- `panel_majority_status`\
+  Allowed values: `majority / no_majority / not_applicable`\
+  Owner: Dasha\
+  Consumers: exports and Zak routing\
+  Required phases: D\
+\
+- `best_centroid_zak_review_flag`\
+  Allowed values: `yes / no`\
+  Owner: Dasha\
+  Consumers: exports and Zak routing\
+  Required phases: D\
+\
+- `cluster_size_total`\
+  Type: integer\
+  Owner: clustering pipeline\
+  Consumers: Dasha outputs\
+  Required phases: D\
+\
+- `model_breakdown`\
+  Type: list of `model_name / answer_count / answer_share`\
+  Owner: clustering pipeline\
+  Consumers: Dasha outputs\
+  Required phases: D\
+\
+- `represented_model_count`\
+  Type: integer\
+  Owner: clustering pipeline\
+  Consumers: Dasha outputs\
+  Required phases: D\
+\
+- `dominant_model_name`\
+  Type: text\
+  Owner: clustering pipeline\
+  Consumers: Dasha outputs\
+  Required phases: D\
+\
+- `dominant_model_share`\
+  Type: decimal\
+  Owner: clustering pipeline\
+  Consumers: Dasha outputs\
+  Required phases: D\
+\
+ENUM-NORMALIZATION RULE\
+Do not create alternate field names or enum labels such as:\
+- `base_question`\
+- `selected_variation_question`\
+- `one_or_more`\
+- `source_case_reference_flag`\
+\
+Use the canonical names in this file.}

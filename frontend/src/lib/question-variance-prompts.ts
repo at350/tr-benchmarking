@@ -78,15 +78,11 @@ export type QuestionVariancePackagePromptInput = {
 
 function resolveQuestionVarianceRoots() {
     const cwd = process.cwd();
-    return path.basename(cwd) === 'frontend'
-        ? [
-            path.resolve(cwd, '../Frank2_QuestionVarianceInstructions'),
-            path.resolve(cwd, '../QuestionVariance'),
-        ]
-        : [
-            path.resolve(cwd, 'Frank2_QuestionVarianceInstructions'),
-            path.resolve(cwd, 'QuestionVariance'),
-        ];
+    return [
+        path.basename(cwd) === 'frontend'
+            ? path.resolve(cwd, '../instructions/question-variance')
+            : path.resolve(cwd, 'instructions/question-variance'),
+    ];
 }
 
 async function readQuestionVarianceAsset(fileName: string) {

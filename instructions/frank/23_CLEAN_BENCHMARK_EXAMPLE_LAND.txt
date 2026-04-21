@@ -1,0 +1,57 @@
+23_CLEAN_BENCHMARK_EXAMPLE_LAND
+
+PURPOSE
+This file is a worked example of a clean benchmark answer for Pack 20 — land contracts.
+It preserves the current benchmark headings for continuity across packs and should be used as a style-and-structure model for land-contract benchmark drafting.
+
+USE RULES
+- Use this file for structure, depth, issue-prioritization, and black-letter-law style only.
+- Do not copy its fact pattern, issue mix, or fallback theories unless the current source or prompt supports them.
+- Do not refer to cases, opinions, sources, or authority inside the benchmark answer unless the user explicitly asks for authority-grounded drafting.
+- Keep the exact headings below when drafting benchmark answers.
+- Keep the answer evaluator-facing, concise, ordered, and neutral.
+- For this pack, center the analysis on land-interest characterization, writing sufficiency, property description / essential terms, and part-performance-type substitutes.
+
+EXACT HEADINGS TO PRESERVE
+Jurisdiction assumption:
+Bottom-line outcome:
+Controlling doctrine:
+Transaction / formation characterization:
+Writing requirement and trigger:
+Compliance / substitute / exception analysis:
+Other defenses or competing doctrines:
+Strongest counterargument:
+
+WORKED BENCHMARK ANSWER
+
+Jurisdiction assumption:
+U.S. common law / Restatement-style framing for a contract to sell a real-property interest.
+
+Bottom-line outcome:
+The land-sale agreement is likely not enforceable.
+
+Controlling doctrine:
+The likely controlling doctrine is the Statute of Frauds rule requiring a signed writing for a contract for the sale of land or another qualifying interest in land.
+
+Transaction / formation characterization:
+There is a straightforward bilateral bargain framing because the seller agreed to convey a parcel of land and the buyer agreed to pay a stated purchase price. The main fact cutting the other way is the seller’s statement that “formal papers” would come later, which can suggest that the parties did not mean to be finally bound until memorialization. On these facts, however, that point matters more to writing compliance and definiteness than to whether consideration existed.
+
+Writing requirement and trigger:
+The land-contract gate is the dispositive issue. A contract for the sale of land ordinarily must be evidenced by a signed writing by the party to be charged. Here, the transaction is a transfer of a real-property interest rather than a short-term license or a services arrangement, so the land category is directly implicated.
+
+A short follow-up email or text can sometimes qualify as a writing, but it still must reasonably identify the parties, the land, and the essential deal terms. On these facts, the better view is that the seller’s brief signed message about selling “the back acreage” for a stated price, with formal papers to follow, is too thin to serve as a reliable land-sale memorandum if it does not adequately identify the parcel or fix the core transaction with reasonable certainty. That makes writing sufficiency the main obstacle.
+
+Preparatory acts do not automatically satisfy the land-sale statute. The buyer’s deposit payment, survey expense, and title-work expense support the buyer’s claim that an agreement existed, but those steps do not by themselves necessarily replace the required writing. The stronger substitute argument is part performance, but that doctrine usually carries the most force when the buyer has taken possession and either made valuable improvements or otherwise acted in a way strongly referable to the alleged land contract. On these facts, the buyer did not take possession or make visible permanent improvements, so the part-performance path is weak.
+
+Other Statute of Frauds categories are not the real issue. This is not principally a one-year case, because the key barrier is the land-sale writing requirement, and no separate suretyship issue is presented.
+
+Compliance / substitute / exception analysis:
+Any fallback theory should be analyzed only after the land-sale gate. The buyer’s best fallback is part performance or a narrow estoppel theory based on paying the deposit and spending money on survey and title work. But that argument remains limited because those acts can look like preparation for a contemplated closing rather than conduct explainable only by an already enforceable land contract.
+
+Promissory estoppel is also a possible but uncertain fallback. The buyer can argue foreseeable reliance and unfairness after incurring expenses in dependence on the seller’s promise. But many courts are cautious about using estoppel to override the land-sale Statute of Frauds absent especially strong reliance facts. Even where estoppel is recognized, the remedy may be limited to avoiding injustice rather than granting full contract enforcement or specific performance. On these facts, estoppel is weaker than it would be in a case involving possession plus substantial permanent improvements.
+
+Other defenses or competing doctrines:
+No separate mistake or condition issue appears to control. The seller’s later decision to back out because a better offer appeared does not create a defense; it simply underscores why the writing requirement matters. If the parties truly intended not to be bound until a formal contract was executed, that point goes to formation or memorialization rather than to a later excuse defense, and on these facts it remains secondary to the Statute of Frauds problem.
+
+Strongest counterargument:
+The strongest counterargument is that the seller’s signed message, combined with the accepted deposit and the buyer’s concrete expenditures on survey and title work, should be treated as enough memorandum plus reliance to permit enforcement. That is a real argument, but it is still weaker than the nonenforcement position because land contracts ordinarily demand clearer writing or stronger part-performance facts than appear here. The main uncertainty is jurisdiction sensitivity on two linked points: how exact the property description in an informal writing must be, and how far a jurisdiction will go in treating deposit payments and preparatory expenditures as sufficient part performance or estoppel in the land-sale setting. But if the writing is thin and the buyer neither took possession nor made substantial improvements, the stronger analysis is that the agreement is not enforceable.

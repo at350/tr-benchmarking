@@ -30,6 +30,7 @@ type AssetKey =
 type AssetRegistryEntry = Record<AssetKey, string>;
 type KarthicInstructionKey = 'buildSpec' | 'overlays' | 'prefill' | 'caseCitation';
 type DashaInstructionKey = 'evaluationSpec' | 'evaluatorInstructions' | 'caseCitationProtocol' | 'centroidMetadata';
+type ZakInstructionKey = 'reviewSpec' | 'reviewInstructions';
 
 const CORE_ASSET_FILES = {
     main: '00_MAIN_GPT_INSTRUCTIONS.txt',
@@ -46,14 +47,19 @@ const KARTHIC_INSTRUCTION_FILES: Record<KarthicInstructionKey, string> = {
     buildSpec: '08_Karthic_Rubric_Build_Spec_v1.md',
     overlays: '09_Cross_Pack_Scoring_Overlays_Caps_Penalties_v1.md',
     prefill: '50_Karthic_PreFill_Instructions.rtf',
-    caseCitation: '58_Case_Citation_Verification_Protocol_v1.md',
+    caseCitation: '58_Case_Citation_Verification_Protocol_v2.md',
 };
 
 const DASHA_INSTRUCTION_FILES: Record<DashaInstructionKey, string> = {
-    evaluationSpec: '56_Dasha_Evaluation_Spec_v1.md',
+    evaluationSpec: '56_Dasha_Evaluation_Spec_v2.md',
     evaluatorInstructions: '57_Dasha_Evaluator_Instructions_v2.txt',
     caseCitationProtocol: '58_Case_Citation_Verification_Protocol_v2.md',
     centroidMetadata: '60_Centroid_Composition_Metadata_and_Simple_Zak_Rule_v1.md',
+};
+
+const ZAK_INSTRUCTION_FILES: Record<ZakInstructionKey, string> = {
+    reviewSpec: '61_Zak_SME_Review_Spec_v1.md',
+    reviewInstructions: '62_Zak_SME_Review_Instructions_v1.txt',
 };
 
 const PACK_ASSET_FILES: Record<FrankSofPackId, Pick<AssetRegistryEntry, 'doctrinePack' | 'failureBank' | 'workedExample' | 'cleanExample'>> = {
@@ -86,34 +92,48 @@ const PACK_ASSET_FILES: Record<FrankSofPackId, Pick<AssetRegistryEntry, 'doctrin
 const assetCache = new Map<string, string>();
 const execFileAsync = promisify(execFile);
 
-function resolveAssetRoots() {
+function resolveInstructionsRoot() {
     const cwd = process.cwd();
     return path.basename(cwd) === 'frontend'
-        ? [
-            path.resolve(cwd, '../Frank1'),
-            path.resolve(cwd, 'src/lib/frank-v2-assets'),
-        ]
-        : [
-            path.resolve(cwd, 'Frank1'),
-            path.resolve(cwd, 'frontend/src/lib/frank-v2-assets'),
-        ];
+        ? path.resolve(cwd, '../instructions')
+        : path.resolve(cwd, 'instructions');
 }
 
-async function readAsset(fileName: string) {
-    const cached = assetCache.get(fileName);
+function resolveInstructionDirectory(step: 'frank' | 'question-variance' | 'karthic' | 'dasha' | 'zak') {
+    return path.join(resolveInstructionsRoot(), step);
+}
+
+async function readInstructionFile(options: {
+    cacheKey: string;
+    directory: 'frank' | 'question-variance' | 'karthic' | 'dasha' | 'zak';
+    fileName: string;
+    richText?: boolean;
+    label: string;
+}) {
+    const cached = assetCache.get(options.cacheKey);
     if (cached) {
         return cached;
     }
-    for (const root of resolveAssetRoots()) {
-        try {
-            const content = await fs.readFile(path.join(root, fileName), 'utf8');
-            assetCache.set(fileName, content);
-            return content;
-        } catch {
-            continue;
-        }
+
+    const filePath = path.join(resolveInstructionDirectory(options.directory), options.fileName);
+    try {
+        const content = options.richText
+            ? (await execFileAsync('textutil', ['-convert', 'txt', '-stdout', filePath])).stdout
+            : await fs.readFile(filePath, 'utf8');
+        assetCache.set(options.cacheKey, content);
+        return content;
+    } catch {
+        throw new Error(`${options.label} "${options.fileName}" was not found in the canonical instructions directory.`);
     }
-    throw new Error(`Frank asset "${fileName}" was not found in any configured asset root.`);
+}
+
+async function readAsset(fileName: string) {
+    return await readInstructionFile({
+        cacheKey: `frank:${fileName}`,
+        directory: 'frank',
+        fileName,
+        label: 'Frank asset',
+    });
 }
 
 export async function getFrankV2AssetBundle(packId: FrankSofPackId) {
@@ -126,37 +146,14 @@ export async function getFrankV2AssetBundle(packId: FrankSofPackId) {
     return Object.fromEntries(bundleEntries) as AssetRegistryEntry;
 }
 
-function resolveKarthicInstructionRoots() {
-    const cwd = process.cwd();
-    return path.basename(cwd) === 'frontend'
-        ? [path.resolve(cwd, '../KarthicFiles')]
-        : [path.resolve(cwd, 'KarthicFiles')];
-}
-
 async function readKarthicInstruction(fileName: string) {
-    const cacheKey = `karthic:${fileName}`;
-    const cached = assetCache.get(cacheKey);
-    if (cached) {
-        return cached;
-    }
-
-    for (const root of resolveKarthicInstructionRoots()) {
-        const filePath = path.join(root, fileName);
-        try {
-            let content = '';
-            if (fileName.toLowerCase().endsWith('.rtf')) {
-                const { stdout } = await execFileAsync('textutil', ['-convert', 'txt', '-stdout', filePath]);
-                content = stdout;
-            } else {
-                content = await fs.readFile(filePath, 'utf8');
-            }
-            assetCache.set(cacheKey, content);
-            return content;
-        } catch {
-            continue;
-        }
-    }
-    throw new Error(`Karthic instruction "${fileName}" was not found in any configured instruction root.`);
+    return await readInstructionFile({
+        cacheKey: `karthic:${fileName}`,
+        directory: fileName === '58_Case_Citation_Verification_Protocol_v2.md' ? 'dasha' : 'karthic',
+        fileName,
+        richText: fileName.toLowerCase().endsWith('.rtf'),
+        label: 'Karthic instruction',
+    });
 }
 
 export async function getKarthicInstructionBundle(options?: {
@@ -173,31 +170,13 @@ export async function getKarthicInstructionBundle(options?: {
     };
 }
 
-function resolveDashaInstructionRoots() {
-    const cwd = process.cwd();
-    return path.basename(cwd) === 'frontend'
-        ? [path.resolve(cwd, '../Dasha')]
-        : [path.resolve(cwd, 'Dasha')];
-}
-
 async function readDashaInstruction(fileName: string) {
-    const cacheKey = `dasha:${fileName}`;
-    const cached = assetCache.get(cacheKey);
-    if (cached) {
-        return cached;
-    }
-
-    for (const root of resolveDashaInstructionRoots()) {
-        const filePath = path.join(root, fileName);
-        try {
-            const content = await fs.readFile(filePath, 'utf8');
-            assetCache.set(cacheKey, content);
-            return content;
-        } catch {
-            continue;
-        }
-    }
-    throw new Error(`Dasha instruction "${fileName}" was not found in any configured instruction root.`);
+    return await readInstructionFile({
+        cacheKey: `dasha:${fileName}`,
+        directory: 'dasha',
+        fileName,
+        label: 'Dasha instruction',
+    });
 }
 
 export async function getDashaInstructionBundle() {
@@ -205,6 +184,18 @@ export async function getDashaInstructionBundle() {
         .map(async ([key, fileName]) => [key, await readDashaInstruction(fileName)] as const));
 
     return Object.fromEntries(entries) as Record<DashaInstructionKey, string>;
+}
+
+export async function getZakInstructionBundle() {
+    const entries = await Promise.all((Object.entries(ZAK_INSTRUCTION_FILES) as Array<[ZakInstructionKey, string]>)
+        .map(async ([key, fileName]) => [key, await readInstructionFile({
+            cacheKey: `zak:${fileName}`,
+            directory: 'zak',
+            fileName,
+            label: 'Zak instruction',
+        })] as const));
+
+    return Object.fromEntries(entries) as Record<ZakInstructionKey, string>;
 }
 
 export function buildFrankRoutingIntakePrompt(input: {
@@ -658,7 +649,7 @@ export function buildDashaClusterAuditPrompt(input: {
         'If case-citation verification mode is on and the centroid mentions any case, use web search before answering.',
         'Return JSON only. Do not wrap the JSON in markdown.',
         '',
-        'Instruction file: 56_Dasha_Evaluation_Spec_v1.md',
+        'Instruction file: 56_Dasha_Evaluation_Spec_v2.md',
         input.instructions.evaluationSpec,
         '',
         'Instruction file: 57_Dasha_Evaluator_Instructions_v2.txt',
@@ -705,6 +696,10 @@ export function buildDashaClusterAuditPrompt(input: {
                 extractedCaseMentions: ['string'],
                 verifiedCaseMentions: ['string'],
                 hallucinatedCaseMentions: ['string'],
+                citedCaseCountTotal: 0,
+                verifiedCaseCount: 0,
+                hallucinatedCaseCount: 0,
+                caseExistenceSummary: 'no_case',
                 citationAccuracyStatus: 'not_applicable',
                 sourceCaseReferenceStatus: 'not_applicable',
                 sourceCaseReferenceNote: 'string',

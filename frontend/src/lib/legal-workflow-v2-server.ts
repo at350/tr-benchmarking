@@ -30,6 +30,7 @@ import {
     buildKarthicRowsPrompt,
     getDashaInstructionBundle,
     getFrankV2AssetBundle,
+    getZakInstructionBundle,
 } from '@/lib/legal-workflow-v2-prompts';
 import {
     buildQuestionVarianceMenuPrompt,
@@ -44,6 +45,7 @@ import type {
     DashaAppliedCap,
     DashaAppliedPenalty,
     DashaCaseCitationAnalysis,
+    DashaCaseExistenceSummary,
     DashaCitationAccuracyStatus,
     DashaClusterAnalysis,
     DashaClusterRecord,
@@ -105,6 +107,11 @@ import type {
     VariationRouteStatus,
     VariationStatus,
     WeightedSummary,
+    ZakDecisionRecord,
+    ZakInvocationMode,
+    ZakReviewCentroid,
+    ZakReviewV1,
+    ZakScoringSheetEntry,
 } from '@/lib/legal-workflow-v2-types';
 
 const execFileAsync = promisify(execFile);
@@ -116,6 +123,7 @@ const DATA_DIRECTORIES = {
     karthicPreCluster: 'karthic-v2-pre-cluster-runs',
     karthic: 'karthic-v2-rubric-packs',
     dasha: 'dasha-v2-runs',
+    zak: 'zak-v1-reviews',
     artifacts: 'artifacts-v2',
 } as const;
 
@@ -1477,6 +1485,58 @@ export async function getDashaRun(id: string) {
     return item ? normalizeDashaRun(item) : null;
 }
 
+export async function listZakReviews() {
+    const items = await listArtifacts<Record<string, unknown>>(DATA_DIRECTORIES.zak);
+    return items
+        .map((item) => normalizeZakReview(item))
+        .filter((item): item is ZakReviewV1 => Boolean(item));
+}
+
+export async function getZakReview(id: string) {
+    const item = await readArtifact<Record<string, unknown>>(DATA_DIRECTORIES.zak, id);
+    return item ? normalizeZakReview(item) : null;
+}
+
+export async function createZakReview(input: {
+    dashaRunId: string;
+    invocationMode?: ZakInvocationMode;
+}) {
+    const run = await getRequiredDashaRun(input.dashaRunId);
+    if (run.status !== 'completed' || run.workflowStage !== 'judged') {
+        throw new Error('Zak review requires a completed judged Dasha run.');
+    }
+    const existing = (await listZakReviews())
+        .find((item) => item.dashaRunId === run.id && item.status === 'draft' && item.invocationMode === (input.invocationMode ?? 'manual_review'));
+    if (existing) {
+        return existing;
+    }
+    const pack = await getRequiredKarthicPack(run.rubricPackId);
+    const review = await buildZakReviewFromRun({
+        run,
+        pack,
+        invocationMode: input.invocationMode ?? 'manual_review',
+    });
+    await writeArtifact(DATA_DIRECTORIES.zak, review.id, review);
+    return review;
+}
+
+export async function saveZakReview(reviewInput: ZakReviewV1) {
+    const existing = await getRequiredZakReview(reviewInput.id);
+    const review = normalizeZakReview({
+        ...existing,
+        ...reviewInput,
+        updatedAt: new Date().toISOString(),
+        completedAt: reviewInput.status === 'completed'
+            ? (reviewInput.completedAt ?? existing.completedAt ?? new Date().toISOString())
+            : null,
+    });
+    if (!review) {
+        throw new Error('Zak review payload is invalid.');
+    }
+    await writeArtifact(DATA_DIRECTORIES.zak, review.id, review);
+    return review;
+}
+
 export async function runDashaEvaluation(input: {
     rubricPackId: string;
     rubricTrackId?: KarthicRubricTrackId;
@@ -1715,7 +1775,13 @@ async function finalizeDashaJudging(input: {
             run: input.run,
             clusterAnalyses,
         });
-        const finalScoreByClusterId = new Map(clusterAnalyses.map((analysis) => [analysis.clusterId, analysis.finalScore] as const));
+        const finalizedClusterAnalyses = trackSummary?.bestCentroidZakReviewFlag
+            ? clusterAnalyses.map((analysis) => ({
+                ...analysis,
+                zakReviewFlag: trackSummary.disputedCentroidIds.includes(analysis.clusterId),
+            }))
+            : clusterAnalyses;
+        const finalScoreByClusterId = new Map(finalizedClusterAnalyses.map((analysis) => [analysis.clusterId, analysis.finalScore] as const));
         const modelSummaries = buildDashaModelSummaries({
             selectedModels: input.run.selectedModels,
             responses: input.run.responses,
@@ -1729,7 +1795,7 @@ async function finalizeDashaJudging(input: {
             status: 'completed',
             workflowStage: 'judged',
             judgeSettings,
-            clusterAnalyses,
+            clusterAnalyses: finalizedClusterAnalyses,
             rowResults,
             moduleSummaries,
             weightedSummary,
@@ -1738,6 +1804,9 @@ async function finalizeDashaJudging(input: {
             completedAt: new Date().toISOString(),
         };
         await writeArtifact(DATA_DIRECTORIES.dasha, completedRun.id, completedRun);
+        if (trackSummary?.bestCentroidZakReviewFlag) {
+            await ensureAutomaticZakReview(completedRun);
+        }
         return completedRun;
     } catch (error) {
         return await finalizeFailedRun(input.run, error instanceof Error ? error.message : 'Failed to judge clustered Dasha run.');
@@ -1920,6 +1989,10 @@ function buildFallbackDashaClusterAnalysis(input: {
             extractedCaseMentions: extractedMentions,
             verifiedCaseMentions: [],
             hallucinatedCaseMentions: [],
+            citedCaseCountTotal: extractedMentions.length,
+            verifiedCaseCount: 0,
+            hallucinatedCaseCount: extractedMentions.length,
+            caseExistenceSummary: extractedMentions.length > 0 ? 'all_unverified' : 'no_case',
             citationAccuracyStatus: extractedMentions.length > 0 ? 'hallucinated_or_unverifiable' : 'not_applicable',
             sourceCaseReferenceStatus: extractedMentions.length > 0 ? 'other_case_only' : 'not_applicable',
             sourceCaseReferenceNote: extractedMentions.length > 0 ? 'Case mentions detected but no completed verification pass was saved.' : 'No case mention detected.',
@@ -2011,6 +2084,10 @@ function normalizeDashaCaseCitationAnalysis(
         extractedCaseMentions: normalizeStringArray(value.extractedCaseMentions),
         verifiedCaseMentions: normalizeStringArray(value.verifiedCaseMentions),
         hallucinatedCaseMentions: normalizeStringArray(value.hallucinatedCaseMentions),
+        citedCaseCountTotal: clampNumber(Math.floor(toNumber(value.citedCaseCountTotal, fallback.citedCaseCountTotal)), 0, 100),
+        verifiedCaseCount: clampNumber(Math.floor(toNumber(value.verifiedCaseCount, fallback.verifiedCaseCount)), 0, 100),
+        hallucinatedCaseCount: clampNumber(Math.floor(toNumber(value.hallucinatedCaseCount, fallback.hallucinatedCaseCount)), 0, 100),
+        caseExistenceSummary: normalizeDashaCaseExistenceSummary(value.caseExistenceSummary, fallback.caseExistenceSummary),
         citationAccuracyStatus: normalizeDashaCitationAccuracyStatus(value.citationAccuracyStatus, fallback.citationAccuracyStatus),
         sourceCaseReferenceStatus: normalizeDashaSourceCaseReferenceStatus(value.sourceCaseReferenceStatus, fallback.sourceCaseReferenceStatus),
         sourceCaseReferenceNote: normalizeNonEmptyString(value.sourceCaseReferenceNote, fallback.sourceCaseReferenceNote),
@@ -2024,6 +2101,15 @@ function normalizeDashaCitationAccuracyStatus(value: unknown, fallback: DashaCit
         || value === 'verified_partly_correct'
         || value === 'hallucinated_or_unverifiable'
         || value === 'not_applicable'
+        ? value
+        : fallback;
+}
+
+function normalizeDashaCaseExistenceSummary(value: unknown, fallback: DashaCaseExistenceSummary): DashaCaseExistenceSummary {
+    return value === 'no_case'
+        || value === 'all_verified'
+        || value === 'mixed'
+        || value === 'all_unverified'
         ? value
         : fallback;
 }
@@ -2073,21 +2159,38 @@ function buildDashaTrackSummary(input: {
         .slice()
         .sort((left, right) => compareDashaClusterAnalyses(left, right));
     const best = ranked[0] ?? null;
-    const panelMajorityStatus: DashaPanelMajorityStatus = best ? 'majority' : 'not_applicable';
     const questionVersion = input.run.rubricTrackId === 'selected_variation' ? 'selected_variation' : 'original';
+    const disputedCentroidIds = best
+        ? ranked
+            .filter((analysis) => (analysis.finalScore ?? -1) === (best.finalScore ?? -1))
+            .map((analysis) => analysis.clusterId)
+        : [];
+    const panelMajorityStatus: DashaPanelMajorityStatus = !best
+        ? 'not_applicable'
+        : disputedCentroidIds.length > 1
+            ? 'no_majority'
+            : 'majority';
+    const topCentroidVoteSplit = !best
+        ? 'not_applicable'
+        : disputedCentroidIds.length > 1
+            ? `tie_on_final_score: ${disputedCentroidIds.join(', ')}`
+            : `${best.clusterId}: 1/1`;
 
     return {
         evaluationTrack: input.run.rubricTrackId === 'selected_variation' ? 'evaluation_track_selected_variation' : 'evaluation_track_original',
         questionVersion,
         rubricType: input.run.rubricTrackId === 'selected_variation' ? 'selected_variation_rubric' : 'base_rubric',
         rankedCentroidList: ranked.map((analysis) => analysis.clusterId),
+        disputedCentroidIds,
         bestCentroidByScore: best?.clusterId ?? null,
         bestCentroidScore: best?.finalScore ?? null,
-        topCentroidVoteSplit: best ? `${best.clusterId}: 1/1` : 'not_applicable',
+        topCentroidVoteSplit,
         panelMajorityStatus,
-        bestCentroidZakReviewFlag: false,
+        bestCentroidZakReviewFlag: panelMajorityStatus === 'no_majority',
         trackSummary: best
-            ? `Best centroid is ${best.clusterId} at ${formatNullableScore(best.finalScore)} after overlays/caps on the ${questionVersion} track.`
+            ? panelMajorityStatus === 'no_majority'
+                ? `Top centroid decision is disputed on the ${questionVersion} track because ${disputedCentroidIds.join(', ')} are tied at ${formatNullableScore(best.finalScore)} after overlays/caps.`
+                : `Best centroid is ${best.clusterId} at ${formatNullableScore(best.finalScore)} after overlays/caps on the ${questionVersion} track.`
             : 'No judged centroid summary is available.',
     };
 }
@@ -2110,6 +2213,147 @@ function compareDashaClusterAnalyses(left: DashaClusterAnalysis, right: DashaClu
         return sizeDelta;
     }
     return left.clusterId.localeCompare(right.clusterId);
+}
+
+async function ensureAutomaticZakReview(run: DashaRunV2) {
+    const existing = (await listZakReviews())
+        .find((item) => item.dashaRunId === run.id && item.invocationMode === 'automatic_dasha_non_majority' && item.status === 'draft');
+    if (existing) {
+        return existing;
+    }
+    const pack = await getRequiredKarthicPack(run.rubricPackId);
+    const review = await buildZakReviewFromRun({
+        run,
+        pack,
+        invocationMode: 'automatic_dasha_non_majority',
+    });
+    await writeArtifact(DATA_DIRECTORIES.zak, review.id, review);
+    return review;
+}
+
+async function buildZakReviewFromRun(input: {
+    run: DashaRunV2;
+    pack: KarthicRubricPackV2;
+    invocationMode: ZakInvocationMode;
+}): Promise<ZakReviewV1> {
+    await getZakInstructionBundle();
+    const rubricTrack = getRubricTrack(input.pack, input.run.rubricTrackId) ?? input.pack.tracks.base;
+    const disputedCentroidIds = input.run.trackSummary?.disputedCentroidIds?.length
+        ? input.run.trackSummary.disputedCentroidIds
+        : [input.run.trackSummary?.bestCentroidByScore].filter((value): value is string => Boolean(value));
+    const disputedCentroids = disputedCentroidIds
+        .map((centroidId) => buildZakReviewCentroid({
+            centroidId,
+            run: input.run,
+            rowResults: input.run.rowResults,
+        }))
+        .filter((item): item is ZakReviewCentroid => Boolean(item));
+    const packetReviewReady = disputedCentroids.length > 0
+        && rubricTrack.rows.length > 0
+        && disputedCentroids.every((item) => item.centroidText.trim().length > 0);
+    const printablePacketStatus = packetReviewReady ? 'ready' as const : 'not_ready' as const;
+    const scoringSheet = buildZakScoringSheet(disputedCentroids, rubricTrack.rows);
+    const decisionRecord: ZakDecisionRecord = {
+        smeSelectedBestCentroid: 'none',
+        smeConfidence: 'not_provided',
+        controllingRowsDrivingDecision: [],
+        rubricInstabilityNotes: '',
+        upstreamRevisionNeededNotes: '',
+    };
+    const now = new Date().toISOString();
+
+    return {
+        schemaVersion: 1,
+        id: `zak_v1_${Date.now()}_${randomUUID().slice(0, 8)}`,
+        status: 'draft',
+        invocationMode: input.invocationMode,
+        dashaRunId: input.run.id,
+        rubricPackId: input.pack.id,
+        rubricTrackId: input.run.rubricTrackId,
+        frankPacketId: input.pack.frankPacketId,
+        evaluationTrack: input.run.trackSummary?.evaluationTrack ?? (input.run.rubricTrackId === 'selected_variation' ? 'evaluation_track_selected_variation' : 'evaluation_track_original'),
+        questionVersion: input.run.trackSummary?.questionVersion ?? (input.run.rubricTrackId === 'selected_variation' ? 'selected_variation' : 'original'),
+        rubricType: input.run.trackSummary?.rubricType ?? (input.run.rubricTrackId === 'selected_variation' ? 'selected_variation_rubric' : 'base_rubric'),
+        dualRubricMode: input.pack.controllerCard?.dual_rubric_mode ?? 'off',
+        selectedLaneCode: input.pack.controllerCard?.selected_lane_code ?? 'none',
+        topCentroidVoteSplit: input.run.trackSummary?.topCentroidVoteSplit ?? 'not_applicable',
+        disputedCentroidIds,
+        packetReviewReady,
+        printablePacketStatus,
+        printablePacketContentsSummary: packetReviewReady
+            ? `Active question, ${rubricTrack.rows.length} rubric rows, and ${disputedCentroids.length} disputed centroid packet(s) are assembled for SME review.`
+            : 'The Zak packet is incomplete because the active rubric or disputed centroid materials are missing.',
+        printablePacketCanBeAssembled: packetReviewReady,
+        activeQuestionText: input.run.questionText,
+        activeRubricRows: rubricTrack.rows,
+        disputedCentroids,
+        scoringSheet,
+        decisionRecord,
+        scoreLockStatus: 'not_ready',
+        upstreamRevisionTarget: 'none',
+        dispositionNote: input.invocationMode === 'automatic_dasha_non_majority'
+            ? 'Auto-created from a Dasha no-majority disputed-best-centroid result.'
+            : 'Manual Zak review packet created from the selected judged Dasha run.',
+        exportAvailabilityNote: 'The structured Zak review packet is ready for on-screen SME review and can drive a combined printable export from the same stored fields.',
+        createdAt: now,
+        updatedAt: now,
+        completedAt: null,
+    };
+}
+
+function buildZakReviewCentroid(input: {
+    centroidId: string;
+    run: DashaRunV2;
+    rowResults: RubricRowResult[];
+}): ZakReviewCentroid | null {
+    const cluster = input.run.clusters.find((item) => item.id === input.centroidId);
+    const analysis = input.run.clusterAnalyses.find((item) => item.clusterId === input.centroidId);
+    if (!cluster || !analysis) {
+        return null;
+    }
+    return {
+        centroidId: cluster.id,
+        centroidText: cluster.representativeText,
+        dashaRowScoringSummary: buildClusterRowScoreSummary(cluster.id, input.rowResults).map((row) => ({
+            rowKey: row.rowKey,
+            rowTitle: row.rowTitle,
+            moduleId: normalizeRubricModuleIdFromLabel(row.moduleLabel),
+            moduleLabel: row.moduleLabel,
+            weight: row.weight,
+            score: row.score,
+            applicabilityStatus: row.applicabilityStatus,
+            rationale: row.rationale,
+            differenceSummary: row.differenceSummary,
+        })),
+        subtotal: analysis.subtotal,
+        penaltiesApplied: analysis.penaltiesApplied,
+        capApplied: analysis.capApplied,
+        finalScore: analysis.finalScore,
+        clusterSizeTotal: analysis.clusterSizeTotal,
+        modelBreakdown: cluster.modelBreakdown,
+        representedModelCount: analysis.representedModelCount,
+        dominantModelName: analysis.dominantModelName,
+        dominantModelShare: analysis.dominantModelShare,
+        caseCitation: analysis.caseCitation,
+        shortKarthicEscalationNote: analysis.trackSummaryNote,
+    };
+}
+
+function buildZakScoringSheet(disputedCentroids: ZakReviewCentroid[], rows: KarthicRubricRow[]): ZakScoringSheetEntry[] {
+    return disputedCentroids.flatMap((centroid) => rows.map((row) => ({
+        centroidId: centroid.centroidId,
+        rowKey: row.key,
+        rowLabel: row.title,
+        shortRowPurpose: row.description,
+        scoringReminder: 'Apply the active 0-4 rubric anchors for this row and record only the SME-facing justification.',
+        smeScore: null,
+        smeNote: '',
+    })));
+}
+
+function normalizeRubricModuleIdFromLabel(label: string): RubricModuleId {
+    const match = Object.entries(RUBRIC_MODULE_LABELS).find(([, value]) => value === label);
+    return (match?.[0] as RubricModuleId | undefined) ?? 'module1';
 }
 
 function inferWorkflowSourceCaseName(packet: FrankPacketV2) {
@@ -3270,7 +3514,7 @@ function createDefaultKarthicScoringPolicy(
 ): KarthicScoringPolicy {
     return {
         sourceFiles: mode === 'on'
-            ? [...DEFAULT_KARTHIC_POLICY_FILES, '58_Case_Citation_Verification_Protocol_v1.md']
+            ? [...DEFAULT_KARTHIC_POLICY_FILES, '58_Case_Citation_Verification_Protocol_v2.md']
             : [...DEFAULT_KARTHIC_POLICY_FILES],
         caseCitationVerificationMode: mode,
         zakReviewPenaltyThreshold: 20,
@@ -4497,6 +4741,10 @@ function normalizeDashaClusterAnalysisRecord(value: unknown): DashaClusterAnalys
                 extractedCaseMentions: [],
                 verifiedCaseMentions: [],
                 hallucinatedCaseMentions: [],
+                citedCaseCountTotal: 0,
+                verifiedCaseCount: 0,
+                hallucinatedCaseCount: 0,
+                caseExistenceSummary: 'no_case',
                 citationAccuracyStatus: 'not_applicable',
                 sourceCaseReferenceStatus: 'not_applicable',
                 sourceCaseReferenceNote: '',
@@ -4516,6 +4764,7 @@ function normalizeDashaTrackSummary(value: unknown): DashaTrackSummary | null {
         questionVersion: normalizeNonEmptyString(value.questionVersion, 'original'),
         rubricType: normalizeNonEmptyString(value.rubricType, 'base_rubric'),
         rankedCentroidList: normalizeStringArray(value.rankedCentroidList),
+        disputedCentroidIds: normalizeStringArray(value.disputedCentroidIds),
         bestCentroidByScore: normalizeNullableString(value.bestCentroidByScore),
         bestCentroidScore: typeof value.bestCentroidScore === 'number' ? value.bestCentroidScore : null,
         topCentroidVoteSplit: normalizeNonEmptyString(value.topCentroidVoteSplit, 'not_applicable'),
@@ -4529,6 +4778,163 @@ function normalizeDashaPanelMajorityStatus(value: unknown): DashaPanelMajoritySt
     return value === 'majority' || value === 'no_majority' || value === 'not_applicable'
         ? value
         : 'not_applicable';
+}
+
+function normalizeZakReview(value: unknown): ZakReviewV1 | null {
+    if (!isRecord(value) || value.schemaVersion !== 1) {
+        return null;
+    }
+    return {
+        schemaVersion: 1,
+        id: normalizeNonEmptyString(value.id, `zak_v1_${randomUUID().slice(0, 8)}`),
+        status: value.status === 'completed' || value.status === 'failed' ? value.status : 'draft',
+        invocationMode: value.invocationMode === 'automatic_dasha_non_majority' ? 'automatic_dasha_non_majority' : 'manual_review',
+        dashaRunId: normalizeNonEmptyString(value.dashaRunId, ''),
+        rubricPackId: normalizeNonEmptyString(value.rubricPackId, ''),
+        rubricTrackId: normalizeKarthicRubricTrackId(value.rubricTrackId, 'base'),
+        frankPacketId: normalizeNonEmptyString(value.frankPacketId, ''),
+        evaluationTrack: normalizeNonEmptyString(value.evaluationTrack, 'evaluation_track_original'),
+        questionVersion: normalizeNonEmptyString(value.questionVersion, 'original'),
+        rubricType: normalizeNonEmptyString(value.rubricType, 'base_rubric'),
+        dualRubricMode: value.dualRubricMode === 'on' ? 'on' : 'off',
+        selectedLaneCode: normalizeFrankControllerCard({
+            selected_lane_code: value.selectedLaneCode,
+        })?.selected_lane_code ?? 'none',
+        topCentroidVoteSplit: normalizeNonEmptyString(value.topCentroidVoteSplit, 'not_applicable'),
+        disputedCentroidIds: normalizeStringArray(value.disputedCentroidIds),
+        packetReviewReady: Boolean(value.packetReviewReady),
+        printablePacketStatus: value.printablePacketStatus === 'ready' ? 'ready' : 'not_ready',
+        printablePacketContentsSummary: normalizeNonEmptyString(value.printablePacketContentsSummary, ''),
+        printablePacketCanBeAssembled: Boolean(value.printablePacketCanBeAssembled),
+        activeQuestionText: normalizeOptionalString(value.activeQuestionText, ''),
+        activeRubricRows: normalizeRubricRows(value.activeRubricRows),
+        disputedCentroids: normalizeZakReviewCentroids(value.disputedCentroids),
+        scoringSheet: normalizeZakScoringSheetEntries(value.scoringSheet),
+        decisionRecord: normalizeZakDecisionRecord(value.decisionRecord),
+        scoreLockStatus: value.scoreLockStatus === 'ready' ? 'ready' : 'not_ready',
+        upstreamRevisionTarget: value.upstreamRevisionTarget === 'Frank' || value.upstreamRevisionTarget === 'Karthic' || value.upstreamRevisionTarget === 'Dasha'
+            ? value.upstreamRevisionTarget
+            : 'none',
+        dispositionNote: normalizeNonEmptyString(value.dispositionNote, ''),
+        exportAvailabilityNote: normalizeNonEmptyString(value.exportAvailabilityNote, ''),
+        createdAt: normalizeNonEmptyString(value.createdAt, new Date().toISOString()),
+        updatedAt: normalizeNonEmptyString(value.updatedAt, new Date().toISOString()),
+        completedAt: typeof value.completedAt === 'string' ? value.completedAt : null,
+        errorMessage: typeof value.errorMessage === 'string' ? value.errorMessage : undefined,
+    };
+}
+
+function normalizeZakReviewCentroids(value: unknown): ZakReviewCentroid[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .map((item) => {
+            if (!isRecord(item)) {
+                return null;
+            }
+            const centroidId = normalizeNonEmptyString(item.centroidId, '');
+            if (!centroidId) {
+                return null;
+            }
+            return {
+                centroidId,
+                centroidText: normalizeOptionalString(item.centroidText, ''),
+                dashaRowScoringSummary: Array.isArray(item.dashaRowScoringSummary)
+                    ? item.dashaRowScoringSummary
+                        .map((row) => {
+                            if (!isRecord(row)) {
+                                return null;
+                            }
+                            const rowKey = normalizeRubricRowKey(row.rowKey);
+                            const moduleId = typeof row.moduleId === 'string' && MODULE_IDS.has(row.moduleId as RubricModuleId)
+                                ? row.moduleId as RubricModuleId
+                                : 'module1';
+                            if (!rowKey) {
+                                return null;
+                            }
+                            return {
+                                rowKey,
+                                rowTitle: normalizeNonEmptyString(row.rowTitle, rowKey),
+                                moduleId,
+                                moduleLabel: normalizeNonEmptyString(row.moduleLabel, RUBRIC_MODULE_LABELS[moduleId]),
+                                weight: clampNumber(Math.floor(toNumber(row.weight, 1)), 1, 25),
+                                score: typeof row.score === 'number' ? row.score : null,
+                                applicabilityStatus: row.applicabilityStatus === 'applicable' ? 'applicable' : 'not_applicable',
+                                rationale: normalizeNonEmptyString(row.rationale, ''),
+                                differenceSummary: normalizeNonEmptyString(row.differenceSummary, ''),
+                            };
+                        })
+                        .filter((row): row is ZakReviewCentroid['dashaRowScoringSummary'][number] => Boolean(row))
+                    : [],
+                subtotal: typeof item.subtotal === 'number' ? item.subtotal : null,
+                penaltiesApplied: Array.isArray(item.penaltiesApplied) ? item.penaltiesApplied as DashaAppliedPenalty[] : [],
+                capApplied: isRecord(item.capApplied) ? item.capApplied as DashaAppliedCap : null,
+                finalScore: typeof item.finalScore === 'number' ? item.finalScore : null,
+                clusterSizeTotal: clampNumber(Math.floor(toNumber(item.clusterSizeTotal, 0)), 0, 400),
+                modelBreakdown: Array.isArray(item.modelBreakdown) ? item.modelBreakdown as DashaClusterRecord['modelBreakdown'] : [],
+                representedModelCount: clampNumber(Math.floor(toNumber(item.representedModelCount, 0)), 0, 400),
+                dominantModelName: normalizeNullableString(item.dominantModelName),
+                dominantModelShare: typeof item.dominantModelShare === 'number' ? item.dominantModelShare : 0,
+                caseCitation: normalizeDashaCaseCitationAnalysis(isRecord(item.caseCitation) ? item.caseCitation : null, {
+                    caseMentionStatus: 'none',
+                    extractedCaseMentions: [],
+                    verifiedCaseMentions: [],
+                    hallucinatedCaseMentions: [],
+                    citedCaseCountTotal: 0,
+                    verifiedCaseCount: 0,
+                    hallucinatedCaseCount: 0,
+                    caseExistenceSummary: 'no_case',
+                    citationAccuracyStatus: 'not_applicable',
+                    sourceCaseReferenceStatus: 'not_applicable',
+                    sourceCaseReferenceNote: '',
+                    caseVerificationReviewFlag: false,
+                    note: '',
+                }),
+                shortKarthicEscalationNote: normalizeNonEmptyString(item.shortKarthicEscalationNote, ''),
+            } satisfies ZakReviewCentroid;
+        })
+        .filter((item): item is ZakReviewCentroid => Boolean(item));
+}
+
+function normalizeZakScoringSheetEntries(value: unknown): ZakScoringSheetEntry[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .map((item) => {
+            if (!isRecord(item)) {
+                return null;
+            }
+            const rowKey = normalizeRubricRowKey(item.rowKey);
+            const centroidId = normalizeNonEmptyString(item.centroidId, '');
+            if (!rowKey || !centroidId) {
+                return null;
+            }
+            return {
+                centroidId,
+                rowKey,
+                rowLabel: normalizeNonEmptyString(item.rowLabel, rowKey),
+                shortRowPurpose: normalizeNonEmptyString(item.shortRowPurpose, ''),
+                scoringReminder: normalizeNonEmptyString(item.scoringReminder, ''),
+                smeScore: typeof item.smeScore === 'number' ? clampNumber(item.smeScore, 0, 4) : null,
+                smeNote: normalizeOptionalString(item.smeNote, ''),
+            } satisfies ZakScoringSheetEntry;
+        })
+        .filter((item): item is ZakScoringSheetEntry => Boolean(item));
+}
+
+function normalizeZakDecisionRecord(value: unknown): ZakDecisionRecord {
+    const record = isRecord(value) ? value : {};
+    return {
+        smeSelectedBestCentroid: normalizeNonEmptyString(record.smeSelectedBestCentroid, 'none'),
+        smeConfidence: record.smeConfidence === 'high' || record.smeConfidence === 'medium' || record.smeConfidence === 'low'
+            ? record.smeConfidence
+            : 'not_provided',
+        controllingRowsDrivingDecision: normalizeStringArray(record.controllingRowsDrivingDecision),
+        rubricInstabilityNotes: normalizeOptionalString(record.rubricInstabilityNotes, ''),
+        upstreamRevisionNeededNotes: normalizeOptionalString(record.upstreamRevisionNeededNotes, ''),
+    };
 }
 
 function normalizeDashaModelSummary(value: unknown): DashaModelSummary | null {
@@ -4804,6 +5210,14 @@ async function getRequiredDashaRun(id: string) {
         throw new Error('Dasha run not found.');
     }
     return run;
+}
+
+async function getRequiredZakReview(id: string) {
+    const review = await getZakReview(id);
+    if (!review) {
+        throw new Error('Zak review not found.');
+    }
+    return review;
 }
 
 async function deriveClusterFailureModes(input: {

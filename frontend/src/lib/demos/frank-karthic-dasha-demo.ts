@@ -169,7 +169,7 @@ export const karthicPromptBundles: PromptBundle[] = [
             '07_SHARED_MODULE_SKELETON.txt',
             '08_Karthic_Rubric_Build_Spec_v1.md',
             '09_Cross_Pack_Scoring_Overlays_Caps_Penalties_v1.md',
-            '10_Karthic_PreFill_Instructions.rtf',
+            '50_Karthic_PreFill_Instructions.rtf',
         ],
     },
 ];

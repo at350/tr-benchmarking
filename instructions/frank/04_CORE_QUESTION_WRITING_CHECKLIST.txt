@@ -1,0 +1,254 @@
+CORE QUESTION WRITING CHECKLIST
+For Reverse-Engineered Legal Questions, Benchmark-Matched Hypos, and Clustering Inputs
+
+PURPOSE
+This is the core checklist for turning a source case, statute, Restatement section, doctrine source, or benchmark answer into a neutral, exam-style legal question for evaluation use. Its job is to preserve the target legal path without pre-answering the doctrine.
+
+This file is a core workflow file, not a doctrine pack. Keep it thin. It should standardize reverse-engineered question drafting across supported packs while leaving doctrine-specific content to the selected source and doctrine pack.
+
+SCOPE
+Use this checklist across supported Statute of Frauds packs and similar legal-evaluation workflows. It is designed for questions that will later be:
+- answered by models,
+- compared across runs,
+- clustered by reasoning pattern,
+- and evaluated against a benchmark answer or rubric.
+
+If the selected source or pack is a weak fit for reverse-engineering, do not force a portable question. Use narrower source-grounded drafting or stop for JD review.
+
+USE RULES
+- Use this after source extraction and benchmark-answer drafting, but before the question is finalized.
+- Treat the uploaded source as the substantive authority.
+- Treat the benchmark answer as the target reasoning path.
+- Treat the question as an evaluation input, not as a teaching memo, client-advice prompt, or litigation-strategy prompt.
+- Confirm the selected doctrine family or pack before drafting.
+- Confirm benchmark posture before drafting.
+- If the source and the drafted question conflict, revise the question to match the source.
+- If the source is too weak, too split-dependent, too incomplete, or too procedural to support a stable reverse-engineered question, say so rather than smoothing it over.
+
+BENCHMARK-POSTURE RULES
+Before drafting, identify which benchmark posture governs the benchmark.
+
+Use exactly one of these benchmark-posture values:
+
+1. Narrow source-grounded benchmark only
+- Preserve the source jurisdiction explicitly.
+- Preserve the holding-driving facts closely.
+- Do not silently generalize a source-specific rule into a portable prompt.
+
+2. Generalizable only with supporting authority
+- Do not draft a portable question unless that supporting authority exists.
+- If support is incomplete, keep the question narrower and flag the limit.
+
+3. Portable benchmark under stated assumptions
+- You may simplify source-specific details.
+- But do not simplify away the controlling trigger, strongest counterargument, or any fact that makes the legal path stable.
+- State any assumption needed for portability explicitly.
+
+Treat uncertainty as answer posture, not as a fourth benchmark-posture value.
+If the target benchmark answer is supposed to identify a missing fact, preserve bounded uncertainty, or branch conditionally, keep that posture honestly.
+Do not turn an uncertainty test into a falsely definitive question.
+Do not hide a missing-fact test inside a supposedly clean benchmark.
+
+CORE DESIGN GOALS
+A strong reverse-engineered question should:
+1. Test the controlling doctrine or controlling legal issue first.
+2. Stay neutral in the call of the question.
+3. Preserve only the facts needed to trigger the target legal path and one or two realistic distractors.
+4. Avoid answer leakage.
+5. Stay realistic, concise, and exam-style.
+6. Be easy to compare across outputs and later cluster by legal reasoning.
+7. Preserve explicit jurisdiction or governing-law cues when the benchmark depends on them.
+
+PRE-DRAFT CHECK
+Before writing the question, identify:
+- the selected doctrine family or pack;
+- the likely controlling doctrine or controlling legal issue;
+- the trigger facts that drove the source holding or benchmark answer;
+- the strongest fallback theory or counterargument;
+- which facts are essential and which can be removed;
+- whether jurisdiction, governing law, or governing text must be stated explicitly;
+- whether the target answer posture is definitive or bounded-uncertainty;
+- whether the source is a strong, moderate, or weak candidate for reverse-engineering.
+
+If several of these are unclear, narrow the question or stop for JD review.
+
+QUESTION BODY CHECKLIST
+1. Neutral call of the question
+Use a neutral call such as:
+- Is the agreement enforceable? Analyze.
+- Is the promise enforceable against the promisor? Analyze.
+- Who has the better claim? Analyze.
+- Does the claimant have the better argument for enforcement? Analyze.
+- Is the writing sufficient to make the agreement enforceable? Analyze.
+
+Do NOT:
+- name the governing doctrine in the call unless the user specifically asks for a doctrine-signaled prompt;
+- say what doctrine is controlling;
+- state or strongly imply the likely outcome;
+- pre-label the strongest issue for the model;
+- turn the prompt into a checklist of subissues.
+
+Cross-pack leakage to avoid:
+- "The issue is whether the promise is barred by the Statute of Frauds."
+- "The real question is whether the land description is sufficient."
+- "The case turns on the merchant-confirmation rule."
+- "The issue is whether the personal representative promised in an individual capacity."
+- "The stronger argument is estoppel."
+
+2. Source-fidelity preservation
+Preserve:
+- the parties and their legal roles;
+- the facts that actually drive the holding or benchmark answer;
+- the timing or sequence if legally important;
+- any later conduct that creates a real counterargument;
+- the jurisdiction if the benchmark requires it;
+- any status fact that changes legal treatment, such as buyer versus seller, creditor versus debtor, promisor versus promisee, merchant versus nonmerchant, personal versus representative capacity, or the type of property or transaction involved.
+
+Do NOT:
+- invent a writing, memorandum, signature, land description, quantity term, creditor assent, novation, representative-capacity fact, payment, delivery, acceptance, condition precedent, or later agreement that is not supported by the source;
+- change party roles in a way that changes doctrine;
+- alter timing in a way that changes the legal path;
+- universalize a jurisdiction-specific rule without support;
+- add procedural detail unless it matters to the benchmark path.
+
+3. Fact-pattern discipline
+Ask:
+- Is each fact included because it helps trigger the doctrine, sharpen the counterargument, preserve source fidelity, or preserve the benchmark posture?
+- Can any fact be removed without changing the target analysis?
+- Have I limited the problem to one main doctrinal path plus one or two realistic distractors?
+
+Revise if the question:
+- has too many moving parts;
+- adds side issues that compete with the controlling doctrine;
+- becomes a broad survey instead of a targeted benchmark question;
+- or forces the model to resolve multiple doctrines of equal weight when the benchmark is meant to be narrower.
+
+4. Distractor control
+A good distractor should:
+- be legally plausible;
+- remain subordinate to the controlling doctrine or issue;
+- test whether the model can prioritize correctly;
+- come from the source or a close adaptation of the source.
+
+Do NOT:
+- add distractors that shift the problem into a different controlling doctrine or a different doctrine pack;
+- add more than one or two major distractors unless the task specifically calls for a harder question;
+- let the distractor become more important than the source holding;
+- add salience-only facts that accidentally create a new threshold, defense, or doctrinal path.
+
+5. No answer leakage
+Check whether the question body accidentally reveals:
+- the controlling doctrine;
+- the likely bottom-line outcome;
+- the weakness of the fallback theory;
+- the exact reason later conduct does or does not cure the problem;
+- the specific fact the model is expected to treat as dispositive.
+
+Typical leakage to remove:
+- "The other side argues the claim is barred by the Statute of Frauds."
+- "The issue is whether a signed writing exists."
+- "The real question is whether the merchant confirmation exception applies."
+- "The stronger argument is that the promise was only a conditional gift."
+- "The later payment did not cure the defect."
+
+6. Realism and exam-style fit
+The question should read like a realistic law-school hypo or evaluation prompt.
+Prefer:
+- concrete parties;
+- a clear sequence of events;
+- one clean dispute;
+- a short neutral call for analysis.
+
+Avoid:
+- policy prompts;
+- practical next-step prompts;
+- argumentative set-ups that tell the reader how to think;
+- unnecessary subparts unless requested;
+- remedy or litigation language unless the benchmark actually tests those issues.
+
+7. Explicit jurisdiction and governing-law discipline
+- If the benchmark depends on a jurisdiction-specific rule, the question must expressly state that jurisdiction in the hypo or call.
+- Do not require the model to infer a jurisdiction-specific rule from a silent prompt.
+- If the distinction between common law and UCC treatment matters, make the transaction facts or governing-law cue clear enough that the model does not have to guess the legal frame.
+- If the benchmark posture is portable, do not add unnecessary jurisdictional noise.
+
+QUESTION-WRITING RULES FOR SOURCE-TO-BENCHMARK CONVERSION
+If the question is adapted from a source case or doctrine source:
+- preserve the holding-driving facts first;
+- preserve the fact creating the strongest counterargument, if one exists;
+- simplify background facts that do not matter;
+- convert opinion prose into neutral fact-pattern prose;
+- do not import the court's own doctrinal labels into the call of the question unless the user wants a doctrine-signaled prompt;
+- do not universalize a source-specific rule unless benchmark posture allows it.
+
+QUESTION-WRITING RULES FOR BENCHMARK-ANSWER-TO-QUESTION CONVERSION
+If the question is adapted from a benchmark answer:
+- make sure the facts are sufficient to support the target reasoning path;
+- avoid importing the benchmark answer's conclusion language into the question;
+- keep the strongest counterargument visible enough that wrong-but-plausible answers remain possible;
+- do not write the question so narrowly that only one phrasing style fits the answer;
+- do not let answer headings or evaluation labels leak into the prompt.
+
+OPTIONAL HUMAN-ONLY METADATA BLOCK
+If helpful, add this outside the question body for the research team only:
+- Target doctrine or legal issue:
+- Benchmark posture:
+- Why this question is well matched to the benchmark answer:
+- Likely distractors:
+- Source-fidelity notes:
+
+Do NOT include this block inside the actual prompt shown to the model unless the experiment calls for it.
+
+USER-VISIBLE OUTPUT DISCIPLINE
+The final reverse-engineered question must be question-only unless the user explicitly asks for internal notes.
+
+Do NOT append sentences such as:
+- "This keeps the prompt neutral"
+- "This preserves the holding-driving facts"
+- "This is source-grounded and jurisdiction-sensitive"
+- "This matches the benchmark"
+- "This preserves the benchmark posture"
+- "This keeps the doctrine testable"
+
+Those statements belong, if at all, only in a separate human-only metadata block and only when explicitly requested.
+
+CLUSTERING-FRIENDLY CHECKS
+Before finalizing, ask:
+- Will this question likely produce answers that can still be compared along one main doctrinal path?
+- Have I avoided extra wording that splits answers for the wrong reasons?
+- Is the question specific enough to reduce pointless variance but open enough to allow distinct legal reasoning patterns?
+- Does the question avoid unnecessary abbreviations, doctrinal labels, or stylistic cues that could distort clustering?
+- Are party roles, threshold facts, and timing stated cleanly enough that later controlled variations can change one fact at a time without rewriting the whole hypo?
+
+RED FLAGS
+Revise before release if any of these appear:
+- governing doctrine named in the call of the question;
+- answer or likely outcome leaked in the prompt;
+- invented facts, documents, or legal-status facts;
+- accidental change in party roles;
+- accidental timeline change;
+- too many doctrinal paths of equal weight;
+- distractor now dominates the main issue;
+- practical advice, remedies, or litigation language replacing the target analysis;
+- question no longer fits the benchmark answer, selected pack, or benchmark posture;
+- portable generalization attempted where the source does not support portability;
+- missing jurisdiction despite a jurisdiction-specific benchmark.
+
+FINAL RELEASE CHECK
+Do not finalize unless all are true:
+- The call of the question is neutral.
+- The controlling doctrine or legal issue is testable from the facts without being named.
+- The fact pattern preserves the source's holding-driving facts.
+- Only one main doctrinal path and one or two realistic distractors remain.
+- No unintentional answer leakage remains.
+- The question is realistic and exam-style.
+- The question is suitable for comparison, clustering, and later rubric use.
+- Jurisdiction is explicit if the target benchmark answer requires it.
+- Benchmark posture is respected.
+- If the target benchmark is uncertainty-driven, the question honestly supports bounded uncertainty rather than false definiteness.
+
+OPTIONAL INTERNAL STATUS TAG
+Before finalizing, assign one:
+- Ready
+- Needs targeted revision
+- Needs major rewrite

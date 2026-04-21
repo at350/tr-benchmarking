@@ -1,0 +1,249 @@
+EXECUTOR OR ADMINISTRATOR PERSONAL PROMISE DOCTRINE PACK
+For Gold-Packet Drafting, Benchmark Answers, and Failure-Mode Drafting
+
+PURPOSE
+This file is the Pack 30 substantive doctrine guide for questions whose likely controlling issue is whether an executor, administrator, or other personal representative undertook personal liability for a decedent's preexisting debt or duty, such that the promise must be evidenced by a writing. It is not itself legal authority. It is a reasoning aid for source extraction, benchmark-answer drafting, and failure-mode identification.
+
+SCOPE
+This pack is intentionally narrower than probate or estates law generally. It is designed for:
+- promises by an executor, administrator, or personal representative to answer personally for a decedent's debt or other preexisting duty
+- disputes over whether the representative spoke or signed in a personal capacity or only in a representative capacity
+- questions about whether a signed memorandum, guarantee, settlement note, email, or related writing sufficiently shows a personal undertaking
+- questions about whether a new post-death arrangement is outside this category because there was no preexisting obligation before death
+- questions about suretyship analogy, original-promise characterization, estoppel, restitution, or related workarounds offered after a missing or defective writing
+
+Do not force-fit:
+- ordinary acts of administration in which the representative is paying claims from estate assets only
+- general probate-claim procedure, allowance, priority, insolvency, surcharge, removal, or fiduciary-duty disputes
+- will or trust construction issues
+- land, goods, marriage-consideration, or one-year cases just because estate facts appear in the background
+- suretyship cases with no meaningful personal-representative-capacity issue
+- promises by heirs, beneficiaries, or family members who are not actually acting as personal representatives
+- funeral, service, or supply contracts that are really new post-death bargains unless the source actually tests the executor-category trigger
+
+ROUTING TRIGGER
+Use Pack 30 when the best description of the controlling issue is:
+- whether a personal representative undertook personal liability for estate debt
+- personal versus representative capacity
+- whether a special promise to pay a decedent's obligation from the representative's own funds requires a writing
+- whether the facts are better characterized as a new original undertaking outside the executor-category writing rule
+
+If mixed or unclear, do source extraction first and name the best-fit pack without forcing a final benchmark answer.
+
+USE RULE
+Treat the uploaded case, statute, Restatement section, or doctrine source as the substantive authority. Use this pack as a default framing aid only. If the source conflicts with this pack, the source controls.
+
+DEFAULT FRAMING
+- Default to U.S. common law / Restatement-style framing unless the source requires a specific jurisdiction.
+- Focus on enforceability of the alleged personal undertaking, not general estate administration.
+- Keep personal-versus-representative capacity separate from writing compliance.
+- Distinguish a preexisting decedent obligation from a new post-death contract.
+- Distinguish payment from estate assets from payment from the representative's own funds.
+- Distinguish this category from ordinary suretyship even though the doctrines are closely related.
+- Do not invent letters testamentary, appointment facts, estate solvency, creditor-claim presentation, release language, or signature wording.
+- Do not assume estate background alone makes this a Pack 30 case; characterize the promise first.
+
+SCOPE AND TRIGGER
+Core trigger:
+- The historical Statute of Frauds category covers a special promise by an executor or administrator to answer damages out of the representative's own estate, and modern contract outlines restate the category as a promise by an executor or administrator to pay estate debts out of personal funds.
+- Pack 30 usually applies when the enforceability question turns on whether the representative undertook personal, not merely representative, liability for a decedent's preexisting debt or duty.
+
+What usually fits:
+- executor says, in substance, "If the estate does not pay, I will pay personally."
+- administrator personally guarantees a note or account already owed by the decedent or estate
+- personal representative signs a letter or settlement memo allegedly promising individual payment of an estate obligation
+- creditor sues the representative individually on an oral or defective written promise tied to a preexisting estate debt
+- dispute over whether wording or signature bound the representative personally or only as executor or administrator
+- compromise, extension, or forbearance agreement in which the representative allegedly assumes personal liability for an estate debt
+
+What usually does NOT fit:
+- representative promises only to pay valid claims from estate assets in due course of administration
+- representative merely acknowledges that the estate owes a debt
+- representative enters a new post-death bargain and becomes directly liable on that new contract, rather than guaranteeing a preexisting estate obligation
+- dispute is really about the estate's underlying liability, not the representative's personal undertaking
+- source is centered on probate procedure, claim allowance, or fiduciary misconduct rather than the writing requirement for a special promise
+
+MUST-SEPARATE SUBISSUES
+1. Capacity characterization
+Ask first in what capacity the promise was made:
+- personal or individual
+- representative only
+- mixed or ambiguous capacity
+Do not assume that a title after the signature resolves the issue by itself.
+
+2. Source of payment
+Separate:
+- a promise to pay from estate assets
+from
+- a promise to pay from the representative's own funds or own estate
+This distinction is often dispositive.
+
+3. Timing and source of the underlying obligation
+Ask whether the debt or duty existed before the decedent's death.
+- If yes, the executor-category trigger may be in play.
+- If no, and the representative makes a new post-death bargain, the case may fall outside Pack 30 and into ordinary contract analysis.
+
+4. Executor-category promise versus suretyship versus original undertaking
+Separate:
+- a personal-representative promise falling within this specific category
+- ordinary suretyship or guaranty analysis
+- a new original promise or novation supported by fresh consideration
+Do not collapse these just because they all involve payment of another obligation.
+
+5. Signature and wording
+Separate:
+- whether there is a signed writing
+from
+- whether the writing actually shows a personal undertaking
+Questions to ask:
+- Did the representative sign only as "executor" or "administrator"?
+- Does the text expressly say "personally," "from my own funds," or the equivalent?
+- Does the text instead limit payment to estate assets or estate administration?
+
+6. Counterparty and obligation identification
+Ask:
+- To whom was the promise made?
+- What exact estate debt or duty is involved?
+- Does the writing identify the relevant obligation with enough clarity?
+
+7. Remedy posture and competing claim paths
+Separate:
+- suit against the representative personally
+- claim against the estate on the underlying debt
+- restitution or unjust-enrichment theories for benefits conferred after death
+Failure of the personal promise does not automatically eliminate separate estate remedies.
+
+WRITING SATISFACTION REQUIREMENTS
+Core rule:
+- This category ordinarily requires a signed writing when the representative allegedly promises to answer personally for a decedent's preexisting debt or duty.
+- The writing should show a personal undertaking, not merely a representative promise to administer estate assets.
+
+Practical writing questions:
+- Who signed, and how?
+- Does the writing identify the representative, the decedent or estate obligation, the counterparty, and the personal source of payment?
+- Does the wording show individual liability, or only a statement made in fiduciary capacity?
+- Is the document a final agreement, a guarantee letter, a settlement memo, an email chain, a note, or a collection of related writings?
+- Does a later writing memorialize an earlier promise, or does it instead create a new promise?
+- Is there fresh consideration or release language suggesting a novation or original undertaking rather than a collateral personal guarantee?
+
+Guardrails:
+- Do not assume a signature with fiduciary title automatically creates personal liability.
+- Do not assume omission of a fiduciary title automatically proves personal liability.
+- Do not treat probate filings, inventories, or routine estate correspondence as writings satisfying the personal-undertaking requirement.
+- Do not invent a personal guarantee, creditor release, or novation not supported by the source or facts.
+
+SUBSTITUTES / EXCEPTIONS / FALLBACK THEORIES
+Use only after the main trigger and writing questions.
+
+1. No trigger because the promise is representative only
+Core idea:
+- If the representative promised only to pay from estate assets in representative capacity, Pack 30 may not apply at all. The dispute may instead be about estate liability, claim allowance, or ordinary administration.
+Use carefully:
+- absence of a personal undertaking is usually a trigger failure, not an exception.
+
+2. No trigger because the obligation arose only after death
+Core idea:
+- If the representative enters a new post-death bargain and is directly liable on that bargain, the executor-category rule may not govern because there was no preexisting decedent obligation.
+Use carefully:
+- identify whether the decedent was already bound before death
+- distinguish a new contract from a guarantee of an old debt
+- do not assume every estate-related service is a new obligation
+
+3. Main-purpose or original-promise theories
+Core idea:
+- Some authorities treat this category as analogous to suretyship and extend main-purpose or original-promise reasoning.
+- If the representative's dominant objective was a concrete personal benefit, or if the promise is better characterized as a new direct undertaking, some jurisdictions may place it outside the writing requirement.
+
+Guardrails:
+- Do not discuss main purpose before establishing why the executor category or suretyship analogy is actually in play.
+- Do not equate fiduciary convenience, family sentiment, or moral pressure with a qualifying personal benefit.
+- Flag jurisdiction sensitivity rather than speaking in universals.
+
+4. Promissory or equitable estoppel
+Core idea:
+- Estoppel may occasionally be argued if a creditor, service provider, or other counterparty changes position in reliance on the representative's personal promise.
+
+What to analyze:
+- inducement
+- reasonable reliance
+- concrete detriment
+- whether the jurisdiction allows estoppel to overcome this kind of writing defect
+- whether the remedy would be limited even if estoppel applies
+
+Guardrails:
+- Do not say fairness defeats the statute.
+- Do not let estoppel replace the personal-versus-representative analysis.
+- Do not treat routine continuation of credit or services as automatic detrimental reliance without detail.
+
+5. Restitution or underlying estate claim
+Core idea:
+- Even if the personal promise is unenforceable, the creditor may still have a claim against the estate or a restitutionary remedy for value conferred.
+Use this as a fallback remedy path, not as proof that the personal promise itself is enforceable.
+
+6. Other workarounds
+Use only if the source clearly supports them:
+- novation
+- accord or compromise creating a new personal obligation
+- admission
+- later signed memorandum
+- ratification
+Do not insert these as generic labels without fit analysis.
+
+TYPICAL BOUNDED-UNCERTAINTY POINTS
+The main recurring uncertainty points in executor-category cases are:
+- whether the representative spoke personally or only in fiduciary or representative capacity
+- whether the obligation existed before the decedent's death or arose from a new post-death arrangement
+- whether the jurisdiction preserves this category distinctly, treats it through a neighboring suretyship framework, or modifies the historical language
+- whether the writing or signature shows personal liability or only representative title
+- whether the facts are better characterized as an original undertaking or novation
+- whether any main-purpose-style reasoning applies
+- whether the creditor retains a separate estate claim or restitution remedy even if the personal promise fails
+- whether probate statutes or creditor-claim procedures independently affect the enforcement posture
+
+PACK-SPECIFIC MODEL FAILURE MODES
+Watch especially for these recurring mistakes:
+- Capacity collapse: treats any statement by an executor or administrator as personal promise, or treats every use of fiduciary title as automatic immunity from personal liability.
+- Estate-assets / own-funds confusion: misses that the category is about payment from the representative's own funds.
+- Preexisting-obligation blind spot: ignores whether the debt existed before death and misclassifies a new post-death bargain.
+- Executor-category omission: routes analysis only through suretyship or generic oral-promise rules and never tests the personal-representative category.
+- Automatic Pack 30 trigger: assumes estate background alone makes the executor clause control.
+- Representative-signature overread: treats "Executor" or "Administrator" in the signature line as dispositive without examining the text and context.
+- Invented probate facts: adds appointment validity, estate insolvency, claim allowance, release terms, or creditor assent not found in the source.
+- Main-purpose overread: uses vague personal motive, family obligation, or general convenience to erase the writing requirement.
+- Remedy confusion: conflates unenforceability of the personal promise with extinction of separate estate liability or restitutionary relief.
+- No bounded uncertainty: hides real capacity, timing, or jurisdiction questions behind generic hedging.
+
+ANSWER-STYLE DEFAULTS
+When drafting from this pack:
+- Characterize the promise and capacity first.
+- Name the likely executor or administrator personal-promise trigger early if it fits.
+- Separate personal versus representative capacity from writing sufficiency.
+- Address pre-death versus post-death obligation timing explicitly when the facts suggest it.
+- Keep suretyship analogies secondary unless the source leans on them.
+- Keep fallback theories after the main writing analysis.
+- Distinguish personal liability from estate liability and from restitutionary relief.
+- Use full doctrine names and neutral black-letter-law style.
+- Preserve factual fidelity.
+- If the source is too jurisdiction-specific or probate-heavy to generalize, say so and stop at source extraction plus JD review flags.
+
+OUTPUT-SHAPE RULE
+The canonical benchmark-answer shell is the one in 03_CORE_OUTPUT_SHAPE_AND_PROMPT_STRUCTURE.txt.
+
+Use exactly these headings by default:
+Jurisdiction assumption:
+Bottom-line outcome:
+Controlling doctrine:
+Transaction / formation characterization:
+Writing requirement and trigger:
+Compliance / substitute / exception analysis:
+Other defenses or competing doctrines:
+Strongest counterargument:
+
+Any uncertainty belongs inside "Strongest counterargument."
+
+Use legacy headings only if a controlled backward-compatibility run is expressly requested, and keep the entire run internally consistent.
+
+COMPANION FILES IN PACK 30
+- 31_FAILURE_BANK_EXECUTOR.txt = executor-specific label bank
+- 32_WORKED_SOURCE_EXAMPLE_EXECUTOR.txt = source-grounded illustration
+- 33_CLEAN_BENCHMARK_EXAMPLE_EXECUTOR.txt = clean benchmark-answer model

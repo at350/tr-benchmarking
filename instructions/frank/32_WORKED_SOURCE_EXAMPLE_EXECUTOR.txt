@@ -1,0 +1,80 @@
+32_WORKED_SOURCE_EXAMPLE_EXECUTOR
+For Pack 30 — Executor/Administrator Personal Promise
+
+PURPOSE
+This file is the worked source-grounded example for Pack 30. It is the Pack 30 version of the current source-grounded / audit-tagged worked benchmark example.
+Use it to model:
+- exact headings
+- ordered gate-by-gate reasoning
+- source-grounded analysis
+- uncertainty folded into the strongest counterargument section
+- concise treatment of non-triggered competing doctrines
+
+USE RULES
+- This file is a structure/depth example for Pack 30 executor/administrator personal-promise questions, not a universal substantive answer key.
+- When a specific case, statute, Restatement section, or doctrine source is uploaded, that source controls the legal content.
+- Do not copy this example's facts, fallback theories, or doctrinal emphasis unless the source supports them.
+- Preserve the exact headings in the benchmark answer.
+- Treat all content here as a draft example for human validation.
+
+PACK 30 SCOPE REMINDER
+Use this example only for Pack 30 questions in which the likely controlling issue is whether an executor or administrator undertook personal liability for a decedent's debt or duty, especially where the writing requirement is central.
+
+EXAMPLE SOURCE CONTEXT
+Lead doctrine-source illustration: the executor-administrator Statute of Frauds rule as summarized in the uploaded contract outline's discussion of Restatement (Second) of Contracts § 111.
+Narrow doctrine family: personal promise by an executor or administrator to answer personally for a decedent's debt.
+Why this works as a Pack 30 example:
+- the controlling doctrine is explicit and narrow
+- the key distinction is easy to isolate: personal capacity versus representative capacity
+- the example includes a real bargain/counterargument because the creditor forbears part of the debt
+- the issue can be reverse-engineered into a neutral exam-style question without adding extra doctrine
+- the example stays within Pack 30 scope rather than drifting into land, goods, or marriage analysis
+
+WORKED BENCHMARK ANSWER
+
+Jurisdiction assumption:
+[Supported by source] General U.S. common-law / Restatement-style framing as reflected in the uploaded contract outline's summary of the executor-administrator Statute of Frauds category.
+
+Bottom-line outcome:
+[Inference from source] The better source-grounded answer path is that the creditor cannot enforce the executor's personal promise unless it is set forth in a signed writing. On the stated illustration, the promise falls within the executor-administrator Statute of Frauds category.
+
+Controlling doctrine:
+[Supported by source] The controlling doctrine is the executor-administrator Statute of Frauds category: a contract falls within the Statute of Frauds if the executor or administrator of a deceased person's estate promises to answer personally for a duty of the deceased person, usually a debt.
+[Inference from source] The decisive issue is not merely that estate debt exists, but that the representative allegedly undertook personal liability rather than acting only in representative capacity.
+
+Transaction / formation characterization:
+[Supported by source] The illustration is structured as a new bargain between the creditor and the wife as executor: in exchange for the creditor's promise to forgo $1,000 of the husband's $5,000 debt, she promised to pay the remaining $4,000 personally.
+[Inference from source] That means consideration is not the main difficulty. The central characterization issue is capacity—whether the promise is personal or merely a statement about paying a valid claim from estate assets. On the stated illustration, it is framed as personal.
+
+Writing requirement and trigger:
+[Supported by source] The promise fits the executor-administrator category because the wife, acting as executor, promised to answer personally for the husband's existing debt.
+[Supported by source] The uploaded doctrine source states that this type of contract falls within the Statute of Frauds and requires a signed writing to be enforceable.
+[Inference from source] The category is narrower than a generic estate-payment dispute. What triggers it is the personal undertaking by the representative, not ordinary administration of estate obligations.
+[Inference from source] If the facts instead showed only a promise to pay from estate assets in representative capacity, the same trigger would be much weaker or absent.
+
+Compliance / substitute / exception analysis:
+[Inference from source] Nothing in the illustration indicates a signed memorandum, signed compromise agreement, or other direct compliance with the writing requirement.
+[Inference from source] The creditor's forbearance supplies consideration for the new compromise, but it does not by itself satisfy the writing requirement.
+[Background generalization] Broader estoppel, restitution, or other workaround theories should not be imported into this worked example unless supporting authority is added, because the uploaded doctrine source does not develop substitute doctrines for this category.
+
+Other defenses or competing doctrines:
+[Inference from source] A reader might analogize the promise to suretyship because it involves answering another person's debt. But the cleaner source-grounded path is the executor-administrator category, which specifically addresses a personal promise by a representative of a decedent's estate.
+[Supported by source] The source does not present a separate mistake, condition, or later-excuse issue.
+[Inference from source] This section should stay brief so the capacity trigger and writing requirement remain the visible controller.
+
+Strongest counterargument:
+[Supported by source] The strongest counterargument is that the promise was a fresh bargain: the creditor agreed to forgo $1,000, and the executor personally agreed to pay the reduced balance.
+[Inference from source] That argument explains why there is a real contract-like exchange, but it still does not overcome the source's writing requirement for an executor's personal promise to answer estate debt.
+[Inference from source] The main uncertainty is factual characterization. If a fuller record showed that the representative was promising only to pay from estate assets, not from personal funds, the Pack 30 trigger could weaken materially.
+[Inference from source] A second uncertainty is source posture: this example is built from a doctrine summary rather than a full opinion text, so it is best used as a narrow Pack 30 source-grounded illustration rather than as a broad, jurisdiction-specific authority packet.
+
+WHY THIS IS A GOOD PACK 30 WORKED SOURCE EXAMPLE
+- It names the controlling doctrine early.
+- It keeps the decisive distinction clear: personal promise versus representative payment.
+- It treats the Statute of Frauds as an enforceability bar, not a proof problem.
+- It uses the cross-pack output shell that better fits executor questions.
+- It gives a real counterargument without letting consideration analysis swallow the writing requirement.
+- It folds uncertainty into the strongest counterargument and keeps it tied to capacity characterization and source posture.
+
+PAIRING RULE
+Use this file as the worked source-grounded companion to the Pack 30 clean benchmark example. Use this file for source-grounded / audit-tagged drafting and use the clean example file for evaluator-facing benchmark drafting without support tags.

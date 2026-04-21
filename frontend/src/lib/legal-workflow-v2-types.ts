@@ -431,6 +431,7 @@ export type DashaCitationAccuracyStatus =
     | 'verified_correct'
     | 'verified_partly_correct'
     | 'hallucinated_or_unverifiable';
+export type DashaCaseExistenceSummary = 'no_case' | 'all_verified' | 'mixed' | 'all_unverified';
 export type DashaSourceCaseReferenceStatus =
     | 'not_applicable'
     | 'source_case_cited'
@@ -457,6 +458,10 @@ export type DashaCaseCitationAnalysis = {
     extractedCaseMentions: string[];
     verifiedCaseMentions: string[];
     hallucinatedCaseMentions: string[];
+    citedCaseCountTotal: number;
+    verifiedCaseCount: number;
+    hallucinatedCaseCount: number;
+    caseExistenceSummary: DashaCaseExistenceSummary;
     citationAccuracyStatus: DashaCitationAccuracyStatus;
     sourceCaseReferenceStatus: DashaSourceCaseReferenceStatus;
     sourceCaseReferenceNote: string;
@@ -535,6 +540,7 @@ export type DashaTrackSummary = {
     questionVersion: string;
     rubricType: string;
     rankedCentroidList: string[];
+    disputedCentroidIds: string[];
     bestCentroidByScore: string | null;
     bestCentroidScore: number | null;
     topCentroidVoteSplit: string;
@@ -683,4 +689,92 @@ export type DashaComparisonV2 = {
     errorMessage?: string;
     createdAt: string;
     completedAt: string | null;
+};
+
+export type ZakInvocationMode = 'automatic_dasha_non_majority' | 'manual_review';
+export type ZakReviewWorkflowStatus = Extract<WorkflowStatus, 'draft' | 'completed' | 'failed'>;
+export type ZakPrintablePacketStatus = 'ready' | 'not_ready';
+export type ZakScoreLockStatus = 'ready' | 'not_ready';
+export type ZakUpstreamRevisionTarget = 'none' | 'Frank' | 'Karthic' | 'Dasha';
+export type ZakSmeConfidence = 'high' | 'medium' | 'low' | 'not_provided';
+export type ZakSmeSelectedBestCentroid = 'none' | 'tie' | 'no_adequate_centroid' | string;
+
+export type ZakReviewCentroid = {
+    centroidId: string;
+    centroidText: string;
+    dashaRowScoringSummary: Array<{
+        rowKey: RubricRowKey;
+        rowTitle: string;
+        moduleId: RubricModuleId;
+        moduleLabel: string;
+        weight: number;
+        score: number | null;
+        applicabilityStatus: 'applicable' | 'not_applicable';
+        rationale: string;
+        differenceSummary: string;
+    }>;
+    subtotal: number | null;
+    penaltiesApplied: DashaAppliedPenalty[];
+    capApplied: DashaAppliedCap | null;
+    finalScore: number | null;
+    clusterSizeTotal: number;
+    modelBreakdown: DashaClusterRecord['modelBreakdown'];
+    representedModelCount: number;
+    dominantModelName: string | null;
+    dominantModelShare: number;
+    caseCitation: DashaCaseCitationAnalysis;
+    shortKarthicEscalationNote: string;
+};
+
+export type ZakScoringSheetEntry = {
+    centroidId: string;
+    rowKey: RubricRowKey;
+    rowLabel: string;
+    shortRowPurpose: string;
+    scoringReminder: string;
+    smeScore: number | null;
+    smeNote: string;
+};
+
+export type ZakDecisionRecord = {
+    smeSelectedBestCentroid: ZakSmeSelectedBestCentroid;
+    smeConfidence: ZakSmeConfidence;
+    controllingRowsDrivingDecision: string[];
+    rubricInstabilityNotes: string;
+    upstreamRevisionNeededNotes: string;
+};
+
+export type ZakReviewV1 = {
+    schemaVersion: 1;
+    id: string;
+    status: ZakReviewWorkflowStatus;
+    invocationMode: ZakInvocationMode;
+    dashaRunId: string;
+    rubricPackId: string;
+    rubricTrackId: KarthicRubricTrackId;
+    frankPacketId: string;
+    evaluationTrack: string;
+    questionVersion: string;
+    rubricType: string;
+    dualRubricMode: 'on' | 'off';
+    selectedLaneCode: FrankControllerCardSelectedLaneCode;
+    topCentroidVoteSplit: string;
+    disputedCentroidIds: string[];
+    packetReviewReady: boolean;
+    printablePacketStatus: ZakPrintablePacketStatus;
+    printablePacketContentsSummary: string;
+    printablePacketCanBeAssembled: boolean;
+    activeQuestionText: string;
+    activeRubricRows: KarthicRubricRow[];
+    disputedCentroids: ZakReviewCentroid[];
+    scoringSheet: ZakScoringSheetEntry[];
+    decisionRecord: ZakDecisionRecord;
+    scoreLockStatus: ZakScoreLockStatus;
+    upstreamRevisionTarget: ZakUpstreamRevisionTarget;
+    dispositionNote: string;
+    exportAvailabilityNote: string;
+    createdAt: string;
+    updatedAt: string;
+    completedAt: string | null;
+    errorMessage?: string;
 };

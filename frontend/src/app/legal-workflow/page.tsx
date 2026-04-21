@@ -28,6 +28,7 @@ import type {
     PromptGenerationSettingsByKind,
     QuestionVarianceMenuOption,
     ReasoningEffort,
+    ZakReviewV1,
 } from '@/lib/legal-workflow-v2-types';
 import {
     MODEL_OPTIONS_BY_PROVIDER,
@@ -396,12 +397,16 @@ const WORKFLOW_STAGE_GUIDES: Record<WorkflowStageId, WorkflowStageGuide> = {
         promptNote: 'The raw cluster JSON stays in the Dasha Cluster stage. This results stage is the scored explorer for judged runs.',
     },
     zak_review: {
-        purpose: 'Review the Dasha run for instability, caps, penalties, or other flags that should escalate the packet for SME inspection.',
+        purpose: 'Assemble and review the Zak SME packet for disputed best-centroid outcomes or manual escalations after Dasha.',
         stopRules: [
-            'Zak is shown as its own top-level block even though auto-triggering is not implemented yet.',
-            'Use this as the manual handoff point when a Dasha run needs human review.',
+            'Automatic Zak escalation should follow the simplified Dasha no-majority rule.',
+            'Manual Zak creation is still allowed when you want an SME packet for a judged Dasha run.',
         ],
-        promptNote: 'The current branch exposes Zak in the pipeline structure, but escalation is still manual rather than automated.',
+        promptFiles: [
+            '61_Zak_SME_Review_Spec_v1.md',
+            '62_Zak_SME_Review_Instructions_v1.txt',
+        ],
+        promptNote: 'Zak packets are now created from judged Dasha runs and keep the disputed centroid set, active rubric, and SME decision fields together.',
     },
 };
 
@@ -467,6 +472,8 @@ export function LegalWorkflowPageClient({
 
     const [dashaRuns, setDashaRuns] = useState<DashaRunV2[]>([]);
     const [selectedRunId, setSelectedRunId] = useState('');
+    const [zakReviews, setZakReviews] = useState<ZakReviewV1[]>([]);
+    const [selectedZakId, setSelectedZakId] = useState('');
     const [dashaRubricPackId, setDashaRubricPackId] = useState('');
     const [sampleCount, setSampleCount] = useState('120');
     const [selectedModelKeys, setSelectedModelKeys] = useState<string[]>(DEFAULT_SELECTED_MODEL_KEYS);
@@ -549,6 +556,14 @@ export function LegalWorkflowPageClient({
     const selectedRun = useMemo(
         () => visibleDashaRuns.find((run) => run.id === selectedRunId) ?? visibleDashaRuns[0] ?? null,
         [selectedRunId, visibleDashaRuns],
+    );
+    const visibleZakReviews = useMemo(
+        () => selectedRun ? zakReviews.filter((review) => review.dashaRunId === selectedRun.id) : zakReviews,
+        [selectedRun, zakReviews],
+    );
+    const selectedZakReview = useMemo(
+        () => visibleZakReviews.find((review) => review.id === selectedZakId) ?? visibleZakReviews[0] ?? null,
+        [selectedZakId, visibleZakReviews],
     );
     useEffect(() => {
         setHasMounted(true);
@@ -649,6 +664,15 @@ export function LegalWorkflowPageClient({
     }, [selectedRun?.id, selectedRun?.judgeSettings.model, selectedRun?.judgeSettings.reasoningEffort]);
 
     useEffect(() => {
+        if (!selectedZakId && visibleZakReviews.length > 0) {
+            setSelectedZakId(visibleZakReviews[0].id);
+        }
+        if (selectedZakId && !visibleZakReviews.some((review) => review.id === selectedZakId)) {
+            setSelectedZakId(visibleZakReviews[0]?.id ?? '');
+        }
+    }, [selectedZakId, visibleZakReviews]);
+
+    useEffect(() => {
         if (!selectedRunId || selectedRun?.status !== 'draft' || selectedRun?.workflowStage !== 'cluster_pending') {
             return;
         }
@@ -693,15 +717,17 @@ export function LegalWorkflowPageClient({
         setIsLoading(true);
         setErrorMessage(null);
         try {
-            const [frankRes, rubricRes, runRes] = await Promise.all([
+            const [frankRes, rubricRes, runRes, zakRes] = await Promise.all([
                 fetch('/api/frank-packets', { cache: 'no-store' }),
                 fetch('/api/karthic-rubric-packs', { cache: 'no-store' }),
                 fetch('/api/dasha-runs', { cache: 'no-store' }),
+                fetch('/api/zak-reviews', { cache: 'no-store' }),
             ]);
-            const [frankJson, rubricJson, runJson] = await Promise.all([
+            const [frankJson, rubricJson, runJson, zakJson] = await Promise.all([
                 readJsonResponse<{ items?: FrankPacketV2[]; error?: string }>(frankRes, 'Failed to load Frank packets.'),
                 readJsonResponse<{ items?: KarthicRubricPackV2[]; error?: string }>(rubricRes, 'Failed to load Karthic rubric packs.'),
                 readJsonResponse<{ items?: DashaRunV2[]; error?: string }>(runRes, 'Failed to load Dasha runs.'),
+                readJsonResponse<{ items?: ZakReviewV1[]; error?: string }>(zakRes, 'Failed to load Zak reviews.'),
             ]);
             if (!frankRes.ok) {
                 throw new Error(frankJson.error || 'Failed to load Frank packets.');
@@ -712,9 +738,13 @@ export function LegalWorkflowPageClient({
             if (!runRes.ok) {
                 throw new Error(runJson.error || 'Failed to load Dasha runs.');
             }
+            if (!zakRes.ok) {
+                throw new Error(zakJson.error || 'Failed to load Zak reviews.');
+            }
             setFrankPackets(sortByUpdated(Array.isArray(frankJson.items) ? frankJson.items as FrankPacketV2[] : []));
             setRubricPacks(sortByUpdated(Array.isArray(rubricJson.items) ? rubricJson.items as KarthicRubricPackV2[] : []));
             setDashaRuns(sortRuns(Array.isArray(runJson.items) ? runJson.items as DashaRunV2[] : []));
+            setZakReviews(sortByUpdated(Array.isArray(zakJson.items) ? zakJson.items as ZakReviewV1[] : []));
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to load workflow data.');
         } finally {
@@ -1299,15 +1329,56 @@ export function LegalWorkflowPageClient({
                 }
                 judgedRuns.push(json.item as DashaRunV2);
             }
+            const zakResponse = await fetch('/api/zak-reviews', { cache: 'no-store' });
+            const zakJson = await readJsonResponse<{ items?: ZakReviewV1[]; error?: string }>(zakResponse, 'Failed to refresh Zak reviews.');
+            if (!zakResponse.ok) {
+                throw new Error(zakJson.error || 'Failed to refresh Zak reviews.');
+            }
             setDashaRuns((current) => sortRuns([
                 ...judgedRuns,
                 ...current.filter((run) => !judgedRuns.some((item) => item.id === run.id)),
             ]));
+            setZakReviews(sortByUpdated(Array.isArray(zakJson.items) ? zakJson.items as ZakReviewV1[] : []));
             setSelectedRunId(judgedRuns[0]?.id ?? '');
             setStatusMessage(judgedRuns.length > 1 ? 'Two Dasha evaluations completed.' : 'Dasha judging completed.');
             goToStage('dasha_results');
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Failed to judge clustered Dasha run.');
+            setStatusMessage(null);
+        }
+    }
+
+    async function createZakReview(invocationMode: 'manual_review' | 'automatic_dasha_non_majority' = 'manual_review') {
+        if (!selectedRun) {
+            setErrorMessage('Select a judged Dasha run first.');
+            return;
+        }
+        if (selectedRun.status !== 'completed' || selectedRun.workflowStage !== 'judged') {
+            setErrorMessage('Zak review requires a completed judged Dasha run.');
+            return;
+        }
+        setErrorMessage(null);
+        setStatusMessage('Creating Zak review packet...');
+        try {
+            const response = await fetch('/api/zak-reviews', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    dashaRunId: selectedRun.id,
+                    invocationMode,
+                }),
+            });
+            const json = await readJsonResponse<{ item?: ZakReviewV1; error?: string }>(response, 'Failed to create Zak review packet.');
+            if (!response.ok) {
+                throw new Error(json.error || 'Failed to create Zak review packet.');
+            }
+            const item = json.item as ZakReviewV1;
+            setZakReviews((current) => sortByUpdated([item, ...current.filter((review) => review.id !== item.id)]));
+            setSelectedZakId(item.id);
+            setStatusMessage('Zak review packet created.');
+            goToStage('zak_review');
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Failed to create Zak review packet.');
             setStatusMessage(null);
         }
     }
@@ -1470,14 +1541,16 @@ export function LegalWorkflowPageClient({
                 case 'zak_review':
                     return {
                         ...stage,
-                        complete: false,
+                        complete: Boolean(selectedZakReview?.status === 'completed'),
                         unlocked: Boolean(selectedRun),
                         blocked: false,
                         statusLabel: selectedRun
-                            ? selectedRun.status === 'failed'
-                                ? 'Review'
+                            ? selectedZakReview
+                                ? selectedZakReview.status === 'completed'
+                                    ? 'Complete'
+                                    : 'Packet ready'
                                 : selectedRun.status === 'completed'
-                                    ? 'Review'
+                                    ? 'Open'
                                     : 'Pending run'
                             : 'Locked',
                     };
@@ -1508,6 +1581,7 @@ export function LegalWorkflowPageClient({
         hasSeedRubric,
         hasJudgedRun,
         selectedRun,
+        selectedZakReview,
         selectedRun?.status,
         selectedRun?.workflowStage,
     ]);
@@ -2495,35 +2569,74 @@ export function LegalWorkflowPageClient({
                     <>
                         <SectionHeader title={currentStage.title} description={currentStage.description} />
                         <div className="mt-4 space-y-4">
-                            <Banner tone="info" text="Zak now follows the simplified Dasha rule: only a no-majority best-centroid decision should escalate. In the current single-judge setup that usually means no automatic Zak review is needed." />
+                            <Banner
+                                tone={selectedRun?.trackSummary?.bestCentroidZakReviewFlag ? 'warning' : 'info'}
+                                text={selectedRun?.trackSummary?.bestCentroidZakReviewFlag
+                                    ? 'This judged Dasha run triggered Zak under the simplified rule because the best-centroid decision ended in a disputed no-majority result.'
+                                    : 'Zak follows the simplified Dasha rule: disputed best-centroid decisions trigger automatic review packets, and manual review packets remain available for judged runs.'}
+                            />
                             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr),320px]">
                                 <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
-                                    <div>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Manual Escalation Point</p>
-                                        <p className="mt-2 text-sm text-slate-600">
-                                            This is where disputed Dasha outcomes should hand off for SME review. The current branch saves the Dasha majority result and case-verification flags, but still keeps the actual Zak handoff human-reviewed.
-                                        </p>
+                                    <Field label="Judged Dasha run">
+                                        <select className={inputClassName} value={selectedRun?.id ?? ''} onChange={(event) => setSelectedRunId(event.target.value)}>
+                                            <option value="">Select judged Dasha run</option>
+                                            {visibleDashaRuns.filter((run) => run.status === 'completed' && run.workflowStage === 'judged').map((run) => (
+                                                <option key={run.id} value={run.id}>
+                                                    {run.id} · {run.rubricTrackId === 'selected_variation' ? 'variation' : 'base'}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </Field>
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <button
+                                            className={primaryButtonClassName}
+                                            disabled={isWorkflowActionPending || !selectedRun || selectedRun.status !== 'completed' || selectedRun.workflowStage !== 'judged'}
+                                            onClick={() => void createZakReview('manual_review')}
+                                        >
+                                            Create Zak Review Packet
+                                        </button>
+                                        {selectedRun?.trackSummary?.bestCentroidZakReviewFlag ? (
+                                            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-amber-800">
+                                                Auto-triggered run
+                                            </span>
+                                        ) : null}
                                     </div>
+                                    <Field label="Saved Zak review">
+                                        <select className={inputClassName} value={selectedZakReview?.id ?? ''} onChange={(event) => setSelectedZakId(event.target.value)}>
+                                            <option value="">Select Zak review</option>
+                                            {visibleZakReviews.map((review) => (
+                                                <option key={review.id} value={review.id}>
+                                                    {review.id} · {review.invocationMode === 'automatic_dasha_non_majority' ? 'auto' : 'manual'} · {review.status}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </Field>
                                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                                         <p className="font-semibold text-slate-900">Current Zak rule</p>
                                         <ul className="mt-3 space-y-2">
                                             <li>No strict majority on the best centroid should escalate to Zak.</li>
                                             <li>Case-verification ambiguity is recorded, but does not escalate by itself under the simplified Dasha rule.</li>
-                                            <li>Penalties and caps remain visible for human review, but they do not auto-trigger Zak on their own.</li>
+                                            <li>Manual Zak packet creation is still available for any judged Dasha run.</li>
                                         </ul>
                                     </div>
                                 </div>
                                 <div className="space-y-4">
                                     {selectedRun ? (
                                         <>
-                                            <ReadOnlyTextCard title="Selected Dasha run" text={`${selectedRun.id}\nStatus: ${selectedRun.status}\nRun mode: ${selectedRun.runMode}\nSaved judge: ${formatGenerationSettingInline(selectedRun.judgeSettings)}\nJudge override: ${formatGenerationSettingInline(judgeSettingsDraft)}`} />
-                                            <ReadOnlyTextCard title="Clustering notes" text={selectedRun.clusteringNotes ?? 'No clustering notes saved for this run.'} />
+                                            <ReadOnlyTextCard title="Selected Dasha run" text={`${selectedRun.id}\nStatus: ${selectedRun.status}\nRun mode: ${selectedRun.runMode}\nTrack: ${selectedRun.rubricTrackId === 'selected_variation' ? 'Selected variation' : 'Original question'}\nVote split: ${selectedRun.trackSummary?.topCentroidVoteSplit ?? 'not_applicable'}\nMajority: ${selectedRun.trackSummary?.panelMajorityStatus ?? 'not_applicable'}`} />
+                                            <ReadOnlyTextCard title="Zak packet status" text={selectedZakReview ? `${selectedZakReview.id}\nInvocation: ${selectedZakReview.invocationMode}\nPrintable packet: ${selectedZakReview.printablePacketStatus}\nDisputed centroids: ${selectedZakReview.disputedCentroidIds.join(', ') || 'None'}\nScore lock: ${selectedZakReview.scoreLockStatus}` : 'No Zak review packet has been created for this run yet.'} />
                                         </>
                                     ) : (
-                                        <EmptyPanelCopy text="Run Dasha first, then use Zak as the review handoff block for unstable or questionable outcomes." />
+                                        <EmptyPanelCopy text="Run and judge Dasha first, then create or inspect the corresponding Zak review packet here." />
                                     )}
                                 </div>
                             </div>
+                            {selectedZakReview ? (
+                                <div className="grid gap-4 xl:grid-cols-2">
+                                    <ReadOnlyJsonCard title="Zak disputed centroids" value={selectedZakReview.disputedCentroids} />
+                                    <ReadOnlyJsonCard title="Zak SME scoring sheet" value={selectedZakReview.scoringSheet} />
+                                </div>
+                            ) : null}
                         </div>
                     </>
                 );
