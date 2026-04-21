@@ -1,11 +1,11 @@
 {
   "schemaVersion": 2,
   "id": "frank_v2_1776789542515_aef60ce7",
-  "status": "draft",
+  "status": "approved",
   "phase": "question",
   "legalDomain": "Statute of Frauds",
   "sourceFamily": "uploaded_authority",
-  "title": "ANGELMIRE GOLD RUN",
+  "title": "ANGELMIRE (silver) RUN",
   "selectedPack": "pack10",
   "routingReason": "This is a direct Statute of Frauds source focused on agreements made in consideration of marriage. The core holding is that an oral promise to confer a beneficiary designation in exchange for marriage is void unless in writing, and that the later marriage does not count as part performance to avoid the statute. That makes it a best-fit authority for the marriage-consideration SOF pack.",
   "secondaryIssues": [
@@ -485,7 +485,7 @@
   },
   "benchmarkWarnings": [],
   "questionWarnings": [],
-  "approvedAt": null,
+  "approvedAt": "2026-04-21T18:35:44.634Z",
   "createdAt": "2026-04-21T16:39:02.515Z",
-  "updatedAt": "2026-04-21T17:06:17.213Z"
+  "updatedAt": "2026-04-21T19:07:07.552Z"
 }

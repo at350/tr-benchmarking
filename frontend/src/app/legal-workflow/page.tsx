@@ -1,7 +1,7 @@
 'use client';
 
 import { startTransition, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, Check, CheckCircle2, ChevronDown, ChevronRight, Loader2, Network, Pencil, Save, Scale, ScrollText, ShieldAlert, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Check, CheckCircle2, ChevronDown, ChevronRight, Loader2, Network, Pencil, Plus, Save, Scale, ScrollText, ShieldAlert, Trash2, X } from 'lucide-react';
 
 import { DashaResultsExplorer } from '@/components/DashaResultsExplorer';
 import { AppShell } from '@/components/ui/AppShell';
@@ -468,6 +468,7 @@ export function LegalWorkflowPageClient({
     const [activeAction, setActiveAction] = useState<WorkflowActionState | null>(null);
     const [isRunManagerCollapsed, setIsRunManagerCollapsed] = useState(false);
     const [isRunRenameMode, setIsRunRenameMode] = useState(false);
+    const [isStartNewMode, setIsStartNewMode] = useState(false);
     const [runRenameDraft, setRunRenameDraft] = useState('');
     const [isStatusDockCollapsed, setIsStatusDockCollapsed] = useState(false);
     const [visibleStage, setVisibleStage] = useState<WorkflowStageId>('source');
@@ -577,18 +578,22 @@ export function LegalWorkflowPageClient({
         () => dashaRubricPackId ? dashaRuns.filter((run) => run.rubricPackId === dashaRubricPackId) : dashaRuns,
         [dashaRubricPackId, dashaRuns],
     );
-    const selectedRun = useMemo(
-        () => visibleDashaRuns.find((run) => run.id === selectedRunId) ?? visibleDashaRuns[0] ?? null,
-        [selectedRunId, visibleDashaRuns],
-    );
+    const selectedRun = useMemo(() => {
+        if (isStartNewMode && !selectedRunId) {
+            return null;
+        }
+        return visibleDashaRuns.find((run) => run.id === selectedRunId) ?? visibleDashaRuns[0] ?? null;
+    }, [isStartNewMode, selectedRunId, visibleDashaRuns]);
     const visibleZakReviews = useMemo(
-        () => selectedRun ? zakReviews.filter((review) => review.dashaRunId === selectedRun.id) : zakReviews,
-        [selectedRun, zakReviews],
+        () => selectedRun ? zakReviews.filter((review) => review.dashaRunId === selectedRun.id) : isStartNewMode ? [] : zakReviews,
+        [isStartNewMode, selectedRun, zakReviews],
     );
-    const selectedZakReview = useMemo(
-        () => visibleZakReviews.find((review) => review.id === selectedZakId) ?? visibleZakReviews[0] ?? null,
-        [selectedZakId, visibleZakReviews],
-    );
+    const selectedZakReview = useMemo(() => {
+        if (isStartNewMode && !selectedZakId) {
+            return null;
+        }
+        return visibleZakReviews.find((review) => review.id === selectedZakId) ?? visibleZakReviews[0] ?? null;
+    }, [isStartNewMode, selectedZakId, visibleZakReviews]);
     const currentRunContext = useMemo(() => {
         const stageShortLabel = WORKFLOW_STAGES.find((stage) => stage.id === visibleStage)?.shortLabel ?? 'Run';
         const rubricPackFromRun = selectedRun
@@ -680,10 +685,13 @@ export function LegalWorkflowPageClient({
     }, []);
 
     useEffect(() => {
+        if (isStartNewMode) {
+            return;
+        }
         if (!selectedFrankId && frankPackets.length > 0) {
             applyFrankPacket(frankPackets[0]);
         }
-    }, [frankPackets, selectedFrankId]);
+    }, [frankPackets, isStartNewMode, selectedFrankId]);
 
     useEffect(() => {
         if (selectedFrankId) {
@@ -737,10 +745,34 @@ export function LegalWorkflowPageClient({
     }, [frankEditor?.id, frankEditor?.questionVariance.activePackageId, frankEditor?.questionVariance.menu, frankEditor?.questionVariance.packages]);
 
     useEffect(() => {
-        if (!selectedRubricId && rubricPacks.length > 0) {
-            applyRubricPack(rubricPacks[0]);
+        if (selectedRubricId) {
+            return;
         }
-    }, [rubricPacks, selectedRubricId]);
+        if (selectedFrankId) {
+            const linkedPack = sortByUpdated(rubricPacks.filter((item) => item.frankPacketId === selectedFrankId))[0] ?? null;
+            if (linkedPack) {
+                setSelectedRubricId(linkedPack.id);
+                setRubricEditor(clone(linkedPack));
+                if (linkedPack.status === 'approved') {
+                    setDashaRubricPackId(linkedPack.id);
+                }
+            } else {
+                setRubricEditor(null);
+            }
+            return;
+        }
+        if (isStartNewMode) {
+            return;
+        }
+        if (rubricPacks.length > 0) {
+            const [firstPack] = rubricPacks;
+            setSelectedRubricId(firstPack.id);
+            setRubricEditor(clone(firstPack));
+            if (firstPack.status === 'approved') {
+                setDashaRubricPackId(firstPack.id);
+            }
+        }
+    }, [isStartNewMode, rubricPacks, selectedFrankId, selectedRubricId]);
 
     useEffect(() => {
         if (selectedRubricId) {
@@ -752,10 +784,37 @@ export function LegalWorkflowPageClient({
     }, [rubricPacks, selectedRubricId]);
 
     useEffect(() => {
+        if (!selectedFrankId || !selectedRubricId) {
+            return;
+        }
+        const selectedPack = rubricPacks.find((item) => item.id === selectedRubricId);
+        if (!selectedPack || selectedPack.frankPacketId === selectedFrankId) {
+            return;
+        }
+        const linkedPack = sortByUpdated(rubricPacks.filter((item) => item.frankPacketId === selectedFrankId))[0] ?? null;
+        if (linkedPack) {
+            setSelectedRubricId(linkedPack.id);
+            setRubricEditor(clone(linkedPack));
+            if (linkedPack.status === 'approved') {
+                setDashaRubricPackId(linkedPack.id);
+            }
+            return;
+        }
+        setSelectedRubricId('');
+        setRubricEditor(null);
+        if (dashaRubricPackId === selectedPack.id) {
+            setDashaRubricPackId('');
+        }
+    }, [dashaRubricPackId, rubricPacks, selectedFrankId, selectedRubricId]);
+
+    useEffect(() => {
+        if (isStartNewMode) {
+            return;
+        }
         if (!selectedRunId && visibleDashaRuns.length > 0) {
             setSelectedRunId(visibleDashaRuns[0].id);
         }
-    }, [selectedRunId, visibleDashaRuns]);
+    }, [isStartNewMode, selectedRunId, visibleDashaRuns]);
 
     useEffect(() => {
         if (selectedRun?.judgeSettings) {
@@ -764,13 +823,16 @@ export function LegalWorkflowPageClient({
     }, [selectedRun?.id, selectedRun?.judgeSettings]);
 
     useEffect(() => {
+        if (isStartNewMode) {
+            return;
+        }
         if (!selectedZakId && visibleZakReviews.length > 0) {
             setSelectedZakId(visibleZakReviews[0].id);
         }
         if (selectedZakId && !visibleZakReviews.some((review) => review.id === selectedZakId)) {
             setSelectedZakId(visibleZakReviews[0]?.id ?? '');
         }
-    }, [selectedZakId, visibleZakReviews]);
+    }, [isStartNewMode, selectedZakId, visibleZakReviews]);
 
     useEffect(() => {
         if (!selectedRunId || selectedRun?.status !== 'draft' || selectedRun?.workflowStage !== 'cluster_pending') {
@@ -862,11 +924,18 @@ export function LegalWorkflowPageClient({
     }
 
     function applyFrankPacket(packet: FrankPacketV2) {
+        setIsStartNewMode(false);
         setSelectedFrankId(packet.id);
         setFrankEditor(clone(packet));
     }
 
     function applyRubricPack(pack: KarthicRubricPackV2) {
+        setIsStartNewMode(false);
+        const linkedPacket = frankPackets.find((item) => item.id === pack.frankPacketId);
+        if (linkedPacket && linkedPacket.id !== selectedFrankId) {
+            setSelectedFrankId(linkedPacket.id);
+            setFrankEditor(clone(linkedPacket));
+        }
         setSelectedRubricId(pack.id);
         setRubricEditor(clone(pack));
         if (pack.status === 'approved') {
@@ -902,6 +971,27 @@ export function LegalWorkflowPageClient({
             ? sortByUpdated(zakReviews.filter((review) => review.dashaRunId === nextRun.id))[0] ?? null
             : null;
         setSelectedZakId(nextZakReview?.id ?? '');
+    }
+
+    function startNewWorkflowRun() {
+        setIsStartNewMode(true);
+        setErrorMessage(null);
+        setStatusMessage('Cleared the current run view. Choose files or a benchmark case to start a fresh run.');
+        setIsRunRenameMode(false);
+        setRunRenameDraft('');
+        setSelectedFrankId('');
+        setFrankEditor(null);
+        setSelectedRubricId('');
+        setRubricEditor(null);
+        setDashaRubricPackId('');
+        setSelectedRunId('');
+        setSelectedZakId('');
+        setSelectedBenchmarkTemplateKey('');
+        setUploadRows([]);
+        setNewPacketTitle('');
+        setSelectedVariationOptionId('');
+        setSelectedVariationSwapIdsByOptionId({});
+        goToStage('source');
     }
 
     function updateRubricEditor(mutator: (current: KarthicRubricPackV2) => KarthicRubricPackV2) {
@@ -1835,7 +1925,7 @@ export function LegalWorkflowPageClient({
                     return {
                         ...stage,
                         complete: Boolean(hasSeedRubric),
-                        unlocked: hasApprovedFrank,
+                        unlocked: hasApprovedFrank || hasSeedRubric,
                         blocked: false,
                         statusLabel: hasSeedRubric ? 'Drafted' : hasApprovedFrank ? 'Open' : 'Locked',
                     };
@@ -3010,6 +3100,7 @@ export function LegalWorkflowPageClient({
                         savePending={false}
                         canRename={false}
                         canDelete={false}
+                        canStartNew={false}
                         renamePending={false}
                         deletePending={false}
                         isRenameMode={false}
@@ -3022,6 +3113,7 @@ export function LegalWorkflowPageClient({
                         onCancelRename={() => {}}
                         onConfirmRename={() => {}}
                         onDelete={() => {}}
+                        onStartNew={() => {}}
                     />
                     <WorkflowStatusDock
                         collapsed={isStatusDockCollapsed}
@@ -3152,6 +3244,7 @@ export function LegalWorkflowPageClient({
                     savePending={Boolean(isRunSavePending)}
                     canRename={Boolean(currentRunContext.frankPacket)}
                     canDelete={Boolean(currentRunContext.frankPacket)}
+                    canStartNew={!isWorkflowActionPending}
                     renamePending={activeAction?.id === 'rename_run'}
                     deletePending={activeAction?.id === 'delete_frank'}
                     isRenameMode={isRunRenameMode}
@@ -3167,6 +3260,7 @@ export function LegalWorkflowPageClient({
                     }}
                     onConfirmRename={() => void renameCurrentRun()}
                     onDelete={() => currentRunContext.frankPacket ? void deleteFrank(currentRunContext.frankPacket.id) : undefined}
+                    onStartNew={startNewWorkflowRun}
                 />
                 <WorkflowStatusDock
                     collapsed={isStatusDockCollapsed}
@@ -3286,6 +3380,22 @@ function buildBlockProgressLabel(
         return 'Single-step block';
     }
     return `Step ${Math.max(currentBlockStepIndex + 1, 1)} of ${blockStageCount}`;
+}
+
+type RunManagerItemKind = 'frank' | 'rubric';
+
+function buildRunManagerItemId(kind: RunManagerItemKind, id: string) {
+    return `${kind}:${id}`;
+}
+
+function parseRunManagerItemId(value: string): { kind: RunManagerItemKind; id: string } | null {
+    if (value.startsWith('frank:')) {
+        return { kind: 'frank', id: value.slice('frank:'.length) };
+    }
+    if (value.startsWith('rubric:')) {
+        return { kind: 'rubric', id: value.slice('rubric:'.length) };
+    }
+    return null;
 }
 
 function getBlockIcon(blockId: WorkflowBlockId) {
@@ -4235,6 +4345,7 @@ function RunManagerDock({
     savePending,
     canRename,
     canDelete,
+    canStartNew,
     renamePending,
     deletePending,
     isRenameMode,
@@ -4247,6 +4358,7 @@ function RunManagerDock({
     onCancelRename,
     onConfirmRename,
     onDelete,
+    onStartNew,
 }: {
     collapsed: boolean;
     runName: string;
@@ -4258,6 +4370,7 @@ function RunManagerDock({
     savePending: boolean;
     canRename: boolean;
     canDelete: boolean;
+    canStartNew: boolean;
     renamePending: boolean;
     deletePending: boolean;
     isRenameMode: boolean;
@@ -4270,6 +4383,7 @@ function RunManagerDock({
     onCancelRename: () => void;
     onConfirmRename: () => void;
     onDelete: () => void;
+    onStartNew: () => void;
 }) {
     const statsText = stats.join(' · ');
 
@@ -4320,7 +4434,7 @@ function RunManagerDock({
                             />
                         </div>
                     ) : (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                             <select
                                 className={compactRunSelectClassName}
                                 value={selectedRunId}
@@ -4353,6 +4467,15 @@ function RunManagerDock({
                                 title={deletePending ? 'Deleting…' : 'Delete'}
                                 tone="danger"
                             />
+                            <button
+                                className={compactTextButtonClassName}
+                                disabled={!canStartNew}
+                                onClick={onStartNew}
+                                type="button"
+                            >
+                                <Plus className="h-3.5 w-3.5" />
+                                Start new
+                            </button>
                         </div>
                     )}
                 </div>
@@ -4814,3 +4937,4 @@ const compactRunInputClassName = 'min-w-0 flex-1 rounded-lg border border-slate-
 const compactRunSelectClassName = 'min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400';
 const compactIconButtonClassName = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';
 const compactDangerIconButtonClassName = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';
+const compactTextButtonClassName = 'inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400';
