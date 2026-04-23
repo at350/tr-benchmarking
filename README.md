@@ -7,23 +7,19 @@
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [The Problem](#the-problem)
-3. [Core Insight](#core-insight)
-4. [System Architecture](#system-architecture)
-5. [Pipeline Modules](#pipeline-modules)
-   - [LSH — Baseline Clustering Module](#lsh--baseline-clustering-module)
-   - [LSH-IRAC — Structured Reasoning Pipeline](#lsh-irac--structured-reasoning-pipeline)
-   - [Rubric Automation (RRD)](#rubric-automation-rrd)
-   - [Legal Auto-Eval Pipeline](#legal-auto-eval-pipeline)
-   - [Frontend — Benchmarking Portal](#frontend--benchmarking-portal)
-6. [Models Evaluated](#models-evaluated)
-7. [Datasets](#datasets)
-8. [Repository Structure](#repository-structure)
-9. [Setup & Installation](#setup--installation)
-10. [Running the Benchmark](#running-the-benchmark)
-11. [Output Format](#output-format)
-12. [Roadmap](#roadmap)
-13. [Why This Matters](#why-this-matters)
+2. [What’s in this repo](#whats-in-this-repo)
+3. [End-to-end pipeline (Frank → Karthic → Dasha → Zak)](#end-to-end-pipeline-frank--karthic--dasha--zak)
+4. [Research pipelines (LSH / LSH-IRAC)](#research-pipelines-lsh--lsh-irac)
+5. [Rubric Automation (RRD)](#rubric-automation-rrd)
+6. [Frontend — Benchmarking Portal](#frontend--benchmarking-portal)
+7. [Models Evaluated](#models-evaluated)
+8. [Datasets](#datasets)
+9. [Repository Structure](#repository-structure)
+10. [Setup & Installation](#setup--installation)
+11. [Running](#running)
+12. [Outputs & artifact storage](#outputs--artifact-storage)
+13. [Roadmap](#roadmap)
+14. [Why This Matters](#why-this-matters)
 
 ---
 
@@ -31,7 +27,12 @@
 
 TR-Benchmarking is a multi-stage research pipeline for **reasoning-level evaluation** of large language models (LLMs) in legal domains. It goes beyond checking whether a model picks the right answer — it evaluates whether the model reasoned correctly to get there.
 
-The system:
+This repo contains **two complementary layers**:
+
+- **Source-grounded benchmark + rubric + evaluation workflow** (the “Legal Auto-Eval Pipeline”): start from a real legal source, produce a locked benchmark packet, convert that packet into a modular rubric, evaluate clustered centroids with rubric-aware judges, and escalate only disputed cases to SME review.
+- **Embedding + clustering research pipelines** (LSH / LSH-IRAC): generate model responses, embed them, cluster them, and analyze the reasoning strategy landscape across models and runs.
+
+Across both layers, the system is designed to:
 
 - Forces LLMs to produce **structured legal reasoning** using the IRAC framework (Issue, Rule, Application, Conclusion)
 - Embeds those reasoning traces into a high-dimensional vector space using instruction-tuned models
@@ -45,92 +46,64 @@ This is a research prototype demonstrating a new approach to LLM evaluation in h
 
 ---
 
-## The Problem
+## What’s in this repo
 
-Modern LLM benchmarks measure **answer accuracy**. This is insufficient for deployment in legal, medical, and financial applications for three reasons:
+There are three “big” capabilities here, each with its own entrypoints and artifacts:
 
-### 1. Answer-Only Evaluation Misses the Process
-A model can produce the correct conclusion through flawed reasoning. In law, a correct answer reached via wrong doctrine is a fundamentally different failure than an incorrect answer reached via correct doctrine. Existing benchmarks treat both identically.
+- **End-to-end source-grounded evaluation workflow** (Frank → Karthic → Dasha → Zak)
+  - Canonical instruction sets live in `instructions/`
+  - Saved run artifacts live in `legal-workflow-data/`
+  - The interactive UI lives in `frontend/` (`/legal-autoeval-pipeline` and `/legal-workflow`)
+- **Embedding + clustering research pipelines**
+  - Baseline: `lsh/` and `run_experiment.py`
+  - Structured IRAC: `lsh-IRAC/`
+- **Rubric automation (RRD)**: `rubric-automation/` (standalone pipeline and demos)
 
-### 2. Hidden Reasoning Instability
-Models frequently produce **different legal arguments** across runs, even on identical prompts. A model may cite the Statute of Frauds in one response and ignore it entirely in another — while returning the same final answer both times. This instability is invisible to answer-accuracy metrics.
-
-### 3. Poor Failure Mode Visibility
-When a model is wrong, it is unclear *why*. Existing evaluation tells you a model scored 72% — it does not tell you whether the model:
-- Consistently misapplied a specific doctrine
-- Hallucinated legal rules
-- Identified the right issue but drew a wrong conclusion
-- Reasoned correctly in isolation but inconsistently across runs
-
-TR-Benchmarking makes reasoning **observable, comparable, and structured**.
+If you only want one starting point, use the **frontend** to inspect the full workflow artifacts and how they connect.
 
 ---
 
-## Core Insight
+## End-to-end pipeline (Frank → Karthic → Dasha → Zak)
 
-Instead of asking:
+This is the source-grounded pipeline described in `PaperTR.pdf`. The key design choice is that **legal structure is moved upstream** and carried forward via a single handoff artifact: the **locked benchmark packet**.
 
-> *Did the model get the answer right?*
+### Stage I — Frank (source intake → routing → locked packet)
 
-We ask:
+- **Goal**: take a real legal source and produce a **locked benchmark packet** that fixes the legal framing (question, posture, controller, trigger facts, gate order, expected counterargument, variation lane, etc.).
+- **Canonical instruction sets**: `instructions/frank/` plus `instructions/question-variance/`
+- **Saved artifacts**: `legal-workflow-data/frank-v2-packets/`
 
-> *What reasoning strategies did the model use — and how consistent, sound, and stable are they across runs and across model families?*
+### Stage II — Karthic (locked packet → modular weighted rubric)
 
-By forcing models into a structured schema and then clustering those structures by semantic similarity, we can map the **reasoning landscape** of any legal question: which models converge on the same argument, which produce outlier logic, and which arguments are most doctrinally sound.
+- **Goal**: convert Frank’s packet into a **modular rubric** (Modules 0–4) with weights, scoring anchors, failure-label mapping, and (if enabled) a dual-rubric “original vs variation” pair.
+- **Canonical instruction sets**: `instructions/karthic/`
+- **Saved artifacts**: `legal-workflow-data/karthic-v2-rubric-packs/` (and optional pre-cluster runs in `legal-workflow-data/karthic-v2-pre-cluster-runs/`)
 
----
+### Stage III — Dasha (cluster → centroid-level rubric-aware evaluation)
 
-## System Architecture
+- **Goal**: evaluate **centroids/archetypes** rather than every raw answer by default (scalability), using a rubric-aware judge model or judge panel; apply row scoring first, then overlays/caps; optionally verify case citations; escalate only under a strict rule.
+- **Canonical instruction sets**: `instructions/dasha/`
+- **Saved artifacts**: `legal-workflow-data/dasha-v2-runs/`
+- **How centroids are computed in this repo**: the UI can invoke `lsh/cluster_legal_workflow.py`, which clusters response texts using the same embedding + clustering primitives used elsewhere in the repo.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                  TR-Benchmarking Pipeline                   │
-└─────────────────────────────────────────────────────────────┘
+### Stage IV — Zak (targeted SME escalation backstop)
 
-   ┌─────────────────┐     ┌──────────────────┐
-   │  Legal Question │────▶│  Multi-Model LLM │
-   │  (Plain Text)   │     │  Sampling Layer  │
-   └─────────────────┘     └────────┬─────────┘
-                                    │ 20 responses × N models
-                                    ▼
-                          ┌──────────────────────┐
-                          │  IRAC Enforced Schema │
-                          │  (JSON: Issue / Rule  │
-                          │   Application / Conc.)│
-                          └──────────┬───────────┘
-                                     │
-                    ┌────────────────┼─────────────────┐
-                    ▼                ▼                  ▼
-          ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐
-          │  Parsing &   │  │  Instruction │  │  Rubric          │
-          │  Normaliz.   │  │  Embedding   │  │  Automation      │
-          │  (irac_utils)│  │  (Instructor)│  │  (RRD Pipeline)  │
-          └──────────────┘  └──────┬───────┘  └──────────────────┘
-                                   │
-                          ┌────────▼────────┐
-                          │  UMAP + HDBSCAN │
-                          │  Density Cluster│
-                          └────────┬────────┘
-                                   │
-                    ┌──────────────┼──────────────────┐
-                    ▼              ▼                   ▼
-          ┌──────────────┐ ┌──────────────┐  ┌───────────────┐
-          │  Cluster     │ │  Topic       │  │  Adversarial  │
-          │  Map &       │ │  Confidence  │  │  Poison Test  │
-          │  Centroids   │ │  Signals     │  │  Validation   │
-          └──────────────┘ └──────────────┘  └───────────────┘
-                                   │
-                          ┌────────▼────────┐
-                          │  Next.js Portal │
-                          │  (Visualization)│
-                          └─────────────────┘
-```
+- **Goal**: produce a printable, scoped SME packet and structured decision record **only when the judge panel cannot reach a strict majority on the best centroid**.
+- **Canonical instruction sets**: `instructions/zak/`
+- **Saved artifacts**: `legal-workflow-data/zak-v1-reviews/`
+
+### Where the UI shows these stages
+
+- **Grouped workflow UI**: `/legal-autoeval-pipeline` (and `/legal-workflow`)
+- **Stages shown in the UI**: Source → Routing/Intake → Extraction/Mapping → Benchmark Answer → Reverse-Engineered Question → Seed Rubric → Refine Rubric → Approve Rubric → Dasha (cluster/judge/results) → Zak review
 
 ---
 
-## Pipeline Modules
+## Research pipelines (LSH / LSH-IRAC)
 
-### LSH — Baseline Clustering Module
+These pipelines are used to generate, embed, and cluster model responses so you can analyze *reasoning strategies* (cluster structure, outliers/noise, topic signals, robustness tests).
+
+### LSH — Baseline clustering module
 
 **Location:** `lsh/`
 
@@ -160,7 +133,7 @@ The foundational module. Implements the core data generation, embedding, and clu
 
 ---
 
-### LSH-IRAC — Structured Reasoning Pipeline
+### LSH-IRAC — Structured reasoning pipeline
 
 **Location:** `lsh-IRAC/`
 
@@ -258,7 +231,7 @@ Given a legal question, a gold-standard answer, and a set of model responses, th
 
 **Location:** `legal-workflow-data/`, `instructions/`, `frontend/src/app/legal-autoeval-pipeline/`
 
-The end-to-end evaluation workflow used in live demonstrations. It chains together source ingestion, question generation, rubric creation, and model scoring into a single cohesive interface.
+The end-to-end evaluation workflow (Frank → Karthic → Dasha → Zak) used in live demonstrations. It chains together source ingestion, question generation, rubric creation, centroid clustering, rubric-aware scoring, and (if needed) SME escalation into a single interface.
 
 **Workflow stages:**
 
@@ -270,7 +243,8 @@ The end-to-end evaluation workflow used in live demonstrations. It chains togeth
 6. **Seed Rubric** — Generates the first draft scoring rubric from the source, benchmark answer, and test question
 7. **Refine Rubric** — Sharpens the seed rubric, removing overlap and tightening wording
 8. **Approve Rubric** — Freezes the scoring standard (criteria, scoring policy, penalties, caps)
-9. **Dasha Pipeline** — Runs all configured models against the frozen question and rubric, collecting and scoring responses
+9. **Dasha Pipeline** — Clusters and evaluates centroids against the frozen rubric
+10. **Zak Review** — Only if the judge panel cannot reach a strict majority on the best centroid
 
 **Case studies implemented:**
 
@@ -466,6 +440,8 @@ source .venv/bin/activate
 pip install -r lsh/requirements.txt
 ```
 
+Note: the frontend’s Legal Auto-Eval workflow may invoke the repo clustering stack via `lsh/cluster_legal_workflow.py`. For that to work, you need the same Python dependencies available (the `lsh/requirements.txt` set is the intended baseline).
+
 **Python dependencies:**
 
 | Package | Purpose |
@@ -504,9 +480,22 @@ The portal runs at `http://localhost:3000`.
 
 ---
 
-## Running the Benchmark
+## Running
 
-### Option 1: Full IRAC Benchmark (Recommended)
+### Option 1: Explore the full pipeline in the UI (recommended for end-to-end understanding)
+
+```bash
+cd frontend
+npm run dev
+```
+
+Open:
+- `http://localhost:3000/legal-autoeval-pipeline` (grouped Frank/Karthic/Dasha/Zak workflow)
+- `http://localhost:3000/legal-workflow` (same workflow UI, different framing)
+
+This UI reads/writes saved artifacts under `legal-workflow-data/` (see [Outputs & artifact storage](#outputs--artifact-storage)).
+
+### Option 2: Full IRAC benchmark (research pipeline)
 
 ```bash
 # Activate the virtual environment
@@ -532,7 +521,7 @@ python lsh-IRAC/run_irac_benchmark.py \
   --resume lsh-IRAC/data/responses_20260224_001715.json
 ```
 
-### Option 2: Baseline LSH Pipeline
+### Option 3: Baseline LSH pipeline
 
 ```bash
 # Generate responses (OpenAI)
@@ -545,19 +534,19 @@ python lsh/generate_replicate_data.py
 python run_experiment.py
 ```
 
-### Option 3: Shell Script (Robustness Benchmark)
+### Option 4: Shell script (robustness benchmark)
 
 ```bash
 bash run_benchmark.sh
 ```
 
-### Option 4: Adversarial Robustness Test
+### Option 5: Adversarial robustness test
 
 ```bash
 python lsh-IRAC/inject_poison_and_cluster.py
 ```
 
-### Option 5: Rubric Automation Demo
+### Option 6: Rubric automation demo
 
 ```bash
 cd rubric-automation
@@ -566,7 +555,29 @@ python rrd_legal.py --demo --weighting doctrinal --verbose
 
 ---
 
-## Output Format
+## Outputs & artifact storage
+
+This repo produces two main families of outputs:
+
+### A) Research clustering outputs
+
+- **LSH baseline**: typically under `lsh/results/`
+- **LSH-IRAC**: typically under `lsh-IRAC/results/` (e.g. `run_{timestamp}.json`)
+
+### B) End-to-end workflow artifacts (Frank/Karthic/Dasha/Zak)
+
+The frontend reads/writes JSON artifacts in `legal-workflow-data/`:
+
+- `legal-workflow-data/frank-v2-packets/`: locked benchmark packets
+- `legal-workflow-data/karthic-v2-pre-cluster-runs/`: optional pre-cluster artifacts for rubric drafting
+- `legal-workflow-data/karthic-v2-rubric-packs/`: approved rubric packs (including dual-rubric variants)
+- `legal-workflow-data/dasha-v2-runs/`: centroid clustering + judge-panel scoring runs
+- `legal-workflow-data/zak-v1-reviews/`: escalation packets + decision records
+- `legal-workflow-data/artifacts-v2/`: text artifacts and exports referenced by the UI
+
+---
+
+## Output format (example: IRAC clustering run)
 
 ### Clustering Run (`results/run_{timestamp}.json`)
 
@@ -666,7 +677,7 @@ This work is intended to support researchers, legal AI developers, and AI safety
 
 ## References
 
-- SuperGPQA Benchmark: https://github.com/SuperGPQA/SuperGPQA
+- SuperGPQA Benchmark: [`https://github.com/SuperGPQA/SuperGPQA`](https://github.com/SuperGPQA/SuperGPQA)
 - HDBSCAN: Campello et al., *Density-Based Clustering Based on Hierarchical Density Estimates*, 2013
 - UMAP: McInnes et al., *UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction*, 2018
 - Instructor Embeddings: Su et al., *One Embedder, Any Task: Instruction-Finetuned Text Embeddings*, 2022
