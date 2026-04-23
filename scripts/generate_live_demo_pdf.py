@@ -42,7 +42,10 @@ def inline_markdown(text: str) -> str:
 
 def parse_lines() -> tuple[list[str], list[str], list[str]]:
     lines = SOURCE_MD.read_text().splitlines()
-    split_index = next((i for i, line in enumerate(lines) if line.strip() == "## 5.5-minute script"), len(lines))
+    split_index = next(
+        (i for i, line in enumerate(lines) if re.match(r"^##\s+.*script\s*$", line.strip(), re.IGNORECASE)),
+        len(lines),
+    )
     if split_index == len(lines):
         return lines, [], []
 
@@ -138,7 +141,11 @@ def parse_script(script_lines: list[str]) -> tuple[list[str], list[tuple[str, li
                 segment_intro.append(line)
                 i += 1
 
-        segments.append((segment_title, segment_intro, steps))
+        if not steps:
+            step = parse_step_block(segment_intro, segment_title)
+            segments.append(("", [], [step]))
+        else:
+            segments.append((segment_title, segment_intro, steps))
 
     return intro, segments
 
@@ -287,8 +294,10 @@ def build_story() -> list:
     render_intro(script_intro, story, styles)
 
     for segment_title, segment_intro, steps in segments:
-        story.append(Paragraph(inline_markdown(segment_title), styles["heading1"]))
-        render_intro(segment_intro, story, styles)
+        if segment_title:
+            story.append(Paragraph(inline_markdown(segment_title), styles["heading1"]))
+        if segment_intro:
+            render_intro(segment_intro, story, styles)
 
         for step in steps:
             story.append(Paragraph(inline_markdown(step.heading), styles["heading3"]))
