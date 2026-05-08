@@ -1,0 +1,35 @@
+{
+  "run_id": "tiny_offline",
+  "source_case_path": "research/fixtures/tiny_source_case.txt",
+  "output_dir": "research/runs/tiny_offline",
+  "mode": "offline",
+  "models": ["fixture-model-a", "fixture-model-b"],
+  "responses_per_model": 3,
+  "clustering": {
+    "method": "hybrid_legal_feature_signature",
+    "min_cluster_size": 2,
+    "mixed_cluster_threshold": 0.34
+  },
+  "judge": {
+    "mode": "deterministic",
+    "model": "gpt-4o-mini",
+    "agreement_threshold": 0.7,
+    "escalation_margin": 0.2
+  },
+  "quality_gates": {
+    "min_rubric_rows": 5,
+    "max_duplicate_similarity": 0.82,
+    "required_categories": [
+      "gate",
+      "doctrine",
+      "rule",
+      "facts",
+      "writing",
+      "exceptions",
+      "counterargument",
+      "conclusion",
+      "variation",
+      "source_support"
+    ]
+  }
+}

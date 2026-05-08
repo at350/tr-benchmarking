@@ -1,0 +1,24 @@
+{
+  "run_id": "live_openai_calibration",
+  "source_case_path": "research/fixtures/tiny_source_case.txt",
+  "output_dir": "research/runs/live_openai_calibration",
+  "mode": "live_openai",
+  "models": ["gpt-4o-mini"],
+  "responses_per_model": 3,
+  "clustering": {
+    "method": "legal_signal",
+    "min_cluster_size": 1,
+    "mixed_cluster_threshold": 0.34
+  },
+  "judge": {
+    "mode": "llm",
+    "model": "gpt-4o-mini",
+    "agreement_threshold": 0.7,
+    "escalation_margin": 0.2
+  },
+  "quality_gates": {
+    "min_rubric_rows": 5,
+    "max_duplicate_similarity": 0.82,
+    "required_categories": ["doctrine", "rule", "facts", "exceptions", "counterargument"]
+  }
+}

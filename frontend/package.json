@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
-    "test:dasha-comparison": "node --test --experimental-strip-types src/lib/dasha-comparison.test.mjs"
+    "lint": "eslint ."
   },
   "dependencies": {
     "clsx": "^2.1.1",

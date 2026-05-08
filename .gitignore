@@ -6,3 +6,18 @@ datasets/.DS_Store
 .DS_Store
 datasets/.DS_Store
 .DS_Store
+
+# Python/runtime artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Fresh research outputs are generated locally and promoted only as curated fixtures.
+research/runs/
+research/tmp/
+legal-workflow-data/
+lsh/data/
+lsh/results/
+lsh-IRAC/data/
+lsh-IRAC/results/

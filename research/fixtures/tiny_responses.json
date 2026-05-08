@@ -1,0 +1,32 @@
+[
+  {
+    "id": "a_0",
+    "model": "fixture-model-a",
+    "text": "The wife has the better claim. The controlling issue is the marriage provision of the Statute of Frauds. The promise was made in consideration of marriage, the marriage occurred, and the later certificate naming her as beneficiary supports the promised change. The strongest counterargument is that association rules allowed a replacement certificate, but possession and the earlier designation give the wife the stronger equitable claim."
+  },
+  {
+    "id": "a_1",
+    "model": "fixture-model-a",
+    "text": "The wife likely wins because the premarital promise induced marriage and was followed by a certificate naming her as beneficiary. The legal path is marriage-consideration plus compliance through the certificate. The opposing beneficiaries argue the later replacement controls, but that argument depends on whether the association could ignore the wife's possession of the original certificate."
+  },
+  {
+    "id": "a_2",
+    "model": "fixture-model-a",
+    "text": "The best answer favors the wife. The promise was tied to marriage, so the marriage provision controls rather than ordinary gift analysis. The later certificate is evidence of performance. The children and sister can argue the final certificate governs, but the earlier rights created for the wife are not obviously defeated."
+  },
+  {
+    "id": "b_0",
+    "model": "fixture-model-b",
+    "text": "The children and sister have the better claim because the last certificate is the operative beneficiary designation. This answer treats the issue mainly as association-rule compliance, not a marriage-contract problem. The wife has a sympathy argument, but the final replacement certificate should control."
+  },
+  {
+    "id": "b_1",
+    "model": "fixture-model-b",
+    "text": "The later-named beneficiaries likely win. The association rules allowed the member to obtain a replacement certificate when he could not produce the earlier one, so the final designation controls. The marriage promise may create a separate claim, but it does not override the benefit association record."
+  },
+  {
+    "id": "b_2",
+    "model": "fixture-model-b",
+    "text": "This is primarily a beneficiary-designation dispute. Because the member replaced the certificate and named his children and sister, they likely have the better claim. The wife's argument depends on enforcing the premarital promise, but the association paperwork points the other way."
+  }
+]
