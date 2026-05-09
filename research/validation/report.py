@@ -63,8 +63,8 @@ def ensure_paper_scaffold(repo_root: Path) -> None:
     defaults = {
         "abstract.tex": "We present a source-grounded pipeline for generating legal benchmarks, rubrics, clustered model-response analyses, and escalation packets for expert review.\n",
         "methods.tex": "The final paper will describe the frozen Frank, Karthic, Dasha, judge, and Zak stages. Engineering calibration is excluded from the research protocol.\n",
-        "validation.tex": "Validation results will be populated from frozen research runs and JD-reviewed labels.\n",
-        "limitations.tex": "Limitations include Statute of Frauds scope, model-provider drift, and the need for held-out JD or SME review.\n",
+        "validation.tex": "Validation results will be populated from frozen internal research runs and, later, expert labels.\n",
+        "limitations.tex": "Limitations include Statute of Frauds scope, model-provider drift, and the need for future held-out expert review.\n",
     }
     for filename, text in defaults.items():
         path = paper / "sections" / filename

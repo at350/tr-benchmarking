@@ -29,7 +29,7 @@ export async function POST() {
       JSON.parse(await readFile(path.join(runDir, name), "utf8"));
 
     return Response.json({
-      status: "ready_for_jd_review",
+      status: "internal_validation_ready",
       outputDir: "research/runs/tiny_offline",
       sourceCase: await readFile(path.join(repoRoot, "research/fixtures/tiny_source_case.txt"), "utf8"),
       artifacts: {

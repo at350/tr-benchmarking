@@ -1,4 +1,4 @@
-"""Quality gates for calibration before JD review."""
+"""Quality gates for internal research calibration."""
 
 from __future__ import annotations
 

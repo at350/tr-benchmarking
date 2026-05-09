@@ -1,1 +1,22 @@
-We present a source-grounded pipeline for generating legal benchmarks, rubrics, clustered model-response analyses, and escalation packets for expert review.
+\begin{abstract}
+We present a source-grounded pipeline for evaluating legal reasoning in large
+language model outputs. The pipeline begins with a legal source case rather than
+a hand-authored benchmark question. An LLM agent, Frank, extracts the legal
+issue, controlling doctrine, source-grounded gold answer, and controlled
+boundary variations. Karthic generates a fresh rubric from the locked Frank
+packet. A roster of LLMs then answers the generated question in a controlled
+format. Dasha clusters responses by normalized legal reasoning signatures,
+reducing many answers into interpretable centroids. A rubric-guided LLM judge
+scores those centroids, projects centroid scores to all responses in each
+cluster, and produces model rankings. Zak creates escalation packets only when
+uncertainty, disagreement, or mixed clusters require further review. We report
+pre-expert-review internal validation on Statute of Frauds. The validation
+combines a real nine-response natural model batch with a deterministic
+500-response regression test over eight Statute-of-Frauds reasoning archetypes.
+The current evidence
+shows that the pipeline runs from source case to ranked model outputs, captures
+provenance and hashes, preserves row-level judge rationales, projects centroid
+scores, and exposes escalation state. This manuscript is complete as an
+internal validation paper: it makes no claim of external expert-reviewed legal
+validity.
+\end{abstract}

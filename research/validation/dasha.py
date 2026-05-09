@@ -1,4 +1,4 @@
-"""Dasha legal-reasoning clustering for Statute of Frauds validation."""
+"""Dasha legal-reasoning clustering with deterministic SOF fallback fixtures."""
 
 from __future__ import annotations
 
@@ -120,6 +120,63 @@ def _feature_match_score(left: dict, right: dict) -> float:
     return sum(1 for key in keys if left.get(key) == right.get(key)) / len(keys)
 
 
+def _signature_text(signature: dict) -> str:
+    values = []
+    for key in ("doctrine", "issue", "rule_trigger", "outcome", "exception_or_defense", "reasoning_path", "conclusion"):
+        value = signature.get(key, "")
+        if isinstance(value, list):
+            value = " ".join(str(item) for item in value)
+        values.append(str(value))
+    return " ".join(values).lower()
+
+
+def _bucket_outcome(signature: dict) -> str:
+    text = _signature_text(signature)
+    if _contains_any(text, ("later-named", "children and sister", "replacement certificate controls", "later beneficiaries", "superior claim to the death")) and not _contains_any(text, ("wife prevails", "wife entitled", "wife favored", "spouse likely has superior")):
+        return "later_beneficiaries_control"
+    if _contains_any(text, ("wife prevails", "wife entitled", "wife favored", "spouse likely has superior", "wife has superior", "wife has the better", "spouse has the stronger")):
+        return "wife_certificate_controls"
+    if _contains_any(text, ("barred", "unenforceable", "fails", "no superior claim")):
+        return "claim_barred"
+    if _contains_any(text, ("enforceable", "succeeds", "superior claim")):
+        return "claim_enforceable"
+    return "outcome_uncertain"
+
+
+def _bucket_trigger(signature: dict) -> str:
+    text = _signature_text(signature)
+    if _contains_any(text, ("marriage", "premarital", "spouse", "wife", "fiancee", "fiancée")):
+        if _contains_any(text, ("certificate", "beneficiary", "designation", "replacement")):
+            return "marriage_beneficiary_certificate"
+        return "marriage_consideration"
+    if _contains_any(text, ("one-year", "one year", "within a year", "eighteen-month", "thirteen months")):
+        return "one_year"
+    if _contains_any(text, ("executor", "administrator", "estate", "decedent", "deceased")):
+        return "executor_administrator"
+    if _contains_any(text, ("surety", "guaranty", "guarantee", "another's debt", "another person", "debt")):
+        return "suretyship"
+    if _contains_any(text, ("land", "real estate", "lease", "deed", "property")):
+        return "land_interest"
+    if _contains_any(text, ("goods", "ucc", "merchant", "quantity", "$500")):
+        return "goods"
+    return re.sub(r"[^a-z0-9]+", "_", str(signature.get("rule_trigger", "general")).lower()).strip("_")[:80] or "general"
+
+
+def _bucket_exception(signature: dict) -> str:
+    text = _signature_text(signature)
+    if _contains_any(text, ("certificate", "memorandum", "sufficient writing", "signed writing", "writing requirement", "satisfies writing")):
+        return "writing_or_certificate"
+    if _contains_any(text, ("replacement", "bylaw", "association rule", "last designation", "final certificate")):
+        return "replacement_or_bylaw_defense"
+    if _contains_any(text, ("main purpose", "main-purpose", "own business", "own interest")):
+        return "main_purpose"
+    if _contains_any(text, ("estoppel", "reliance", "part performance", "performance")):
+        return "equitable_or_performance"
+    if _contains_any(text, ("none", "no exception")):
+        return "none"
+    return re.sub(r"[^a-z0-9]+", "_", str(signature.get("exception_or_defense", "none")).lower()).strip("_")[:80] or "none"
+
+
 def choose_representative(members: list[dict]) -> str:
     if len(members) == 1:
         return members[0]["id"]
@@ -153,6 +210,9 @@ def _centroid_quality(members: list[dict], representative_id: str) -> dict:
 
 
 def cluster_responses(responses: list[dict], primary_gate_id: str | None = None) -> dict:
+    if responses and all("reasoning_signature" in response for response in responses):
+        return cluster_responses_by_signature(responses)
+
     grouped: dict[tuple[str, str, str, str], list[dict]] = defaultdict(list)
     for response in responses:
         signal = legal_signal(response["text"], primary_gate_id=primary_gate_id)
@@ -182,5 +242,73 @@ def cluster_responses(responses: list[dict], primary_gate_id: str | None = None)
     return {
         "schema_version": "research.dasha.v2",
         "method": "hybrid_legal_feature_signature",
+        "clusters": clusters,
+    }
+
+
+def _normalized_signature(signature: dict) -> tuple[str, str, str, str, str]:
+    doctrine = _signature_text({"doctrine": signature.get("doctrine", "")})
+    if "statute of frauds" in doctrine or "sof" in doctrine:
+        doctrine_bucket = "statute_of_frauds"
+    elif "contract" in doctrine:
+        doctrine_bucket = "contracts"
+    else:
+        doctrine_bucket = re.sub(r"[^a-z0-9]+", "_", doctrine).strip("_")[:80] or "unknown"
+    return (
+        doctrine_bucket,
+        _bucket_trigger(signature),
+        _bucket_outcome(signature),
+        _bucket_exception(signature),
+        "reasoning_bucket_v2",
+    )
+
+
+def cluster_responses_by_signature(responses: list[dict]) -> dict:
+    grouped: dict[tuple[str, str, str, str, str], list[dict]] = defaultdict(list)
+    for response in responses:
+        grouped[_normalized_signature(response["reasoning_signature"])].append(response)
+
+    clusters = []
+    for index, (signature_key, members) in enumerate(sorted(grouped.items()), start=1):
+        representative_id = choose_representative([
+            {
+                **member,
+                "legal_signal": {
+                    "gate": signature_key[1],
+                    "outcome": signature_key[2],
+                    "exception": signature_key[3],
+                    "reasoning": signature_key[4],
+                },
+            }
+            for member in members
+        ])
+        signature = members[0]["reasoning_signature"]
+        clusters.append({
+            "id": f"cluster_{index}",
+            "legal_signal": {
+                "doctrine": str(signature.get("doctrine", "unknown")),
+                "issue": str(signature.get("issue", "unknown")),
+                "rule_trigger": str(signature.get("rule_trigger", "unknown")),
+                "outcome": str(signature.get("outcome", "unknown")),
+                "exception_or_defense": str(signature.get("exception_or_defense", "none")),
+                "reasoning_path": str(signature.get("reasoning_path", "unknown")),
+                "conclusion": str(signature.get("conclusion", "unknown")),
+            },
+            "representative_response_id": representative_id,
+            "member_response_ids": [member["id"] for member in members],
+            "members": members,
+            "size": len(members),
+            "centroid_quality": {
+                "mean_feature_similarity": 1.0,
+                "mean_text_similarity": 1.0 if len(members) == 1 else round(
+                    sum(jaccard(members[0]["text"], member["text"]) for member in members[1:]) / (len(members) - 1),
+                    3,
+                ),
+                "member_count": len(members),
+            },
+        })
+    return {
+        "schema_version": "research.dasha.llm.v1",
+        "method": "llm_reasoning_signature",
         "clusters": clusters,
     }

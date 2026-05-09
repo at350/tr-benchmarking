@@ -1,0 +1,25 @@
+\section{Discussion}
+
+The central technical idea is to evaluate legal reasoning at the cluster level
+rather than scoring every response independently. If Dasha can reliably group
+answers by reasoning path, a judge can score representative centroids and then
+project those scores to all cluster members. This creates an interpretable
+middle layer between raw model generations and aggregate model rankings.
+
+The internal evidence supports the feasibility of that design. The live run
+shows that the source-to-ranking path works with real model outputs. The controlled
+500-response regression test shows that, once reasoning signatures are
+available, Dasha can preserve eight legally distinct Statute-of-Frauds reasoning
+paths at the intended compression scale. The natural-response audit is the more important Dasha
+evidence because it starts with model answers to the same Frank question rather
+than with preassigned reasoning categories. The unit and regression tests show
+that the main engineering failure modes are executable checks rather than
+undocumented review habits.
+
+The remaining risk is upstream semantic extraction, not the cluster container
+itself. If Dasha assigns incorrect normalized signatures, the clustering layer
+will faithfully preserve the wrong abstraction. The next internal improvement is
+therefore repeated signature extraction, judge ensembling, and adversarial
+signature audits on larger live batches. Those additions would strengthen the
+paper, but the current manuscript already stands as a complete internal
+validation of the pipeline mechanics and evidence protocol before expert review.

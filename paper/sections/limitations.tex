@@ -1,1 +1,40 @@
-Limitations include Statute of Frauds scope, model-provider drift, and the need for held-out JD or SME review.
+\section{Limitations}
+
+This manuscript reports internal validation, not expert-reviewed legal validity.
+The live validation run is small and should be interpreted as an end-to-end
+model-generation path test. The natural-response Dasha audit confirms that the
+clustered inputs are model answers to the same Frank question rather than
+responses generated from preassigned labels, but the current live batch is too
+small to prove broad clustering robustness. The 500-response scale result is a
+controlled regression test with known reasoning signatures, not a claim that
+arbitrary live model outputs will always produce perfectly separable clusters.
+The evidence is therefore strong for pipeline mechanics and internal
+reproducibility, but still bounded for external legal validity and cross-doctrine
+generalization.
+
+The Statute-of-Frauds evidence should be read as a strong litmus test, not as an
+exhaustive doctrinal proof. The live run validates one source-to-ranking case,
+and the regression suite covers eight major Statute-of-Frauds reasoning
+archetypes. A claim that the system handles every Statute-of-Frauds fact pattern
+would require a larger held-out case suite across jurisdictions, transaction
+types, writing forms, and exception doctrines.
+
+The current live model roster is intentionally small. The manuscript validates
+the path with \texttt{gpt-5.2}, \texttt{claude-sonnet-4-20250514}, and
+\texttt{meta/meta-llama-3-70b-instruct}; broader model-family claims require
+larger rosters, repeated samples, held-out cases, and natural-response batches
+where multiple models independently converge on or diverge from the same legal
+reasoning paths.
+
+The instruction corpus is deepest for Statute of Frauds. The live agents are now
+given a doctrine-general protocol and must infer doctrine from the source, but
+other doctrine families will need richer pack-specific examples before external
+claims should be made about broad legal coverage.
+
+LLM-as-judge methods are known to have bias risks, including position,
+verbosity, and self-preference biases
+\cite{zheng2023judging,wang2024positionbias,panickssery2024selfpreference}. The
+pipeline mitigates some of these risks by using row-level rubrics, source
+support, centroid-level scoring, and model-output provenance, but future
+validation should include judge ensembles, repeated scoring, rubric ablation,
+model-separated judges, and comparison to expert labels.

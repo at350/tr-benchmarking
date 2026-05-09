@@ -1,11 +1,11 @@
 import { ResearchRunButton } from "@/components/ResearchRunButton";
 
 const stages = [
-  "Frank: SOF gate detection, gold answer, neutral question, and boundary variations",
+  "Frank: doctrine/gate detection, gold answer, neutral question, and boundary variations",
   "Karthic: dynamic source-grounded rubric rows and quality gates",
-  "Dasha: response clustering by SOF gate, outcome, exception, and reasoning",
+  "Dasha: response clustering by legal reasoning signature",
   "Judge: centroid row scoring, projected member scores, and model rankings",
-  "Zak: targeted SME packet only when escalation is needed",
+  "Zak: targeted escalation packet only when uncertainty, disagreement, or stage failure requires review",
 ];
 
 export default function ResearchWorkbenchPage() {
@@ -16,13 +16,13 @@ export default function ResearchWorkbenchPage() {
           TR Benchmarking
         </p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
-          Statute of Frauds Research Workbench
+          Legal Reasoning Research Workbench
         </h1>
         <p className="mt-4 max-w-3xl text-base leading-7 text-slate-700">
           This interface is intentionally bare. The source of truth is the reproducible
-          Statute of Frauds harness in <code>research/validation</code>; this page gives
-          the research team a simple way to run the offline fixture and inspect the
-          source-to-score stages before live calibration.
+          research harness in <code>research/validation</code>; this page gives the
+          research team a simple way to run the offline SOF fixture and inspect the
+          source-to-score stages before broader internal validation.
         </p>
       </header>
 
@@ -51,6 +51,32 @@ export default function ResearchWorkbenchPage() {
           <pre className="mt-4 overflow-x-auto rounded bg-slate-950 p-3 text-xs text-slate-100">
             python3 -m research.validation run --config research/fixtures/tiny_config.json
           </pre>
+        </div>
+      </section>
+
+      <section className="rounded border border-slate-200 bg-white p-5">
+        <h2 className="text-lg font-semibold text-slate-950">Internal evidence</h2>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="border-l-2 border-slate-950 pl-4">
+            <h3 className="text-sm font-semibold text-slate-950">Live provider path</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-700">
+              Runs real response models through OpenAI, Anthropic, and Replicate provider
+              clients, then validates Frank, Karthic, Dasha, Judge, and Zak artifacts.
+            </p>
+            <pre className="mt-3 overflow-x-auto rounded bg-slate-950 p-3 text-xs text-slate-100">
+              python3 -m research.validation validate --run-dir research/runs/live_three_provider_smoke
+            </pre>
+          </div>
+          <div className="border-l-2 border-slate-950 pl-4">
+            <h3 className="text-sm font-semibold text-slate-950">500-response stress</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-700">
+              Uses controlled fixture responses with known legal-reasoning labels to test
+              Dasha clustering mechanics at the target compression scale.
+            </p>
+            <pre className="mt-3 overflow-x-auto rounded bg-slate-950 p-3 text-xs text-slate-100">
+              python3 -m research.validation stress --sample-count 500
+            </pre>
+          </div>
         </div>
       </section>
     </main>

@@ -1,0 +1,72 @@
+{
+  "run_id": "live_three_provider_smoke",
+  "domain": "auto",
+  "source_case_path": "research/fixtures/tiny_source_case.txt",
+  "output_dir": "research/runs/live_three_provider_smoke",
+  "mode": "live_multi_provider",
+  "agents": {
+    "frank": {
+      "mode": "llm",
+      "provider": "openai",
+      "model": "gpt-5.2",
+      "temperature": 0
+    },
+    "karthic": {
+      "mode": "llm",
+      "provider": "openai",
+      "model": "gpt-5.2",
+      "temperature": 0
+    },
+    "dasha": {
+      "mode": "llm",
+      "provider": "openai",
+      "model": "gpt-5.2",
+      "temperature": 0
+    }
+  },
+  "response_models": [
+    {
+      "provider": "openai",
+      "model": "gpt-5.2",
+      "samples": 1,
+      "temperature": 0.25
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-20250514",
+      "samples": 1,
+      "temperature": 0.25
+    },
+    {
+      "provider": "replicate",
+      "model": "meta/meta-llama-3-70b-instruct",
+      "samples": 1,
+      "temperature": 0.25
+    }
+  ],
+  "clustering": {
+    "method": "llm_reasoning_signature",
+    "min_cluster_size": 1,
+    "mixed_cluster_threshold": 0.34,
+    "provider": "openai",
+    "model": "gpt-5.2"
+  },
+  "judge": {
+    "mode": "llm",
+    "provider": "openai",
+    "model": "gpt-5.2",
+    "agreement_threshold": 0.7,
+    "escalation_margin": 0.2
+  },
+  "quality_gates": {
+    "min_rubric_rows": 8,
+    "max_duplicate_similarity": 0.82,
+    "required_categories": [
+      "doctrine",
+      "rule",
+      "facts",
+      "exceptions",
+      "counterargument"
+    ]
+  }
+}

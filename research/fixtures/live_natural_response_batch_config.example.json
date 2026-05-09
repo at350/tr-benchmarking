@@ -1,0 +1,82 @@
+{
+  "run_id": "live_natural_response_batch",
+  "domain": "auto",
+  "source_case_path": "research/fixtures/tiny_source_case.txt",
+  "output_dir": "research/runs/live_natural_response_batch",
+  "mode": "live_multi_provider",
+  "agents": {
+    "frank": {
+      "mode": "llm",
+      "provider": "openai",
+      "model": "gpt-5.2",
+      "temperature": 0
+    },
+    "karthic": {
+      "mode": "llm",
+      "provider": "openai",
+      "model": "gpt-5.2",
+      "temperature": 0
+    },
+    "dasha": {
+      "mode": "llm",
+      "provider": "openai",
+      "model": "gpt-5.2",
+      "temperature": 0
+    }
+  },
+  "answer_headings": [
+    "Jurisdiction assumption",
+    "Bottom-line outcome",
+    "Controlling doctrine",
+    "Transaction / formation characterization",
+    "Writing requirement and trigger",
+    "Compliance / substitute / exception analysis",
+    "Other defenses or competing doctrines",
+    "Strongest counterargument"
+  ],
+  "response_models": [
+    {
+      "provider": "openai",
+      "model": "gpt-5.2",
+      "samples": 3,
+      "temperature": 0.45
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-20250514",
+      "samples": 3,
+      "temperature": 0.3
+    },
+    {
+      "provider": "replicate",
+      "model": "meta/meta-llama-3-70b-instruct",
+      "samples": 3,
+      "temperature": 0.35
+    }
+  ],
+  "clustering": {
+    "method": "llm_reasoning_signature",
+    "min_cluster_size": 1,
+    "mixed_cluster_threshold": 0.34,
+    "provider": "openai",
+    "model": "gpt-5.2"
+  },
+  "judge": {
+    "mode": "llm",
+    "provider": "openai",
+    "model": "gpt-5.2",
+    "agreement_threshold": 0.7,
+    "escalation_margin": 0.2
+  },
+  "quality_gates": {
+    "min_rubric_rows": 8,
+    "max_duplicate_similarity": 0.82,
+    "required_categories": [
+      "doctrine",
+      "rule",
+      "facts",
+      "exceptions",
+      "counterargument"
+    ]
+  }
+}

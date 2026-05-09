@@ -1,0 +1,60 @@
+\section{Contributions and Claim Map}
+
+The pipeline is intended to be understandable as a research instrument, not only
+as a software demo. Its main contribution is an automated source-to-ranking
+method that evaluates legal reasoning paths rather than isolated answer strings.
+The method is novel in four connected ways. First, the benchmark is generated
+from a source case rather than from a static hand-authored question. Second, the
+rubric is generated dynamically from the locked source packet instead of reused
+as a generic checklist. Third, responses are compressed by legal reasoning
+signature before judging, so the scored unit is a centroid representing a line of
+legal reasoning. Fourth, the judge projects centroid scores back to all cluster
+members, producing model rankings while preserving row-level rationales and
+escalation state.
+
+\begin{tabular}{p{0.20\linewidth}p{0.25\linewidth}p{0.25\linewidth}p{0.20\linewidth}}
+\toprule
+Claim & Implementation & Why it is distinctive & Current evidence \\
+\midrule
+Source-grounded benchmark generation & Frank reads a source case plus canonical instruction context and emits a versioned JSON packet with doctrine gates, source extraction, gold answer, neutral question, variations, and controller card & The question, gold answer, and variations are derived from the same source artifact rather than manually patched after model outputs are seen & Live natural-response batch begins from one source case and produces a complete Frank packet with prompt and source hashes \\
+Dynamic legal rubric generation & Karthic consumes only the locked Frank packet and instruction context, then emits weighted source-supported rubric rows with schema repair and category normalization & The rubric is case-specific and source-grounded, not a reusable generic legal-quality rubric & Live run produced 10 Karthic rows across required categories and passed validation gates \\
+Reasoning-path clustering & Dasha extracts reasoning signatures from model answers, normalizes them into legal-reasoning buckets, and clusters unlabeled responses after generation & The pipeline compresses answers by legal theory, not by surface wording or known labels supplied to the response generator & Natural-response audit clustered 9 unlabeled answers to one Frank question into 1 shared wife/certificate reasoning centroid \\
+Centroid judging and projection & Judge scores one representative per Dasha cluster row-by-row against Karthic, then projects the weighted centroid score to all cluster members & The method reduces judging cost and makes rankings explainable through cluster-level legal rationales & Live run produced 10 row-level judge scores and projected scores to 9 responses across 3 model identifiers \\
+Escalation visibility & Zak creates packets only when uncertainty, disagreement, or quality thresholds fail & Failures become explicit research artifacts rather than silent exclusions & Live run recorded no escalation needed; validator still checks that escalation state exists \\
+\bottomrule
+\end{tabular}
+
+\subsection{Statute-of-Frauds Litmus Test}
+
+Statute of Frauds is the first litmus domain because it naturally contains
+discrete legal gates and boundary facts: marriage consideration, one-year
+performance, suretyship, land interests, goods/UCC writings, executor or
+administrator promises, writing substitutes, and equitable exceptions. That
+structure makes it a useful early test for whether an automated pipeline can
+generate legally meaningful variations and separate different reasoning paths.
+
+The current evidence is strongest for pipeline mechanics and for representative
+Statute-of-Frauds reasoning paths. The live model batch validates the full
+source-to-ranking path on a marriage-consideration beneficiary-certificate case.
+The 500-response regression suite then checks the Dasha clustering container
+against eight Statute-of-Frauds archetypes: wife/certificate enforcement,
+association replacement-certificate control, one-year/no-writing bar,
+one-year-under-year enforceability, suretyship/main-purpose exception, land
+part-performance, goods/UCC quantity defect, and executor personal-promise
+without writing. This does not prove every possible Statute-of-Frauds case is
+solved, but it shows that the pipeline's schemas, clustering machinery, and
+validation surfaces cover the major gate families needed for that domain.
+
+\subsection{Generalization Beyond Statute of Frauds}
+
+The architecture is doctrine-general because every live stage is driven by the
+source case and canonical instruction context. Frank is asked to infer the
+doctrine and legal gates; Karthic builds a rubric from the locked Frank packet;
+Dasha normalizes whatever doctrine, trigger, outcome, and exception structure is
+present in the responses; Judge scores against Karthic's rows rather than a
+Statute-of-Frauds-specific checklist. To apply the method to another legal
+field, the expected change is not the pipeline architecture but the instruction
+context and calibration examples supplied to the agents. Broader legal-domain
+claims therefore require additional source packs and held-out cases, but the
+pipeline is already structured so those additions are data and instruction
+extensions rather than a new evaluation system.

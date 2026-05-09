@@ -1,1 +1,62 @@
-Validation results will be populated from frozen research runs and JD-reviewed labels.
+\section{Internal Validation Protocol}
+
+The present validation is internal and pre-expert-review. It asks whether each
+automated stage produces plausible, auditable artifacts without manual patching
+and whether the pipeline mechanics work at enough controlled scale to support a
+research claim before external review. The generated run bundle includes the
+Frank packet, Karthic rubric, model responses, Dasha clusters, judge scores, Zak
+packets, manifest, and internal validation summary.
+
+The internal validator checks five stage families. Frank passes when the packet
+contains a doctrine, source-grounded question, variations, gold answer, and
+ready handoff status. Karthic passes when the rubric has enough rows, canonical
+categories, non-duplicated criteria, and source-support snippets. Dasha passes
+when unlabeled model answers to the same Frank question are all assigned to
+Dasha clusters after response generation, with no preassigned reasoning labels
+used as input. Judge passes when every cluster receives every rubric row score
+and model rankings are generated. Zak passes when escalation packet state is
+explicitly captured, even if no escalation is needed.
+
+The validation logic is implemented as executable checks rather than prose-only
+review. Frank checks target packet completeness and deprecated-heading failure
+modes. Karthic checks row count, required category coverage, duplicate-like row
+criteria, source-support fields, and weight normalization. Dasha checks that all
+responses are assigned to clusters, that clusters are internally consistent under
+the same normalized signature-bucket function used by the clustering step, and
+that no unexpected non-Latin text appears in legal signals. Judge checks that the
+number of returned row scores equals \texttt{clusters} times \texttt{rubric
+rows}, that every model receives projected member scores, and that rankings are
+materialized. Zak checks explicit escalation state even when no packet is needed.
+These checks were chosen because they correspond to the pipeline's main failure
+modes: unsupported legal framing, generic rubrics, schema drift, paraphrase
+over-splitting, missing judge rows, and silent escalation failure.
+
+The internal evidence package has three layers. First, unit and regression tests
+exercise config loading, prompt hashing, Frank packet completeness, Karthic
+rubric coverage, Dasha clustering invariants, judge projection, Zak escalation,
+model-call clients, and statistical metrics. Second, a real live batch
+executes the full LLM-driven path using three response model identifiers with
+three samples each: \texttt{gpt-5.2},
+\texttt{claude-sonnet-4-20250514}, and
+\texttt{meta/meta-llama-3-70b-instruct}. Third, a natural-response Dasha audit
+checks that the clustered inputs are unlabeled model answers to one Frank
+question, not responses generated from preassigned reasoning categories. Fourth,
+a deterministic 500-response regression suite tests the clustering container on
+eight known Statute-of-Frauds signatures; that suite is a scale and bookkeeping
+check, not the main evidence for Dasha's discovery behavior.
+
+The validation is intentionally layered. Unit tests isolate parser and invariant
+logic without paying for model calls. The natural-response batch then exercises
+the live path that matters scientifically: multiple model outputs answer the
+same source-derived legal question before Dasha sees them. The deterministic
+500-response regression is retained because it catches implementation regressions
+in clustering, projection, and table generation at the target response scale, but
+it is not used to claim that Dasha has discovered reasoning families from
+unlabeled model text. This distinction is central to the method: discovery is
+tested only on unlabeled model answers; labeled fixtures test software
+bookkeeping.
+
+This protocol does not replace expert legal review. It is the complete internal
+evidence gate before any external claim: the pipeline must prove that it can
+run, preserve provenance, expose errors, cluster at controlled scale, and
+generate coherent artifacts before any stronger publication claim is made.

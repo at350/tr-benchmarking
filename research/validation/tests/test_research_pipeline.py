@@ -2,12 +2,31 @@ import json
 import shutil
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from research.validation import provider_client
 from research.validation.config import load_config
 from research.validation.dasha import cluster_responses
 from research.validation.frank import build_frank_packet
+from research.validation.instruction_context import load_agent_instruction_context
+from research.validation.internal_stress import build_stress_responses, run_internal_stress, write_stress_table
+from research.validation.internal_validation import (
+    build_internal_validation_summary,
+    build_natural_response_audit,
+    write_natural_response_audit_table,
+    write_artifact_examples_section,
+    write_internal_validation_table,
+)
 from research.validation.judge import judge_clusters
 from research.validation.karthic import build_karthic_rubric
+from research.validation.llm_agents import (
+    _extract_rubric_rows,
+    _missing_required_categories,
+    _normalize_rubric_row,
+    build_frank_packet_with_llm,
+    sanitize_reasoning_signature,
+    structured_answer_instruction,
+)
 from research.validation.openai_client import _read_env_file
 from research.validation.pipeline import run_pipeline
 from research.validation.quality import (
@@ -48,7 +67,7 @@ class ResearchPipelineTests(unittest.TestCase):
 
         manifest = json.loads((self.output_dir / "manifest.json").read_text())
         self.assertEqual(manifest["run_id"], "tiny_offline")
-        self.assertEqual(manifest["pipeline_status"], "ready_for_jd_review")
+        self.assertEqual(manifest["pipeline_status"], "internal_validation_ready")
         self.assertIn("prompt_hashes", manifest)
 
     def test_generated_frank_and_karthic_artifacts_pass_quality_gates(self):
@@ -103,6 +122,105 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertEqual(config.mode, "live_openai")
         self.assertEqual(config.judge.mode, "llm")
         self.assertTrue(config.judge.model)
+
+    def test_multi_provider_config_defines_llm_agents_and_model_roster(self):
+        config = load_config(ROOT / "research/fixtures/live_multi_provider_config.example.json", repo_root=ROOT)
+
+        self.assertEqual(config.mode, "live_multi_provider")
+        self.assertEqual(config.agents["frank"].mode, "llm")
+        self.assertEqual(config.agents["karthic"].mode, "llm")
+        self.assertEqual(config.clustering.method, "llm_reasoning_signature")
+        self.assertEqual({spec.provider for spec in config.response_models}, {"openai", "anthropic", "gemini", "replicate"})
+        self.assertGreaterEqual(sum(spec.samples for spec in config.response_models), 10)
+
+    def test_openai_anthropic_smoke_config_uses_llm_driven_pipeline(self):
+        config = load_config(ROOT / "research/fixtures/live_openai_anthropic_config.example.json", repo_root=ROOT)
+
+        self.assertEqual(config.mode, "live_multi_provider")
+        self.assertEqual([spec.provider for spec in config.response_models], ["openai", "anthropic"])
+        self.assertTrue(all(agent.mode == "llm" for agent in config.agents.values()))
+        self.assertEqual(config.judge.provider, "openai")
+
+    def test_three_provider_smoke_config_includes_replicate(self):
+        config = load_config(ROOT / "research/fixtures/live_three_provider_config.example.json", repo_root=ROOT)
+
+        self.assertEqual([spec.provider for spec in config.response_models], ["openai", "anthropic", "replicate"])
+        self.assertEqual(sum(spec.samples for spec in config.response_models), 3)
+
+    def test_natural_response_batch_config_uses_multiple_model_families_without_labels(self):
+        config = load_config(ROOT / "research/fixtures/live_natural_response_batch_config.example.json", repo_root=ROOT)
+
+        self.assertEqual(config.mode, "live_multi_provider")
+        self.assertGreaterEqual(len(config.response_models), 3)
+        self.assertGreaterEqual(sum(spec.samples for spec in config.response_models), 9)
+        self.assertEqual(config.clustering.method, "llm_reasoning_signature")
+
+    def test_structured_answer_instruction_forces_gold_headings_on_model_responses(self):
+        config = load_config(ROOT / "research/fixtures/live_multi_provider_config.example.json", repo_root=ROOT)
+        instruction = structured_answer_instruction(config.answer_headings)
+
+        for heading in config.answer_headings:
+            self.assertIn(heading, instruction)
+
+    def test_live_frank_prompt_loads_general_instruction_context(self):
+        config = load_config(ROOT / "research/fixtures/live_three_provider_config.example.json", repo_root=ROOT)
+        captured = {}
+
+        def fake_generator(messages, agent):
+            captured["messages"] = messages
+            return {
+                "doctrine_family": "Contract interpretation",
+                "detected_doctrine_gates": [{"id": "plain_meaning", "label": "Plain meaning", "rule": "Apply text first", "source_evidence": "fixture"}],
+                "source_extraction": {"jurisdiction": "fixture", "clean_legal_issue": "interpretation", "trigger_facts": [], "source_limits": []},
+                "neutral_question": "How should the clause be interpreted? Analyze.",
+                "gold_answer": "Jurisdiction assumption:\nfixture",
+                "variations": [{"id": "v1", "lane": "A", "changed_fact": "wording", "question": "variant", "expected_behavior": "same rule"}],
+                "controller_card": {"primary_gate_id": "plain_meaning", "strongest_counterargument": "ambiguity"},
+            }
+
+        packet = build_frank_packet_with_llm(ROOT, config, json_generator=fake_generator)
+        prompt = "\n\n".join(message["content"] for message in captured["messages"])
+
+        self.assertIn("General Legal Reasoning Pipeline Protocol", prompt)
+        self.assertIn("Do not hard-code Statute of Frauds labels", prompt)
+        self.assertIn("do not assume Statute of Frauds or any other doctrine unless the source supports it", prompt)
+        self.assertEqual(packet["doctrine_profile"]["primary_gate_id"], "plain_meaning")
+        self.assertNotIn("statute_of_frauds", packet)
+        self.assertIn("frank_instruction_context", packet["prompt_hashes"])
+
+    def test_instruction_context_is_loaded_from_canonical_tree(self):
+        context = load_agent_instruction_context(ROOT, "dasha")
+
+        self.assertIn("instructions/00_GENERAL_LEGAL_REASONING_PROTOCOL.md", context["loaded_files"])
+        self.assertIn("instructions/dasha/56_Dasha_Evaluation_Spec_v2.md", context["loaded_files"])
+        self.assertIn("Statute of Frauds is the first calibration domain, not the global assumption", context["context"])
+
+    def test_llm_rubric_category_normalization_maps_semantic_variants(self):
+        self.assertEqual(_normalize_rubric_row({"id": "R1", "category": "doctrine_gate", "criterion": "x"})["category"], "doctrine")
+        self.assertEqual(_normalize_rubric_row({"id": "R1", "category": "doctrine/gate", "criterion": "x"})["category"], "doctrine")
+        self.assertEqual(_normalize_rubric_row({"id": "R2", "category": "exceptions_or_defenses", "criterion": "x"})["category"], "exceptions")
+        self.assertEqual(_normalize_rubric_row({"id": "R2", "category": "exceptions/defenses", "criterion": "x"})["category"], "exceptions")
+        self.assertEqual(_normalize_rubric_row({"id": "R2", "category": "compliance/elements", "criterion": "x"})["category"], "rule")
+        self.assertEqual(_normalize_rubric_row({"id": "R3", "category": "variation_sensitivity", "criterion": "x"})["category"], "variation")
+
+    def test_llm_rubric_rows_can_be_extracted_from_common_nested_shapes(self):
+        raw = {
+            "modules": [
+                {"name": "Module 1", "rows": [{"id": "R1", "category": "doctrine", "criterion": "x"}]},
+                {"name": "Module 2", "rows": [{"id": "R2", "category": "rule", "criterion": "y"}]},
+            ]
+        }
+
+        rows = _extract_rubric_rows(raw)
+
+        self.assertEqual([row["id"] for row in rows], ["R1", "R2"])
+        self.assertEqual(_missing_required_categories(rows, ("doctrine", "rule", "facts")), ["facts"])
+
+    def test_reasoning_signature_sanitizer_removes_unexpected_non_latin_tokens(self):
+        cleaned = sanitize_reasoning_signature({"issue": "future будущая wife", "items": ["ok будущая"]})
+
+        self.assertEqual(cleaned["issue"], "future wife")
+        self.assertEqual(cleaned["items"], ["ok"])
 
     def test_frank_generates_sof_one_year_boundary_variations_from_new_case(self):
         case_path = ROOT / "research/runs/tmp_one_year_case.txt"
@@ -236,6 +354,80 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertEqual(signal["conclusion"], "wife_wins")
         self.assertEqual(signal["reasoning"], "marriage_promise_certificate_rights")
 
+    def test_dasha_can_cluster_llm_reasoning_signatures_without_sof_specific_labels(self):
+        responses = [
+            {
+                "id": "r1",
+                "model": "model-a",
+                "text": "The covenant is enforceable because the text preserves the remedy.",
+                "reasoning_signature": {
+                    "doctrine": "contract interpretation",
+                    "issue": "remedy covenant",
+                    "rule_trigger": "express covenant",
+                    "outcome": "enforceable",
+                    "exception_or_defense": "none",
+                    "reasoning_path": "plain meaning preserves remedy",
+                    "conclusion": "claim succeeds",
+                },
+            },
+            {
+                "id": "r2",
+                "model": "model-b",
+                "text": "Plain meaning preserves the remedy, so the claim succeeds.",
+                "reasoning_signature": {
+                    "doctrine": "contract interpretation",
+                    "issue": "remedy covenant",
+                    "rule_trigger": "express covenant",
+                    "outcome": "enforceable",
+                    "exception_or_defense": "none",
+                    "reasoning_path": "plain meaning preserves remedy",
+                    "conclusion": "claim succeeds",
+                },
+            },
+        ]
+
+        clusters = cluster_responses(responses)
+
+        self.assertEqual(clusters["method"], "llm_reasoning_signature")
+        self.assertEqual(len(clusters["clusters"]), 1)
+        self.assertEqual(clusters["clusters"][0]["member_response_ids"], ["r1", "r2"])
+
+    def test_dasha_merges_paraphrased_llm_signatures_for_same_legal_reasoning_path(self):
+        clusters = cluster_responses([
+            {
+                "id": "r1",
+                "model": "gpt-a",
+                "text": "The wife wins because the later certificate naming her supplies the writing and the replacement should not defeat her rights.",
+                "reasoning_signature": {
+                    "doctrine": "Statute of Frauds marriage provision",
+                    "issue": "premarital beneficiary promise",
+                    "rule_trigger": "promise made in consideration of marriage plus certificate naming spouse",
+                    "outcome": "Wife entitled to the death benefit",
+                    "exception_or_defense": "issued certificate is a sufficient writing; replacement certificate defense rejected",
+                    "reasoning_path": "marriage promise triggers SOF, certificate satisfies writing, replacement ineffective",
+                    "conclusion": "wife prevails",
+                },
+            },
+            {
+                "id": "r2",
+                "model": "claude-b",
+                "text": "The spouse has the stronger claim because the beneficiary certificate memorializes the marriage bargain despite the later replacement.",
+                "reasoning_signature": {
+                    "doctrine": "SOF marriage-consideration beneficiary dispute",
+                    "issue": "spouse beneficiary designation",
+                    "rule_trigger": "marriage-conditioned promise and post-marriage benefit certificate",
+                    "outcome": "Spouse likely has superior claim",
+                    "exception_or_defense": "certificate/memorandum satisfies the writing requirement; association replacement argument is not enough",
+                    "reasoning_path": "classify as marriage provision, use certificate as memorandum, reject later replacement",
+                    "conclusion": "wife favored",
+                },
+            },
+        ])
+
+        self.assertEqual(clusters["method"], "llm_reasoning_signature")
+        self.assertEqual(len(clusters["clusters"]), 1)
+        self.assertEqual(clusters["clusters"][0]["size"], 2)
+
     def test_judge_projects_centroid_scores_to_members_and_ranks_models(self):
         config = load_config(self.config_path, repo_root=ROOT)
         run_pipeline(config, repo_root=ROOT)
@@ -248,6 +440,104 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertIn("member_scores", scores)
         self.assertGreater(len(scores["member_scores"]), 0)
         self.assertGreaterEqual(scores["model_rankings"][0]["mean_projected_score"], scores["model_rankings"][-1]["mean_projected_score"])
+
+    def test_internal_validation_summary_and_table_are_generated_from_run_artifacts(self):
+        config = load_config(self.config_path, repo_root=ROOT)
+        run_pipeline(config, repo_root=ROOT)
+
+        summary = build_internal_validation_summary(self.output_dir)
+        table_path = self.output_dir / "internal_validation_table.tex"
+        write_internal_validation_table(summary, table_path)
+
+        self.assertEqual(summary["status"], "internal_validation_passed")
+        self.assertTrue(summary["stage_checks"]["frank"]["passed"])
+        self.assertTrue(summary["stage_checks"]["dasha"]["passed"])
+        self.assertTrue(table_path.exists())
+
+    def test_replicate_client_polls_until_prediction_succeeds(self):
+        payloads = [
+            {"status": "processing", "urls": {"get": "https://replicate.local/predictions/1"}},
+            {"status": "succeeded", "output": ["done"]},
+        ]
+
+        with (
+            patch.object(provider_client, "_env_value", return_value="token"),
+            patch.object(provider_client, "_post_json", return_value=payloads[0]),
+            patch.object(provider_client, "_get_json", return_value=payloads[1]) as get_json,
+            patch.object(provider_client.time, "sleep"),
+        ):
+            text = provider_client._replicate_text(
+                ROOT,
+                "owner/model",
+                [{"role": "user", "content": "hello"}],
+                temperature=0.1,
+                max_tokens=10,
+            )
+
+        self.assertEqual(text, "done")
+        get_json.assert_called_once()
+
+    def test_internal_stress_suite_validates_500_response_reasoning_clusters(self):
+        stress_dir = ROOT / "research/runs/internal_stress_test"
+        if stress_dir.exists():
+            shutil.rmtree(stress_dir)
+
+        try:
+            summary = run_internal_stress(stress_dir, sample_count=500, seed=99)
+            table_path = stress_dir / "stress_table.tex"
+            write_stress_table(summary, table_path)
+            table_exists = table_path.exists()
+        finally:
+            if stress_dir.exists():
+                shutil.rmtree(stress_dir)
+
+        self.assertEqual(summary["status"], "internal_stress_passed")
+        self.assertEqual(summary["sample_count"], 500)
+        self.assertEqual(summary["observed_clusters"], summary["expected_reasoning_archetypes"])
+        self.assertEqual(summary["cluster_purity"], 1.0)
+        self.assertEqual(summary["cluster_completeness"], 1.0)
+        self.assertEqual(summary["macro_f1"], 1.0)
+        self.assertTrue(table_exists)
+
+    def test_internal_stress_responses_are_not_provider_models(self):
+        responses = build_stress_responses(sample_count=10, seed=3)
+
+        self.assertEqual({response["provider"] for response in responses}, {"synthetic_fixture"})
+        self.assertTrue(all(response["model"].startswith("model_") for response in responses))
+        self.assertTrue(all(response.get("expected_reasoning_label") for response in responses))
+
+    def test_artifact_examples_section_shows_responses_and_clusters_without_providers(self):
+        config = load_config(self.config_path, repo_root=ROOT)
+        run_pipeline(config, repo_root=ROOT)
+        section_path = self.output_dir / "artifact_examples.tex"
+
+        write_artifact_examples_section(self.output_dir, section_path)
+
+        text = section_path.read_text(encoding="utf-8")
+        self.assertIn("\\section{Artifact Examples}", text)
+        self.assertIn("Model Response Examples", text)
+        self.assertIn("Dasha Cluster Examples", text)
+        self.assertIn("fixture-model-a", text)
+        self.assertIn("cluster\\_", text)
+        self.assertNotIn("provider", text.lower())
+        self.assertNotIn("replicate", text.lower())
+
+    def test_natural_response_audit_uses_unlabeled_model_answers_to_same_question(self):
+        config = load_config(self.config_path, repo_root=ROOT)
+        run_pipeline(config, repo_root=ROOT)
+        summary = build_natural_response_audit(self.output_dir)
+        table_path = self.output_dir / "natural_response_audit.tex"
+        write_natural_response_audit_table(summary, table_path)
+
+        self.assertEqual(summary["status"], "natural_response_audit_passed")
+        self.assertEqual(summary["question_count"], 1)
+        self.assertEqual(summary["expected_label_count"], 0)
+        self.assertEqual(summary["clustered_response_count"], summary["response_count"])
+        self.assertGreaterEqual(summary["cluster_count"], 1)
+        self.assertTrue(all("member_models" in cluster for cluster in summary["clusters"]))
+        table_text = table_path.read_text(encoding="utf-8")
+        self.assertIn("Unlabeled model responses", table_text)
+        self.assertNotIn("Expected reasoning archetypes", table_text)
 
 
 if __name__ == "__main__":

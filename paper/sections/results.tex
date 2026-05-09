@@ -1,0 +1,88 @@
+\section{Internal Results}
+
+\subsection{Live Source-to-Ranking Run}
+
+The live LLM-driven pipeline was run on a Statute of Frauds calibration case
+using three response model identifiers with three samples each:
+\texttt{gpt-5.2},
+\texttt{claude-sonnet-4-20250514}, and
+\texttt{meta/meta-llama-3-70b-instruct}. Frank and Karthic used
+\texttt{gpt-5.2}. Dasha used LLM reasoning signatures, and the judge used
+\texttt{gpt-5.2} as the rubric-conditioned evaluator.
+
+The run completed with status \texttt{internal\_validation\_ready} in the software
+manifest and \texttt{internal\_validation\_passed} in the internal validation
+summary. The run produced 9 model responses, 10 rubric rows, 1 Dasha cluster,
+10 row-level judge scores, and 3 model ranking entries. Table
+\ref{tab:internal-validation} summarizes the stage checks.
+
+\begin{table}[h]
+\centering
+\caption{Internal validation summary for the live natural-response batch.}
+\label{tab:internal-validation}
+\input{tables/internal_validation_summary}
+\end{table}
+
+This live run is intentionally small to control cost. Its purpose is not to
+estimate model performance with narrow confidence intervals; its purpose is to
+prove that the real model-generation path runs from source case to model ranking without
+manual patching.
+
+\subsection{Natural-Response Dasha Audit}
+
+The relevant Dasha test is whether responses are clustered after models answer
+the same Frank-generated question. The live audit therefore checks the completed
+run bundle for unlabeled model answers, a single shared question id, full cluster
+coverage, and no preassigned reasoning labels. Table
+\ref{tab:natural-dasha-audit} summarizes that audit.
+
+\begin{table}[h]
+\centering
+\caption{Natural-response Dasha audit for the live model batch.}
+\label{tab:natural-dasha-audit}
+\input{tables/natural_response_audit}
+\end{table}
+
+This audit is intentionally separate from the deterministic stress suite. It is
+the evidence that Dasha is operating on model outputs rather than on categories
+given to the response generator. In this batch, the normalized Dasha signature
+merged all nine answers into one reasoning cluster: wife/certificate enforcement
+over later replacement-certificate control. Because centroid scores are projected
+to every cluster member, the model ranking is tied in this run. That is a
+substantive result of the clustering step, not a ranking failure. A publishable
+robustness claim still requires larger live batches across more model families,
+held-out questions, and repeated samples.
+
+\subsection{Controlled 500-Response Dasha Regression Test}
+
+The 500-response suite is now treated as a deterministic regression test rather
+than a robustness demonstration. It generates fixture answers across eight
+legally distinct Statute-of-Frauds reasoning archetypes so the software can test
+cluster bookkeeping, centroid projection, table generation, and metrics at the
+target scale. It does not show that Dasha can discover reasoning families from
+natural model outputs.
+
+\begin{table}[h]
+\centering
+\caption{Controlled Dasha clustering regression test.}
+\label{tab:stress-validation}
+\input{tables/internal_stress_summary}
+\end{table}
+
+The regression test produced eight observed clusters for eight expected reasoning
+archetypes. Cluster purity, cluster completeness, and macro-F1 were all 1.0.
+This proves that the clustering layer preserves normalized legal-reasoning
+distinctions at the target 500-response scale when the signatures are already
+known. It does not substitute for the natural-response audit.
+
+\subsection{Internal Test Coverage}
+
+The current codebase has 32 research-pipeline tests covering offline run-bundle
+exports, Frank packet quality, Karthic rubric quality, SOF gate regression
+cases, Dasha clustering invariants, sparse-response gate context, LLM reasoning
+signature clustering, judge projection and model ranking, model roster config
+loading, model-call polling, natural-response audit generation, metrics, and
+internal stress-table generation. The
+legacy rubric-automation package retains four passing tests. Together, these
+tests make the pre-expert-review manuscript reproducible: the reported claims
+are backed by executable checks rather than by visual inspection alone.

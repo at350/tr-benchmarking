@@ -1,0 +1,33 @@
+\section{Related Work}
+
+The pipeline builds on LLM-as-judge research, but adapts it to source-grounded
+legal reasoning rather than general helpfulness or preference evaluation.
+MT-Bench and Chatbot Arena showed that strong LLM judges can approximate human
+preferences at scale, while also surfacing biases such as position, verbosity,
+and self-enhancement effects \cite{zheng2023judging}. G-Eval introduced a
+rubric-like evaluation procedure using chain-of-thought-style criteria and
+reported stronger human alignment for natural-language generation evaluation
+\cite{liu2023geval}. Prometheus and Prometheus 2 further support the idea that
+rubric-conditioned evaluator models can provide fine-grained judgments when
+given reference material and score criteria \cite{kim2023prometheus,
+kim2024prometheus2}.
+
+The judge literature also makes clear why internal validation must test more
+than whether an LLM can emit a score. Position-bias studies show that pairwise
+or listwise judges may change preferences when candidate order changes
+\cite{wang2024positionbias}. Self-preference work shows that judge models may
+favor outputs from their own model family \cite{panickssery2024selfpreference}.
+For legal evaluation specifically, recent benchmarks and legal judge proposals
+emphasize that legal reasoning requires decomposed factual and doctrinal units,
+not just general answer preference \cite{lexam2025,lemaj2025}. These findings
+motivate our row-level rubric design, centroid-level judging, model-output
+provenance, and explicit separation between internal validation and future
+expert-reviewed legal validity.
+
+Our pipeline differs in three ways. First, the benchmark is generated from a
+legal source case rather than from a static task prompt. Second, responses are
+clustered by legal reasoning path before judging, allowing many model samples to
+be compressed into interpretable centroids. Third, the judge scores rubric rows
+on centroids and then projects those scores to every response in the cluster.
+This makes model ranking cheaper and more interpretable while preserving
+row-level evidence for review.

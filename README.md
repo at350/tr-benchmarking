@@ -1,11 +1,17 @@
-# TR Benchmarking Statute of Frauds Research Pipeline
+# TR Benchmarking Legal Reasoning Research Pipeline
 
 This branch is a research-paper-first version of the TR legal-evaluation project,
-currently scoped to Statute of Frauds benchmarking. It is no longer organized
-around the old demo portal or historical run dumps.
+with Statute of Frauds as the first calibration domain. It is no longer
+organized around the old demo portal or historical run dumps.
 
-The active goal is to develop, calibrate, freeze, and then JD-review a source-grounded
-pipeline for evaluating Statute of Frauds reasoning in LLM outputs.
+The active goal is to develop, calibrate, and internally validate a
+source-grounded pipeline for evaluating legal reasoning in LLM outputs. Future
+expert review is outside the current milestone.
+
+Statute of Frauds is the first calibration domain, not a hard-coded live
+pipeline assumption. The LLM agent path loads canonical context from
+`instructions/`, including `instructions/00_GENERAL_LEGAL_REASONING_PROTOCOL.md`,
+and requires Frank, Karthic, and Dasha to infer doctrine from the source case.
 
 ## Active Pipeline
 
@@ -13,11 +19,11 @@ The canonical implementation lives in `research/validation/`.
 
 The intended source-to-score flow is:
 
-1. **Frank** ingests a Statute of Frauds source case and produces gate detection, source extraction, a gold answer, a neutral question, controlled boundary variations, and a handoff packet.
+1. **Frank** ingests a source case and produces doctrine/gate detection, source extraction, a gold answer, a neutral question, controlled boundary variations, and a handoff packet.
 2. **Karthic** builds fresh source-grounded rubric rows from the locked Frank packet and validates the rubric against required categories, duplicates, and output-shape rules.
-3. **Dasha** generates or loads fresh model responses, clusters them by Statute of Frauds legal reasoning path, and selects a representative answer for each cluster.
+3. **Dasha** generates or loads fresh model responses, clusters them by legal reasoning path, and selects a representative answer for each cluster.
 4. **Judge** scores cluster representatives against the Karthic rubric, projects centroid scores to all cluster members, and records row-level scores, model rankings, agreement, and escalation flags.
-5. **Zak** creates a focused SME/JD review packet only when the judge or cluster evidence indicates escalation is needed.
+5. **Zak** creates a focused escalation packet only when the judge or cluster evidence indicates uncertainty, disagreement, or stage failure.
 
 The engineering calibration loop happens before research freeze. It is not part of
 the paper's empirical claim.
@@ -35,13 +41,37 @@ ignored by git.
 Expected result:
 
 ```text
-tiny_offline: ready_for_jd_review
+tiny_offline: internal_validation_ready
 ```
 
 For live calibration, copy `research/fixtures/live_openai_config.example.json`,
 point it at a source case, keep the output under `research/runs/`, and set
 `mode` to `live_openai`. Use `judge.mode = "llm"` when you want the
 LLM-as-judge scorer to apply the Karthic rubric to Dasha centroids.
+
+For the general LLM-driven path, use
+`research/fixtures/live_three_provider_config.example.json`,
+`research/fixtures/live_openai_anthropic_config.example.json`, or
+`research/fixtures/live_multi_provider_config.example.json`. These configs use
+LLM Frank, LLM Karthic, structured model answers, LLM Dasha reasoning
+signatures, and LLM judge scoring.
+
+The current internally validated smoke command is:
+
+```bash
+python3 -m research.validation run --config research/fixtures/live_three_provider_config.example.json
+python3 -m research.validation validate --run-dir research/runs/live_three_provider_smoke --table paper/tables/internal_validation_summary.tex
+```
+
+In that smoke config, Replicate is only the provider. The response model under
+test through Replicate is `meta/meta-llama-3-70b-instruct`.
+
+The current pre-expert-review scale check is deterministic and does not use API
+calls:
+
+```bash
+python3 -m research.validation stress --output-dir research/runs/internal_stress --sample-count 500 --seed 2026 --table paper/tables/internal_stress_summary.tex
+```
 
 ## Research Workbench UI
 
@@ -72,7 +102,7 @@ The LaTeX scaffold is in `paper/`:
 - `paper/figures/`
 
 Tables and figures should be generated from frozen research outputs after the
-pipeline is calibrated and locked for JD review.
+pipeline is calibrated and internally validated.
 
 ## Repository Layout
 

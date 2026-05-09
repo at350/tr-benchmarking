@@ -6,7 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from .openai_client import judge_representative_with_openai
+from .provider_client import generate_json
 from .utils import tokenize
 
 
@@ -130,17 +130,66 @@ def judge_clusters(clusters: dict, rubric: dict, agreement_threshold: float) -> 
     )
 
 
+def _judge_representative_with_llm(
+    repo_root: Path,
+    cluster: dict,
+    rubric: dict,
+    judge_config: Any,
+) -> list[dict[str, Any]]:
+    representative = next(member for member in cluster["members"] if member["id"] == cluster["representative_response_id"])
+    compact_rows = [
+        {
+            "id": row["id"],
+            "category": row["category"],
+            "criterion": row["criterion"],
+            "source_support": row.get("source_support", []),
+        }
+        for row in rubric["rows"]
+    ]
+    parsed = generate_json(
+        repo_root=repo_root,
+        provider=getattr(judge_config, "provider", "openai"),
+        model=judge_config.model,
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a calibrated legal benchmark judge. Return only strict JSON.",
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Apply every rubric row to the response. Score each row from 0 to 4. "
+                    "Return JSON: {\"row_scores\":[{\"row_id\":\"...\",\"score\":0,\"rationale\":\"...\"}]}.\n\n"
+                    f"Legal cluster signal:\n{cluster.get('legal_signal', {})}\n\n"
+                    f"Rubric rows:\n{compact_rows}\n\n"
+                    f"Response:\n{representative['text']}"
+                ),
+            },
+        ],
+        temperature=0.0,
+        max_tokens=2200,
+    )
+    by_id = {row["id"]: row for row in rubric["rows"]}
+    normalized = []
+    for item in parsed.get("row_scores", []):
+        row_id = str(item.get("row_id", ""))
+        if row_id in by_id:
+            normalized.append({
+                "row_id": row_id,
+                "category": by_id[row_id]["category"],
+                "score": max(0, min(4, int(item.get("score", 0)))),
+                "rationale": str(item.get("rationale", ""))[:800],
+            })
+    if len(normalized) != len(rubric["rows"]):
+        missing = sorted(set(by_id) - {item["row_id"] for item in normalized})
+        raise ValueError(f"LLM judge output missing rubric rows: {missing}")
+    return normalized
+
+
 def judge_clusters_with_openai(repo_root: Path, clusters: dict, rubric: dict, judge_config: Any) -> dict:
     cluster_row_scores = {}
     for cluster in clusters["clusters"]:
-        representative = next(member for member in cluster["members"] if member["id"] == cluster["representative_response_id"])
-        cluster_row_scores[cluster["id"]] = judge_representative_with_openai(
-            repo_root=repo_root,
-            model=judge_config.model,
-            rubric=rubric,
-            representative=representative,
-            legal_signal=cluster.get("legal_signal", {}),
-        )
+        cluster_row_scores[cluster["id"]] = _judge_representative_with_llm(repo_root, cluster, rubric, judge_config)
     return _aggregate_scores(
         clusters,
         rubric,
