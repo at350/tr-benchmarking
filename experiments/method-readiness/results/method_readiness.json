@@ -46,7 +46,7 @@
         "checks=33",
         "blocking_errors=0",
         "responses=60",
-        "clusters=15"
+        "clusters=22"
       ],
       "gap": "Regenerate bundle audit after any claim-supporting run or artifact rewrite.",
       "gate": "Run bundle integrity",
@@ -55,14 +55,14 @@
     {
       "evidence": [
         "responses=60",
-        "clusters=15",
+        "clusters=22",
         "min_observed_clusters=3",
         "cluster_purity=1.0",
         "member_coherence=1.0",
-        "mean_centroid_text_similarity=0.456",
+        "mean_centroid_text_similarity=0.699",
         "non_latin_signal_flags=0",
         "natural_audit=natural_response_audit_passed",
-        "observed_clusters=15"
+        "observed_clusters=22"
       ],
       "gap": "Run larger natural batches across more model families and held-out questions.",
       "gate": "Dasha natural-response clustering",
@@ -83,8 +83,8 @@
       "evidence": [
         "judge_model=gpt-5.2,claude-sonnet-4-6",
         "judge_panel=2",
-        "row_scores=150",
-        "agreement_score=0.005",
+        "row_scores=220",
+        "agreement_score=0.0",
         "stability=stable_after_adjudication",
         "judge_repeats=2",
         "model_rankings=10"
@@ -126,23 +126,28 @@
   "interpretation": "This report is an internal readiness artifact. It distinguishes implemented and tested method components from live-evidence gaps.",
   "judge_stability": {
     "adjudicated_clusters": [
-      "V1__cluster_1",
       "V1__cluster_2",
       "V1__cluster_3",
-      "V_surface_invariant__cluster_5",
+      "V1__cluster_4",
+      "V1__cluster_5",
+      "V1__cluster_6",
+      "V1__cluster_7",
+      "V_surface_invariant__cluster_1",
+      "V_surface_invariant__cluster_3",
+      "V_surface_invariant__cluster_6",
       "original__cluster_2",
       "original__cluster_6"
     ],
-    "max_row_score_range": 2,
-    "mean_pairwise_mae": 0.433,
-    "mean_pairwise_weighted_kappa": 0.654,
+    "max_row_score_range": 3,
+    "mean_pairwise_mae": 0.5,
+    "mean_pairwise_weighted_kappa": 0.752,
     "repeat_count": 2,
     "status": "stable_after_adjudication",
     "unstable_rows": [
       {
         "cluster_id": "original__cluster_2",
         "range": 2,
-        "row_id": "R1",
+        "row_id": "R8",
         "scores": [
           4,
           2
@@ -158,34 +163,34 @@
         ]
       },
       {
-        "cluster_id": "original__cluster_6",
+        "cluster_id": "V_surface_invariant__cluster_1",
+        "range": 2,
+        "row_id": "R0",
+        "scores": [
+          4,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V_surface_invariant__cluster_1",
         "range": 2,
         "row_id": "R3",
         "scores": [
-          3,
-          1
+          4,
+          2
         ]
       },
       {
-        "cluster_id": "original__cluster_6",
+        "cluster_id": "V_surface_invariant__cluster_3",
         "range": 2,
-        "row_id": "R9",
-        "scores": [
-          3,
-          1
-        ]
-      },
-      {
-        "cluster_id": "V_surface_invariant__cluster_5",
-        "range": 2,
-        "row_id": "R9",
+        "row_id": "R3",
         "scores": [
           4,
           2
         ]
       },
       {
-        "cluster_id": "V1__cluster_1",
+        "cluster_id": "V_surface_invariant__cluster_6",
         "range": 2,
         "row_id": "R0",
         "scores": [
@@ -194,16 +199,7 @@
         ]
       },
       {
-        "cluster_id": "V1__cluster_2",
-        "range": 2,
-        "row_id": "R0",
-        "scores": [
-          3,
-          1
-        ]
-      },
-      {
-        "cluster_id": "V1__cluster_2",
+        "cluster_id": "V_surface_invariant__cluster_6",
         "range": 2,
         "row_id": "R1",
         "scores": [
@@ -212,9 +208,27 @@
         ]
       },
       {
-        "cluster_id": "V1__cluster_3",
+        "cluster_id": "V_surface_invariant__cluster_6",
         "range": 2,
-        "row_id": "R0",
+        "row_id": "R2",
+        "scores": [
+          4,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V_surface_invariant__cluster_6",
+        "range": 2,
+        "row_id": "R4",
+        "scores": [
+          4,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_2",
+        "range": 2,
+        "row_id": "R9",
         "scores": [
           4,
           2
@@ -223,10 +237,82 @@
       {
         "cluster_id": "V1__cluster_3",
         "range": 2,
-        "row_id": "R9",
+        "row_id": "R0",
         "scores": [
           3,
           1
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_3",
+        "range": 2,
+        "row_id": "R1",
+        "scores": [
+          4,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_4",
+        "range": 2,
+        "row_id": "R0",
+        "scores": [
+          4,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_4",
+        "range": 2,
+        "row_id": "R9",
+        "scores": [
+          4,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_5",
+        "range": 2,
+        "row_id": "R1",
+        "scores": [
+          4,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_6",
+        "range": 3,
+        "row_id": "R0",
+        "scores": [
+          4,
+          1
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_6",
+        "range": 2,
+        "row_id": "R1",
+        "scores": [
+          4,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_6",
+        "range": 3,
+        "row_id": "R9",
+        "scores": [
+          4,
+          1
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_7",
+        "range": 2,
+        "row_id": "R0",
+        "scores": [
+          4,
+          2
         ]
       }
     ]

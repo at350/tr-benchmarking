@@ -21,6 +21,9 @@ def planned_call_counts(config: ResearchConfig) -> dict[str, Any]:
     planned_dasha_signature_calls = (
         planned_response_calls if config.clustering.method == "llm_reasoning_signature" else 0
     )
+    planned_dasha_canonicalization_calls = (
+        1 if config.clustering.method == "llm_reasoning_signature" and planned_dasha_signature_calls else 0
+    )
     judge_invocations_per_cluster = (
         sum(spec.repeats for spec in config.judge.judge_models)
         if config.judge.judge_models
@@ -40,11 +43,13 @@ def planned_call_counts(config: ResearchConfig) -> dict[str, Any]:
         "base_response_samples_per_track": base_response_samples,
         "planned_response_calls": planned_response_calls,
         "planned_dasha_signature_calls": planned_dasha_signature_calls,
+        "planned_dasha_canonicalization_calls": planned_dasha_canonicalization_calls,
         "judge_invocations_per_cluster": judge_invocations_per_cluster if config.judge.mode == "llm" else 0,
         "estimated_min_clusters_for_judging": estimated_min_clusters,
         "planned_min_judge_calls": planned_min_judge_calls,
         "planned_total_llm_calls_excluding_frank_karthic": (
             planned_response_calls + planned_dasha_signature_calls + planned_min_judge_calls
+            + planned_dasha_canonicalization_calls
         ),
     }
 
@@ -71,6 +76,7 @@ def actual_judge_call_plan(config: ResearchConfig, clusters: dict[str, Any], cal
         "actual_total_llm_calls_excluding_frank_karthic": (
             call_plan["planned_response_calls"]
             + call_plan["planned_dasha_signature_calls"]
+            + call_plan.get("planned_dasha_canonicalization_calls", 0)
             + actual_judge_calls
         ),
     }

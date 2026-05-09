@@ -33,7 +33,7 @@ frozen_or_reported_artifacts:
   website_manuscript: http://127.0.0.1:3000/paper
 
 current_evidence:
-  unit_tests: 79
+  unit_tests: 82
   live_natural_responses:
     source_case: cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf
     case_id: anglemire_v_policemens_benev_assn_chicago_1939
@@ -64,13 +64,14 @@ current_evidence:
       two samples per model per track, and original/invariant/material question
       tracks. Frank produced a 1751-character neutral scenario and three
       variations with zero quality errors. The response stage produced 60
-      natural answers; all 60 received Dasha reasoning signatures. Dasha now
-      produces 15 track-aware clusters with member coherence 1.0, no mixed
-      reasoning flags, invariant dominant-answer preservation, and material
-      signed-writing answer-family shift. Judge used a two-model panel over 15
-      centroids, produced 150 row-level panel scores, adjudicated six unstable
-      clusters, projected scores to all 60 responses, generated ten model
-      rankings, and Zak emitted one disputed-cluster packet.
+      natural answers; all 60 received Dasha reasoning signatures. After the
+      multi-path Dasha repair, Dasha now produces 22 track-aware clusters with
+      member coherence 1.0, no mixed reasoning flags, invariant dominant-answer
+      preservation, and material signed-writing answer-family shift. Judge used
+      a two-model panel over 22 centroids, made 44 panel calls, produced 220
+      final row-level scores, adjudicated 11 unstable clusters, projected scores
+      to all 60 responses, generated ten model rankings, and Zak emitted one
+      disputed-cluster packet.
     artifacts:
       - research/runs/live_replicate_roster/frank_packet.json
       - research/runs/live_replicate_roster/responses.json
@@ -90,10 +91,11 @@ current_evidence:
       under the new primary/secondary path schema. A naive key using every
       secondary path produced 49 clusters, showing overfragmentation. The tuned
       method stores the full secondary-path audit profile but clusters only on
-      accepted or uncertain non-primary paths, yielding 26 track-aware clusters:
-      8 original, 10 surface-invariant, and 8 material signed-writing clusters.
-      This is now the preferred Dasha method version, but Judge should be rerun
-      on the multi-path clusters before the scored model rankings are replaced.
+      accepted or uncertain non-primary paths. After repairing a
+      negative-language normalization bug, the full source-to-score rerun
+      produced 22 track-aware clusters: 6 original, 8 surface-invariant, and 8
+      material signed-writing clusters. Judge was rerun on those clusters and
+      the active scored bundle now uses the multi-path Dasha method.
   deterministic_stress:
     responses: 500
     purpose: scale and bookkeeping regression, not natural discovery evidence
@@ -168,8 +170,8 @@ current_evidence:
       planned_total_llm_calls_excluding_frank_karthic: 126
     budget:
       max_response_calls: 60
-      max_judge_calls: 45
-      max_total_llm_calls_excluding_frank_karthic: 165
+      max_judge_calls: 70
+      max_total_llm_calls_excluding_frank_karthic: 210
     warnings: []
   runtime_budget_enforcement:
     status: offline_regression_passed
@@ -258,10 +260,19 @@ hypotheses:
       Capturing primary and secondary legal paths should expose multi-gate
       reasoning, while clustering only on material accepted or uncertain
       non-primary paths should avoid one-cluster-per-answer fragmentation.
+  H5:
+    title: Agent-emitted canonical ids make Dasha doctrine-general.
+    status: supported_by_unit_regression_pending_live_rerun
+    prediction: >
+      If Dasha emits doctrine_id, rule_trigger_id, outcome_id,
+      exception_or_defense_id, and primary_reasoning_id from the Frank packet
+      and response, the clustering code can remain doctrine-general and avoid
+      deterministic SOF legal classification in the live method.
 
 open_gaps:
-  - Rerun Judge on the multi-path Dasha clusters before replacing the scored
-    15-cluster Anglemire bundle and model rankings.
+  - Regenerate the live Anglemire Dasha signatures with agent canonical ids and
+    rerun Judge before claiming the active scored bundle uses the v5 contextual
+    id method rather than the legacy v4 fallback.
   - Add live held-out non-SOF source cases to test doctrine transfer beyond offline fixtures.
   - Calibrate live Zak escalation and adjudication thresholds across held-out cases.
   - Expand the live roster or sample count if the next manuscript claim moves from internal method validation to model-performance benchmarking.

@@ -73,14 +73,14 @@
       "claim": "Dasha clustered the current natural-response batch into coherent legal-reasoning groups.",
       "evidence": [
         "responses=60",
-        "clusters=15",
+        "clusters=22",
         "min_observed_clusters=3",
         "cluster_purity=1.0",
         "member_coherence=1.0",
-        "mean_centroid_text_similarity=0.456",
+        "mean_centroid_text_similarity=0.699",
         "non_latin_signal_flags=0",
         "natural_audit=natural_response_audit_passed",
-        "observed_clusters=15"
+        "observed_clusters=22"
       ],
       "id": "C5",
       "limitation": "Run larger natural batches across more model families and held-out questions.",
@@ -97,7 +97,7 @@
         "checks=33",
         "blocking_errors=0",
         "responses=60",
-        "clusters=15"
+        "clusters=22"
       ],
       "id": "C6",
       "limitation": "Regenerate bundle audit after any claim-supporting run or artifact rewrite.",
@@ -128,8 +128,8 @@
       "evidence": [
         "judge_model=gpt-5.2,claude-sonnet-4-6",
         "judge_panel=2",
-        "row_scores=150",
-        "agreement_score=0.005",
+        "row_scores=220",
+        "agreement_score=0.0",
         "stability=stable_after_adjudication",
         "judge_repeats=2",
         "model_rankings=10"
@@ -177,7 +177,7 @@
         "warnings=0",
         "blocking_errors=0",
         "planned_total_calls=126",
-        "total_call_cap=165"
+        "total_call_cap=210"
       ],
       "id": "C11",
       "limitation": "Resolve credential warnings before claim-supporting paid live runs.",

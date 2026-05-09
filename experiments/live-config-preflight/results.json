@@ -1,9 +1,9 @@
 {
   "blocking_errors": [],
   "budget": {
-    "max_judge_calls": 45,
+    "max_judge_calls": 70,
     "max_response_calls": 60,
-    "max_total_llm_calls_excluding_frank_karthic": 165
+    "max_total_llm_calls_excluding_frank_karthic": 210
   },
   "call_plan": {
     "base_response_samples_per_track": 20,
@@ -132,7 +132,7 @@
       "env": "REPLICATE_API_TOKEN"
     }
   },
-  "protocol_hash": "62643bc1ce2a002d",
+  "protocol_hash": "88fa69162123de99",
   "response_model_count": 10,
   "response_model_families": [
     "anthropic",

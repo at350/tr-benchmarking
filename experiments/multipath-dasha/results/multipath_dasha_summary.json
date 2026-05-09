@@ -1,23 +1,29 @@
 {
-  "cluster_count": 26,
+  "adjudication_calls": 11,
+  "cluster_count": 22,
   "cluster_size_histogram": {
     "1": 13,
-    "2": 6,
-    "3": 1,
-    "4": 2,
+    "2": 3,
+    "4": 1,
     "5": 2,
-    "7": 2
+    "7": 1,
+    "9": 1,
+    "11": 1
   },
   "clusters": [
     {
       "id": "original__cluster_1",
       "member_response_ids": [
         "openai_gpt_5_2_original_1",
+        "openai_gpt_5_2_original_2",
         "openai_gpt_5_4_original_1",
         "openai_gpt_5_4_original_2",
+        "replicate_google_gemini_3_flash_original_1",
         "replicate_google_gemini_3_flash_original_2",
+        "replicate_anthropic_claude_4_5_sonnet_original_2",
         "replicate_openai_gpt_4_1_mini_original_1",
         "replicate_deepseek_ai_deepseek_r1_original_1",
+        "replicate_deepseek_ai_deepseek_r1_original_2",
         "replicate_meta_meta_llama_3_70b_instruct_original_1"
       ],
       "normalized_cluster_key": [
@@ -39,9 +45,10 @@
         "marriage_consideration_gate:rejected",
         "part_performance:rejected",
         "promissory_estoppel_or_reliance:rejected",
+        "signed_writing_or_memorandum:mentioned",
         "signed_writing_or_memorandum:rejected"
       ],
-      "size": 7,
+      "size": 11,
       "track_id": "original"
     },
     {
@@ -72,8 +79,10 @@
     {
       "id": "original__cluster_3",
       "member_response_ids": [
+        "anthropic_claude_sonnet_4_6_original_1",
         "anthropic_claude_sonnet_4_6_original_2",
         "anthropic_claude_haiku_4_5_20251001_original_1",
+        "replicate_anthropic_claude_4_5_sonnet_original_1",
         "replicate_openai_gpt_4_1_mini_original_2"
       ],
       "normalized_cluster_key": [
@@ -90,11 +99,12 @@
       ],
       "secondary_path_profile": [
         "association_replacement_or_bylaw:accepted",
+        "constructive_trust_or_equity:mentioned",
         "part_performance:rejected",
         "promissory_estoppel_or_reliance:rejected",
         "promissory_estoppel_or_reliance:uncertain"
       ],
-      "size": 3,
+      "size": 5,
       "track_id": "original"
     },
     {
@@ -149,43 +159,13 @@
     {
       "id": "original__cluster_6",
       "member_response_ids": [
-        "openai_gpt_5_2_original_2",
-        "replicate_google_gemini_3_flash_original_1",
-        "replicate_anthropic_claude_4_5_sonnet_original_2",
-        "replicate_deepseek_ai_deepseek_r1_original_2"
-      ],
-      "normalized_cluster_key": [
-        "statute_of_frauds",
-        "marriage_beneficiary_certificate",
-        "claim_succeeds",
-        "writing_or_certificate",
-        "signed_writing_satisfies_sof_and_supports_enforcement",
-        "no_material_secondary_paths"
-      ],
-      "representative_response_id": "replicate_deepseek_ai_deepseek_r1_original_2",
-      "secondary_cluster_profile": [
-        "no_material_secondary_paths"
-      ],
-      "secondary_path_profile": [
-        "association_replacement_or_bylaw:accepted",
-        "part_performance:rejected",
-        "promissory_estoppel_or_reliance:rejected",
-        "signed_writing_or_memorandum:mentioned",
-        "signed_writing_or_memorandum:rejected"
-      ],
-      "size": 4,
-      "track_id": "original"
-    },
-    {
-      "id": "original__cluster_7",
-      "member_response_ids": [
         "replicate_meta_meta_llama_3_70b_instruct_original_2"
       ],
       "normalized_cluster_key": [
         "statute_of_frauds",
         "marriage_beneficiary_certificate",
         "claim_succeeds",
-        "writing_or_certificate",
+        "no_writing_or_no_exception",
         "signed_writing_satisfies_sof_and_supports_enforcement",
         "part_performance:accepted"
       ],
@@ -202,39 +182,45 @@
       "track_id": "original"
     },
     {
-      "id": "original__cluster_8",
+      "id": "V_surface_invariant__cluster_1",
       "member_response_ids": [
-        "anthropic_claude_sonnet_4_6_original_1",
-        "replicate_anthropic_claude_4_5_sonnet_original_1"
+        "replicate_anthropic_claude_4_5_sonnet_v_surface_invariant_2"
       ],
       "normalized_cluster_key": [
         "statute_of_frauds",
         "marriage_beneficiary_certificate",
-        "claim_succeeds",
-        "writing_or_certificate",
-        "signed_writing_satisfies_sof_and_supports_enforcement",
-        "promissory_estoppel_or_reliance:uncertain"
+        "claim_fails_or_later_designation_controls",
+        "no_writing_or_no_exception",
+        "sof_bar_and_later_designation_controls",
+        "land_interest_gate:accepted+promissory_estoppel_or_reliance:uncertain"
       ],
-      "representative_response_id": "anthropic_claude_sonnet_4_6_original_1",
+      "representative_response_id": "replicate_anthropic_claude_4_5_sonnet_v_surface_invariant_2",
       "secondary_cluster_profile": [
+        "land_interest_gate:accepted",
         "promissory_estoppel_or_reliance:uncertain"
       ],
       "secondary_path_profile": [
         "association_replacement_or_bylaw:accepted",
         "constructive_trust_or_equity:mentioned",
+        "land_interest_gate:accepted",
         "part_performance:rejected",
         "promissory_estoppel_or_reliance:uncertain"
       ],
-      "size": 2,
-      "track_id": "original"
+      "size": 1,
+      "track_id": "V_surface_invariant"
     },
     {
-      "id": "V_surface_invariant__cluster_1",
+      "id": "V_surface_invariant__cluster_2",
       "member_response_ids": [
+        "openai_gpt_5_2_v_surface_invariant_1",
         "openai_gpt_5_2_v_surface_invariant_2",
         "openai_gpt_5_4_v_surface_invariant_1",
+        "openai_gpt_5_4_v_surface_invariant_2",
         "replicate_google_gemini_3_flash_v_surface_invariant_2",
-        "replicate_google_gemini_3_pro_v_surface_invariant_2"
+        "replicate_google_gemini_3_pro_v_surface_invariant_2",
+        "replicate_openai_gpt_4_1_mini_v_surface_invariant_1",
+        "replicate_openai_gpt_4_1_mini_v_surface_invariant_2",
+        "replicate_deepseek_ai_deepseek_r1_v_surface_invariant_2"
       ],
       "normalized_cluster_key": [
         "statute_of_frauds",
@@ -244,25 +230,28 @@
         "sof_bar_and_later_designation_controls",
         "no_material_secondary_paths"
       ],
-      "representative_response_id": "replicate_google_gemini_3_pro_v_surface_invariant_2",
+      "representative_response_id": "openai_gpt_5_4_v_surface_invariant_2",
       "secondary_cluster_profile": [
         "no_material_secondary_paths"
       ],
       "secondary_path_profile": [
         "association_replacement_or_bylaw:accepted",
+        "association_replacement_or_bylaw:rejected",
         "marriage_consideration_gate:rejected",
         "part_performance:rejected",
         "promissory_estoppel_or_reliance:rejected",
         "signed_writing_or_memorandum:mentioned",
         "signed_writing_or_memorandum:rejected"
       ],
-      "size": 4,
+      "size": 9,
       "track_id": "V_surface_invariant"
     },
     {
-      "id": "V_surface_invariant__cluster_2",
+      "id": "V_surface_invariant__cluster_3",
       "member_response_ids": [
         "anthropic_claude_sonnet_4_6_v_surface_invariant_2",
+        "anthropic_claude_haiku_4_5_20251001_v_surface_invariant_1",
+        "anthropic_claude_haiku_4_5_20251001_v_surface_invariant_2",
         "replicate_meta_meta_llama_3_70b_instruct_v_surface_invariant_2"
       ],
       "normalized_cluster_key": [
@@ -273,7 +262,7 @@
         "sof_bar_and_later_designation_controls",
         "promissory_estoppel_or_reliance:uncertain"
       ],
-      "representative_response_id": "anthropic_claude_sonnet_4_6_v_surface_invariant_2",
+      "representative_response_id": "anthropic_claude_haiku_4_5_20251001_v_surface_invariant_1",
       "secondary_cluster_profile": [
         "promissory_estoppel_or_reliance:uncertain"
       ],
@@ -281,14 +270,16 @@
         "association_replacement_or_bylaw:accepted",
         "association_replacement_or_bylaw:uncertain",
         "marriage_consideration_gate:rejected",
+        "one_year_gate:rejected",
         "part_performance:rejected",
-        "promissory_estoppel_or_reliance:uncertain"
+        "promissory_estoppel_or_reliance:uncertain",
+        "signed_writing_or_memorandum:rejected"
       ],
-      "size": 2,
+      "size": 4,
       "track_id": "V_surface_invariant"
     },
     {
-      "id": "V_surface_invariant__cluster_3",
+      "id": "V_surface_invariant__cluster_4",
       "member_response_ids": [
         "replicate_google_gemini_3_flash_v_surface_invariant_1"
       ],
@@ -309,34 +300,6 @@
         "promissory_estoppel_or_reliance:rejected",
         "signed_writing_or_memorandum:accepted",
         "signed_writing_or_memorandum:rejected"
-      ],
-      "size": 1,
-      "track_id": "V_surface_invariant"
-    },
-    {
-      "id": "V_surface_invariant__cluster_4",
-      "member_response_ids": [
-        "replicate_anthropic_claude_4_5_sonnet_v_surface_invariant_2"
-      ],
-      "normalized_cluster_key": [
-        "statute_of_frauds",
-        "marriage_beneficiary_certificate",
-        "claim_fails_or_later_designation_controls",
-        "writing_or_certificate",
-        "sof_bar_and_later_designation_controls",
-        "land_interest_gate:accepted+promissory_estoppel_or_reliance:uncertain"
-      ],
-      "representative_response_id": "replicate_anthropic_claude_4_5_sonnet_v_surface_invariant_2",
-      "secondary_cluster_profile": [
-        "land_interest_gate:accepted",
-        "promissory_estoppel_or_reliance:uncertain"
-      ],
-      "secondary_path_profile": [
-        "association_replacement_or_bylaw:accepted",
-        "constructive_trust_or_equity:mentioned",
-        "land_interest_gate:accepted",
-        "part_performance:rejected",
-        "promissory_estoppel_or_reliance:uncertain"
       ],
       "size": 1,
       "track_id": "V_surface_invariant"
@@ -398,63 +361,6 @@
     {
       "id": "V_surface_invariant__cluster_7",
       "member_response_ids": [
-        "anthropic_claude_haiku_4_5_20251001_v_surface_invariant_1"
-      ],
-      "normalized_cluster_key": [
-        "statute_of_frauds",
-        "marriage_beneficiary_certificate",
-        "claim_fails_or_later_designation_controls",
-        "writing_or_certificate",
-        "sof_bar_and_later_designation_controls",
-        "promissory_estoppel_or_reliance:uncertain"
-      ],
-      "representative_response_id": "anthropic_claude_haiku_4_5_20251001_v_surface_invariant_1",
-      "secondary_cluster_profile": [
-        "promissory_estoppel_or_reliance:uncertain"
-      ],
-      "secondary_path_profile": [
-        "association_replacement_or_bylaw:accepted",
-        "one_year_gate:rejected",
-        "part_performance:rejected",
-        "promissory_estoppel_or_reliance:uncertain"
-      ],
-      "size": 1,
-      "track_id": "V_surface_invariant"
-    },
-    {
-      "id": "V_surface_invariant__cluster_8",
-      "member_response_ids": [
-        "openai_gpt_5_2_v_surface_invariant_1",
-        "openai_gpt_5_4_v_surface_invariant_2",
-        "replicate_openai_gpt_4_1_mini_v_surface_invariant_1",
-        "replicate_openai_gpt_4_1_mini_v_surface_invariant_2",
-        "replicate_deepseek_ai_deepseek_r1_v_surface_invariant_2"
-      ],
-      "normalized_cluster_key": [
-        "statute_of_frauds",
-        "marriage_beneficiary_certificate",
-        "claim_succeeds",
-        "writing_or_certificate",
-        "signed_writing_satisfies_sof_and_supports_enforcement",
-        "no_material_secondary_paths"
-      ],
-      "representative_response_id": "replicate_openai_gpt_4_1_mini_v_surface_invariant_2",
-      "secondary_cluster_profile": [
-        "no_material_secondary_paths"
-      ],
-      "secondary_path_profile": [
-        "association_replacement_or_bylaw:accepted",
-        "association_replacement_or_bylaw:rejected",
-        "marriage_consideration_gate:rejected",
-        "part_performance:rejected",
-        "promissory_estoppel_or_reliance:rejected"
-      ],
-      "size": 5,
-      "track_id": "V_surface_invariant"
-    },
-    {
-      "id": "V_surface_invariant__cluster_9",
-      "member_response_ids": [
         "replicate_meta_meta_llama_3_70b_instruct_v_surface_invariant_1"
       ],
       "normalized_cluster_key": [
@@ -479,10 +385,9 @@
       "track_id": "V_surface_invariant"
     },
     {
-      "id": "V_surface_invariant__cluster_10",
+      "id": "V_surface_invariant__cluster_8",
       "member_response_ids": [
-        "anthropic_claude_sonnet_4_6_v_surface_invariant_1",
-        "anthropic_claude_haiku_4_5_20251001_v_surface_invariant_2"
+        "anthropic_claude_sonnet_4_6_v_surface_invariant_1"
       ],
       "normalized_cluster_key": [
         "statute_of_frauds",
@@ -499,10 +404,9 @@
       "secondary_path_profile": [
         "association_replacement_or_bylaw:accepted",
         "part_performance:rejected",
-        "promissory_estoppel_or_reliance:uncertain",
-        "signed_writing_or_memorandum:rejected"
+        "promissory_estoppel_or_reliance:uncertain"
       ],
-      "size": 2,
+      "size": 1,
       "track_id": "V_surface_invariant"
     },
     {
@@ -727,34 +631,36 @@
   ],
   "clusters_by_track": {
     "V1": 8,
-    "V_surface_invariant": 10,
-    "original": 8
+    "V_surface_invariant": 8,
+    "original": 6
   },
-  "normalization": {},
+  "judge_panel_calls": 44,
+  "perturbation_status": "perturbation_validation_passed",
+  "pipeline_status": "internal_validation_ready",
   "response_count": 60,
   "secondary_audit_profile_member_counts": {
     "association_replacement_or_bylaw:accepted": 49,
     "association_replacement_or_bylaw:mentioned": 3,
-    "association_replacement_or_bylaw:rejected": 29,
-    "association_replacement_or_bylaw:uncertain": 14,
+    "association_replacement_or_bylaw:rejected": 37,
+    "association_replacement_or_bylaw:uncertain": 16,
     "constructive_trust_or_equity:accepted": 6,
-    "constructive_trust_or_equity:mentioned": 5,
+    "constructive_trust_or_equity:mentioned": 8,
     "constructive_trust_or_equity:rejected": 1,
     "constructive_trust_or_equity:uncertain": 1,
     "land_interest_gate:accepted": 1,
-    "marriage_consideration_gate:accepted": 16,
-    "marriage_consideration_gate:rejected": 21,
-    "one_year_gate:rejected": 1,
+    "marriage_consideration_gate:accepted": 20,
+    "marriage_consideration_gate:rejected": 27,
+    "one_year_gate:rejected": 4,
     "part_performance:accepted": 7,
     "part_performance:mentioned": 13,
     "part_performance:rejected": 49,
     "part_performance:uncertain": 1,
     "promissory_estoppel_or_reliance:accepted": 4,
-    "promissory_estoppel_or_reliance:rejected": 27,
+    "promissory_estoppel_or_reliance:rejected": 29,
     "promissory_estoppel_or_reliance:uncertain": 11,
     "signed_writing_or_memorandum:accepted": 3,
-    "signed_writing_or_memorandum:mentioned": 8,
-    "signed_writing_or_memorandum:rejected": 19
+    "signed_writing_or_memorandum:mentioned": 20,
+    "signed_writing_or_memorandum:rejected": 26
   },
   "secondary_cluster_profile_member_counts": {
     "land_interest_gate:accepted": 1,
@@ -766,5 +672,5 @@
     "signed_writing_or_memorandum:accepted": 2
   },
   "source_run": "research/runs/live_replicate_roster",
-  "status": "multipath_dasha_tuned_trackaware_passed"
+  "status": "multipath_dasha_source_to_score_passed"
 }

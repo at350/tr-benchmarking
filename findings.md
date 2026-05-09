@@ -34,11 +34,13 @@ The paper and code must keep three evidence types separate:
 - Legal-methodological assessment: researchers inspect whether Frank, Karthic,
   Dasha, Judge, and Zak artifacts are legally coherent and source-grounded.
 
-Dasha should not depend on Statute-of-Frauds labels as the only clustering
-ontology. The better design is to let Frank expose source-derived gates and let
-Dasha normalize signatures against those gates. The remaining SOF-specific
-fallback code is acceptable only for offline fixtures and calibration, not as
-the general live method.
+Dasha should not depend on Statute-of-Frauds labels as the clustering ontology.
+The better design is to let Frank expose source-derived gates and let Dasha
+emit doctrine-general canonical identifiers from the Frank packet and model
+answer. The code should group those identifiers exactly for reproducibility, not
+make the legal classification itself. Remaining SOF-specific keyword code is
+acceptable only for archived/offline fixtures that lack Dasha canonical ids, not
+as the general live method.
 
 Dasha cluster validity should be measured at the member level. The run bundle
 now preserves each member's normalized signature key and each cluster's centroid
@@ -238,12 +240,12 @@ still need calibration with repeated judge runs.
   invalid cluster set. Dasha normalization was then tightened to collapse
   prose-level signature variation into legal-reasoning families while preserving
   separate certificate-as-writing, constructive-trust/equity, SOF-bar, and
-  signed-writing-compliance theories. The completed run now has 15 track-aware
-  clusters, 1.0 member coherence, no mixed-reasoning flags, invariant dominant
+  signed-writing-compliance theories. After the multi-path Dasha repair, the
+  completed run now has 22 track-aware clusters, 1.0 member coherence, no mixed-reasoning flags, invariant dominant
   answer preservation, and material signed-writing outcome shift.
 - The real Anglemire perturbation run now completes source-to-score. The judge
-  used a two-model panel over 15 Dasha centroids, produced 150 row-level panel
-  scores, adjudicated six clusters with unstable panel rows, projected final
+  used a two-model panel over 22 Dasha centroids, produced 220 final row-level
+  scores, adjudicated 11 clusters with unstable panel rows, projected final
   centroid scores to all 60 responses, generated rankings for ten model
   identifiers, and produced a Zak disputed-cluster packet. The regenerated
   method-readiness report marks 11 of 11 internal gates met, and the claim
@@ -257,9 +259,10 @@ still need calibration with repeated judge runs.
   only accepted or uncertain non-primary paths. An exploratory regeneration of
   Dasha signatures for the 60 saved Anglemire responses completed without JSON
   failures. A naive full-secondary key produced 49 clusters, but the tuned
-  track-aware method produced 26 clusters across the original, invariant, and
-  material tracks. This is a method improvement, not yet a replacement for the
-  scored 15-cluster bundle until Judge is rerun on the multi-path clusters.
+  track-aware method, after a negative-language normalization repair, produced
+  22 clusters across the original, invariant, and material tracks. Judge has
+  now been rerun on those multi-path clusters, so the active scored bundle uses
+  the multi-path Dasha method.
 - Perturbation validation should not compare raw reasoning prose literally.
   The invariant track initially failed because the dominant clusters used
   different paraphrases and source-gate emphasis while preserving the same

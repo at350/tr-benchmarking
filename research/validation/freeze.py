@@ -80,7 +80,7 @@ def build_protocol_freeze(
         "instruction_contexts": instruction_contexts,
         "instruction_files": instruction_files,
         "normalization": {
-            "dasha_signature_version": "reasoning_bucket_v4_multipath",
+            "dasha_signature_version": "agent_contextual_ids_v5",
             "judge_score_scale": "0-4",
             "score_projection_policy": "Representative centroid score applies to all responses in the Dasha cluster.",
         },

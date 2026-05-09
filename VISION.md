@@ -195,9 +195,11 @@ and expert review.
 A later multi-path Dasha audit regenerated signatures for the saved 60
 Anglemire responses. The naive full-secondary-profile key overfragmented into
 49 clusters; the tuned method records all secondary paths but clusters only on
-material accepted or uncertain non-primary paths, yielding 26 track-aware
-clusters. Before replacing the reported model rankings, the full source-to-score
-bundle should be rerun through Judge on these multi-path clusters.
+material accepted or uncertain non-primary paths. After repairing a negative-
+language normalization bug, the full source-to-score bundle now uses 22
+track-aware multi-path clusters, 44 panel judge calls, 11 adjudications, 220
+final row-level scores, projected scores for all 60 responses, and passed
+perturbation validation.
 
 ## Judge Target Behavior
 
@@ -264,8 +266,16 @@ as a source-to-score case study plus robustness checks:
   natural-response discovery evidence.
 - Doctrine-transfer argument: the paper must explain exactly which components
   are doctrine-general, which SOF-specific contexts were used for calibration,
-  and what evidence remains necessary before claiming broad legal-domain
-  validity.
+  and why live semantic decisions are made by agents from source/instruction
+  context rather than by doctrine-specific code.
+
+The target architecture should have almost no deterministic legal judgment.
+Deterministic code is appropriate for schema checks, provenance, manifest
+hashes, run budgets, response bookkeeping, exact grouping over Dasha-emitted
+canonical ids, and paper/table generation. It is not appropriate for deciding
+which doctrine, gate, exception, or reasoning path an answer uses in the live
+research method. Those judgments belong to Frank, Karthic, Dasha, and Judge
+using their bounded instruction context and the source packet.
 
 Expected metrics include, where appropriate:
 

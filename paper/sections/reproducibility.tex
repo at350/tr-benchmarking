@@ -131,27 +131,25 @@ criteria, then returns one score and rationale per row.
 
 \subsection{Dasha Clustering Algorithm}
 
-The reported configuration clusters responses by normalized legal-reasoning
-signatures rather than by surface text. For each response, Dasha extracts a
-signature with the fields \texttt{doctrine}, \texttt{issue},
-\texttt{rule\_trigger}, \texttt{outcome}, \texttt{exception\_or\_defense},
-\texttt{reasoning\_path}, \texttt{conclusion}, and
-\texttt{key\_distinguishing\_facts}. The implementation sanitizes the signature,
-lowercases text, removes unexpected script fragments, collapses whitespace, and
-maps aliases into canonical buckets.
+The reported configuration clusters responses by Dasha-extracted
+legal-reasoning signatures rather than by surface text. For each response,
+Dasha emits both natural-language fields and canonical identifiers:
+\texttt{doctrine\_id}, \texttt{rule\_trigger\_id}, \texttt{outcome\_id},
+\texttt{exception\_or\_defense\_id}, and \texttt{primary\_reasoning\_id}. The
+identifier vocabulary is not pre-enumerated in code. Dasha derives it from the
+Frank packet, source-derived gates, instruction context, and response text.
+The implementation sanitizes the signature, removes unexpected script
+fragments, collapses whitespace, and groups exact canonical identifiers.
 
 The cluster key is the tuple
-\texttt{(doctrine\_bucket, trigger\_bucket, outcome\_bucket,
-exception\_bucket, normalization\_version)}. The doctrine bucket is a normalized
-doctrine name. The trigger bucket is the best matching gate or element from the
-Frank packet; if no source-derived gate matches, it falls back to the normalized
-\texttt{rule\_trigger}. The outcome bucket captures the legal result or dominant
-entitlement theory. The exception bucket captures the main defense, substitute,
-exception, or compliance theory. The normalization version makes changes to the
-bucket rules explicit. In Statute-of-Frauds calibration runs, the trigger bucket
-includes gates such as marriage consideration, one-year, suretyship, land,
-goods, and executor promises; other doctrine families require their own
-source-derived gate names and synonym maps.
+\texttt{(doctrine\_id, rule\_trigger\_id, outcome\_id,
+exception\_or\_defense\_id, primary\_reasoning\_id,
+secondary\_cluster\_profile)}. The first five values are Dasha's canonical
+legal abstraction. The final value is derived from Dasha's secondary-path list
+and includes only accepted or uncertain non-primary paths. Rejected and merely
+mentioned side paths remain in the audit profile but do not automatically split
+clusters. Legacy keyword buckets exist only for archived fixtures without
+Dasha canonical identifiers.
 
 Responses are grouped by exact cluster-key match within each question track. A
 perturbation run never clusters different tracks together. For each cluster, the

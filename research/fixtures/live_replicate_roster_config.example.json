@@ -20,8 +20,8 @@
     },
     "dasha": {
       "mode": "llm",
-      "provider": "openai",
-      "model": "gpt-5.2",
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-6",
       "temperature": 0
     }
   },
@@ -97,22 +97,22 @@
   },
   "judge": {
     "mode": "llm",
-    "provider": "openai",
-    "model": "gpt-5.2",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
     "agreement_threshold": 0.7,
     "escalation_margin": 0.2,
     "repeats": 2,
     "temperature": 0.15,
     "judge_models": [
       {
-        "provider": "openai",
-        "model": "gpt-5.2",
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-6",
         "repeats": 1,
         "temperature": 0.15
       },
       {
         "provider": "anthropic",
-        "model": "claude-sonnet-4-6",
+        "model": "claude-haiku-4-5-20251001",
         "repeats": 1,
         "temperature": 0.15
       }

@@ -1,8 +1,8 @@
 {
   "budget": {
-    "max_judge_calls": 45,
+    "max_judge_calls": 70,
     "max_response_calls": 60,
-    "max_total_llm_calls_excluding_frank_karthic": 165
+    "max_total_llm_calls_excluding_frank_karthic": 210
   },
   "bundle_status": "run_bundle_reviewable",
   "call_plan": {

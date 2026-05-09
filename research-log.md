@@ -165,11 +165,9 @@
   perturbation normalization, and a coarser Dasha reasoning-family normalizer so
   the method fixes overfragmentation rather than spending through it.
 - Completed the resumed live roster source-to-score run from the saved Frank,
-  Karthic, response, and Dasha-signature checkpoints. Final bundle:
-  `internal_validation_ready`, 60 natural responses, 15 track-aware Dasha
-  clusters, perturbation validation passed, 150 row-level judge panel scores,
-  6 adjudicated unstable clusters, 60 projected member scores, 10 model
-  rankings, and 1 Zak packet.
+  Karthic, response, and Dasha-signature checkpoints. The earlier final bundle
+  had 15 track-aware Dasha clusters; this has since been superseded by the
+  multi-path Dasha bundle below.
 - Regenerated internal validation tables, method readiness, no-call audit,
   claim ledger, review packet, handoff manifest, and paper tables from the
   completed live roster bundle. The method-readiness report now marks 11 of 11
@@ -181,6 +179,21 @@
   and uses only accepted or uncertain non-primary paths in the grouping key.
   Regenerated Dasha signatures for the 60 saved Anglemire natural responses
   using the new prompt. The naive full-secondary-profile key produced 49
-  clusters, confirming overfragmentation; the tuned track-aware key produced 26
-  clusters across the original, invariant, and material tracks. Added regression
-  tests and documented the experiment under `experiments/multipath-dasha/`.
+  clusters, confirming overfragmentation. A negative-language bug then surfaced:
+  Dasha treated `unenforceable` as an enforceability signal and `lacks a signed
+  writing` as signed-writing compliance. Fixed the bucket rules and reran the
+  full source-to-score pipeline. Final bundle: `internal_validation_ready`, 60
+  natural responses, 22 track-aware multi-path Dasha clusters, perturbation
+  validation passed, 44 panel judge calls, 220 final row-level scores, 11
+  adjudicated clusters, 60 projected member scores, 10 model rankings, and 1
+  Zak packet. Added regression tests and documented the experiment under
+  `experiments/multipath-dasha/`.
+- Responded to the determinism critique by changing the primary Dasha live
+  signature contract from prose buckets plus SOF fallback rules to
+  agent-emitted canonical ids: `doctrine_id`, `rule_trigger_id`, `outcome_id`,
+  `exception_or_defense_id`, and `primary_reasoning_id`. The deterministic code
+  now groups those ids exactly and leaves legal classification to Dasha. Added a
+  non-SOF administrative-law regression proving that Dasha can cluster by
+  agent-provided doctrine-general ids without SOF keyword rules. Legacy keyword
+  normalization remains only for archived/offline fixtures without canonical
+  ids.

@@ -394,6 +394,43 @@ def _normalize_secondary_posture(item: object, text: str) -> str:
     return _secondary_path_posture(text)
 
 
+def _secondary_path_profile_from_agent_ids(signature: dict) -> tuple[str, ...]:
+    tags: set[str] = set()
+    for item in _iter_secondary_path_items(signature):
+        if isinstance(item, dict):
+            path_id = _first_present(item, ("path_id", "gate_or_theory_id", "theory_id", "gate_id", "legal_path_id"), fallback="")
+            if not path_id:
+                path_id = _canonical_id(
+                    item.get("gate_or_theory") or item.get("theory") or item.get("gate") or item.get("legal_path"),
+                    fallback="",
+                )
+            text = _flatten_signature_value(item)
+            posture = _normalize_secondary_posture(item, text)
+        else:
+            path_id = _canonical_id(item, fallback="")
+            posture = _secondary_path_posture(_flatten_signature_value(item))
+        if path_id:
+            tags.add(f"{path_id}:{posture}")
+    return tuple(sorted(tags)) if tags else ("no_material_secondary_paths",)
+
+
+def _secondary_cluster_profile_from_agent_ids(
+    audit_profile: tuple[str, ...],
+    primary_reasoning_id: str,
+    rule_trigger_id: str,
+) -> tuple[str, ...]:
+    retained: set[str] = set()
+    for item in audit_profile:
+        if item == "no_material_secondary_paths":
+            continue
+        path_id, _, posture = item.partition(":")
+        if path_id in {primary_reasoning_id, rule_trigger_id}:
+            continue
+        if posture in {"accepted", "uncertain"}:
+            retained.add(item)
+    return tuple(sorted(retained)) if retained else ("no_material_secondary_paths",)
+
+
 def _trigger_path_tags(trigger: str) -> set[str]:
     mapping = {
         "marriage_beneficiary_certificate": {"marriage_consideration_gate", "association_replacement_or_bylaw"},
@@ -469,6 +506,39 @@ def _secondary_cluster_profile(
     return tuple(sorted(retained)) if retained else ("no_material_secondary_paths",)
 
 
+def _positive_enforcement_signal(text: str) -> bool:
+    return bool(re.search(r"\benforceable\b|\bsucceeds\b|\bsuperior claim\b", text)) or _contains_any(
+        text,
+        ("satisfies", "supports enforcing", "supports enforcement"),
+    )
+
+
+def _no_writing_signal(text: str) -> bool:
+    return _contains_any(
+        text,
+        (
+            "no signed writing",
+            "no writing",
+            "lack of writing",
+            "lacks a signed writing",
+            "lacks signed writing",
+            "absence of writing",
+            "absence of a writing",
+            "absent a sufficient writing",
+            "without a signed writing",
+            "without a certificate",
+            "no certificate",
+            "no signed memorandum",
+            "lacks a signed memorandum",
+            "lacks signed memorandum",
+            "find no signed memorandum",
+            "no memorandum",
+            "never obtained any certificate",
+            "not evidenced by a writing",
+        ),
+    )
+
+
 def _bucket_outcome(signature: dict) -> str:
     text = _signature_text(signature)
     if _contains_any(
@@ -482,7 +552,7 @@ def _bucket_outcome(signature: dict) -> str:
             "satisfies the writing requirement",
             "no longer barred",
         ),
-    ) and _contains_any(text, ("enforceable", "satisfies", "supports enforcing", "supports enforcement", "claim")):
+    ) and not _no_writing_signal(text) and (_positive_enforcement_signal(text) or "claim" in text):
         return "claim_succeeds"
     if _contains_any(
         text,
@@ -524,13 +594,31 @@ def _bucket_outcome(signature: dict) -> str:
         return "claim_succeeds"
     if _contains_any(text, ("barred", "unenforceable", "fails", "no superior claim")):
         return "claim_fails_or_later_designation_controls"
-    if _contains_any(text, ("enforceable", "succeeds", "superior claim")):
+    if _positive_enforcement_signal(text):
         return "claim_succeeds"
     return "outcome_uncertain"
 
 
 def _slug(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")[:80] or "unknown"
+
+
+def _canonical_id(value: object, fallback: str = "unknown") -> str:
+    slugged = _slug(_flatten_signature_value(value))
+    return slugged if slugged != "unknown" else fallback
+
+
+def _first_present(signature: dict, keys: tuple[str, ...], fallback: str = "unknown") -> str:
+    for key in keys:
+        value = signature.get(key)
+        if value:
+            return _canonical_id(value, fallback=fallback)
+    return fallback
+
+
+def _has_agent_canonical_ids(signature: dict) -> bool:
+    required = ("doctrine_id", "rule_trigger_id", "outcome_id", "exception_or_defense_id", "primary_reasoning_id")
+    return all(str(signature.get(key, "")).strip() for key in required)
 
 
 def _tokens(value: str) -> set[str]:
@@ -638,8 +726,8 @@ def _bucket_exception(signature: dict) -> str:
             "writing satisfies",
             "sufficient signed writing",
         ),
-    )
-    if _contains_any(text, ("no signed writing", "no writing", "lack of writing", "absence of writing")) and not has_actual_writing:
+    ) and not _no_writing_signal(text)
+    if _no_writing_signal(text) and not has_actual_writing:
         return "no_writing_or_no_exception"
     if _contains_any(
         text,
@@ -653,7 +741,7 @@ def _bucket_exception(signature: dict) -> str:
             "writing satisfies",
             "sufficient signed writing",
         ),
-    ):
+    ) and not _no_writing_signal(text):
         return "writing_or_certificate"
     if _contains_any(
         text,
@@ -661,10 +749,14 @@ def _bucket_exception(signature: dict) -> str:
             "no signed writing",
             "no writing",
             "lack of writing",
+            "lacks a signed writing",
             "absence of writing",
             "absent a sufficient writing",
             "without a certificate",
             "no certificate",
+            "no signed memorandum",
+            "lacks a signed memorandum",
+            "find no signed memorandum",
             "never obtained any certificate",
             "not evidenced by a writing",
         ),
@@ -862,6 +954,27 @@ def _normalized_signature(
     signature: dict,
     gate_aliases: dict[str, tuple[str, ...]] | None = None,
 ) -> tuple[str, str, str, str, str, str]:
+    if _has_agent_canonical_ids(signature):
+        doctrine_bucket = _first_present(signature, ("doctrine_id",), fallback="unknown")
+        trigger = _first_present(signature, ("rule_trigger_id",), fallback="unknown")
+        outcome = _first_present(signature, ("outcome_id",), fallback="unknown")
+        exception = _first_present(signature, ("exception_or_defense_id",), fallback="none")
+        reasoning = _first_present(signature, ("primary_reasoning_id",), fallback="unknown")
+        secondary_audit_profile = _secondary_path_profile_from_agent_ids(signature)
+        secondary_profile = "+".join(_secondary_cluster_profile_from_agent_ids(
+            secondary_audit_profile,
+            primary_reasoning_id=reasoning,
+            rule_trigger_id=trigger,
+        ))
+        return (
+            doctrine_bucket,
+            trigger,
+            outcome,
+            exception,
+            reasoning,
+            secondary_profile,
+        )
+
     doctrine = _signature_text({"doctrine": signature.get("doctrine", "")})
     if "statute of frauds" in doctrine or "sof" in doctrine:
         doctrine_bucket = "statute_of_frauds"
@@ -897,12 +1010,15 @@ def cluster_responses_by_signature(responses: list[dict], frank_packet: dict | N
         signature_key = _normalized_signature(response["reasoning_signature"], gate_aliases=gate_aliases)
         trigger = signature_key[1]
         reasoning = signature_key[4]
-        secondary_audit_profile = _secondary_path_profile(
-            response["reasoning_signature"],
-            reasoning,
-            trigger=trigger,
-            infer_when_absent=False,
-        )
+        if _has_agent_canonical_ids(response["reasoning_signature"]):
+            secondary_audit_profile = _secondary_path_profile_from_agent_ids(response["reasoning_signature"])
+        else:
+            secondary_audit_profile = _secondary_path_profile(
+                response["reasoning_signature"],
+                reasoning,
+                trigger=trigger,
+                infer_when_absent=False,
+            )
         grouped[signature_key].append({
             **response,
             "_dasha_normalized_signature": list(signature_key),
@@ -935,11 +1051,16 @@ def cluster_responses_by_signature(responses: list[dict], frank_packet: dict | N
         clusters.append({
             "id": f"cluster_{index}",
             "legal_signal": {
+                "doctrine_id": str(signature.get("doctrine_id", signature_key[0])),
                 "doctrine": str(signature.get("doctrine", "unknown")),
                 "issue": str(signature.get("issue", "unknown")),
+                "rule_trigger_id": str(signature.get("rule_trigger_id", signature_key[1])),
                 "rule_trigger": str(signature.get("rule_trigger", "unknown")),
+                "outcome_id": str(signature.get("outcome_id", signature_key[2])),
                 "outcome": str(signature.get("outcome", "unknown")),
+                "exception_or_defense_id": str(signature.get("exception_or_defense_id", signature_key[3])),
                 "exception_or_defense": str(signature.get("exception_or_defense", "none")),
+                "primary_reasoning_id": str(signature.get("primary_reasoning_id", signature_key[4])),
                 "primary_reasoning_path": str(signature.get("primary_reasoning_path") or signature.get("reasoning_path", "unknown")),
                 "reasoning_path": str(signature.get("reasoning_path", "unknown")),
                 "secondary_path_profile": secondary_path_profile,
@@ -964,7 +1085,9 @@ def cluster_responses_by_signature(responses: list[dict], frank_packet: dict | N
         "schema_version": "research.dasha.llm.v1",
         "method": "llm_reasoning_signature",
         "normalization": {
-            "version": "reasoning_bucket_v4_multipath",
+            "version": "agent_contextual_ids_v5",
+            "legacy_fallback_version": "reasoning_bucket_v4_multipath",
+            "agent_canonical_ids_used": all(_has_agent_canonical_ids(response.get("reasoning_signature", {})) for response in responses),
             "source_gate_aliases_used": bool(gate_aliases),
             "source_gate_ids": sorted(gate_aliases),
         },

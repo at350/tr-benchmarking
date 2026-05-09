@@ -28,8 +28,8 @@ for unstable rows.
 The run used the corrected natural response protocol: each response model
 received only the Frank-generated question, with no system prompt, no hidden
 gold answer, and no required memo headings. The run produced 60 model responses
-over the original, invariant, and material question tracks; 10 rubric rows; 15
-Dasha clusters; 150 row-level panel scores; adjudicated final centroid scores;
+over the original, invariant, and material question tracks; 10 rubric rows; 22
+Dasha clusters; 220 final row-level judge scores; adjudicated final centroid scores;
 60 projected member scores; and 10 model ranking entries. Table
 \ref{tab:internal-validation}
 summarizes the resulting stage checks.
@@ -65,7 +65,7 @@ cluster coverage, and no preassigned reasoning labels. Table
 This audit is intentionally separate from the deterministic stress suite. It is
 the evidence that Dasha is operating on model outputs rather than on categories
 given to the response generator. In this batch, the normalized Dasha signatures
-formed 15 track-aware clusters. On the original and invariant tracks, the
+formed 22 track-aware clusters. On the original and invariant tracks, the
 dominant cluster family rejected enforcement of the unwritten marriage-
 consideration promise and let the later bylaw-compliant designation control.
 Minority clusters captured equitable override, constructive-trust, and
@@ -98,15 +98,16 @@ primary-path and secondary-path fields completed for all 60 saved responses
 without malformed JSON failures. A first pass that clustered on every
 secondary path overfragmented into 49 clusters. The tuned rule preserves the
 full secondary-path audit profile but clusters only on accepted or uncertain
-non-primary paths, producing 26 track-aware clusters: 8 on the original
-question, 10 on the surface-invariant edit, and 8 on the material
-signed-writing edit. The most common cluster profile remained no material
-secondary path, but the audit also captured uncertain promissory-estoppel or
-reliance analysis, accepted part-performance analysis, accepted reliance
-analysis, and accepted signed-writing analysis. This result strengthens the
-Dasha method description while marking the next necessary full-run step:
-rerun Judge on the multi-path clusters before replacing the reported model
-rankings.
+non-primary paths. After repairing a negative-language normalization error
+around words such as ``unenforceable,'' the full source-to-score rerun produced
+22 track-aware clusters: 6 on the original question, 8 on the
+surface-invariant edit, and 8 on the material signed-writing edit. Judge scored
+those 22 centroids with a two-model panel, yielding 44 panel calls, 220 final
+row-level scores, 11 adjudications, projected member scores for all 60
+responses, and updated model rankings. The most common cluster profile remained
+no material secondary path, but the audit also captured uncertain
+promissory-estoppel or reliance analysis, accepted part-performance analysis,
+accepted reliance analysis, and accepted signed-writing analysis.
 
 \subsection{Question Perturbation Validation}
 

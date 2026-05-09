@@ -17,6 +17,7 @@ from .llm_agents import (
     add_llm_reasoning_signatures,
     build_frank_packet_with_llm,
     build_karthic_rubric_with_llm,
+    canonicalize_llm_reasoning_signature_ids,
     generate_model_responses_with_checkpoint,
 )
 from .openai_client import generate_live_responses
@@ -98,6 +99,14 @@ def run_pipeline(config: ResearchConfig, repo_root: str | Path) -> PipelineRunRe
     if config.clustering.method == "llm_reasoning_signature":
         print(f"[research-run] {config.run_id}: Dasha reasoning signatures", flush=True)
         responses = add_llm_reasoning_signatures(root, config, frank, responses, checkpoint_path=out / "responses.json")
+        print(f"[research-run] {config.run_id}: Dasha id canonicalization", flush=True)
+        responses = canonicalize_llm_reasoning_signature_ids(
+            root,
+            config,
+            frank,
+            responses,
+            canonicalization_path=out / "dasha_id_canonicalization.json",
+        )
         write_json(out / "responses.json", responses)
     max_variations = config.perturbations.max_variations if config.perturbations.max_variations > 0 else None
     tracks = build_question_tracks(frank, max_variations) if config.perturbations.enabled else build_question_tracks(frank, 0)

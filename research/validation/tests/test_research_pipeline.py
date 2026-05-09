@@ -30,6 +30,7 @@ from research.validation.llm_agents import (
     _missing_required_categories,
     _normalize_rubric_row,
     build_frank_packet_with_llm,
+    canonicalize_llm_reasoning_signature_ids,
     model_response_messages,
     sanitize_reasoning_signature,
 )
@@ -768,7 +769,7 @@ class ResearchPipelineTests(unittest.TestCase):
 
     def test_runtime_budget_blocks_judge_cluster_explosion_after_dasha(self):
         config = load_config(ROOT / "research/fixtures/live_replicate_roster_config.example.json", repo_root=ROOT)
-        clusters = {"clusters": [{"id": f"cluster_{index}"} for index in range(30)]}
+        clusters = {"clusters": [{"id": f"cluster_{index}"} for index in range(40)]}
         call_plan = {
             "planned_response_calls": 60,
             "planned_dasha_signature_calls": 60,
@@ -1414,6 +1415,169 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertEqual(len(clusters["clusters"]), 1)
         self.assertEqual(keys[0][3], "no_writing_or_no_exception")
         self.assertEqual(keys[0][4], "statute_bars_no_writing")
+
+    def test_dasha_does_not_treat_unenforceable_as_positive_enforceability(self):
+        clusters = cluster_responses([
+            {
+                "id": "negative_enforceability",
+                "model": "m1",
+                "text": "The oral promise is unenforceable because it lacks a signed memorandum.",
+                "reasoning_signature": {
+                    "doctrine": "Statute of Frauds marriage provision",
+                    "issue": "premarital beneficiary promise",
+                    "rule_trigger": "promise conditioned on marriage and beneficiary certificate",
+                    "outcome": "Unenforceable; later beneficiaries take.",
+                    "exception_or_defense": "The promise lacks a signed writing and no signed memorandum exists.",
+                    "primary_reasoning_path": "No signed writing bars enforcement, so the later designation controls.",
+                    "reasoning_path": "Apply the marriage-consideration writing requirement, find no signed memorandum, and treat the later designation as controlling.",
+                    "conclusion": "The spouse cannot enforce the oral promise.",
+                },
+            }
+        ])
+
+        key = clusters["clusters"][0]["normalized_cluster_key"]
+
+        self.assertEqual(key[2], "claim_fails_or_later_designation_controls")
+        self.assertEqual(key[3], "no_writing_or_no_exception")
+
+    def test_dasha_prefers_agent_canonical_ids_over_sof_keyword_fallbacks(self):
+        responses = [
+            {
+                "id": "admin_a",
+                "model": "m1",
+                "text": "The agency acted arbitrarily because it ignored contrary record evidence.",
+                "reasoning_signature": {
+                    "doctrine_id": "administrative_law",
+                    "doctrine": "Administrative Procedure Act review",
+                    "issue": "agency record review",
+                    "rule_trigger_id": "arbitrary_and_capricious_review",
+                    "rule_trigger": "arbitrary and capricious review of agency action",
+                    "outcome_id": "agency_action_invalid",
+                    "outcome": "agency action should be vacated",
+                    "exception_or_defense_id": "record_evidence_ignored",
+                    "exception_or_defense": "agency ignored important record evidence",
+                    "primary_reasoning_id": "failure_to_consider_important_aspect",
+                    "primary_reasoning_path": "The response invalidates the action because the agency failed to consider an important aspect of the problem.",
+                    "reasoning_path": "Arbitrary-and-capricious review turns on record evidence and reasoned decisionmaking.",
+                    "secondary_paths": [
+                        {
+                            "path_id": "chenery_post_hoc_rationalization",
+                            "gate_or_theory": "Chenery post hoc rationalization",
+                            "posture": "rejected",
+                            "reason": "not the controlling path in this response",
+                            "effect_on_outcome": "no effect",
+                        }
+                    ],
+                    "conclusion": "vacatur likely",
+                },
+            },
+            {
+                "id": "admin_b",
+                "model": "m2",
+                "text": "Vacatur follows because the agency failed to grapple with the record.",
+                "reasoning_signature": {
+                    "doctrine_id": "administrative_law",
+                    "doctrine": "Administrative Procedure Act review",
+                    "issue": "agency record review",
+                    "rule_trigger_id": "arbitrary_and_capricious_review",
+                    "rule_trigger": "arbitrary and capricious review",
+                    "outcome_id": "agency_action_invalid",
+                    "outcome": "vacate agency action",
+                    "exception_or_defense_id": "record_evidence_ignored",
+                    "exception_or_defense": "important evidence ignored",
+                    "primary_reasoning_id": "failure_to_consider_important_aspect",
+                    "primary_reasoning_path": "The response invalidates the action because the agency ignored a central aspect of the record.",
+                    "reasoning_path": "The same APA reasoning path applies.",
+                    "secondary_paths": [
+                        {
+                            "path_id": "chenery_post_hoc_rationalization",
+                            "gate_or_theory": "Chenery post hoc rationalization",
+                            "posture": "rejected",
+                            "reason": "not needed to resolve the answer",
+                            "effect_on_outcome": "no effect",
+                        }
+                    ],
+                    "conclusion": "vacatur likely",
+                },
+            },
+        ]
+
+        clusters = cluster_responses(responses)
+
+        self.assertEqual(len(clusters["clusters"]), 1)
+        self.assertEqual(clusters["normalization"]["agent_canonical_ids_used"], True)
+        self.assertEqual(
+            clusters["clusters"][0]["normalized_cluster_key"],
+            [
+                "administrative_law",
+                "arbitrary_and_capricious_review",
+                "agency_action_invalid",
+                "record_evidence_ignored",
+                "failure_to_consider_important_aspect",
+                "no_material_secondary_paths",
+            ],
+        )
+
+    def test_dasha_id_canonicalization_merges_agent_synonyms_before_clustering(self):
+        config = load_config(ROOT / "research/fixtures/live_replicate_roster_config.example.json", repo_root=ROOT)
+        responses = [
+            {
+                "id": "r1",
+                "track_id": "original",
+                "model": "m1",
+                "text": "The agency loses because it ignored record evidence.",
+                "reasoning_signature": {
+                    "doctrine_id": "administrative_law",
+                    "rule_trigger_id": "arbitrary_capricious",
+                    "outcome_id": "vacatur",
+                    "exception_or_defense_id": "ignored_record",
+                    "primary_reasoning_id": "ignored_important_evidence",
+                    "secondary_paths": [],
+                },
+            },
+            {
+                "id": "r2",
+                "track_id": "original",
+                "model": "m2",
+                "text": "Vacatur follows from arbitrary-and-capricious review.",
+                "reasoning_signature": {
+                    "doctrine_id": "admin_law",
+                    "rule_trigger_id": "arbitrary_and_capricious_review",
+                    "outcome_id": "agency_action_invalid",
+                    "exception_or_defense_id": "record_evidence_ignored",
+                    "primary_reasoning_id": "failure_to_consider_important_aspect",
+                    "secondary_paths": [],
+                },
+            },
+        ]
+        canonical_maps = {
+            "canonical_maps": {
+                "doctrine_id": {"admin_law": "administrative_law", "administrative_law": "administrative_law"},
+                "rule_trigger_id": {
+                    "arbitrary_capricious": "arbitrary_and_capricious_review",
+                    "arbitrary_and_capricious_review": "arbitrary_and_capricious_review",
+                },
+                "outcome_id": {"vacatur": "agency_action_invalid", "agency_action_invalid": "agency_action_invalid"},
+                "exception_or_defense_id": {
+                    "ignored_record": "record_evidence_ignored",
+                    "record_evidence_ignored": "record_evidence_ignored",
+                },
+                "primary_reasoning_id": {
+                    "ignored_important_evidence": "failure_to_consider_important_aspect",
+                    "failure_to_consider_important_aspect": "failure_to_consider_important_aspect",
+                },
+                "secondary_path_id": {},
+            }
+        }
+
+        with patch("research.validation.llm_agents.generate_json", return_value=canonical_maps):
+            canonicalized = canonicalize_llm_reasoning_signature_ids(ROOT, config, {"id": "admin_fixture"}, responses)
+
+        clusters = cluster_responses(canonicalized)
+
+        self.assertTrue(all(response["reasoning_signature"]["_dasha_id_canonicalized"] for response in canonicalized))
+        self.assertEqual(len(clusters["clusters"]), 1)
+        self.assertEqual(clusters["normalization"]["agent_canonical_ids_used"], True)
 
     def test_dasha_records_secondary_reasoning_paths_on_cluster_signal(self):
         responses = [

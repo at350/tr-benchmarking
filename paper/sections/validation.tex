@@ -84,17 +84,17 @@ regressions force low-margin and unstable-judge conditions so that escalation
 packet creation is tested as a positive behavior, not only as an empty
 no-escalation record.
 
-A later Dasha-specific refinement tests a multi-path legal-answer failure mode.
+A Dasha-specific refinement tests a multi-path legal-answer failure mode.
 Using the same 60 saved natural responses, Dasha signatures were regenerated
 with a schema that separates the controlling path from secondary paths. A naive
 cluster key that included every secondary path produced 49 clusters for 60
 responses, which was too fragmented for centroid judging. The retained method
 therefore stores the full secondary-path audit profile but clusters only on
 accepted or uncertain non-primary secondary paths. The tuned track-aware pass
-produced 26 clusters across the original, invariant, and material tracks. This
-experiment is reported as a method refinement; the scored source-to-score bundle
-should be rerun through Judge before the 26-cluster output is treated as final
-ranking evidence.
+produced 22 clusters across the original, invariant, and material tracks after
+repairing a normalization bug around negative enforceability language. Judge was
+then rerun on those multi-path clusters, producing 220 final row-level scores,
+projected scores for all 60 member responses, and updated model rankings.
 
 The internal review layer then asks the legal-methodological questions that
 schema checks cannot answer by themselves: whether Frank's framing is what a

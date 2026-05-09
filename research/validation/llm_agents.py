@@ -557,12 +557,17 @@ def add_llm_reasoning_signatures(
                 "role": "user",
                 "content": (
                     f"Canonical instruction context:\n{instruction_context['context']}\n\n"
-                    "Return JSON with keys: doctrine, issue, rule_trigger, outcome, exception_or_defense, "
-                    "primary_reasoning_path, reasoning_path, secondary_paths, conclusion, key_distinguishing_facts. "
+                    "Return JSON with keys: doctrine_id, doctrine, issue, rule_trigger_id, rule_trigger, "
+                    "outcome_id, outcome, exception_or_defense_id, exception_or_defense, "
+                    "primary_reasoning_id, primary_reasoning_path, reasoning_path, secondary_paths, "
+                    "conclusion, key_distinguishing_facts. "
+                    "The *_id fields are concise lowercase doctrine-general canonical identifiers inferred from the Frank packet and response, "
+                    "not hard-coded Statute-of-Frauds labels. Use source-derived gate ids from Frank when available; otherwise create stable, "
+                    "doctrine-appropriate ids from the response's legal reasoning. "
                     "primary_reasoning_path is the controlling path the answer ultimately rests on. "
                     "secondary_paths must be an array of material legal gates, theories, exceptions, or counterarguments "
                     "the response considered before reaching that conclusion; each item should include gate_or_theory, "
-                    "posture (accepted, rejected, uncertain, or mentioned), reason, and effect_on_outcome. "
+                    "path_id, posture (accepted, rejected, uncertain, or mentioned), reason, and effect_on_outcome. "
                     "Keep values concise, normalized, and English-only. "
                     "Infer labels from the Frank packet and response; do not map responses into SOF labels unless SOF is source-supported. "
                     "Do not translate isolated words into another language.\n\n"
@@ -585,3 +590,158 @@ def add_llm_reasoning_signatures(
             checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
             checkpoint_path.write_text(json.dumps(checkpoint_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return signed
+
+
+DASHA_ID_FIELDS = (
+    "doctrine_id",
+    "rule_trigger_id",
+    "outcome_id",
+    "exception_or_defense_id",
+    "primary_reasoning_id",
+)
+
+
+def _reasoning_id_payload(responses: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    payload = []
+    for response in responses:
+        signature = response.get("reasoning_signature", {})
+        if not isinstance(signature, dict):
+            continue
+        secondary_paths = []
+        for item in signature.get("secondary_paths", []) if isinstance(signature.get("secondary_paths"), list) else []:
+            if not isinstance(item, dict):
+                continue
+            secondary_paths.append({
+                "path_id": item.get("path_id") or item.get("gate_or_theory_id") or item.get("gate_or_theory"),
+                "gate_or_theory": item.get("gate_or_theory"),
+                "posture": item.get("posture"),
+                "effect_on_outcome": item.get("effect_on_outcome"),
+            })
+        payload.append({
+            "response_id": response.get("id"),
+            "track_id": response.get("track_id"),
+            "model": response.get("model"),
+            "ids": {field: signature.get(field) for field in DASHA_ID_FIELDS},
+            "labels": {
+                "rule_trigger": signature.get("rule_trigger"),
+                "outcome": signature.get("outcome"),
+                "exception_or_defense": signature.get("exception_or_defense"),
+                "primary_reasoning_path": signature.get("primary_reasoning_path"),
+                "conclusion": signature.get("conclusion"),
+            },
+            "secondary_paths": secondary_paths,
+        })
+    return payload
+
+
+def _signature_ids_hash(responses: list[dict[str, Any]]) -> str:
+    return stable_hash(_reasoning_id_payload(responses))
+
+
+def _apply_canonical_map(responses: list[dict[str, Any]], canonical_maps: dict[str, Any]) -> list[dict[str, Any]]:
+    updated = []
+    for response in responses:
+        signature = dict(response.get("reasoning_signature", {}))
+        raw_ids = {field: signature.get(field) for field in DASHA_ID_FIELDS}
+        for field in DASHA_ID_FIELDS:
+            field_map = canonical_maps.get(field, {}) if isinstance(canonical_maps.get(field), dict) else {}
+            raw = str(signature.get(field, "")).strip()
+            if raw and field_map.get(raw):
+                signature[field] = field_map[raw]
+        secondary_map = canonical_maps.get("secondary_path_id", {})
+        if not isinstance(secondary_map, dict):
+            secondary_map = {}
+        secondary_paths = []
+        for item in signature.get("secondary_paths", []) if isinstance(signature.get("secondary_paths"), list) else []:
+            if not isinstance(item, dict):
+                secondary_paths.append(item)
+                continue
+            copied = dict(item)
+            raw_path = str(copied.get("path_id") or copied.get("gate_or_theory_id") or copied.get("gate_or_theory") or "").strip()
+            if raw_path and secondary_map.get(raw_path):
+                copied["path_id"] = secondary_map[raw_path]
+            secondary_paths.append(copied)
+        if secondary_paths:
+            signature["secondary_paths"] = secondary_paths
+        signature["_dasha_raw_ids"] = raw_ids
+        signature["_dasha_id_canonicalized"] = True
+        updated.append({**response, "reasoning_signature": signature})
+    return updated
+
+
+def canonicalize_llm_reasoning_signature_ids(
+    repo_root: Path,
+    config: ResearchConfig,
+    frank_packet: dict[str, Any],
+    responses: list[dict[str, Any]],
+    canonicalization_path: Path | None = None,
+) -> list[dict[str, Any]]:
+    """Ask Dasha to merge semantically equivalent ids before exact grouping."""
+
+    if not responses:
+        return responses
+    signatures = [response.get("reasoning_signature", {}) for response in responses]
+    if not all(isinstance(signature, dict) and all(signature.get(field) for field in DASHA_ID_FIELDS) for signature in signatures):
+        return responses
+    if all(signature.get("_dasha_id_canonicalized") for signature in signatures if isinstance(signature, dict)):
+        return responses
+
+    input_hash = _signature_ids_hash(responses)
+    if canonicalization_path and canonicalization_path.exists():
+        try:
+            cached = json.loads(canonicalization_path.read_text(encoding="utf-8"))
+            if cached.get("input_id_hash") == input_hash and isinstance(cached.get("canonical_maps"), dict):
+                return _apply_canonical_map(responses, cached["canonical_maps"])
+        except json.JSONDecodeError:
+            pass
+
+    agent = config.agents["dasha"]
+    instruction_context = load_agent_instruction_context(repo_root, "dasha")
+    payload = _reasoning_id_payload(responses)
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are Dasha, canonicalizing legal reasoning ids for clustering. "
+                "Merge semantically equivalent ids across responses. Do not decide scores. "
+                "Return strict JSON only."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Canonical instruction context:\n{instruction_context['context']}\n\n"
+                "Given the Frank packet and Dasha's extracted ids, return JSON with key canonical_maps. "
+                "canonical_maps must contain maps for doctrine_id, rule_trigger_id, outcome_id, "
+                "exception_or_defense_id, primary_reasoning_id, and secondary_path_id. "
+                "Each map's keys are raw ids and values are canonical ids. Merge ids that express the same legal "
+                "doctrine, trigger, outcome, defense/exception, or reasoning path even if wording differs. "
+                "Keep genuinely different legal theories separate. Prefer source gate ids from Frank where available. "
+                "Use concise lowercase snake_case ids. Do not use Statute-of-Frauds labels unless the source and "
+                "response actually support them.\n\n"
+                f"Frank packet:\n{json.dumps(frank_packet, indent=2)[:5000]}\n\n"
+                f"Dasha id payload:\n{json.dumps(payload, indent=2)[:18000]}"
+            ),
+        },
+    ]
+    canonicalization = generate_json(
+        repo_root=repo_root,
+        provider=agent.provider,
+        model=agent.model,
+        messages=messages,
+        temperature=agent.temperature,
+        max_tokens=5000,
+    )
+    canonical_maps = canonicalization.get("canonical_maps", {}) if isinstance(canonicalization, dict) else {}
+    if not isinstance(canonical_maps, dict):
+        canonical_maps = {}
+    result = {
+        "schema_version": "research.dasha.id_canonicalization.v1",
+        "input_id_hash": input_hash,
+        "context_hash": instruction_context["context_hash"],
+        "canonical_maps": canonical_maps,
+    }
+    if canonicalization_path:
+        canonicalization_path.parent.mkdir(parents=True, exist_ok=True)
+        canonicalization_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return _apply_canonical_map(responses, canonical_maps)

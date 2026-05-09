@@ -8,7 +8,7 @@
   },
   "handoff_manifest": {
     "artifact_count": 112,
-    "manifest_hash": "0faa49df9213a52d",
+    "manifest_hash": "4afc06c42e550ad4",
     "status": "handoff_manifest_ready"
   },
   "live_calls_made": false,
@@ -19,9 +19,9 @@
   "preflight": {
     "blocking_errors": [],
     "budget": {
-      "max_judge_calls": 45,
+      "max_judge_calls": 70,
       "max_response_calls": 60,
-      "max_total_llm_calls_excluding_frank_karthic": 165
+      "max_total_llm_calls_excluding_frank_karthic": 210
     },
     "call_plan": {
       "base_response_samples_per_track": 20,
@@ -54,7 +54,7 @@
     "blocking_errors": 0,
     "check_count": 33,
     "counts": {
-      "clusters": 15,
+      "clusters": 22,
       "responses": 60,
       "rubric_rows": 10,
       "zak_packets": 1
