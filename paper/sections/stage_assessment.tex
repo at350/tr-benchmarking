@@ -21,7 +21,7 @@ For Frank, the central question is whether the source case has been converted
 into a legally sound benchmark rather than merely summarized. In the reported
 run, Frank identified the Statute-of-Frauds marriage-provision theory and its
 interaction with fraternal-benefit certificate rules; generated a neutral
-Illinois-law question; produced a structured gold answer; and created four
+Illinois-law question; produced a structured gold answer; and created three
 boundary variations. In the perturbation lane, those variations become
 executable question tracks rather than prose-only notes. The artifact is useful for technical review because it preserves the
 legally operative facts: the premarital promise, marriage consideration,
@@ -42,39 +42,46 @@ specified in the ideal Karthic instructions. This is acceptable for the present
 reported run, but the manuscript marks it as a limitation before publication.
 
 For Dasha, the question is whether unlabeled natural model answers are grouped
-by legal reasoning. The reported run used nine natural responses to the same
-Frank question and observed three clusters: a conditional enforceability path, a
-dominant spouse-enforcement path, and an equity-forward constructive-trust path.
-This is the kind of separation the pipeline is intended to find, because the
-clusters differ in legal theory rather than merely in wording. For perturbation
-runs, Dasha clusters each question track separately before comparing dominant
-signals, which prevents a variant answer from being absorbed into the original
-question's cluster. The strongest
+by legal reasoning. The reported run used 60 natural responses across the
+original question, an invariant party-name edit, and a material signed-writing
+edit. It observed 15 track-aware clusters. The dominant original and invariant
+families rejected the unwritten marriage-consideration promise and treated the
+later bylaw-compliant designation as controlling; minority original clusters
+captured equitable override, constructive-trust, and certificate-as-writing
+theories. The material signed-writing track shifted the dominant answer family
+toward written compliance and enforceability. This is the kind of separation
+the pipeline is intended to find, because the clusters differ in legal theory
+rather than merely in wording. For perturbation runs, Dasha clusters each
+question track separately before comparing dominant signals, which prevents a
+variant answer from being absorbed into the original question's cluster. The strongest
 remaining risk is extraction error: Dasha in the reported configuration uses an LLM to extract a
 reasoning signature, then groups exact normalized buckets. The method is
 auditable, but future validation should repeat extraction, compare alternate
 clusterers, and increase the number of natural model responses.
 
 For Judge, the question is whether the rubric is actually applied row by row to
-the Dasha centroids. The reported run generated 30 row-level scores: 10 rubric
-rows across 3 clusters. The judge then projected centroid scores to all 9 member
-responses and produced model rankings. This demonstrates the intended
+the Dasha centroids. The reported run generated 150 panel row scores: 10 rubric
+rows across 15 clusters judged by a two-model panel. Six clusters with unstable
+panel rows received an adjudication pass before final projection. The judge then
+projected centroid scores to all 60 member responses and produced model
+rankings. This demonstrates the intended
 compression mechanism: score the legal-reasoning centroid, then propagate the
 score to responses using that reasoning path. The present ranking is not a
-population-level claim about model quality because the live batch is small and
-uses one judge model. It is evidence that the judge machinery can apply the
-rubric and produce auditable rankings from centroid scores.
+population-level claim about model quality because the live batch is bounded
+and uses one source case. It is evidence that the judge machinery can apply the
+rubric, adjudicate unstable panel rows, and produce auditable rankings from
+centroid scores.
 
 For Zak, the validation question is whether uncertainty is represented
-explicitly. In this run, judge agreement was 0.755 against a 0.7 threshold, so
-no escalation packet was generated. That is a passing no-escalation case because
-the manifest records the threshold result and the empty packet state. The
-implementation also includes positive offline regressions: one forces a
-low-margin centroid comparison to create a disputed-cluster packet, and one
-forces unstable repeated judge rows to create an unstable-row packet. These
-regressions show that Zak packet creation is not merely an empty no-escalation
-record. The remaining work is to calibrate the live thresholds so escalation is
-neither too rare nor too noisy.
+explicitly. In this run, the judge output required escalation after centroid
+scoring and adjudication, and Zak emitted a disputed-cluster packet rather than
+silently treating the ranking as final. The implementation also includes
+positive offline regressions: one forces a low-margin centroid comparison to
+create a disputed-cluster packet, and one forces unstable repeated judge rows to
+create an unstable-row packet. These regressions show that Zak packet creation
+is not merely an empty no-escalation record. The remaining work is to calibrate
+the live thresholds across held-out cases so escalation is neither too rare nor
+too noisy.
 
 \subsection{Transfer Beyond Statute of Frauds}
 

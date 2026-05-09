@@ -1,19 +1,19 @@
 {
   "blocking_errors": [],
   "budget": {
-    "max_judge_calls": 12,
-    "max_response_calls": 30,
-    "max_total_llm_calls_excluding_frank_karthic": 80
+    "max_judge_calls": 45,
+    "max_response_calls": 60,
+    "max_total_llm_calls_excluding_frank_karthic": 165
   },
   "call_plan": {
-    "base_response_samples_per_track": 10,
+    "base_response_samples_per_track": 20,
     "estimated_min_clusters_for_judging": 3,
-    "judge_invocations_per_cluster": 3,
-    "planned_dasha_signature_calls": 30,
-    "planned_min_judge_calls": 9,
+    "judge_invocations_per_cluster": 2,
+    "planned_dasha_signature_calls": 60,
+    "planned_min_judge_calls": 6,
     "planned_question_tracks": 3,
-    "planned_response_calls": 30,
-    "planned_total_llm_calls_excluding_frank_karthic": 69
+    "planned_response_calls": 60,
+    "planned_total_llm_calls_excluding_frank_karthic": 126
   },
   "checks": [
     {
@@ -115,22 +115,13 @@
       "message": "Perturbation config requires material checks.",
       "passed": true,
       "severity": "error"
-    },
-    {
-      "message": "Missing local credentials for: gemini",
-      "passed": false,
-      "severity": "warning"
     }
   ],
-  "config_path": "research/fixtures/live_multi_provider_config.example.json",
+  "config_path": "research/fixtures/live_replicate_roster_config.example.json",
   "credential_report": {
     "anthropic": {
       "available": true,
       "env": "ANTHROPIC_API_KEY"
-    },
-    "gemini": {
-      "available": false,
-      "env": "GEMINI_API_KEY or GOOGLE_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY"
     },
     "openai": {
       "available": true,
@@ -141,21 +132,21 @@
       "env": "REPLICATE_API_TOKEN"
     }
   },
-  "protocol_hash": "62c64803b85d8af1",
-  "response_model_count": 5,
+  "protocol_hash": "62643bc1ce2a002d",
+  "response_model_count": 10,
   "response_model_families": [
     "anthropic",
+    "deepseek-ai",
     "google",
     "meta",
     "openai"
   ],
   "response_providers": [
     "anthropic",
-    "gemini",
     "openai",
     "replicate"
   ],
-  "run_id": "live_multi_provider_calibration",
+  "run_id": "live_replicate_roster",
   "schema_version": "research.live_preflight.v1",
   "source": {
     "bytes": 138490,
@@ -209,12 +200,6 @@
     "title": "Anglemire v. Policemen's Benevolent Association of Chicago"
   },
   "status": "live_preflight_passed",
-  "total_response_samples": 10,
-  "warnings": [
-    {
-      "message": "Missing local credentials for: gemini",
-      "passed": false,
-      "severity": "warning"
-    }
-  ]
+  "total_response_samples": 20,
+  "warnings": []
 }

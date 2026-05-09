@@ -126,8 +126,8 @@
   },
   "budget": {
     "max_response_calls": 60,
-    "max_judge_calls": 30,
-    "max_total_llm_calls_excluding_frank_karthic": 150
+    "max_judge_calls": 70,
+    "max_total_llm_calls_excluding_frank_karthic": 210
   },
   "quality_gates": {
     "min_rubric_rows": 8,

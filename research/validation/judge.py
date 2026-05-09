@@ -76,11 +76,15 @@ def _rank_models(member_scores: list[dict]) -> list[dict]:
     return sorted(rankings, key=lambda item: item["mean_projected_score"], reverse=True)
 
 
-def _judge_stability_from_repeats(repeats_by_cluster: dict[str, list[list[dict]]]) -> dict[str, Any]:
+def _judge_stability_from_repeats(
+    repeats_by_cluster: dict[str, list[list[dict]]],
+    adjudicated_clusters: set[str] | None = None,
+) -> dict[str, Any]:
     pairwise_mae: list[float] = []
     pairwise_kappa: list[float] = []
     max_row_range = 0
     unstable_rows: list[dict[str, Any]] = []
+    adjudicated_clusters = adjudicated_clusters or set()
 
     for cluster_id, repeat_sets in repeats_by_cluster.items():
         if len(repeat_sets) < 2:
@@ -122,13 +126,22 @@ def _judge_stability_from_repeats(repeats_by_cluster: dict[str, list[list[dict]]
             "max_row_score_range": 0,
             "unstable_rows": [],
         }
+    unstable_cluster_ids = {item["cluster_id"] for item in unstable_rows}
+    adjudicated_all_unstable = bool(unstable_cluster_ids) and unstable_cluster_ids.issubset(adjudicated_clusters)
     return {
         "repeat_count": max(len(items) for items in repeats_by_cluster.values()) if repeats_by_cluster else 1,
-        "status": "stable" if not unstable_rows and sum(pairwise_mae) / len(pairwise_mae) <= 0.5 else "needs_review",
+        "status": (
+            "stable"
+            if not unstable_rows and sum(pairwise_mae) / len(pairwise_mae) <= 0.5
+            else "stable_after_adjudication"
+            if adjudicated_all_unstable
+            else "needs_review"
+        ),
         "mean_pairwise_mae": round(sum(pairwise_mae) / len(pairwise_mae), 3),
         "mean_pairwise_weighted_kappa": round(sum(pairwise_kappa) / len(pairwise_kappa), 3),
         "max_row_score_range": max_row_range,
         "unstable_rows": unstable_rows,
+        "adjudicated_clusters": sorted(adjudicated_clusters),
     }
 
 
@@ -153,6 +166,14 @@ def _aggregate_repeated_row_scores(repeat_sets: list[list[dict]]) -> list[dict]:
             "rationale": first.get("rationale", ""),
         })
     return sorted(aggregated, key=lambda item: item["row_id"])
+
+
+def _has_unstable_row_scores(repeat_sets: list[list[dict]], threshold: int = 2) -> bool:
+    by_row: dict[str, list[int]] = defaultdict(list)
+    for repeat_set in repeat_sets:
+        for row_score in repeat_set:
+            by_row[str(row_score["row_id"])].append(int(row_score["score"]))
+    return any(max(scores) - min(scores) >= threshold for scores in by_row.values() if scores)
 
 
 def _aggregate_scores(
@@ -293,6 +314,81 @@ def _judge_representative_with_llm(
     return normalized
 
 
+def _adjudicate_representative_with_llm(
+    repo_root: Path,
+    cluster: dict,
+    rubric: dict,
+    judge_config: Any,
+    repeat_sets: list[list[dict]],
+) -> list[dict[str, Any]]:
+    representative = next(member for member in cluster["members"] if member["id"] == cluster["representative_response_id"])
+    compact_rows = [
+        {
+            "id": row["id"],
+            "category": row["category"],
+            "criterion": row["criterion"],
+            "source_support": row.get("source_support", []),
+        }
+        for row in rubric["rows"]
+    ]
+    panel_scores = [
+        [
+            {
+                "row_id": item.get("row_id"),
+                "score": item.get("score"),
+                "rationale": item.get("rationale", ""),
+            }
+            for item in repeat_set
+        ]
+        for repeat_set in repeat_sets
+    ]
+    parsed = generate_json(
+        repo_root=repo_root,
+        provider=getattr(judge_config, "provider", "openai"),
+        model=getattr(judge_config, "model", "gpt-5.2"),
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are the adjudicating legal benchmark judge. Resolve disagreements between prior judges. "
+                    "Use the rubric and response only. Return strict JSON."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Prior judges disagreed on at least one row. Produce the final adjudicated score for every row "
+                    "on the 0-4 scale. Prefer the score best supported by the rubric criterion and response text; "
+                    "do not average mechanically. Return JSON: "
+                    "{\"row_scores\":[{\"row_id\":\"...\",\"score\":0,\"rationale\":\"...\"}]}.\n\n"
+                    f"Legal cluster signal:\n{cluster.get('legal_signal', {})}\n\n"
+                    f"Rubric rows:\n{compact_rows}\n\n"
+                    f"Prior panel scores:\n{panel_scores}\n\n"
+                    f"Response:\n{representative['text']}"
+                ),
+            },
+        ],
+        temperature=0.0,
+        max_tokens=2400,
+    )
+    by_id = {row["id"]: row for row in rubric["rows"]}
+    normalized = []
+    for item in parsed.get("row_scores", []):
+        row_id = str(item.get("row_id", ""))
+        if row_id in by_id:
+            normalized.append({
+                "row_id": row_id,
+                "category": by_id[row_id]["category"],
+                "score": max(0, min(4, int(item.get("score", 0)))),
+                "rationale": str(item.get("rationale", ""))[:800],
+                "adjudicated": True,
+            })
+    if len(normalized) != len(rubric["rows"]):
+        missing = sorted(set(by_id) - {item["row_id"] for item in normalized})
+        raise ValueError(f"LLM adjudicator output missing rubric rows: {missing}")
+    return normalized
+
+
 def _judge_panel(judge_config: Any) -> list[dict[str, Any]]:
     configured = list(getattr(judge_config, "judge_models", ()) or [])
     if not configured:
@@ -311,6 +407,7 @@ def _judge_panel(judge_config: Any) -> list[dict[str, Any]]:
 def judge_clusters_with_openai(repo_root: Path, clusters: dict, rubric: dict, judge_config: Any) -> dict:
     cluster_row_scores = {}
     repeats_by_cluster = {}
+    adjudicated_clusters: set[str] = set()
     panel = _judge_panel(judge_config)
     total_calls = sum(item["repeats"] for item in panel) * len(clusters["clusters"])
     call_index = 0
@@ -338,11 +435,26 @@ def judge_clusters_with_openai(repo_root: Path, clusters: dict, rubric: dict, ju
                     )
                 )
         repeats_by_cluster[cluster["id"]] = repeat_sets
-        cluster_row_scores[cluster["id"]] = (
-            repeat_sets[0]
-            if len(repeat_sets) == 1
-            else _aggregate_repeated_row_scores(repeat_sets)
-        )
+        if len(repeat_sets) > 1 and _has_unstable_row_scores(repeat_sets):
+            print(
+                "[research-run] judge adjudication "
+                f"cluster={cluster.get('id')} model={getattr(judge_config, 'model', 'unknown')}",
+                flush=True,
+            )
+            cluster_row_scores[cluster["id"]] = _adjudicate_representative_with_llm(
+                repo_root,
+                cluster,
+                rubric,
+                judge_config,
+                repeat_sets,
+            )
+            adjudicated_clusters.add(cluster["id"])
+        else:
+            cluster_row_scores[cluster["id"]] = (
+                repeat_sets[0]
+                if len(repeat_sets) == 1
+                else _aggregate_repeated_row_scores(repeat_sets)
+            )
     panel_models = ",".join(item["model"] for item in panel)
     return _aggregate_scores(
         clusters,
@@ -350,7 +462,7 @@ def judge_clusters_with_openai(repo_root: Path, clusters: dict, rubric: dict, ju
         judge_config.agreement_threshold,
         cluster_row_scores,
         mode=f"llm_rubric_projection:{panel_models}",
-        judge_stability=_judge_stability_from_repeats(repeats_by_cluster),
+        judge_stability=_judge_stability_from_repeats(repeats_by_cluster, adjudicated_clusters=adjudicated_clusters),
         judge_panel=panel,
     )
 

@@ -1,31 +1,27 @@
 {
   "budget": {
-    "max_judge_calls": 12,
-    "max_response_calls": 30,
-    "max_total_llm_calls_excluding_frank_karthic": 80
+    "max_judge_calls": 45,
+    "max_response_calls": 60,
+    "max_total_llm_calls_excluding_frank_karthic": 165
   },
   "bundle_status": "run_bundle_reviewable",
   "call_plan": {
-    "base_response_samples_per_track": 10,
+    "base_response_samples_per_track": 20,
     "estimated_min_clusters_for_judging": 3,
-    "judge_invocations_per_cluster": 3,
-    "planned_dasha_signature_calls": 30,
-    "planned_min_judge_calls": 9,
+    "judge_invocations_per_cluster": 2,
+    "planned_dasha_signature_calls": 60,
+    "planned_min_judge_calls": 6,
     "planned_question_tracks": 3,
-    "planned_response_calls": 30,
-    "planned_total_llm_calls_excluding_frank_karthic": 69
+    "planned_response_calls": 60,
+    "planned_total_llm_calls_excluding_frank_karthic": 126
   },
-  "evidence_gaps": [
-    "Perturbation validation"
-  ],
-  "met_gates": 9,
-  "partial_gates": 1,
-  "partial_gates_list": [
-    "Live-run preflight"
-  ],
+  "evidence_gaps": [],
+  "met_gates": 11,
+  "partial_gates": 0,
+  "partial_gates_list": [],
   "preflight_status": "live_preflight_passed",
-  "preflight_warning_count": 1,
-  "readiness_status": "internal_method_ready_with_gaps",
+  "preflight_warning_count": 0,
+  "readiness_status": "internal_method_ready",
   "schema_version": "research.internal_review_packet.v1",
   "secrets_status": "secrets_lint_passed",
   "source_artifacts": {

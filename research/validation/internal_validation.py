@@ -356,6 +356,8 @@ def build_natural_response_audit(run_dir: str | Path) -> dict[str, Any]:
     missing_clustered_ids = sorted(response_ids - set(clustered_ids))
     expected_label_count = sum(1 for response in responses if "expected_reasoning_label" in response)
     question_ids = {str(response.get("question_id", "unknown")) for response in responses}
+    question_tracks = manifest.get("question_tracks", []) if isinstance(manifest.get("question_tracks"), list) else []
+    expected_question_count = len(question_tracks) if question_tracks else 1
     model_names = sorted({str(response.get("model", "unknown")) for response in responses})
     cluster_summaries = []
     dasha_member_audit = build_dasha_member_audit(clusters)
@@ -369,13 +371,20 @@ def build_natural_response_audit(run_dir: str | Path) -> dict[str, Any]:
             "member_models": member_models,
             "representative_response_id": cluster.get("representative_response_id"),
             "outcome": signal.get("outcome") or signal.get("conclusion", "unknown"),
-            "reasoning_signature_excerpt": signal.get("reasoning_path") or signal.get("rule_trigger") or signal.get("conclusion", ""),
+            "reasoning_signature_excerpt": (
+                signal.get("primary_reasoning_path")
+                or signal.get("reasoning_path")
+                or signal.get("rule_trigger")
+                or signal.get("conclusion", "")
+            ),
+            "secondary_path_profile": signal.get("secondary_path_profile", []),
+            "secondary_cluster_profile": signal.get("secondary_cluster_profile", []),
         })
 
     coverage_passed = (
         len(responses) > 0
         and expected_label_count == 0
-        and len(question_ids) == 1
+        and len(question_ids) == expected_question_count
         and len(clustered_ids) == len(responses)
         and not duplicate_clustered_ids
         and not missing_clustered_ids
@@ -392,6 +401,7 @@ def build_natural_response_audit(run_dir: str | Path) -> dict[str, Any]:
         "model_count": len(model_names),
         "models": model_names,
         "question_count": len(question_ids),
+        "expected_question_count": expected_question_count,
         "expected_label_count": expected_label_count,
         "cluster_count": len(clusters.get("clusters", [])),
         "min_observed_clusters": min_observed_clusters,
@@ -506,7 +516,7 @@ def write_artifact_examples_section(run_dir: str | Path, section_path: str | Pat
         members = cluster.get("members", [])
         member_models = _member_model_summary(members)
         signal = cluster.get("legal_signal", {})
-        reasoning = signal.get("reasoning_path") or signal.get("conclusion") or signal.get("outcome", "")
+        reasoning = signal.get("primary_reasoning_path") or signal.get("reasoning_path") or signal.get("conclusion") or signal.get("outcome", "")
         lines.append(
             f"{_latex_cell(cluster.get('id', 'unknown'), limit=40)} & "
             f"{_latex_cell(member_models, limit=180)} & "

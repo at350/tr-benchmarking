@@ -131,14 +131,342 @@ def _member_signal_key(member: dict) -> tuple[str, ...]:
     return ("unknown",)
 
 
+def _flatten_signature_value(value: object) -> str:
+    if isinstance(value, dict):
+        return " ".join(_flatten_signature_value(item) for item in value.values())
+    if isinstance(value, list):
+        return " ".join(_flatten_signature_value(item) for item in value)
+    return str(value)
+
+
 def _signature_text(signature: dict) -> str:
     values = []
-    for key in ("doctrine", "issue", "rule_trigger", "outcome", "exception_or_defense", "reasoning_path", "conclusion"):
-        value = signature.get(key, "")
-        if isinstance(value, list):
-            value = " ".join(str(item) for item in value)
-        values.append(str(value))
+    for key in (
+        "doctrine",
+        "issue",
+        "rule_trigger",
+        "outcome",
+        "exception_or_defense",
+        "primary_reasoning_path",
+        "reasoning_path",
+        "conclusion",
+    ):
+        values.append(_flatten_signature_value(signature.get(key, "")))
     return " ".join(values).lower()
+
+
+def _iter_secondary_path_items(signature: dict) -> list[object]:
+    items: list[object] = []
+    for key in (
+        "secondary_paths",
+        "alternative_paths",
+        "rejected_paths",
+        "counterarguments",
+        "other_gates_considered",
+    ):
+        value = signature.get(key)
+        if not value:
+            continue
+        if isinstance(value, list):
+            items.extend(value)
+        else:
+            items.append(value)
+    return items
+
+
+_PATH_TAG_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "marriage_consideration_gate",
+        (
+            "marriage-consideration",
+            "marriage consideration",
+            "consideration of marriage",
+            "made upon consideration of marriage",
+            "antenuptial",
+            "premarital promise",
+            "marriage provision",
+        ),
+    ),
+    (
+        "signed_writing_or_memorandum",
+        (
+            "signed writing",
+            "signed memorandum",
+            "written memorandum",
+            "writing requirement",
+            "certificate satisfies",
+            "certificate as a writing",
+            "certificate as memorandum",
+            "memorializes",
+        ),
+    ),
+    (
+        "no_writing_sof_bar",
+        (
+            "no signed writing",
+            "no writing",
+            "lack of writing",
+            "absence of writing",
+            "statute of frauds bars",
+            "oral promise barred",
+            "unenforceable under the statute",
+        ),
+    ),
+    (
+        "association_replacement_or_bylaw",
+        (
+            "replacement certificate",
+            "association rules",
+            "association rule",
+            "bylaws",
+            "bylaw",
+            "final certificate",
+            "last designation",
+            "change of beneficiary",
+        ),
+    ),
+    (
+        "promissory_estoppel_or_reliance",
+        (
+            "promissory estoppel",
+            "equitable estoppel",
+            "reliance",
+            "detrimental reliance",
+        ),
+    ),
+    (
+        "part_performance",
+        (
+            "part performance",
+            "partial performance",
+            "performance exception",
+        ),
+    ),
+    (
+        "constructive_trust_or_equity",
+        (
+            "constructive trust",
+            "unjust enrichment",
+            "equity",
+            "equitable claim",
+            "equitable remedy",
+        ),
+    ),
+    (
+        "one_year_gate",
+        (
+            "one-year",
+            "one year",
+            "within a year",
+            "cannot be performed within",
+            "not performable within",
+            "performance within one year",
+        ),
+    ),
+    (
+        "suretyship_gate",
+        (
+            "surety",
+            "suretyship",
+            "guaranty",
+            "guarantee",
+            "another's debt",
+            "main purpose",
+            "main-purpose",
+        ),
+    ),
+    (
+        "land_interest_gate",
+        (
+            "land",
+            "real estate",
+            "lease",
+            "deed",
+            "property interest",
+        ),
+    ),
+    (
+        "goods_ucc_gate",
+        (
+            "goods",
+            "ucc",
+            "merchant confirmation",
+            "quantity term",
+            "$500",
+        ),
+    ),
+    (
+        "plain_meaning",
+        (
+            "plain meaning",
+            "ordinary meaning",
+            "text-first",
+            "unambiguous",
+        ),
+    ),
+    (
+        "contra_proferentem",
+        (
+            "contra proferentem",
+            "against the drafter",
+            "construe against",
+        ),
+    ),
+    (
+        "exclusive_remedy",
+        (
+            "exclusive remedy",
+            "specific remedy",
+            "service-credit schedule",
+        ),
+    ),
+)
+
+
+def _path_tags(text: str) -> set[str]:
+    lower = text.lower()
+    return {tag for tag, terms in _PATH_TAG_RULES if _contains_any(lower, terms)}
+
+
+def _primary_reasoning_tags(reasoning: str) -> set[str]:
+    mapping = {
+        "promissory_estoppel_or_reliance": {"promissory_estoppel_or_reliance"},
+        "constructive_trust_or_equity": {"constructive_trust_or_equity"},
+        "statute_bars_no_writing": {"no_writing_sof_bar", "signed_writing_or_memorandum"},
+        "writing_or_certificate_satisfies_gate": {"signed_writing_or_memorandum"},
+        "association_or_replacement_controls": {"association_replacement_or_bylaw"},
+        "one_year_gate_reasoning": {"one_year_gate"},
+        "marriage_consideration_gate_reasoning": {"marriage_consideration_gate"},
+        "signed_writing_satisfies_sof_and_supports_enforcement": {"signed_writing_or_memorandum"},
+        "sof_bar_and_later_designation_controls": {"no_writing_sof_bar", "association_replacement_or_bylaw"},
+        "sof_bar_no_valid_exception": {"no_writing_sof_bar", "signed_writing_or_memorandum"},
+        "equitable_override_or_constructive_trust": {"constructive_trust_or_equity"},
+        "main_purpose_suretyship_exception": {"suretyship_gate"},
+        "contra_proferentem_reasoning": {"contra_proferentem"},
+        "plain_meaning_reasoning": {"plain_meaning"},
+        "exclusive_remedy_reasoning": {"exclusive_remedy"},
+    }
+    return mapping.get(reasoning, _path_tags(reasoning.replace("_", " ")))
+
+
+def _secondary_path_posture(text: str) -> str:
+    lower = text.lower()
+    if _contains_any(
+        lower,
+        (
+            "reject",
+            "rejected",
+            "does not",
+            "doesn't",
+            "not enough",
+            "insufficient",
+            "unavailable",
+            "fails",
+            "no basis",
+            "cannot",
+            "barred",
+        ),
+    ):
+        return "rejected"
+    if _contains_any(lower, ("accepted", "applies", "satisfies", "supports", "controls", "changes the outcome", "outcome-changing")):
+        return "accepted"
+    if _contains_any(lower, ("depends", "uncertain", "ambiguous", "could", "may", "might", "if ")):
+        return "uncertain"
+    return "mentioned"
+
+
+def _normalize_secondary_posture(item: object, text: str) -> str:
+    if isinstance(item, dict):
+        raw = str(
+            item.get("posture")
+            or item.get("status")
+            or item.get("treatment")
+            or item.get("effect_on_outcome")
+            or ""
+        ).lower()
+        if raw:
+            if _contains_any(raw, ("reject", "insufficient", "not", "unavailable", "fails", "no effect")):
+                return "rejected"
+            if _contains_any(raw, ("accept", "applies", "controls", "changes", "outcome", "material")):
+                return "accepted"
+            if _contains_any(raw, ("uncertain", "depends", "possible", "could", "may", "might")):
+                return "uncertain"
+    return _secondary_path_posture(text)
+
+
+def _trigger_path_tags(trigger: str) -> set[str]:
+    mapping = {
+        "marriage_beneficiary_certificate": {"marriage_consideration_gate", "association_replacement_or_bylaw"},
+        "marriage_consideration": {"marriage_consideration_gate"},
+        "one_year": {"one_year_gate"},
+        "suretyship": {"suretyship_gate"},
+        "land_interest": {"land_interest_gate"},
+        "goods": {"goods_ucc_gate"},
+        "plain_meaning": {"plain_meaning"},
+        "contra_proferentem": {"contra_proferentem"},
+    }
+    return mapping.get(trigger, _path_tags(trigger.replace("_", " ")))
+
+
+def _secondary_path_profile(
+    signature: dict,
+    primary_reasoning: str,
+    trigger: str = "",
+    *,
+    infer_when_absent: bool = True,
+) -> tuple[str, ...]:
+    """Represent material non-primary legal paths a response considered.
+
+    Dasha clusters on the final reasoning path, but legal answers often discuss
+    rejected or uncertain gates before reaching the final answer. This profile
+    preserves those material side paths without asking benchmarked models to
+    emit structured fields themselves.
+    """
+
+    explicit_items = _iter_secondary_path_items(signature)
+    tags: set[str] = set()
+    if explicit_items:
+        for item in explicit_items:
+            text = _flatten_signature_value(item)
+            posture = _normalize_secondary_posture(item, text)
+            tag_text = text
+            if isinstance(item, dict):
+                focused = " ".join(
+                    str(item.get(key, ""))
+                    for key in ("gate_or_theory", "gate", "theory", "legal_path", "path")
+                    if item.get(key)
+                )
+                if focused:
+                    tag_text = focused
+            for tag in _path_tags(tag_text):
+                tags.add(f"{tag}:{posture}")
+    elif infer_when_absent:
+        primary_tags = _primary_reasoning_tags(primary_reasoning) | _trigger_path_tags(trigger)
+        inferred_text = " ".join(
+            _flatten_signature_value(signature.get(key, ""))
+            for key in ("exception_or_defense", "reasoning_path", "conclusion")
+        )
+        for tag in _path_tags(inferred_text) - primary_tags:
+            tags.add(f"{tag}:mentioned")
+    return tuple(sorted(tags)) if tags else ("no_material_secondary_paths",)
+
+
+def _secondary_cluster_profile(
+    audit_profile: tuple[str, ...],
+    primary_reasoning: str,
+    trigger: str,
+) -> tuple[str, ...]:
+    primary_tags = _primary_reasoning_tags(primary_reasoning) | _trigger_path_tags(trigger)
+    retained: set[str] = set()
+    for item in audit_profile:
+        if item == "no_material_secondary_paths":
+            continue
+        tag, _, posture = item.partition(":")
+        if tag in primary_tags:
+            continue
+        if posture in {"accepted", "uncertain"}:
+            retained.add(item)
+    return tuple(sorted(retained)) if retained else ("no_material_secondary_paths",)
 
 
 def _bucket_outcome(signature: dict) -> str:
@@ -533,7 +861,7 @@ def cluster_responses(
 def _normalized_signature(
     signature: dict,
     gate_aliases: dict[str, tuple[str, ...]] | None = None,
-) -> tuple[str, str, str, str, str]:
+) -> tuple[str, str, str, str, str, str]:
     doctrine = _signature_text({"doctrine": signature.get("doctrine", "")})
     if "statute of frauds" in doctrine or "sof" in doctrine:
         doctrine_bucket = "statute_of_frauds"
@@ -550,21 +878,36 @@ def _normalized_signature(
         exception=exception,
         reasoning=_bucket_reasoning_path(signature),
     )
+    secondary_audit_profile = _secondary_path_profile(signature, reasoning, trigger=trigger, infer_when_absent=False)
+    secondary_profile = "+".join(_secondary_cluster_profile(secondary_audit_profile, reasoning, trigger))
     return (
         doctrine_bucket,
         trigger,
         outcome,
         exception,
         reasoning,
+        secondary_profile,
     )
 
 
 def cluster_responses_by_signature(responses: list[dict], frank_packet: dict | None = None) -> dict:
     gate_aliases = _source_gate_aliases(frank_packet)
-    grouped: dict[tuple[str, str, str, str, str], list[dict]] = defaultdict(list)
+    grouped: dict[tuple[str, str, str, str, str, str], list[dict]] = defaultdict(list)
     for response in responses:
         signature_key = _normalized_signature(response["reasoning_signature"], gate_aliases=gate_aliases)
-        grouped[signature_key].append({**response, "_dasha_normalized_signature": list(signature_key)})
+        trigger = signature_key[1]
+        reasoning = signature_key[4]
+        secondary_audit_profile = _secondary_path_profile(
+            response["reasoning_signature"],
+            reasoning,
+            trigger=trigger,
+            infer_when_absent=False,
+        )
+        grouped[signature_key].append({
+            **response,
+            "_dasha_normalized_signature": list(signature_key),
+            "_dasha_secondary_path_profile": list(secondary_audit_profile),
+        })
 
     clusters = []
     for index, (signature_key, members) in enumerate(sorted(grouped.items()), start=1):
@@ -576,11 +919,19 @@ def cluster_responses_by_signature(responses: list[dict], frank_packet: dict | N
                     "outcome": signature_key[2],
                     "exception": signature_key[3],
                     "reasoning": signature_key[4],
+                    "secondary_path_profile": signature_key[5],
                 },
             }
             for member in members
         ])
         signature = members[0]["reasoning_signature"]
+        secondary_cluster_profile = [item for item in signature_key[5].split("+") if item]
+        secondary_path_profile = sorted({
+            item
+            for member in members
+            for item in member.get("_dasha_secondary_path_profile", [])
+            if item
+        }) or ["no_material_secondary_paths"]
         clusters.append({
             "id": f"cluster_{index}",
             "legal_signal": {
@@ -589,7 +940,10 @@ def cluster_responses_by_signature(responses: list[dict], frank_packet: dict | N
                 "rule_trigger": str(signature.get("rule_trigger", "unknown")),
                 "outcome": str(signature.get("outcome", "unknown")),
                 "exception_or_defense": str(signature.get("exception_or_defense", "none")),
+                "primary_reasoning_path": str(signature.get("primary_reasoning_path") or signature.get("reasoning_path", "unknown")),
                 "reasoning_path": str(signature.get("reasoning_path", "unknown")),
+                "secondary_path_profile": secondary_path_profile,
+                "secondary_cluster_profile": secondary_cluster_profile,
                 "conclusion": str(signature.get("conclusion", "unknown")),
             },
             "representative_response_id": representative_id,
@@ -610,7 +964,7 @@ def cluster_responses_by_signature(responses: list[dict], frank_packet: dict | N
         "schema_version": "research.dasha.llm.v1",
         "method": "llm_reasoning_signature",
         "normalization": {
-            "version": "reasoning_bucket_v3",
+            "version": "reasoning_bucket_v4_multipath",
             "source_gate_aliases_used": bool(gate_aliases),
             "source_gate_ids": sorted(gate_aliases),
         },

@@ -1,8 +1,8 @@
 # Run Bundle Integrity Audit
 
 - Status: `run_bundle_reviewable`
-- Run: `live_natural_response_batch`
-- Run directory: `research/runs/live_natural_response_batch`
+- Run: `live_replicate_roster`
+- Run directory: `research/runs/live_replicate_roster`
 
 | Check | Severity | Status |
 |---|---:|---:|

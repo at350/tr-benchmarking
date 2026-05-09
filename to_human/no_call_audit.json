@@ -3,13 +3,12 @@
   "claim_ledger": {
     "status": "claim_ledger_ready",
     "status_counts": {
-      "partial": 1,
-      "supported": 11
+      "supported": 12
     }
   },
   "handoff_manifest": {
-    "artifact_count": 106,
-    "manifest_hash": "f8cdcf26aa2db03d",
+    "artifact_count": 112,
+    "manifest_hash": "0faa49df9213a52d",
     "status": "handoff_manifest_ready"
   },
   "live_calls_made": false,
@@ -20,9 +19,9 @@
   "preflight": {
     "blocking_errors": [],
     "budget": {
-      "max_judge_calls": 30,
+      "max_judge_calls": 45,
       "max_response_calls": 60,
-      "max_total_llm_calls_excluding_frank_karthic": 150
+      "max_total_llm_calls_excluding_frank_karthic": 165
     },
     "call_plan": {
       "base_response_samples_per_track": 20,
@@ -38,9 +37,9 @@
     "warnings": []
   },
   "readiness": {
-    "met_gates": 10,
+    "met_gates": 11,
     "partial_gates": 0,
-    "status": "internal_method_ready_with_gaps",
+    "status": "internal_method_ready",
     "total_gates": 11
   },
   "review_pack": {
@@ -55,9 +54,9 @@
     "blocking_errors": 0,
     "check_count": 33,
     "counts": {
-      "clusters": 5,
-      "responses": 9,
-      "rubric_rows": 11,
+      "clusters": 15,
+      "responses": 60,
+      "rubric_rows": 10,
       "zak_packets": 1
     },
     "status": "run_bundle_reviewable"
@@ -68,8 +67,5 @@
     "status": "secrets_lint_passed"
   },
   "status": "no_call_audit_passed_with_declared_gaps",
-  "warnings_and_gaps": [
-    "readiness gap: Perturbation validation",
-    "partial claim: C7 Perturbation validation has been implemented as a metamorphic-test path."
-  ]
+  "warnings_and_gaps": []
 }

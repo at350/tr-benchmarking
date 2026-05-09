@@ -19,23 +19,23 @@ For a technical review team, the principal review questions are now concrete.
 First, does Frank's source-to-packet artifact preserve the legally controlling
 facts and avoid answer leakage in the generated question? Second, does Karthic's
 rubric capture the relevant gates, defenses, counterarguments, source limits,
-and variation sensitivity without double-counting? Third, do Dasha's three
-observed clusters reflect meaningful legal-reasoning differences or merely
-over-split wording differences? Fourth, does the judge apply each rubric row in
-a legally defensible way, and are the projected model rankings stable under
-judge repeats or alternate judge models? Fifth, are Zak triggers sufficiently
+and variation sensitivity without double-counting? Third, do Dasha's 15
+track-aware observed clusters reflect meaningful legal-reasoning differences or
+merely over-split wording differences? Fourth, does the judge apply each rubric
+row in a legally defensible way, and does adjudication resolve unstable panel
+rows without masking disagreement? Fifth, are Zak triggers sufficiently
 sensitive to low-confidence or mixed-cluster cases?
 
 The answers to those questions determine the next research milestone. The
-reported implementation satisfies the pipeline-readiness standard: a source case
-can produce all major artifacts and pass most executable internal gates. A
-separate method-readiness report now makes the remaining gaps explicit rather
-than treating the run as a binary success. The current report marks seven of ten
-gates as met, marks run-bundle integrity as met, marks judge reliability as
-partial because the saved live run was not repeated or panel-judged, marks
-preflight as partial because a credential warning remains, and marks live
-perturbation validation as an evidence gap. The
-implementation therefore does not yet satisfy the stronger publication-readiness
-standard, which requires frozen prompts and settings, held-out source cases,
-expert review, target reliability thresholds, qualitative error analysis, and
-paper tables generated from frozen review evidence.
+reported implementation satisfies the internal pipeline-readiness standard: a
+source case can produce all major artifacts and pass the executable internal
+gates in the method-readiness report. The current report marks all 11 internal
+vision gates as met, including source provenance, Frank, Karthic, natural
+response protocol, Dasha clustering, perturbation validation, judge scoring,
+Zak escalation, run-bundle integrity, controlled scale regression, and live-run
+preflight. The implementation therefore supports internal technical review as a
+complete pre-expert-review methods artifact. It still does not establish the
+stronger external publication-readiness standard, which requires held-out
+source cases, expert review, target reliability thresholds across cases,
+qualitative error analysis, and paper tables generated from frozen review
+evidence.

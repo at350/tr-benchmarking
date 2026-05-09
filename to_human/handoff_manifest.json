@@ -1,5 +1,5 @@
 {
-  "artifact_count": 106,
+  "artifact_count": 112,
   "artifacts": [
     {
       "bytes": 12746,
@@ -7,9 +7,9 @@
       "sha256_16": "3cc06dd7b408cb0f"
     },
     {
-      "bytes": 16484,
+      "bytes": 17569,
       "path": "VISION.md",
-      "sha256_16": "90c9a8bb72144d7c"
+      "sha256_16": "8a7865a15bcf3d60"
     },
     {
       "bytes": 1119,
@@ -62,9 +62,9 @@
       "sha256_16": "0b3d204a4be90088"
     },
     {
-      "bytes": 7956,
+      "bytes": 7581,
       "path": "experiments/live-config-preflight/results.json",
-      "sha256_16": "f921fefe47180fea"
+      "sha256_16": "1da6b89bfa228f82"
     },
     {
       "bytes": 2423,
@@ -72,9 +72,9 @@
       "sha256_16": "a3377714cd11a59d"
     },
     {
-      "bytes": 2828,
+      "bytes": 2849,
       "path": "experiments/method-readiness/analysis.md",
-      "sha256_16": "d558f9b65f4c5c3a"
+      "sha256_16": "e2de4cfa4880225a"
     },
     {
       "bytes": 1201,
@@ -82,9 +82,39 @@
       "sha256_16": "75f0454727c848aa"
     },
     {
-      "bytes": 4589,
+      "bytes": 6327,
       "path": "experiments/method-readiness/results/method_readiness.json",
-      "sha256_16": "e9e73aeb652e7141"
+      "sha256_16": "aa2727772211cf1c"
+    },
+    {
+      "bytes": 1790,
+      "path": "experiments/multipath-dasha/analysis.md",
+      "sha256_16": "d57b21d7f2393e4a"
+    },
+    {
+      "bytes": 1424,
+      "path": "experiments/multipath-dasha/protocol.md",
+      "sha256_16": "fe18c84494c698bc"
+    },
+    {
+      "bytes": 763767,
+      "path": "experiments/multipath-dasha/results/dasha_clusters_multipath.json",
+      "sha256_16": "3a4767980c25814c"
+    },
+    {
+      "bytes": 705410,
+      "path": "experiments/multipath-dasha/results/dasha_clusters_multipath_tuned_trackaware.json",
+      "sha256_16": "125eb9d17b832037"
+    },
+    {
+      "bytes": 26914,
+      "path": "experiments/multipath-dasha/results/multipath_dasha_summary.json",
+      "sha256_16": "0b06d3e428e27ee2"
+    },
+    {
+      "bytes": 556099,
+      "path": "experiments/multipath-dasha/results/responses_with_multipath_signatures.json",
+      "sha256_16": "792d376621c63a23"
     },
     {
       "bytes": 1069,
@@ -117,14 +147,14 @@
       "sha256_16": "59ecc56a43fc378d"
     },
     {
-      "bytes": 2127,
+      "bytes": 2115,
       "path": "experiments/run-bundle-integrity/analysis.md",
-      "sha256_16": "27485b34ac0d236c"
+      "sha256_16": "ad5219d2ae6489d4"
     },
     {
-      "bytes": 5813,
+      "bytes": 5758,
       "path": "experiments/run-bundle-integrity/results.json",
-      "sha256_16": "75d0589a46d12f6e"
+      "sha256_16": "2ed837348ceb6722"
     },
     {
       "bytes": 739,
@@ -139,7 +169,7 @@
     {
       "bytes": 193,
       "path": "experiments/security-lint/results.json",
-      "sha256_16": "5ce4402f26aac3e4"
+      "sha256_16": "1b6fa85916c3044c"
     },
     {
       "bytes": 880,
@@ -152,9 +182,9 @@
       "sha256_16": "b9b7a63d9aefa60f"
     },
     {
-      "bytes": 19306,
+      "bytes": 20795,
       "path": "findings.md",
-      "sha256_16": "b12c5ceb61326e22"
+      "sha256_16": "138176d38f18bc9e"
     },
     {
       "bytes": 56433,
@@ -202,14 +232,14 @@
       "sha256_16": "8585258e09660d74"
     },
     {
-      "bytes": 2087,
+      "bytes": 2344,
       "path": "paper/sections/abstract.tex",
-      "sha256_16": "08b440dafffdc56a"
+      "sha256_16": "9877be680c62d76a"
     },
     {
-      "bytes": 9661,
+      "bytes": 58967,
       "path": "paper/sections/artifact_examples.tex",
-      "sha256_16": "14447734f125a1c4"
+      "sha256_16": "6474944ab86dfbbb"
     },
     {
       "bytes": 4057,
@@ -222,9 +252,9 @@
       "sha256_16": "5827978523b3b65e"
     },
     {
-      "bytes": 7328,
+      "bytes": 7901,
       "path": "paper/sections/instruction_context_appendix.tex",
-      "sha256_16": "a393bc3b8161f0f2"
+      "sha256_16": "c7da7768660618b6"
     },
     {
       "bytes": 2378,
@@ -232,14 +262,14 @@
       "sha256_16": "c938bccce888bb4c"
     },
     {
-      "bytes": 3074,
+      "bytes": 3133,
       "path": "paper/sections/limitations.tex",
-      "sha256_16": "af6f4325eda88719"
+      "sha256_16": "6f80159b3c606d86"
     },
     {
-      "bytes": 25253,
+      "bytes": 26015,
       "path": "paper/sections/methods.tex",
-      "sha256_16": "273acd1823c77d4f"
+      "sha256_16": "e07380682b6b436f"
     },
     {
       "bytes": 3045,
@@ -252,29 +282,29 @@
       "sha256_16": "2eb07ccfd4f830a7"
     },
     {
-      "bytes": 6977,
+      "bytes": 8739,
       "path": "paper/sections/results.tex",
-      "sha256_16": "5e0aa7185b8a59d3"
+      "sha256_16": "23450987dd28a4cb"
     },
     {
-      "bytes": 2415,
+      "bytes": 2390,
       "path": "paper/sections/review_readiness.tex",
-      "sha256_16": "444da8d3fd57a6b3"
+      "sha256_16": "eed5c6f618c950c9"
     },
     {
-      "bytes": 6964,
+      "bytes": 7463,
       "path": "paper/sections/stage_assessment.tex",
-      "sha256_16": "1cf560401a53f51a"
+      "sha256_16": "61559061581c481e"
     },
     {
-      "bytes": 6865,
+      "bytes": 7667,
       "path": "paper/sections/validation.tex",
-      "sha256_16": "4e0ca234bf3485b0"
+      "sha256_16": "8a748ff71f88200b"
     },
     {
-      "bytes": 621,
+      "bytes": 2515,
       "path": "paper/tables/dasha_cluster_summary.tex",
-      "sha256_16": "41eef84fb3e9725b"
+      "sha256_16": "0ffe3c948aa3764e"
     },
     {
       "bytes": 1526,
@@ -287,29 +317,29 @@
       "sha256_16": "f7a8434cfbd911dc"
     },
     {
-      "bytes": 893,
+      "bytes": 947,
       "path": "paper/tables/internal_validation_summary.tex",
-      "sha256_16": "019750ffe56f1aa5"
+      "sha256_16": "b27865244cc83232"
     },
     {
-      "bytes": 218,
+      "bytes": 464,
       "path": "paper/tables/model_rankings.tex",
-      "sha256_16": "4c7bcc7849b2112e"
+      "sha256_16": "30b41f6695536e54"
     },
     {
-      "bytes": 444,
+      "bytes": 448,
       "path": "paper/tables/natural_response_audit.tex",
-      "sha256_16": "9477a09c8e18ed9e"
+      "sha256_16": "729205a16dd0f88c"
     },
     {
-      "bytes": 252,
+      "bytes": 228,
       "path": "paper/tables/perturbation_validation_summary.tex",
-      "sha256_16": "b4f97c896562b8c1"
+      "sha256_16": "d3af8738c905d832"
     },
     {
-      "bytes": 1901,
+      "bytes": 1749,
       "path": "paper/tables/review_readiness.tex",
-      "sha256_16": "c4f3276114613a16"
+      "sha256_16": "630e75937426467c"
     },
     {
       "bytes": 1734,
@@ -317,14 +347,14 @@
       "sha256_16": "f67a9d2153246d74"
     },
     {
-      "bytes": 10919,
+      "bytes": 12830,
       "path": "research-log.md",
-      "sha256_16": "6fd9b0f32cebac49"
+      "sha256_16": "71c731c7850ebd33"
     },
     {
-      "bytes": 13617,
+      "bytes": 14324,
       "path": "research-state.yaml",
-      "sha256_16": "c2f78dd6b8034939"
+      "sha256_16": "c64a8ecfb694203b"
     },
     {
       "bytes": 2835,
@@ -377,9 +407,9 @@
       "sha256_16": "ee28cb8da60c1b9f"
     },
     {
-      "bytes": 25486,
+      "bytes": 36868,
       "path": "research/validation/dasha.py",
-      "sha256_16": "9ea8d48b1f50f722"
+      "sha256_16": "69ca6f4bb2b08eff"
     },
     {
       "bytes": 33899,
@@ -387,9 +417,9 @@
       "sha256_16": "159d6851a828e2e2"
     },
     {
-      "bytes": 3572,
+      "bytes": 3582,
       "path": "research/validation/freeze.py",
-      "sha256_16": "a3ecfafd5c83edc2"
+      "sha256_16": "12130ed1fdd01476"
     },
     {
       "bytes": 2630,
@@ -407,14 +437,14 @@
       "sha256_16": "f49f3243110e7a25"
     },
     {
-      "bytes": 22621,
+      "bytes": 23225,
       "path": "research/validation/internal_validation.py",
-      "sha256_16": "afb687dbf90dfc28"
+      "sha256_16": "56c7932db40c51e7"
     },
     {
-      "bytes": 16416,
+      "bytes": 20920,
       "path": "research/validation/judge.py",
-      "sha256_16": "ebc8240faf78ef8f"
+      "sha256_16": "ec5c308f8da99928"
     },
     {
       "bytes": 8509,
@@ -422,9 +452,9 @@
       "sha256_16": "b6cf16bfcdd4692e"
     },
     {
-      "bytes": 26731,
+      "bytes": 27250,
       "path": "research/validation/llm_agents.py",
-      "sha256_16": "aaf199783bebca56"
+      "sha256_16": "b593793b9b144794"
     },
     {
       "bytes": 2894,
@@ -447,9 +477,9 @@
       "sha256_16": "530e2a0122a231a2"
     },
     {
-      "bytes": 9339,
+      "bytes": 11015,
       "path": "research/validation/pipeline.py",
-      "sha256_16": "5d4cf7ea28f0631c"
+      "sha256_16": "275403da03b41d92"
     },
     {
       "bytes": 9211,
@@ -482,9 +512,9 @@
       "sha256_16": "6aee2affde171a78"
     },
     {
-      "bytes": 9300,
+      "bytes": 9728,
       "path": "research/validation/run_bundle.py",
-      "sha256_16": "e2fbd736a3c968dc"
+      "sha256_16": "c9599d73079ffa0e"
     },
     {
       "bytes": 3801,
@@ -507,24 +537,24 @@
       "sha256_16": "8bad9d4c1098570f"
     },
     {
-      "bytes": 7855,
+      "bytes": 7913,
       "path": "to_human/claim_ledger.json",
-      "sha256_16": "0a90754d0f38ed18"
+      "sha256_16": "bfd8afc63d4bac37"
     },
     {
-      "bytes": 3913,
+      "bytes": 3948,
       "path": "to_human/claim_ledger.md",
-      "sha256_16": "cac6540da7da05bd"
+      "sha256_16": "1638c6551375efac"
     },
     {
-      "bytes": 1292,
+      "bytes": 1224,
       "path": "to_human/internal_review_packet.json",
-      "sha256_16": "bcfd289a2aca951e"
+      "sha256_16": "ec51ff5d0663c438"
     },
     {
-      "bytes": 1299,
+      "bytes": 1113,
       "path": "to_human/internal_review_packet.md",
-      "sha256_16": "4a09edae1f419aab"
+      "sha256_16": "ba0bb5501cc875c8"
     },
     {
       "bytes": 2120,
@@ -538,7 +568,7 @@
     "no_call_audit.json",
     "no_call_audit.md"
   ],
-  "manifest_hash": "ed165131cbd73a02",
+  "manifest_hash": "0faa49df9213a52d",
   "patterns": [
     "README_RESEARCH.md",
     "VISION.md",

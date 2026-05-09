@@ -558,7 +558,12 @@ def add_llm_reasoning_signatures(
                 "content": (
                     f"Canonical instruction context:\n{instruction_context['context']}\n\n"
                     "Return JSON with keys: doctrine, issue, rule_trigger, outcome, exception_or_defense, "
-                    "reasoning_path, conclusion, key_distinguishing_facts. Keep values concise, normalized, and English-only. "
+                    "primary_reasoning_path, reasoning_path, secondary_paths, conclusion, key_distinguishing_facts. "
+                    "primary_reasoning_path is the controlling path the answer ultimately rests on. "
+                    "secondary_paths must be an array of material legal gates, theories, exceptions, or counterarguments "
+                    "the response considered before reaching that conclusion; each item should include gate_or_theory, "
+                    "posture (accepted, rejected, uncertain, or mentioned), reason, and effect_on_outcome. "
+                    "Keep values concise, normalized, and English-only. "
                     "Infer labels from the Frank packet and response; do not map responses into SOF labels unless SOF is source-supported. "
                     "Do not translate isolated words into another language.\n\n"
                     f"Frank packet:\n{json.dumps(frank_packet, indent=2)[:6000]}\n\n"

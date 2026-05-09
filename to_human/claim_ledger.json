@@ -10,8 +10,8 @@
       ],
       "claim": "The pipeline can run from a source case to Frank, Karthic, natural model responses, Dasha clusters, Judge scores, Zak state, and model rankings for the current SOF case.",
       "evidence": [
-        "readiness=internal_method_ready_with_gaps",
-        "gates=9/11",
+        "readiness=internal_method_ready",
+        "gates=11/11",
         "run_source=cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf",
         "protocol_source=cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf",
         "case_id=anglemire_v_policemens_benev_assn_chicago_1939",
@@ -28,9 +28,9 @@
       ],
       "claim": "Frank produced a source-grounded legal packet with a neutral question and variations for the current case.",
       "evidence": [
-        "doctrine=Statute of Frauds \u2014 agreements made upon consideration of marriage (other than the mutual promise to marry); effect on oral promise to name spouse as beneficiary / settle property",
-        "question_chars=1512",
-        "variations=1"
+        "doctrine=Statute of Frauds \u2014 agreements made upon consideration of marriage (oral promise to confer property/beneficiary status in exchange for marriage)",
+        "question_chars=1751",
+        "variations=3"
       ],
       "id": "C2",
       "limitation": "Run Frank on held-out source cases before broad external-validity claims.",
@@ -43,8 +43,8 @@
       ],
       "claim": "Karthic produced a fresh dynamic rubric with source-supported rows for the current case.",
       "evidence": [
-        "rows=11",
-        "categories=conclusion,counterargument,doctrine,exceptions,facts,rule,source_support,variation"
+        "rows=10",
+        "categories=conclusion,counterargument,doctrine,exceptions,facts,rule,variation"
       ],
       "id": "C3",
       "limitation": "Add held-out rubric artifact review and later expert agreement.",
@@ -58,8 +58,8 @@
       "claim": "Benchmarked response models answered naturally rather than through forced legal headings.",
       "evidence": [
         "response_prompt_style=natural",
-        "responses=9",
-        "models=3"
+        "responses=60",
+        "models=10"
       ],
       "id": "C4",
       "limitation": "Live model rosters should use question-only prompting by default.",
@@ -72,15 +72,15 @@
       ],
       "claim": "Dasha clustered the current natural-response batch into coherent legal-reasoning groups.",
       "evidence": [
-        "responses=9",
-        "clusters=5",
-        "min_observed_clusters=2",
+        "responses=60",
+        "clusters=15",
+        "min_observed_clusters=3",
         "cluster_purity=1.0",
         "member_coherence=1.0",
-        "mean_centroid_text_similarity=0.701",
+        "mean_centroid_text_similarity=0.456",
         "non_latin_signal_flags=0",
         "natural_audit=natural_response_audit_passed",
-        "observed_clusters=5"
+        "observed_clusters=15"
       ],
       "id": "C5",
       "limitation": "Run larger natural batches across more model families and held-out questions.",
@@ -96,8 +96,8 @@
         "bundle_status=run_bundle_reviewable",
         "checks=33",
         "blocking_errors=0",
-        "responses=9",
-        "clusters=5"
+        "responses=60",
+        "clusters=15"
       ],
       "id": "C6",
       "limitation": "Regenerate bundle audit after any claim-supporting run or artifact rewrite.",
@@ -110,11 +110,14 @@
       ],
       "claim": "Perturbation validation has been implemented as a metamorphic-test path.",
       "evidence": [
-        "perturbation_report=not_configured"
+        "tracks=3",
+        "invariant_checks=1",
+        "material_checks=1",
+        "status=perturbation_validation_passed"
       ],
       "id": "C7",
       "limitation": "Run invariant and material perturbation tracks with live model responses.",
-      "status": "partial"
+      "status": "supported"
     },
     {
       "artifacts": [
@@ -123,13 +126,13 @@
       ],
       "claim": "LLM-as-judge scoring produces row-level scores and model rankings for clustered centroids.",
       "evidence": [
-        "judge_model=gpt-5.2",
-        "judge_panel=1",
-        "row_scores=55",
-        "agreement_score=0.28",
-        "stability=stable",
+        "judge_model=gpt-5.2,claude-sonnet-4-6",
+        "judge_panel=2",
+        "row_scores=150",
+        "agreement_score=0.005",
+        "stability=stable_after_adjudication",
         "judge_repeats=2",
-        "model_rankings=3"
+        "model_rankings=10"
       ],
       "id": "C8",
       "limitation": "Quantify live repeat or panel stability before stronger reliability claims.",
@@ -171,14 +174,14 @@
       "claim": "The next live perturbation run is bounded and preflighted before model spending.",
       "evidence": [
         "preflight_status=live_preflight_passed",
-        "warnings=1",
+        "warnings=0",
         "blocking_errors=0",
-        "planned_total_calls=69",
-        "total_call_cap=80"
+        "planned_total_calls=126",
+        "total_call_cap=165"
       ],
       "id": "C11",
       "limitation": "Resolve credential warnings before claim-supporting paid live runs.",
-      "status": "partial"
+      "status": "supported"
     },
     {
       "artifacts": [
@@ -187,7 +190,7 @@
       "claim": "The shareable repo artifacts currently pass secret scanning.",
       "evidence": [
         "secrets_status=secrets_lint_passed",
-        "scanned_files=273"
+        "scanned_files=287"
       ],
       "id": "C12",
       "limitation": "Secret lint is a pattern scan, not a substitute for institutional secret-scanning tools.",
@@ -203,7 +206,6 @@
   ],
   "status": "claim_ledger_ready",
   "status_counts": {
-    "partial": 2,
-    "supported": 10
+    "supported": 12
   }
 }

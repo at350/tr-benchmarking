@@ -155,7 +155,11 @@ Each cluster should include:
 - normalized doctrine/gate/issue signal
 - outcome
 - exception or defense posture
-- reasoning path
+- primary reasoning path
+- secondary-path audit profile for other gates, exceptions, and theories the
+  answer considered, accepted, rejected, or treated as uncertain
+- secondary cluster profile that affects grouping only when a non-primary path
+  is accepted or uncertain enough to be legally material
 - representative centroid response
 - member response ids
 - centroid/member consistency metrics
@@ -165,21 +169,35 @@ At scale, Dasha should reduce large response sets, such as 500 answers, into a
 small number of interpretable centroids without hiding materially different
 legal reasoning in the same cluster.
 
-Dasha is not internally complete until it has passed a larger live,
-multi-model, multi-sample, perturbation-aware run and the same run can be
-completed through judge scoring. The original nine-response live case study is
-useful calibration evidence, and the newer 60-response perturbation run is
-useful Dasha evidence after the Frank scenario repair, but neither alone is
-enough for the paper to claim the entire source-to-score pipeline is complete. The
-claim-supporting Dasha run should use natural question-only responses across
-multiple actual model families, including direct and broker-routed models where
-available, repeated samples, and at least the base Frank question plus
-invariant and material perturbation tracks. It should show that Dasha can
-separate legal theories such as certificate-as-writing, equitable or promissory
-estoppel, association-rule replacement, Statute-of-Frauds bar, and any
-source-supported alternate gate reasoning when those theories appear in model
-answers. If the larger run collapses divergent theories into one cluster, that
-is a method failure to fix before strengthening the manuscript.
+Real legal answers are often multi-path. Dasha should not force an answer into
+a single flat label when the answer discusses the marriage gate, signed-writing
+compliance, later beneficiary designation, promissory estoppel, part
+performance, and constructive trust before choosing a controlling route. The
+target behavior is to preserve that full path profile for audit while keeping
+centroid grouping tied to controlling reasoning and material accepted or
+uncertain secondary theories. Rejected background theories should be visible to
+reviewers, but they should not automatically split an otherwise coherent
+cluster.
+
+Dasha is internally complete for the current pre-expert Statute-of-Frauds case
+study only after a larger live, multi-model, multi-sample, perturbation-aware
+run completes through judge scoring. That milestone has now been reached for
+the Anglemire calibration case: the claim-supporting run uses natural
+question-only responses across ten actual model identifiers, repeated samples,
+the base Frank question, an invariant party-name perturbation, and a material
+signed-writing perturbation. Dasha separates legal theories such as
+certificate-as-writing, equitable or promissory estoppel, association-rule
+replacement, Statute-of-Frauds bar, and signed-writing compliance when those
+theories appear in model answers. This supports the internal manuscript claim
+for the reported case. Broader publication claims still require held-out cases
+and expert review.
+
+A later multi-path Dasha audit regenerated signatures for the saved 60
+Anglemire responses. The naive full-secondary-profile key overfragmented into
+49 clusters; the tuned method records all secondary paths but clusters only on
+material accepted or uncertain non-primary paths, yielding 26 track-aware
+clusters. Before replacing the reported model rankings, the full source-to-score
+bundle should be rerun through Judge on these multi-path clusters.
 
 ## Judge Target Behavior
 
@@ -294,8 +312,8 @@ For the current milestone, the internal pipeline should satisfy these gates:
 - all generated outputs are reproducible from config and captured in manifests
 - failure cases create Zak packets instead of silently passing
 - Dasha has passed a larger live natural-response run with multiple model
-  families, repeated samples, and perturbation tracks; until then, Dasha
-  robustness remains an explicit evidence gap rather than a completed claim
+  families, repeated samples, and perturbation tracks for the reported
+  Anglemire case; broader robustness remains a held-out-case validation target
 
 ## Definition Of Done For Publication
 

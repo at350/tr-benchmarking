@@ -45,6 +45,13 @@ def _check(passed: bool, message: str, severity: str = "error", details: dict[st
 
 
 def _expected_response_count(manifest: dict[str, Any]) -> int | None:
+    planned_tracks = 1
+    call_plan = manifest.get("planned_call_counts")
+    if isinstance(call_plan, dict) and isinstance(call_plan.get("planned_question_tracks"), int):
+        planned_tracks = max(1, call_plan["planned_question_tracks"])
+    elif isinstance(manifest.get("question_tracks"), list) and manifest["question_tracks"]:
+        planned_tracks = len(manifest["question_tracks"])
+
     specs = manifest.get("response_models")
     if isinstance(specs, list) and specs:
         total = 0
@@ -55,11 +62,11 @@ def _expected_response_count(manifest: dict[str, Any]) -> int | None:
             if not isinstance(samples, int):
                 return None
             total += samples
-        return total
+        return total * planned_tracks
     models = manifest.get("models")
     per_model = manifest.get("responses_per_model")
     if isinstance(models, list) and isinstance(per_model, int) and per_model > 0:
-        return len(models) * per_model
+        return len(models) * per_model * planned_tracks
     return None
 
 

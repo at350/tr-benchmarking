@@ -15,18 +15,23 @@ citable source authority, not from a reconstructed scenario supplied by the
 researcher.
 
 The live LLM-driven pipeline was run on that real Statute of Frauds calibration
-case using three response model identifiers with three samples each:
-\texttt{gpt-5.2},
-\texttt{claude-sonnet-4-20250514}, and
+case using ten response model identifiers with two samples per question track:
+\texttt{gpt-5.2}, \texttt{gpt-5.4}, \texttt{claude-sonnet-4-6},
+\texttt{claude-haiku-4-5-20251001}, \texttt{google/gemini-3-flash},
+\texttt{google/gemini-3-pro}, \texttt{anthropic/claude-4.5-sonnet},
+\texttt{openai/gpt-4.1-mini}, \texttt{deepseek-ai/deepseek-r1}, and
 \texttt{meta/meta-llama-3-70b-instruct}. Frank and Karthic used
-\texttt{gpt-5.2}. Dasha used LLM reasoning signatures, and the judge used
-\texttt{gpt-5.2} as the rubric-conditioned evaluator.
+\texttt{gpt-5.2}. Dasha used LLM reasoning signatures, and Judge used a
+two-model \texttt{gpt-5.2}/\texttt{claude-sonnet-4-6} panel with adjudication
+for unstable rows.
 
 The run used the corrected natural response protocol: each response model
 received only the Frank-generated question, with no system prompt, no hidden
-gold answer, and no required memo headings. The run produced 9 model responses,
-10 rubric rows, 3 Dasha clusters, 30 row-level judge scores, 9 projected member
-scores, and 3 model ranking entries. Table \ref{tab:internal-validation}
+gold answer, and no required memo headings. The run produced 60 model responses
+over the original, invariant, and material question tracks; 10 rubric rows; 15
+Dasha clusters; 150 row-level panel scores; adjudicated final centroid scores;
+60 projected member scores; and 10 model ranking entries. Table
+\ref{tab:internal-validation}
 summarizes the resulting stage checks.
 
 \begin{table}[h]
@@ -36,18 +41,18 @@ summarizes the resulting stage checks.
 \input{tables/internal_validation_summary}
 \end{table}
 
-This live run is intentionally small to control cost. Its purpose is not to
+This live run is intentionally bounded to control cost. Its purpose is not to
 estimate population-level model performance with narrow confidence intervals.
 It demonstrates that the real model-generation path runs from source case to
 model ranking without manual patching, and that Dasha can separate multiple
-observed legal-reasoning paths in a natural-response batch.
+observed legal-reasoning paths in a perturbation-aware natural-response batch.
 
 \subsection{Natural-Response Dasha Audit}
 
 The relevant Dasha test is whether responses are clustered after models answer
 the same Frank-generated question. The live audit therefore checks the completed
-run bundle for unlabeled model answers, a single shared question id, full cluster
-coverage, and no preassigned reasoning labels. Table
+run bundle for unlabeled model answers, the expected Frank question tracks, full
+cluster coverage, and no preassigned reasoning labels. Table
 \ref{tab:natural-dasha-audit} summarizes that audit.
 
 \begin{table}[h]
@@ -60,12 +65,15 @@ coverage, and no preassigned reasoning labels. Table
 This audit is intentionally separate from the deterministic stress suite. It is
 the evidence that Dasha is operating on model outputs rather than on categories
 given to the response generator. In this batch, the normalized Dasha signatures
-formed three clusters. One cluster captured a more conditional enforceability
-theory; one captured the dominant spouse-enforcement theory with Statute of
-Frauds and association-rule defenses treated as non-dispositive; and one
-captured a more equity-forward constructive-trust theory. The audit therefore
-passes the configured divergence gate, while still remaining too small to
-support broad claims about all models or all Statute-of-Frauds cases.
+formed 15 track-aware clusters. On the original and invariant tracks, the
+dominant cluster family rejected enforcement of the unwritten marriage-
+consideration promise and let the later bylaw-compliant designation control.
+Minority clusters captured equitable override, constructive-trust, and
+certificate-as-writing theories. On the material signed-writing track, the
+dominant answer family shifted toward enforceability or written-compliance
+reasoning. The audit therefore passes the configured divergence and
+perturbation gates, while still remaining too small to support broad claims
+about all models or all Statute-of-Frauds cases.
 
 \begin{table}[h]
 \centering
@@ -81,19 +89,39 @@ support broad claims about all models or all Statute-of-Frauds cases.
 \input{tables/model_rankings}
 \end{table}
 
+\subsection{Dasha Multi-Path Audit}
+
+The live Anglemire responses also exposed a Dasha-specific representation
+issue: natural legal answers often discuss several gates or equitable theories
+before settling on one. Regenerating Dasha signatures with explicit
+primary-path and secondary-path fields completed for all 60 saved responses
+without malformed JSON failures. A first pass that clustered on every
+secondary path overfragmented into 49 clusters. The tuned rule preserves the
+full secondary-path audit profile but clusters only on accepted or uncertain
+non-primary paths, producing 26 track-aware clusters: 8 on the original
+question, 10 on the surface-invariant edit, and 8 on the material
+signed-writing edit. The most common cluster profile remained no material
+secondary path, but the audit also captured uncertain promissory-estoppel or
+reliance analysis, accepted part-performance analysis, accepted reliance
+analysis, and accepted signed-writing analysis. This result strengthens the
+Dasha method description while marking the next necessary full-run step:
+rerun Judge on the multi-path clusters before replacing the reported model
+rankings.
+
 \subsection{Question Perturbation Validation}
 
 The perturbation loop was added as a separate validation lane. Frank variations
 are converted into executable question tracks, responses retain their
 \texttt{track\_id}, Dasha clusters each track separately, and the perturbation
 report compares each variant's dominant reasoning signal against the original
-question. Table \ref{tab:perturbation-validation} shows the reported
-perturbation smoke: a surface party-name edit preserved the original answer
-path, while a material no-writing edit changed the dominant answer path.
+question. Table \ref{tab:perturbation-validation} shows the reported live
+perturbation run: a surface party-name edit preserved the original dominant
+answer path, while a material signed-writing edit changed the dominant answer
+path.
 
 \begin{table}[h]
 \centering
-\caption{Perturbation validation smoke test.}
+\caption{Perturbation validation for the live model batch.}
 \label{tab:perturbation-validation}
 \input{tables/perturbation_validation_summary}
 \end{table}
@@ -124,7 +152,7 @@ projection, and metrics generation.
 
 \subsection{Internal Test Coverage}
 
-The reference implementation has 65 research-pipeline tests covering offline run-bundle
+The reference implementation has 77 research-pipeline tests covering offline run-bundle
 exports, Frank packet quality, Karthic rubric quality, SOF gate regression
 cases, Dasha clustering invariants, sparse-response gate context, LLM reasoning
 signature clustering, source-derived Dasha gate aliasing, a non-SOF

@@ -13,9 +13,9 @@
     },
     {
       "evidence": [
-        "doctrine=Statute of Frauds \u2014 agreements made upon consideration of marriage (other than the mutual promise to marry); effect on oral promise to name spouse as beneficiary / settle property",
-        "question_chars=1512",
-        "variations=1"
+        "doctrine=Statute of Frauds \u2014 agreements made upon consideration of marriage (oral promise to confer property/beneficiary status in exchange for marriage)",
+        "question_chars=1751",
+        "variations=3"
       ],
       "gap": "Run Frank on held-out source cases before broad external-validity claims.",
       "gate": "Frank source-to-packet validity",
@@ -23,8 +23,8 @@
     },
     {
       "evidence": [
-        "rows=11",
-        "categories=conclusion,counterargument,doctrine,exceptions,facts,rule,source_support,variation"
+        "rows=10",
+        "categories=conclusion,counterargument,doctrine,exceptions,facts,rule,variation"
       ],
       "gap": "Add held-out rubric artifact review and later expert agreement.",
       "gate": "Karthic dynamic rubric validity",
@@ -33,8 +33,8 @@
     {
       "evidence": [
         "response_prompt_style=natural",
-        "responses=9",
-        "models=3"
+        "responses=60",
+        "models=10"
       ],
       "gap": "Live model rosters should use question-only prompting by default.",
       "gate": "Natural response protocol",
@@ -45,8 +45,8 @@
         "bundle_status=run_bundle_reviewable",
         "checks=33",
         "blocking_errors=0",
-        "responses=9",
-        "clusters=5"
+        "responses=60",
+        "clusters=15"
       ],
       "gap": "Regenerate bundle audit after any claim-supporting run or artifact rewrite.",
       "gate": "Run bundle integrity",
@@ -54,15 +54,15 @@
     },
     {
       "evidence": [
-        "responses=9",
-        "clusters=5",
-        "min_observed_clusters=2",
+        "responses=60",
+        "clusters=15",
+        "min_observed_clusters=3",
         "cluster_purity=1.0",
         "member_coherence=1.0",
-        "mean_centroid_text_similarity=0.701",
+        "mean_centroid_text_similarity=0.456",
         "non_latin_signal_flags=0",
         "natural_audit=natural_response_audit_passed",
-        "observed_clusters=5"
+        "observed_clusters=15"
       ],
       "gap": "Run larger natural batches across more model families and held-out questions.",
       "gate": "Dasha natural-response clustering",
@@ -70,21 +70,24 @@
     },
     {
       "evidence": [
-        "perturbation_report=not_configured"
+        "tracks=3",
+        "invariant_checks=1",
+        "material_checks=1",
+        "status=perturbation_validation_passed"
       ],
       "gap": "Run invariant and material perturbation tracks with live model responses.",
       "gate": "Perturbation validation",
-      "status": "evidence_gap"
+      "status": "met"
     },
     {
       "evidence": [
-        "judge_model=gpt-5.2",
-        "judge_panel=1",
-        "row_scores=55",
-        "agreement_score=0.28",
-        "stability=stable",
+        "judge_model=gpt-5.2,claude-sonnet-4-6",
+        "judge_panel=2",
+        "row_scores=150",
+        "agreement_score=0.005",
+        "stability=stable_after_adjudication",
         "judge_repeats=2",
-        "model_rankings=3"
+        "model_rankings=10"
       ],
       "gap": "Quantify live repeat or panel stability before stronger reliability claims.",
       "gate": "Judge row-level scoring and rankings",
@@ -112,35 +115,128 @@
     {
       "evidence": [
         "preflight_status=live_preflight_passed",
-        "warnings=1",
+        "warnings=0",
         "blocking_errors=0"
       ],
       "gap": "Resolve credential warnings before claim-supporting paid live runs.",
       "gate": "Live-run preflight",
-      "status": "partial"
+      "status": "met"
     }
   ],
   "interpretation": "This report is an internal readiness artifact. It distinguishes implemented and tested method components from live-evidence gaps.",
   "judge_stability": {
-    "max_row_score_range": 1,
-    "mean_pairwise_mae": 0.164,
-    "mean_pairwise_weighted_kappa": 0.949,
+    "adjudicated_clusters": [
+      "V1__cluster_1",
+      "V1__cluster_2",
+      "V1__cluster_3",
+      "V_surface_invariant__cluster_5",
+      "original__cluster_2",
+      "original__cluster_6"
+    ],
+    "max_row_score_range": 2,
+    "mean_pairwise_mae": 0.433,
+    "mean_pairwise_weighted_kappa": 0.654,
     "repeat_count": 2,
-    "status": "stable",
-    "unstable_rows": []
+    "status": "stable_after_adjudication",
+    "unstable_rows": [
+      {
+        "cluster_id": "original__cluster_2",
+        "range": 2,
+        "row_id": "R1",
+        "scores": [
+          4,
+          2
+        ]
+      },
+      {
+        "cluster_id": "original__cluster_6",
+        "range": 2,
+        "row_id": "R2",
+        "scores": [
+          4,
+          2
+        ]
+      },
+      {
+        "cluster_id": "original__cluster_6",
+        "range": 2,
+        "row_id": "R3",
+        "scores": [
+          3,
+          1
+        ]
+      },
+      {
+        "cluster_id": "original__cluster_6",
+        "range": 2,
+        "row_id": "R9",
+        "scores": [
+          3,
+          1
+        ]
+      },
+      {
+        "cluster_id": "V_surface_invariant__cluster_5",
+        "range": 2,
+        "row_id": "R9",
+        "scores": [
+          4,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_1",
+        "range": 2,
+        "row_id": "R0",
+        "scores": [
+          4,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_2",
+        "range": 2,
+        "row_id": "R0",
+        "scores": [
+          3,
+          1
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_2",
+        "range": 2,
+        "row_id": "R1",
+        "scores": [
+          4,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_3",
+        "range": 2,
+        "row_id": "R0",
+        "scores": [
+          4,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_3",
+        "range": 2,
+        "row_id": "R9",
+        "scores": [
+          3,
+          1
+        ]
+      }
+    ]
   },
-  "met_gates": 9,
-  "partial_gates": 1,
-  "preflight_warnings": [
-    {
-      "message": "Missing local credentials for: gemini",
-      "passed": false,
-      "severity": "warning"
-    }
-  ],
-  "run_dir": "research/runs/live_natural_response_batch",
-  "run_id": "live_natural_response_batch",
+  "met_gates": 11,
+  "partial_gates": 0,
+  "preflight_warnings": [],
+  "run_dir": "research/runs/live_replicate_roster",
+  "run_id": "live_replicate_roster",
   "schema_version": "research.method_readiness.v1",
-  "status": "internal_method_ready_with_gaps",
+  "status": "internal_method_ready",
   "total_gates": 11
 }

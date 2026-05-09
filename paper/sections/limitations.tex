@@ -1,14 +1,15 @@
 \section{Limitations}
 
 This manuscript reports internal validation, not expert-reviewed legal validity.
-The live validation run is small and should be interpreted as an internal
+The live validation run is bounded and should be interpreted as an internal
 source-to-ranking validation, not a population-level benchmark of model
 performance. The natural-response Dasha audit confirms that the clustered inputs
-are model answers to the same Frank question rather than responses generated
-from preassigned labels, and the reported run produced three observed reasoning
-clusters. That is a meaningful internal Dasha result, but it is still a
-single-case, nine-response batch. It does not establish that arbitrary live
-model outputs will always produce stable or legally correct clusters. The
+are model answers to Frank-generated question tracks rather than responses
+generated from preassigned labels, and the reported run produced 15 observed
+track-aware reasoning clusters over 60 answers. That is a meaningful internal
+Dasha result, but it is still a single-case batch. It does not establish that
+arbitrary live model outputs will always produce stable or legally correct
+clusters. The
 500-response scale result is a controlled regression test with known reasoning
 signatures, not a claim that arbitrary live model outputs will always produce
 perfectly separable clusters. The evidence is therefore strong for pipeline
@@ -22,12 +23,11 @@ archetypes. A claim that the system handles every Statute-of-Frauds fact pattern
 would require a larger held-out case suite across jurisdictions, transaction
 types, writing forms, and exception doctrines.
 
-The reported live model roster is intentionally small. The manuscript validates
-the path with \texttt{gpt-5.2}, \texttt{claude-sonnet-4-20250514}, and
-\texttt{meta/meta-llama-3-70b-instruct}; broader model-family claims require
-larger rosters, repeated samples, held-out cases, and natural-response batches
-where multiple models independently converge on or diverge from the same legal
-reasoning paths.
+The reported live model roster is broader than a smoke test but still bounded.
+The manuscript validates the path with ten model identifiers over three tracks;
+broader model-family claims require larger rosters, more repeated samples,
+held-out cases, and natural-response batches where multiple models
+independently converge on or diverge from the same legal reasoning paths.
 
 The instruction corpus is deepest for Statute of Frauds. The live agents are now
 given a doctrine-general protocol and must infer doctrine from the source, but
@@ -38,8 +38,9 @@ LLM-as-judge methods are known to have bias risks, including position,
 verbosity, and self-preference biases
 \cite{zheng2023judging,shi2024positionbias,wataoka2024selfpreference}. The
 pipeline mitigates some of these risks by using row-level rubrics, source
-support, centroid-level scoring, and model-output provenance, but future
-validation should include judge ensembles, repeated scoring, rubric ablation,
+support, centroid-level scoring, a two-model judge panel, and adjudication for
+unstable panel rows, but future validation should include larger judge
+ensembles, repeated scoring across held-out cases, rubric ablation,
 model-separated judges, and comparison to expert labels.
 
 Finally, the reported Karthic artifact materializes the scoring core of the

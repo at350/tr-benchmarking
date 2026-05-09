@@ -12,21 +12,24 @@ responses in the cluster, and produces model rankings. Zak creates escalation
 packets only when uncertainty, disagreement, or mixed clusters require further
 review.
 
-We report internal validation on a Statute-of-Frauds calibration case. The
-evidence combines stage-level artifact assessment, a deterministic
-question-perturbation smoke test, a fresh nine-response live model batch, and a
-deterministic 500-response regression suite over eight Statute-of-Frauds
-reasoning archetypes.
-The live batch used \texttt{gpt-5.2}, \texttt{claude-sonnet-4-20250514}, and
-\texttt{meta/meta-llama-3-70b-instruct}; it produced three Dasha reasoning
-clusters, 30 row-level judge scores, projected member scores, and model
-rankings. The controlled stress suite produced eight expected clusters with
-cluster purity, completeness, and macro-F1 equal to 1.0. These results support
-internal technical review of the pipeline as a reproducible research method:
+We report internal validation on a Statute-of-Frauds calibration case drawn from
+a real court-case PDF. The evidence combines stage-level artifact assessment, a
+60-response live perturbation-aware model batch over ten model identifiers, and
+a deterministic 500-response regression suite over eight Statute-of-Frauds
+reasoning archetypes. The live batch answered three Frank-generated tracks:
+the original question, an invariant party-name edit, and a material signed-
+writing edit. Dasha clustered all 60 unlabeled natural answers into 15
+track-aware legal-reasoning centroids with complete member coverage. The
+invariant edit preserved the dominant answer family, while the material edit
+shifted the dominant answer family. A two-model judge panel produced 150
+row-level scores; an adjudicator resolved unstable panel rows before score
+projection and model ranking. The controlled stress suite produced eight
+expected clusters with cluster purity, completeness, and macro-F1 equal to 1.0.
+These results support internal technical review of the pipeline as a
+reproducible research method:
 Frank produces a source-grounded benchmark packet, Karthic produces a dynamic
 rubric, Dasha separates observed legal-reasoning paths, Judge applies the rubric
 row by row, and Zak records escalation state. They do not yet establish external
-legal validity or final publication readiness: held-out cases, broader model
-rosters, judge stability studies, and expert legal review remain required before
-stronger academic claims.
+legal validity across legal domains: held-out cases and expert legal review
+remain required before stronger academic claims.
 \end{abstract}

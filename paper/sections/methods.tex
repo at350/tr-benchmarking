@@ -66,16 +66,12 @@ models are evaluated against; changing those artifacts through sampling would
 make later comparisons hard to attribute. By contrast, response models are
 sampled with nonzero temperatures and repeated samples because variability in
 natural legal answers is part of the object being measured. The reported live
-run used \texttt{gpt-5.2} at temperature 0 for Frank, Karthic, Dasha signature
-extraction, and the single judge pass, but used nonzero response temperatures:
-\texttt{gpt-5.2} at 0.45, \texttt{claude-sonnet-4-20250514} at 0.30, and
-\texttt{meta/meta-llama-3-70b-instruct} at 0.35, with three samples per model.
-The expanded calibration configuration also includes \texttt{gpt-5.4} and
-\texttt{gemini-3-pro-preview}, and now configures low-temperature repeated or
-panel judging so evaluator variability can be measured rather than assumed away.
-Those broader roster and judge-stability results are not yet reported as
-manuscript evidence. Runtime adapters are treated as execution plumbing; the
-research unit is the named model output and its recorded prompt provenance.
+run used \texttt{gpt-5.2} at temperature 0 for Frank, Karthic, and Dasha
+signature extraction, but used nonzero response temperatures between 0.55 and
+0.65 with two samples per model per track. The judge used a low-temperature
+two-model panel and an adjudication pass for unstable rows. Runtime adapters are
+treated as execution plumbing; the research unit is the named model output and
+its recorded prompt provenance.
 
 \begin{table}[h]
 \centering
@@ -88,8 +84,8 @@ Pipeline role & Model identifier & Function \\
 Frank & \texttt{gpt-5.2} & Convert source case into doctrine gates, neutral question, gold answer, variations, and controller card. \\
 Karthic & \texttt{gpt-5.2} & Convert the locked Frank packet into a source-grounded row-level rubric. \\
 Dasha extractor & \texttt{gpt-5.2} & Read each model response and emit a normalized legal-reasoning signature. \\
-Judge & \texttt{gpt-5.2} & Score each Dasha representative against every Karthic rubric row. \\
-Response models & \texttt{gpt-5.2}; \texttt{claude-sonnet-4-20250514}; \texttt{meta/meta-llama-3-70b-instruct} & Answer the same Frank-generated question before clustering. \\
+Judge & \texttt{gpt-5.2}; \texttt{claude-sonnet-4-6} & Score each Dasha representative against every Karthic rubric row; adjudicate unstable panel rows with \texttt{gpt-5.2}. \\
+Response models & Ten model identifiers including GPT, Claude, Gemini, DeepSeek, and Llama families & Answer the original and perturbed Frank-generated questions before clustering. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -311,19 +307,25 @@ and grouping. First, for each generated response, Dasha receives three inputs:
 the Dasha instruction stream, a truncated copy of the locked Frank packet, and
 the raw response text. It is prompted to return strict JSON with the keys
 \texttt{doctrine}, \texttt{issue}, \texttt{rule\_trigger}, \texttt{outcome},
-\texttt{exception\_or\_defense}, \texttt{reasoning\_path},
-\texttt{conclusion}, and \texttt{key\_distinguishing\_facts}. This extraction
-step is the semantic abstraction layer: it asks the model to state what legal
-path the response appears to use, without telling the response model which path
-to use and without giving Dasha a preassigned label.
+\texttt{exception\_or\_defense}, \texttt{primary\_reasoning\_path},
+\texttt{reasoning\_path}, \texttt{secondary\_paths}, \texttt{conclusion}, and
+\texttt{key\_distinguishing\_facts}. The primary path is the controlling path
+on which the answer ultimately rests. The secondary path list records material
+gates, exceptions, equitable theories, or counterarguments that the response
+accepts, rejects, treats as uncertain, or otherwise discusses before reaching
+the final conclusion. This extraction step is the semantic abstraction layer:
+it asks the model to state what legal path the response appears to use, without
+telling the response model which path to use and without giving Dasha a
+preassigned label.
 
 Second, the implementation normalizes the extracted signature before clustering.
 The sanitizer removes unexpected non-Latin script fragments and collapses
 whitespace. The normalizer then maps the signature into a bucket tuple:
 \texttt{(doctrine\_bucket, trigger\_bucket, outcome\_bucket,
-exception\_bucket, reasoning\_version)}. The doctrine bucket maps explicit
-Statute-of-Frauds signatures to \texttt{statute\_of\_frauds}, contract-general
-signatures to \texttt{contracts}, and otherwise uses a slugified doctrine term.
+exception\_bucket, primary\_reasoning\_bucket, secondary\_cluster\_profile)}.
+The doctrine bucket maps explicit Statute-of-Frauds signatures to
+\texttt{statute\_of\_frauds}, contract-general signatures to
+\texttt{contracts}, and otherwise uses a slugified doctrine term.
 The trigger bucket first tries to match the signature against Frank's
 source-derived gate aliases. Those aliases are built from the detected gate id,
 label, rule statement, and source evidence in the locked Frank packet. This lets
@@ -338,16 +340,24 @@ beneficiary control, or uncertainty. The exception bucket separates the main
 defense, substitute, compliance theory, equitable doctrine, or explicit
 ``none'' signal.
 
-The fifth tuple element, \texttt{reasoning\_version}, is a method version marker
-rather than an additional learned feature. The extracted
-\texttt{reasoning\_path} remains in the cluster artifact for audit and
-representative interpretation, but the reported grouping decision is driven by
-doctrine, trigger, outcome, and exception buckets. This is important for
-interpreting the evidence: the reported Dasha configuration does not use
-embeddings or a trained clustering model. It is an LLM semantic-extraction layer followed by
-deterministic normalization and exact grouping over legal-reasoning buckets.
-That design is transparent and auditable, but it means the quality of clustering
-depends on the Dasha extraction prompt and bucket definitions.
+The fifth tuple element is the normalized primary legal-reasoning family, such
+as signed-writing compliance, Statute-of-Frauds bar, association replacement
+control, constructive trust, promissory estoppel, one-year reasoning, plain
+meaning, or contra proferentem. The sixth element is a conservative secondary
+cluster profile. Dasha stores the full secondary-path audit profile in the
+cluster artifact, including rejected and merely mentioned theories, but the
+cluster key uses only accepted or uncertain non-primary secondary paths. This
+prevents a common failure mode in legal answers: a response may discuss five
+possible gates, reject four, and still rest on the same controlling path as
+another answer. Rejected paths remain inspectable, but they do not by themselves
+fragment the centroid.
+
+This is important for interpreting the evidence: the reported Dasha
+configuration does not use embeddings or a trained clustering model. It is an
+LLM semantic-extraction layer followed by deterministic normalization and exact
+grouping over legal-reasoning buckets. That design is transparent and auditable,
+but it means the quality of clustering depends on the Dasha extraction prompt
+and bucket definitions.
 
 Responses with the same normalized bucket tuple are grouped into clusters. Each
 cluster has a representative centroid, member ids, centroid/member consistency
@@ -385,11 +395,13 @@ The resulting centroid score is copied to every response in that cluster. Model
 rankings are then computed as the mean projected score for each model identifier.
 The live judge configuration now supports repeated judge calls and judge panels.
 When repeats or multiple judge models are enabled, each centroid-row score is
-collected multiple times, aggregated by mean score, and accompanied by a
-stability report containing pairwise mean absolute error, pairwise weighted
-kappa, maximum row-score range, unstable row flags, and the recorded judge-panel
-composition. Rows whose repeated or panel scores differ by two or more scale
-points are escalated through Zak rather than silently averaged.
+collected multiple times and accompanied by a stability report containing
+pairwise mean absolute error, pairwise weighted kappa, maximum row-score range,
+unstable row flags, and the recorded judge-panel composition. Rows whose
+repeated or panel scores differ by two or more scale points are sent to an
+adjudicator, which receives the prior scores, the rubric, the cluster signal,
+and the representative answer, then emits the final row score. Zak still records
+the disputed cluster state rather than letting adjudication erase provenance.
 This projection rule is why a run with one Dasha cluster can produce tied model
 rankings: if all models use the same legal reasoning path, the method treats the
 centroid as the scored unit. Zak is intentionally simple in the reported

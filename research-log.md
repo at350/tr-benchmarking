@@ -158,3 +158,29 @@
   rankings, and 1 Zak escalation packet. No-call audit now reports 10 of 11
   readiness gates met; the remaining gap is live perturbation validation on the
   real court-case source.
+- Ran the full real Anglemire perturbation-aware live roster from the court-case
+  PDF. The first attempt generated 60 natural responses across ten model
+  identifiers and three tracks, but Dasha overfragmented enough to exceed the
+  judge budget. Added a runtime judge-budget guard, explicit Frank invariant
+  perturbation normalization, and a coarser Dasha reasoning-family normalizer so
+  the method fixes overfragmentation rather than spending through it.
+- Completed the resumed live roster source-to-score run from the saved Frank,
+  Karthic, response, and Dasha-signature checkpoints. Final bundle:
+  `internal_validation_ready`, 60 natural responses, 15 track-aware Dasha
+  clusters, perturbation validation passed, 150 row-level judge panel scores,
+  6 adjudicated unstable clusters, 60 projected member scores, 10 model
+  rankings, and 1 Zak packet.
+- Regenerated internal validation tables, method readiness, no-call audit,
+  claim ledger, review packet, handoff manifest, and paper tables from the
+  completed live roster bundle. The method-readiness report now marks 11 of 11
+  internal gates met, and the claim ledger marks all 12 tracked manuscript
+  claims supported for internal pre-expert-review.
+- Responded to the multi-gate Dasha critique by adding primary/secondary path
+  extraction. Dasha now asks for `primary_reasoning_path` plus structured
+  `secondary_paths`; normalization records the full secondary-path audit profile
+  and uses only accepted or uncertain non-primary paths in the grouping key.
+  Regenerated Dasha signatures for the 60 saved Anglemire natural responses
+  using the new prompt. The naive full-secondary-profile key produced 49
+  clusters, confirming overfragmentation; the tuned track-aware key produced 26
+  clusters across the original, invariant, and material tracks. Added regression
+  tests and documented the experiment under `experiments/multipath-dasha/`.

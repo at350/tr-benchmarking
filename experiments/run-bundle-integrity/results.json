@@ -111,8 +111,8 @@
     },
     {
       "details": {
-        "actual": "929f3ba57f289e6f",
-        "expected": "929f3ba57f289e6f"
+        "actual": "3e50d046edcdb22d",
+        "expected": "3e50d046edcdb22d"
       },
       "message": "frank_packet.json matches manifest hash",
       "passed": true,
@@ -120,8 +120,8 @@
     },
     {
       "details": {
-        "actual": "be4cf95a0f2cd94e",
-        "expected": "be4cf95a0f2cd94e"
+        "actual": "a05dae1abfeb6ee3",
+        "expected": "a05dae1abfeb6ee3"
       },
       "message": "karthic_rubric.json matches manifest hash",
       "passed": true,
@@ -129,8 +129,8 @@
     },
     {
       "details": {
-        "actual": "d38827b11cfb2870",
-        "expected": "d38827b11cfb2870"
+        "actual": "5e402d2d97116a21",
+        "expected": "5e402d2d97116a21"
       },
       "message": "dasha_clusters.json matches manifest hash",
       "passed": true,
@@ -138,8 +138,8 @@
     },
     {
       "details": {
-        "actual": "6fb3e6caa8a96df7",
-        "expected": "6fb3e6caa8a96df7"
+        "actual": "7786fe7f8b4bdd2f",
+        "expected": "7786fe7f8b4bdd2f"
       },
       "message": "judge_scores.json matches manifest hash",
       "passed": true,
@@ -147,8 +147,8 @@
     },
     {
       "details": {
-        "actual": "bffe3d3b31614257",
-        "expected": "bffe3d3b31614257"
+        "actual": "2de6b184375446eb",
+        "expected": "2de6b184375446eb"
       },
       "message": "zak_packets.json matches manifest hash",
       "passed": true,
@@ -156,8 +156,8 @@
     },
     {
       "details": {
-        "actual": "f1484d44f43120c1",
-        "expected": "f1484d44f43120c1"
+        "actual": "748eac1a7753bc8a",
+        "expected": "748eac1a7753bc8a"
       },
       "message": "perturbation_report.json matches manifest hash",
       "passed": true,
@@ -165,8 +165,8 @@
     },
     {
       "details": {
-        "actual": 9,
-        "expected": 9
+        "actual": 60,
+        "expected": 60
       },
       "message": "response count matches configured model sample plan",
       "passed": true,
@@ -224,18 +224,18 @@
     }
   ],
   "counts": {
-    "clusters": 5,
-    "responses": 9,
-    "rubric_rows": 11,
+    "clusters": 15,
+    "responses": 60,
+    "rubric_rows": 10,
     "zak_packets": 1
   },
-  "run_dir": "research/runs/live_natural_response_batch",
-  "run_id": "live_natural_response_batch",
+  "run_dir": "research/runs/live_replicate_roster",
+  "run_id": "live_replicate_roster",
   "schema_version": "research.run_bundle_audit.v1",
   "source": {
-    "doctrine_family": "Statute of Frauds \u2014 agreements made upon consideration of marriage (other than the mutual promise to marry); effect on oral promise to name spouse as beneficiary / settle property",
-    "frank_packet_id": "frank_live_natural_response_batch",
-    "rubric_id": "karthic_live_natural_response_batch"
+    "doctrine_family": "Statute of Frauds \u2014 agreements made upon consideration of marriage (oral promise to confer property/beneficiary status in exchange for marriage)",
+    "frank_packet_id": "frank_live_replicate_roster",
+    "rubric_id": "karthic_live_replicate_roster"
   },
   "status": "run_bundle_reviewable",
   "warning_count": 0

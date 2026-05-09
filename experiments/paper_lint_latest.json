@@ -1,0 +1,36 @@
+{
+  "bib_keys": [
+    "chen2018metamorphic",
+    "guha2023legalbench",
+    "kim2023prometheus",
+    "kim2024prometheus2",
+    "lemaj2025",
+    "lexam2025",
+    "liu2023geval",
+    "shi2024positionbias",
+    "wataoka2024selfpreference",
+    "zheng2023judging"
+  ],
+  "citation_keys": [
+    "chen2018metamorphic",
+    "guha2023legalbench",
+    "kim2023prometheus",
+    "kim2024prometheus2",
+    "lemaj2025",
+    "lexam2025",
+    "liu2023geval",
+    "shi2024positionbias",
+    "wataoka2024selfpreference",
+    "zheng2023judging"
+  ],
+  "content_findings": [],
+  "errors": [],
+  "missing_bibliographies": [],
+  "missing_citations": [],
+  "missing_graphics": [],
+  "missing_inputs": [],
+  "paper_root": "paper",
+  "schema_version": "research.paper_lint.v1",
+  "status": "paper_lint_passed",
+  "tex_files": 24
+}

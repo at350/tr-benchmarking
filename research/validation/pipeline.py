@@ -122,6 +122,28 @@ def run_pipeline(config: ResearchConfig, repo_root: str | Path) -> PipelineRunRe
         judge = judge_clusters_with_openai(root, clusters, rubric, config.judge)
     else:
         judge = judge_clusters(clusters, rubric, config.judge.agreement_threshold)
+    adjudicated_clusters = (
+        judge.get("judge_stability", {}).get("adjudicated_clusters", [])
+        if isinstance(judge.get("judge_stability"), dict)
+        else []
+    )
+    if adjudicated_clusters:
+        adjudication_calls = len(adjudicated_clusters)
+        call_plan = {
+            **call_plan,
+            "actual_adjudication_calls": adjudication_calls,
+            "actual_judge_calls_including_adjudication": (
+                call_plan.get("actual_judge_calls", call_plan.get("planned_min_judge_calls", 0))
+                + adjudication_calls
+            ),
+            "actual_total_llm_calls_excluding_frank_karthic_including_adjudication": (
+                call_plan.get(
+                    "actual_total_llm_calls_excluding_frank_karthic",
+                    call_plan.get("planned_total_llm_calls_excluding_frank_karthic", 0),
+                )
+                + adjudication_calls
+            ),
+        }
     print(f"[research-run] {config.run_id}: Zak and validation artifacts", flush=True)
     zak = build_zak_packets(judge, clusters, rubric)
     perturbation_report = build_perturbation_report(tracks, responses, clusters) if config.perturbations.enabled else {

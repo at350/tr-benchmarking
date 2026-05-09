@@ -1,26 +1,26 @@
 # Internal Review Packet
 
 - Status: `ready_for_internal_review_with_declared_gaps`
-- Readiness run: `live_natural_response_batch`
+- Readiness run: `live_replicate_roster`
 - Source artifacts: `experiments/method-readiness/results/method_readiness.json, experiments/live-config-preflight/results.json, experiments/security-lint/results.json, experiments/run-bundle-integrity/results.json`
 
 ## Current Evidence
 
 | Item | Status | Notes |
 |---|---:|---|
-| Method readiness | `internal_method_ready_with_gaps` | 9/11 gates met; 1 partial. |
-| Run bundle integrity | `run_bundle_reviewable` | 9 responses; 5 clusters; 0 blocking error(s). |
-| Live preflight | `live_preflight_passed` | 1 warning(s); 0 blocking error(s). |
-| Secret lint | `secrets_lint_passed` | 273 files scanned. |
-| Live call plan | `bounded` | 69 planned calls excluding Frank/Karthic; cap 80. |
+| Method readiness | `internal_method_ready` | 11/11 gates met; 0 partial. |
+| Run bundle integrity | `run_bundle_reviewable` | 60 responses; 15 clusters; 0 blocking error(s). |
+| Live preflight | `live_preflight_passed` | 0 warning(s); 0 blocking error(s). |
+| Secret lint | `secrets_lint_passed` | 287 files scanned. |
+| Live call plan | `bounded` | 126 planned calls excluding Frank/Karthic; cap 165. |
 
 ## Declared Gaps
 
-- Perturbation validation: Run invariant and material perturbation tracks with live model responses.
+- None.
 
 ## Partial Gates
 
-- Live-run preflight: Resolve credential warnings before claim-supporting paid live runs.
+- None.
 
 ## Next Run
 

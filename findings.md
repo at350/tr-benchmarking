@@ -233,13 +233,33 @@ still need calibration with repeated judge runs.
   doctrinal prompts.
 - The same run produced 60 natural responses across ten actual model
   identifiers and three tracks. Dasha assigned reasoning signatures to all 60
-  responses, created 41 track-aware clusters, passed member-coherence review,
-  detected no mixed-reasoning clusters, preserved the invariant answer bucket,
-  and observed the material signed-writing variation shift the dominant outcome
-  from later-beneficiaries-control to wife-certificate-controls. This supports
-  the Dasha perturbation mechanism for this case, but it is not yet a completed
-  source-to-score run because judge scoring was intentionally stopped after
-  Dasha artifacts checkpointed.
+  responses. The first clustering pass overfragmented into 35+ clusters, which
+  triggered the runtime judge-budget guard instead of silently spending on an
+  invalid cluster set. Dasha normalization was then tightened to collapse
+  prose-level signature variation into legal-reasoning families while preserving
+  separate certificate-as-writing, constructive-trust/equity, SOF-bar, and
+  signed-writing-compliance theories. The completed run now has 15 track-aware
+  clusters, 1.0 member coherence, no mixed-reasoning flags, invariant dominant
+  answer preservation, and material signed-writing outcome shift.
+- The real Anglemire perturbation run now completes source-to-score. The judge
+  used a two-model panel over 15 Dasha centroids, produced 150 row-level panel
+  scores, adjudicated six clusters with unstable panel rows, projected final
+  centroid scores to all 60 responses, generated rankings for ten model
+  identifiers, and produced a Zak disputed-cluster packet. The regenerated
+  method-readiness report marks 11 of 11 internal gates met, and the claim
+  ledger marks all 12 tracked manuscript claims supported for the internal
+  pre-expert-review standard.
+- Dasha needed a multi-path representation. Real answers often discuss several
+  legal gates before choosing a controlling path, so a single
+  `reasoning_path` field can hide important legal structure. The Dasha prompt
+  now asks for `primary_reasoning_path` and `secondary_paths`. The full
+  secondary-path audit profile is stored for review, while the cluster key uses
+  only accepted or uncertain non-primary paths. An exploratory regeneration of
+  Dasha signatures for the 60 saved Anglemire responses completed without JSON
+  failures. A naive full-secondary key produced 49 clusters, but the tuned
+  track-aware method produced 26 clusters across the original, invariant, and
+  material tracks. This is a method improvement, not yet a replacement for the
+  scored 15-cluster bundle until Judge is rerun on the multi-path clusters.
 - Perturbation validation should not compare raw reasoning prose literally.
   The invariant track initially failed because the dominant clusters used
   different paraphrases and source-gate emphasis while preserving the same
@@ -296,12 +316,12 @@ still need calibration with repeated judge runs.
 
 ## Open Questions
 
-- How stable are row-level judge scores under actual repeated live calls,
-  model-separated judges, or small prompt perturbations?
-- What live agreement and row-instability thresholds produce useful Zak packets
+- How stable are row-level judge scores under larger judge panels, more held-out
+  cases, and small prompt perturbations?
+- What live agreement, adjudication, and Zak thresholds produce useful packets
   without over-escalating routine close calls?
 - How well does Dasha preserve member/centroid coherence when the response set
-  grows from 9 natural responses to tens or hundreds of natural responses?
+  grows from 60 natural responses to hundreds of natural responses?
 - Which live non-SOF source cases should follow the contract-interpretation
   smoke test for stronger doctrine-transfer validation?
 - What are the minimum internal thresholds for judge repeat agreement,

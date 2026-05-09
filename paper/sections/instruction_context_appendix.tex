@@ -96,7 +96,12 @@ are applied only after row scoring.
 Dasha's instruction context defines reasoning-signature extraction and
 centroid-level evaluation. Dasha does not write the question, gold answer, or
 rubric. It reads raw model responses after generation and extracts a normalized
-description of the legal path each response appears to use.
+description of the legal path each response appears to use. The current Dasha
+schema separates the controlling \texttt{primary\_reasoning\_path} from
+\texttt{secondary\_paths}. Each secondary path records the gate or theory, its
+posture, the reason it mattered, and its effect on the outcome. This lets Dasha
+represent answers that discuss several possible gates before settling on one
+path.
 
 The Dasha track audit records which question version is active, which rubric
 belongs to that question, whether the run is single-track or perturbation-track,
@@ -114,7 +119,10 @@ after both tracks have been independently clustered.
 
 Dasha also records centroid composition metadata: cluster size, per-model answer
 counts and shares, represented model count, dominant model, and dominant model
-share. This metadata is descriptive and must not become a scoring input.
+share. This metadata is descriptive and must not become a scoring input. Dasha
+also records the full secondary-path audit profile for a centroid; the grouping
+key uses only accepted or uncertain non-primary secondary paths so rejected
+background theories remain visible without automatically fragmenting clusters.
 
 \subsection{Judge and Zak Context}
 
