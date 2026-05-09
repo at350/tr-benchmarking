@@ -105,6 +105,8 @@ body {
   font-family: var(--font-geist-sans), "Avenir Next", sans-serif;
   font-size: 0.9rem;
   font-weight: 700;
+  line-height: 1.35;
+  text-transform: none;
   color: #334155;
 }
 
@@ -148,4 +150,20 @@ body {
   font-weight: 700;
   line-height: 1.45;
   color: #334155;
+}
+
+.paper-preview .caption-label {
+  font-weight: 800;
+}
+
+.paper-references {
+  margin: 0.25rem 0 0;
+  padding-left: 1.6rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.paper-references li {
+  margin-bottom: 0.65rem;
+  padding-left: 0.25rem;
 }

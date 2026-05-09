@@ -12,6 +12,7 @@ from .config import AgentConfig, ResearchConfig
 from .instruction_context import load_agent_instruction_context
 from .perturbations import build_question_tracks
 from .provider_client import generate_json, generate_text
+from .quality import question_quality_errors
 from .utils import display_path, stable_hash
 
 
@@ -73,6 +74,39 @@ def sanitize_reasoning_signature(value: Any) -> Any:
     return value
 
 
+def _frank_question_errors(raw: dict[str, Any]) -> list[str]:
+    errors = question_quality_errors(str(raw.get("neutral_question", "")), "neutral_question")
+    for variation in raw.get("variations", []):
+        if isinstance(variation, dict):
+            errors.extend(question_quality_errors(str(variation.get("question", "")), f"variation {variation.get('id', 'unknown')}"))
+    return errors
+
+
+def _merge_frank_question_repair(original: dict[str, Any], repaired: dict[str, Any]) -> dict[str, Any]:
+    """Preserve Frank packet semantics while accepting repaired question text."""
+
+    merged = dict(original)
+    if repaired.get("neutral_question"):
+        merged["neutral_question"] = repaired["neutral_question"]
+    repaired_variations = {
+        str(variation.get("id")): variation
+        for variation in repaired.get("variations", [])
+        if isinstance(variation, dict) and variation.get("id")
+    }
+    merged_variations = []
+    for variation in original.get("variations", []):
+        if not isinstance(variation, dict):
+            continue
+        repaired_variation = repaired_variations.get(str(variation.get("id")), {})
+        merged_variations.append({
+            **variation,
+            "question": repaired_variation.get("question", variation.get("question", "")),
+        })
+    if merged_variations:
+        merged["variations"] = merged_variations
+    return merged
+
+
 def build_frank_packet_with_llm(
     repo_root: Path,
     config: ResearchConfig,
@@ -96,6 +130,11 @@ def build_frank_packet_with_llm(
                 f"Canonical instruction context:\n{instruction_context['context']}\n\n"
                 "Build a benchmark packet from this source case. Infer the doctrine from the source; "
                 "do not assume Statute of Frauds or any other doctrine unless the source supports it. "
+                "The neutral_question and every variation.question must be a self-contained law-school-style "
+                "hypothetical, not an abstract doctrinal prompt. Each question must include concrete party roles, "
+                "the operative promise or transaction, timing, writing/certificate or procedural facts, the later "
+                "dispute, and a neutral call question. Variation questions must restate the full scenario with the "
+                "changed fact integrated; do not write one-sentence questions beginning only with 'If'. "
                 "Return JSON with keys: "
                 "doctrine_family, detected_doctrine_gates (array of {id,label,rule,source_evidence}), "
                 "source_extraction {jurisdiction, clean_legal_issue, trigger_facts, source_limits}, "
@@ -113,6 +152,36 @@ def build_frank_packet_with_llm(
         messages=messages,
         temperature=agent.temperature,
     )
+    if _frank_question_errors(raw) and json_generator is None:
+        repair_messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are Frank. Repair only the benchmark question drafting. Return strict JSON only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "The previous Frank packet had scenario-poor benchmark questions. Rewrite neutral_question and every "
+                    "variation.question as self-contained fact-pattern hypotheticals. Preserve the same doctrine, gates, "
+                    "gold answer, changed facts, and expected behavior. Each question should read like the example style: "
+                    "a short concrete legal scenario followed by a neutral enforceability or entitlement question. "
+                    "Each variation must restate the relevant facts instead of relying on hidden context.\n\n"
+                    f"Source case:\n{source_text}\n\nPrevious packet JSON:\n{json.dumps(raw, indent=2)}"
+                ),
+            },
+        ]
+        repaired_raw = generate_json(
+            repo_root=repo_root,
+            provider=agent.provider,
+            model=agent.model,
+            messages=repair_messages,
+            temperature=0.0,
+            max_tokens=4200,
+        )
+        raw = _merge_frank_question_repair(raw, repaired_raw)
+        messages = messages + repair_messages
     gates = raw.get("detected_doctrine_gates") or raw.get("gates") or []
     primary_gate = raw.get("controller_card", {}).get("primary_gate_id") or (gates[0]["id"] if gates else "general")
     raw_card = raw.get("controller_card", {})
@@ -327,6 +396,11 @@ def generate_model_responses(repo_root: Path, config: ResearchConfig, frank_pack
         messages = model_response_messages(config, frank_packet, question=str(track["question"]))
         for spec in config.response_models:
             for sample_index in range(spec.samples):
+                print(
+                    "[research-run] response "
+                    f"track={track['track_id']} model={spec.model} sample={sample_index + 1}/{spec.samples}",
+                    flush=True,
+                )
                 text = generate_text(
                     repo_root=repo_root,
                     provider=spec.provider,
@@ -360,11 +434,35 @@ def add_llm_reasoning_signatures(
     config: ResearchConfig,
     frank_packet: dict[str, Any],
     responses: list[dict[str, Any]],
+    checkpoint_path: Path | None = None,
 ) -> list[dict[str, Any]]:
     agent = config.agents["dasha"]
     instruction_context = load_agent_instruction_context(repo_root, "dasha")
+    existing_by_id: dict[str, dict[str, Any]] = {}
+    if checkpoint_path and checkpoint_path.exists():
+        try:
+            checkpoint_responses = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+            existing_by_id = {
+                str(response.get("id")): response
+                for response in checkpoint_responses
+                if isinstance(response, dict) and response.get("reasoning_signature")
+            }
+        except json.JSONDecodeError:
+            existing_by_id = {}
     signed = []
-    for response in responses:
+    for index, response in enumerate(responses, start=1):
+        response_id = str(response.get("id", "unknown"))
+        if response.get("reasoning_signature"):
+            signed.append(response)
+            continue
+        if response_id in existing_by_id:
+            signed.append({**response, "reasoning_signature": existing_by_id[response_id]["reasoning_signature"]})
+            continue
+        print(
+            "[research-run] Dasha signature "
+            f"{index}/{len(responses)} response={response_id}",
+            flush=True,
+        )
         messages = [
             {
                 "role": "system",
@@ -395,4 +493,8 @@ def add_llm_reasoning_signatures(
             max_tokens=900,
         )
         signed.append({**response, "reasoning_signature": sanitize_reasoning_signature(signature)})
+        if checkpoint_path:
+            checkpoint_payload = signed + responses[index:]
+            checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+            checkpoint_path.write_text(json.dumps(checkpoint_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return signed

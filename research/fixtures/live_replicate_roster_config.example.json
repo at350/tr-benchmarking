@@ -1,8 +1,8 @@
 {
-  "run_id": "live_multi_provider_calibration",
+  "run_id": "live_replicate_roster",
   "domain": "auto",
   "source_case_path": "research/fixtures/tiny_source_case.txt",
-  "output_dir": "research/runs/live_multi_provider_calibration",
+  "output_dir": "research/runs/live_replicate_roster",
   "mode": "live_multi_provider",
   "response_prompt_style": "natural",
   "agents": {
@@ -25,52 +25,72 @@
       "temperature": 0
     }
   },
-  "answer_headings": [
-    "Jurisdiction assumption",
-    "Bottom-line outcome",
-    "Controlling doctrine",
-    "Transaction / formation characterization",
-    "Writing requirement and trigger",
-    "Compliance / substitute / exception analysis",
-    "Other defenses or competing doctrines",
-    "Strongest counterargument"
-  ],
   "response_models": [
     {
       "provider": "openai",
       "model": "gpt-5.2",
       "samples": 2,
-      "temperature": 0.25
+      "temperature": 0.55
     },
     {
       "provider": "openai",
       "model": "gpt-5.4",
       "samples": 2,
-      "temperature": 0.35
+      "temperature": 0.55
     },
     {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-20250514",
+      "model": "claude-sonnet-4-6",
       "samples": 2,
-      "temperature": 0.25
+      "temperature": 0.55
     },
     {
-      "provider": "gemini",
-      "model": "gemini-3-pro-preview",
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5-20251001",
       "samples": 2,
-      "temperature": 0.25
+      "temperature": 0.65
+    },
+    {
+      "provider": "replicate",
+      "model": "google/gemini-3-flash",
+      "samples": 2,
+      "temperature": 0.6
+    },
+    {
+      "provider": "replicate",
+      "model": "google/gemini-3-pro",
+      "samples": 2,
+      "temperature": 0.55
+    },
+    {
+      "provider": "replicate",
+      "model": "anthropic/claude-4.5-sonnet",
+      "samples": 2,
+      "temperature": 0.55
+    },
+    {
+      "provider": "replicate",
+      "model": "openai/gpt-4.1-mini",
+      "samples": 2,
+      "temperature": 0.6
+    },
+    {
+      "provider": "replicate",
+      "model": "deepseek-ai/deepseek-r1",
+      "samples": 2,
+      "temperature": 0.6
     },
     {
       "provider": "replicate",
       "model": "meta/meta-llama-3-70b-instruct",
       "samples": 2,
-      "temperature": 0.25
+      "temperature": 0.6
     }
   ],
   "clustering": {
     "method": "llm_reasoning_signature",
     "min_cluster_size": 1,
-    "min_observed_clusters": 2,
+    "min_observed_clusters": 3,
     "mixed_cluster_threshold": 0.34,
     "provider": "openai",
     "model": "gpt-5.2"
@@ -82,21 +102,21 @@
     "agreement_threshold": 0.7,
     "escalation_margin": 0.2,
     "repeats": 2,
+    "temperature": 0.15,
     "judge_models": [
       {
         "provider": "openai",
         "model": "gpt-5.2",
-        "repeats": 2,
+        "repeats": 1,
         "temperature": 0.15
       },
       {
         "provider": "anthropic",
-        "model": "claude-sonnet-4-20250514",
+        "model": "claude-sonnet-4-6",
         "repeats": 1,
         "temperature": 0.15
       }
-    ],
-    "temperature": 0.15
+    ]
   },
   "perturbations": {
     "enabled": true,
@@ -105,9 +125,9 @@
     "require_material": true
   },
   "budget": {
-    "max_response_calls": 30,
-    "max_judge_calls": 12,
-    "max_total_llm_calls_excluding_frank_karthic": 80
+    "max_response_calls": 60,
+    "max_judge_calls": 30,
+    "max_total_llm_calls_excluding_frank_karthic": 150
   },
   "quality_gates": {
     "min_rubric_rows": 8,

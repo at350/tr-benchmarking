@@ -2,7 +2,7 @@
   "errors": [],
   "findings": [],
   "repo_root": ".",
-  "scanned_files": 249,
+  "scanned_files": 267,
   "schema_version": "research.secrets_lint.v1",
   "skipped_large_files": [],
   "status": "secrets_lint_passed"

@@ -313,14 +313,22 @@ def _neutral_question(source_text: str, gates: list[dict]) -> str:
     facts = " ".join(_key_facts(source_text, gates)[:3])
     if primary["id"] == "marriage" and "certificate" in source_text.lower():
         return (
-            "A member promised before marriage to change a benefit certificate so his fiancee "
-            "would be the beneficiary. After marriage he named her, she kept the certificate, "
-            "and he later obtained a replacement certificate naming relatives. Who has the "
-            "better claim to the death benefit under the source-grounded Statute of Frauds law?"
+            "In Illinois, a member of a fraternal benefit association told his fiancee before their "
+            "wedding, \"If you marry me, I will change my benefit certificate so that you are the "
+            "beneficiary.\" She agreed, they married, and he later obtained a new certificate naming "
+            "her as beneficiary. The wife kept possession of that certificate. About a year later, "
+            "the marriage deteriorated, and the member told the association he could not produce the "
+            "certificate because his wife had it. Under the association rules, he obtained a replacement "
+            "certificate naming his children and sister as beneficiaries. After the member died, the wife "
+            "and the later-named beneficiaries each claimed the death benefit. Who has the better claim "
+            "to the death benefit under Illinois Statute of Frauds law and the association rules?"
         )
     return (
-        f"Using the source-grounded Statute of Frauds rules, analyze whether the alleged oral promise is enforceable. "
-        f"Focus on {primary['label']}. Key source facts: {facts}"
+        f"The parties are litigating whether an alleged oral promise is enforceable under source-grounded "
+        f"Statute of Frauds rules. The likely controlling gate is {primary['label']}. The source facts are: "
+        f"{facts} The claimant argues the oral promise should be enforced despite the writing problem, while "
+        "the opposing party argues the Statute of Frauds bars enforcement or leaves only a fallback remedy. "
+        "On these facts, is the oral promise enforceable?"
     )
 
 
@@ -328,8 +336,11 @@ def _neutral_generic_question(source_text: str, doctrine_family: str, gates: lis
     primary = gates[0]
     facts = " ".join(_key_facts(source_text, gates)[:3])
     return (
-        f"Using the source-grounded {doctrine_family} rules, analyze the parties' competing interpretations. "
-        f"Focus on {primary['label']}. Key source facts: {facts}"
+        f"The parties are disputing a {doctrine_family} issue in a source-grounded legal benchmark. "
+        f"The likely controlling path is {primary['label']}. The source facts are: {facts} "
+        "The claimant argues those facts preserve the asserted legal right, while the opposing party "
+        "argues the text, rule, or procedural posture defeats it. On these facts, which interpretation "
+        "is stronger and why?"
     )
 
 
@@ -402,9 +413,14 @@ def _variations(gates: list[dict], source_text: str) -> list[dict]:
                     "perturbation_type": "material",
                     "changed_fact": "Remove any later certificate or signed designation supporting the premarital promise.",
                     "question": (
-                        "Under Illinois law, a member orally promised before marriage to make his fiancee the "
-                        "beneficiary if she married him, but never obtained any certificate or signed designation "
-                        "naming her. Does the Statute of Frauds marriage provision bar enforcement?"
+                        "In Illinois, a member of a fraternal benefit association told his fiancee before their "
+                        "wedding, \"If you marry me, I will change my benefit certificate so that you are the "
+                        "beneficiary.\" She agreed, and they married. Unlike the original source case, however, "
+                        "the member never obtained a new certificate, never signed a beneficiary designation naming "
+                        "her, and never gave her any writing that referred to the promise. He later died with either "
+                        "the old designation or no completed post-marriage change in place, and the spouse claimed "
+                        "the death benefit based only on the oral premarital promise. Can the spouse enforce the "
+                        "promise to obtain the death benefit under Illinois's marriage provision of the Statute of Frauds?"
                     ),
                     "expected_behavior": "bar_more_likely",
                 },
@@ -414,9 +430,14 @@ def _variations(gates: list[dict], source_text: str) -> list[dict]:
                     "perturbation_type": "material",
                     "changed_fact": "Add a clear signed designation made after the marriage naming the spouse.",
                     "question": (
-                        "Under Illinois law, a member orally promised before marriage to make his fiancee the "
-                        "beneficiary if she married him and later signed a clear designation naming her. Does the "
-                        "signed designation satisfy or substitute for the writing requirement?"
+                        "In Illinois, a member of a fraternal benefit association promised his fiancee before their "
+                        "wedding that, if she married him, he would make her the beneficiary of his death-benefit "
+                        "certificate. She agreed, they married, and soon afterward he signed a clear beneficiary "
+                        "designation naming her and identifying the benefit certificate. The spouse kept the signed "
+                        "designation. About a year later, the member attempted to replace the certificate and name "
+                        "his children and sister instead. After the member died, both sides claimed the death benefit. "
+                        "Does the signed post-marriage designation satisfy or substitute for the writing required by "
+                        "Illinois's marriage provision of the Statute of Frauds?"
                     ),
                     "expected_behavior": "compliance_stronger",
                 },
@@ -478,7 +499,7 @@ def _generic_variations(gates: list[dict], source_text: str, doctrine_family: st
         "lane": "A",
         "perturbation_type": "invariant",
         "changed_fact": "Change only party names while preserving the clause and drafting facts.",
-        "question": f"{base_question} Assume the same facts, except the seller is called Northstar rather than Apex.",
+        "question": f"{base_question} Assume the same facts, except the seller is called Northstar rather than Apex. Does that name change affect the legal interpretation?",
         "expected_behavior": "answer_invariant",
     }]
     if any(gate["id"] == "plain_meaning" for gate in gates):
@@ -487,7 +508,13 @@ def _generic_variations(gates: list[dict], source_text: str, doctrine_family: st
             "lane": "B",
             "perturbation_type": "material",
             "changed_fact": "Add a second clause that creates a plausible ambiguity about the remedy.",
-            "question": "A contract clause preserves the buyer's remedy, but a later clause appears to limit that remedy. How does the ambiguity affect interpretation?",
+            "question": (
+                f"{base_question} Assume the same facts, except the later schedule adds a second sentence stating "
+                "\"service credits are the buyer's sole remedy for all outage-related losses,\" while the main covenant "
+                "still says the buyer may pursue all legal and equitable remedies for uncured service failures. The buyer "
+                "argues the main covenant preserves damages for severe failures, and the seller argues the schedule now "
+                "unambiguously limits all remedies to service credits. How does the added ambiguity affect interpretation?"
+            ),
             "expected_behavior": "reasoning_should_shift_to_ambiguity",
         })
     if any(gate["id"] == "contra_proferentem" for gate in gates):
@@ -496,7 +523,12 @@ def _generic_variations(gates: list[dict], source_text: str, doctrine_family: st
             "lane": "B",
             "perturbation_type": "material",
             "changed_fact": "Change which party drafted the ambiguous clause.",
-            "question": "If the same ambiguous clause was drafted by the buyer rather than the seller, how does that affect the contra proferentem analysis?",
+            "question": (
+                f"{base_question} Assume the same facts, including the tension between the remedy covenant and the service-credit "
+                "schedule, but the buyer rather than the seller drafted the disputed remedial language. The seller argues any "
+                "ambiguity should now be construed against the buyer as drafter, while the buyer argues the ordinary meaning "
+                "still preserves broader remedies. How does the change in drafting responsibility affect the contra proferentem analysis?"
+            ),
             "expected_behavior": "reasoning_should_shift_with_drafter",
         })
     return variations

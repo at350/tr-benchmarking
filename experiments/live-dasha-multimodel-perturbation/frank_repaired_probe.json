@@ -1,0 +1,120 @@
+{
+  "packet": {
+    "controller_card": {
+      "evaluation_status": "not_ready",
+      "packet_status": "ready_for_karthic",
+      "primary_gate_id": "G1",
+      "rubric_status": "not_started"
+    },
+    "doctrine_family": "Statute of Frauds \u2014 marriage consideration provision (premarital promise) intersecting with beneficiary-designation rules for fraternal benefit certificates",
+    "doctrine_gates": [
+      {
+        "id": "G1",
+        "label": "Is the alleged promise an agreement made upon consideration of marriage (i.e., a premarital promise induced by marriage) triggering the Statute of Frauds marriage provision?",
+        "rule": "A promise/contract made upon consideration of marriage (other than the mutual promise to marry) is within the Statute of Frauds and is unenforceable unless evidenced by a writing satisfying the statute.",
+        "source_evidence": "Excerpt: the fiancee was told before the wedding, \"If you marry me, I will change my benefit certificate so that you are the beneficiary.\" The source \"focuses on whether the premarital promise ... created enforceable rights for the wife under the marriage provision of the Statute of Frauds.\""
+      },
+      {
+        "id": "G2",
+        "label": "Is there a sufficient writing (or equivalent) memorializing the premarital promise to satisfy the Statute of Frauds?",
+        "rule": "If the marriage-consideration promise is within the Statute of Frauds, the claimant must identify a writing that adequately evidences the essential terms and is attributable to the party to be charged; otherwise the promise is unenforceable.",
+        "source_evidence": "Excerpt notes a later-issued benefit certificate naming the wife as beneficiary; it also flags the issue as the Statute of Frauds marriage provision plus \"related association rules.\""
+      },
+      {
+        "id": "G3",
+        "label": "Does the later-issued certificate create enforceable beneficiary rights independent of the premarital promise (and subject to association rules)?",
+        "rule": "Even if an oral premarital promise is unenforceable, a later issued benefit certificate and governing association rules may define whether a named beneficiary acquires enforceable rights and whether/how the member may change beneficiaries (including requirements about surrender/possession of the certificate).",
+        "source_evidence": "Excerpt: after marriage he obtained a new certificate naming wife as beneficiary; wife kept possession; later he obtained a replacement naming children/sister because he could not produce the original; dispute turns on \"related association rules.\""
+      },
+      {
+        "id": "G4",
+        "label": "Under the association rules, was the replacement certificate validly issued and effective despite the wife\u2019s possession of the prior certificate?",
+        "rule": "If the association\u2019s rules allow issuance of a replacement certificate upon specified conditions (e.g., inability to produce the prior certificate), and those conditions are met, the replacement may supersede the prior designation as to the association\u2019s obligation to pay.",
+        "source_evidence": "Excerpt: member told association he could not produce the certificate because wife had it; \"Under the association rules, he obtained a replacement certificate\" naming others."
+      }
+    ],
+    "doctrine_profile": {
+      "inference_mode": "source_and_instruction_context",
+      "instruction_context_hash": "0d1ff734c8ddf3ba",
+      "loaded_instruction_files": [
+        "instructions/00_GENERAL_LEGAL_REASONING_PROTOCOL.md",
+        "instructions/README.md",
+        "instructions/frank/00_MAIN_GPT_INSTRUCTIONS.txt",
+        "instructions/frank/01_CORE_WORKFLOW_TEMPLATE.txt"
+      ],
+      "primary_gate_id": "G1"
+    },
+    "gold_answer": "{'Jurisdiction assumption': 'Illinois (as described in the excerpt). Because the excerpt omits the full statutory text, the association\u2019s bylaw provisions, and the case\u2019s holding, the answer states conditional branches where necessary and flags the key hinge points.', 'Bottom-line outcome': 'The wife\u2019s strongest route is to rely on the certificate naming her as beneficiary (and any association rule that limits changes absent surrender/consent). However, the premarital oral promise made in consideration of marriage is a Statute of Frauds problem and, standing alone, is likely unenforceable without a sufficient writing. If the association rules validly allowed issuance of a replacement certificate that superseded the earlier designation, the later-named beneficiaries (children and sister) likely have the better claim against the association. If the rules did not permit a change/replacement without surrender of the original certificate (or if the earlier certificate gave the wife vested rights), the wife may prevail.', 'Controlling doctrine': 'Illinois Statute of Frauds (marriage-consideration provision) for enforcing the premarital promise, plus the governing contract/bylaw rules of the fraternal benefit association for whether a beneficiary designation is effective and whether/how it can be changed or replaced.', 'Transaction / formation characterization': 'There are two distinct potential bases for the wife\u2019s claim: (1) an alleged premarital contract/promise: Nina\u2019s marriage to Omar in exchange for Omar\u2019s promise to name her beneficiary; and (2) the later-issued benefit certificate naming Nina as beneficiary, which may operate as a contractual designation governed by the association\u2019s rules.', 'Writing requirement and trigger': 'The premarital promise is expressly conditioned on marriage (\u201cIf you marry me\u2026\u201d), so it is an agreement made upon consideration of marriage rather than the mutual promise to marry. That type of promise is the kind the Statute of Frauds marriage provision targets, meaning Nina generally cannot enforce the premarital promise unless she can point to a writing that satisfies the statute. The later-issued certificate could matter as a potential writing, but the excerpt does not establish whether Illinois treats such a certificate as a sufficient memorandum of the premarital agreement\u2019s essential terms.', 'Compliance / substitute / exception analysis': 'If there is no adequate writing memorializing the premarital marriage-consideration promise, Nina cannot enforce Omar\u2019s oral promise merely by showing she married him. Nina then must win (if at all) based on the enforceability of the beneficiary designation in the certificate and on whether Omar could later change it under association rules. If the certificate is treated as a sufficient writing or independent enforceable designation, Nina\u2019s rights depend on whether the association rules allowed Omar to obtain a replacement certificate and change beneficiaries when Nina retained the original certificate. The excerpt indicates the association rules permitted replacement when Omar could not produce the certificate; if those rules were properly followed, the replacement likely controls the association\u2019s payout obligation.', 'Other defenses or competing doctrines': 'Even if Nina argues reliance (she married Omar) or fairness, the Statute of Frauds marriage provision commonly blocks enforcing the oral premarital promise without a writing. Separately, the association-rule issue is a competing barrier: if the rules permit replacement and treat the replacement as controlling, Nina\u2019s possession of the old certificate may not defeat the change. Conversely, if the rules require surrender of the original certificate to change beneficiaries and do not allow circumvention by claiming inability to produce it (or if the earlier certificate vested beneficiary rights), that would support Nina.', 'Strongest counterargument': 'Nina\u2019s strongest counterargument is that Omar actually performed his promise by obtaining and delivering/allowing her to retain a certificate naming her as beneficiary, and that this certificate (i) supplies the necessary written evidence of the arrangement and/or (ii) created beneficiary rights that Omar could not unilaterally defeat by obtaining a replacement when she refused to surrender the original. The opposing side\u2019s strongest response is that the Statute of Frauds blocks enforcing the premarital bargain, and that the association rules expressly authorized a replacement certificate when the prior certificate could not be produced, making the later beneficiaries the proper payees.'}",
+    "id": "frank_live_replicate_roster",
+    "neutral_question": "In Illinois, Omar is a member of a fraternal benefit association that pays a death benefit to the beneficiary named on the member\u2019s benefit certificate. Before marrying Nina, Omar tells her: \u201cIf you marry me, I will change my benefit certificate so that you are the beneficiary.\u201d Nina agrees, they marry, and afterward Omar obtains a new benefit certificate from the association naming Nina as beneficiary. Nina keeps the certificate in her possession.\n\nAbout a year later, Omar and Nina separate and their relationship deteriorates. Omar asks the association to change his beneficiary designation, but tells the association he cannot produce the certificate because Nina has it. Under the association\u2019s rules, the association issues Omar a replacement certificate naming Omar\u2019s children and his sister as beneficiaries.\n\nOmar later dies. Nina claims the death benefit based on Omar\u2019s premarital promise and the certificate that named her. Omar\u2019s children and sister claim the benefit based on the replacement certificate.\n\nAssuming the association will pay only once, who has the better claim to the death benefit, and how do the Statute of Frauds marriage provision and the association\u2019s certificate rules affect the analysis?",
+    "prompt_hashes": {
+      "frank_instruction_context": "0d1ff734c8ddf3ba",
+      "frank_llm_source_to_packet": "09ddb914335d0cd2"
+    },
+    "schema_version": "research.frank.llm.v1",
+    "selected_pack": "llm_inferred",
+    "source": {
+      "excerpt": "Illinois appellate source excerpt for calibration.\n\nA member of a fraternal benefit association told his fiancee before their\nwedding: \"If you marry me, I will change my benefit certificate so that you\nare the beneficiary.\" She agreed, they married, and he later obtained a new\ncertificate naming her as beneficiary. The wife kept possession of that\ncertificate. About a year later, the marriage deteriorated. The member told\nthe association that he could not produce the certificate because his wife had\nit. Under the association rules, he obtained a replacement certificate naming\nhis children and sister as beneficiaries instead. After the member died, the\nwife and the later-named beneficiaries each claimed the death benefit.\n\nThe source focuses on whether the premarital promise and later certificate\ncreated enforceable rights for the wife under the marriage provision of the\nStatute of Frauds and related association rules.\n",
+      "path": "research/fixtures/tiny_source_case.txt",
+      "sha256_16": "56a36cc674b73d7a"
+    },
+    "source_extraction": {
+      "clean_legal_issue": "Whether a premarital oral promise to designate a spouse as beneficiary of a fraternal benefit certificate, followed by issuance of a certificate naming her, gives the spouse enforceable rights to the death benefit when the member later obtains a replacement certificate (pursuant to association rules) naming different beneficiaries\u2014considering the Statute of Frauds marriage provision and the association\u2019s certificate-change rules.",
+      "jurisdiction": "Illinois (appellate source excerpt; precise court/citation not provided)",
+      "source_limits": [
+        "Excerpt does not provide the precise text of Illinois Statute of Frauds marriage provision, the required features of a sufficient writing, or whether the certificate qualifies as a writing satisfying the statute.",
+        "Excerpt does not provide the association\u2019s governing rules (e.g., whether surrender of the old certificate is required to change beneficiaries; standards for replacement; whether beneficiary rights vest).",
+        "Excerpt does not provide the actual holding, rationale, or outcome; it only describes the focus and facts.",
+        "Because the case turns on both the Statute of Frauds and private association rules, portability is limited without the full opinion/rules."
+      ],
+      "trigger_facts": [
+        "Before marriage, member promised fiancee: if she married him, he would change his benefit certificate to name her beneficiary.",
+        "They married; member later obtained a new certificate naming wife as beneficiary.",
+        "Wife retained possession of that certificate.",
+        "Marriage deteriorated; member sought to change beneficiaries but told association he could not produce the certificate because wife had it.",
+        "Association issued a replacement certificate naming children and sister as beneficiaries under its rules.",
+        "After member\u2019s death, wife and later-named beneficiaries both claimed the death benefit."
+      ]
+    },
+    "statute_of_frauds": {
+      "focus": true,
+      "gates": [
+        {
+          "id": "G1",
+          "label": "Is the alleged promise an agreement made upon consideration of marriage (i.e., a premarital promise induced by marriage) triggering the Statute of Frauds marriage provision?",
+          "rule": "A promise/contract made upon consideration of marriage (other than the mutual promise to marry) is within the Statute of Frauds and is unenforceable unless evidenced by a writing satisfying the statute.",
+          "source_evidence": "Excerpt: the fiancee was told before the wedding, \"If you marry me, I will change my benefit certificate so that you are the beneficiary.\" The source \"focuses on whether the premarital promise ... created enforceable rights for the wife under the marriage provision of the Statute of Frauds.\""
+        },
+        {
+          "id": "G2",
+          "label": "Is there a sufficient writing (or equivalent) memorializing the premarital promise to satisfy the Statute of Frauds?",
+          "rule": "If the marriage-consideration promise is within the Statute of Frauds, the claimant must identify a writing that adequately evidences the essential terms and is attributable to the party to be charged; otherwise the promise is unenforceable.",
+          "source_evidence": "Excerpt notes a later-issued benefit certificate naming the wife as beneficiary; it also flags the issue as the Statute of Frauds marriage provision plus \"related association rules.\""
+        },
+        {
+          "id": "G3",
+          "label": "Does the later-issued certificate create enforceable beneficiary rights independent of the premarital promise (and subject to association rules)?",
+          "rule": "Even if an oral premarital promise is unenforceable, a later issued benefit certificate and governing association rules may define whether a named beneficiary acquires enforceable rights and whether/how the member may change beneficiaries (including requirements about surrender/possession of the certificate).",
+          "source_evidence": "Excerpt: after marriage he obtained a new certificate naming wife as beneficiary; wife kept possession; later he obtained a replacement naming children/sister because he could not produce the original; dispute turns on \"related association rules.\""
+        },
+        {
+          "id": "G4",
+          "label": "Under the association rules, was the replacement certificate validly issued and effective despite the wife\u2019s possession of the prior certificate?",
+          "rule": "If the association\u2019s rules allow issuance of a replacement certificate upon specified conditions (e.g., inability to produce the prior certificate), and those conditions are met, the replacement may supersede the prior designation as to the association\u2019s obligation to pay.",
+          "source_evidence": "Excerpt: member told association he could not produce the certificate because wife had it; \"Under the association rules, he obtained a replacement certificate\" naming others."
+        }
+      ],
+      "primary_gate_id": "G1"
+    },
+    "variations": [
+      {
+        "changed_fact": "The member never obtained any certificate naming the wife as beneficiary before death; the only evidence is the premarital oral promise conditioned on marriage.",
+        "expected_behavior": "Model should identify the marriage-consideration Statute of Frauds trigger and conclude the oral premarital promise is generally unenforceable without a sufficient writing; should not treat the marriage itself as enough to satisfy the writing requirement; should note the absence of any later certificate/writing as fatal to enforcing the promise.",
+        "id": "A1",
+        "lane": "A",
+        "question": "In Illinois, Leo is a member of a fraternal benefit association. Two weeks before his wedding, he tells his fianc\u00e9e Maya: \u201cIf you marry me, I will change my benefit certificate so that you are the beneficiary.\u201d Maya agrees and they marry. Leo never files any change-of-beneficiary paperwork and never obtains a new certificate naming Maya. Years later, Leo dies while his existing certificate on file with the association names his sister as beneficiary.\n\nMaya sues the sister, claiming Leo made an enforceable agreement in exchange for Maya\u2019s marriage that entitled Maya to the death benefit. The sister argues the promise is unenforceable.\n\nUnder the Statute of Frauds marriage provision, does Maya have an enforceable claim to the death benefit based on Leo\u2019s premarital oral promise? Explain."
+      }
+    ]
+  },
+  "quality_errors": []
+}

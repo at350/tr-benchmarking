@@ -103,12 +103,21 @@ and understand exactly what legal reasoning the model is being judged on.
 ## Model Response Generation Target Behavior
 
 The response generation stage should run a configurable roster of actual model
-identifiers, including GPT, Claude, Gemini, Llama, and any other model families
-added later. Each model should answer the same Frank-generated question in its
-natural response style. The default response prompt should be the question only:
-no system prompt, no hidden gold answer, no source excerpt outside the question,
-and no required jurisdiction/outcome/doctrine heading template. Infrastructure
-used to reach those models is implementation detail, not the research object.
+identifiers, including GPT, Claude, Gemini, Llama, DeepSeek, and any other model
+families added later. Each model should answer the same Frank-generated question
+in its natural response style. The default response prompt should be the
+question only: no system prompt, no hidden gold answer, no source excerpt
+outside the question, and no required jurisdiction/outcome/doctrine heading
+template. Infrastructure used to reach those models is implementation detail,
+not the research object.
+
+Provider routing must be separated from model identity. Replicate, direct
+OpenAI, direct Anthropic, direct Google/Gemini, or any later broker is only a
+transport route. If Gemini, Claude, GPT, Llama, DeepSeek, or another model is
+called through Replicate, the pipeline should still treat the actual model
+identifier as the benchmarked model and treat `replicate` as routing metadata.
+Preflight and manuscript evidence should count model-family diversity from
+actual model identifiers, not from provider names.
 
 Structured legal fields belong to Frank, Karthic, Dasha, and Judge artifacts,
 not to the benchmarked model responses. Dasha should recover jurisdiction,
@@ -142,6 +151,20 @@ Each cluster should include:
 At scale, Dasha should reduce large response sets, such as 500 answers, into a
 small number of interpretable centroids without hiding materially different
 legal reasoning in the same cluster.
+
+Dasha is not internally complete until it has passed a larger live,
+multi-model, multi-sample, perturbation-aware run. The current nine-response
+live case study is useful calibration evidence, but it is not enough for the
+paper to claim that Dasha robustly captures divergent legal reasoning. The
+claim-supporting Dasha run should use natural question-only responses across
+multiple actual model families, including direct and broker-routed models where
+available, repeated samples, and at least the base Frank question plus
+invariant and material perturbation tracks. It should show that Dasha can
+separate legal theories such as certificate-as-writing, equitable or promissory
+estoppel, association-rule replacement, Statute-of-Frauds bar, and any
+source-supported alternate gate reasoning when those theories appear in model
+answers. If the larger run collapses divergent theories into one cluster, that
+is a method failure to fix before strengthening the manuscript.
 
 ## Judge Target Behavior
 
@@ -255,6 +278,9 @@ For the current milestone, the internal pipeline should satisfy these gates:
 - model rankings are generated from projected cluster scores
 - all generated outputs are reproducible from config and captured in manifests
 - failure cases create Zak packets instead of silently passing
+- Dasha has passed a larger live natural-response run with multiple model
+  families, repeated samples, and perturbation tracks; until then, Dasha
+  robustness remains an explicit evidence gap rather than a completed claim
 
 ## Definition Of Done For Publication
 

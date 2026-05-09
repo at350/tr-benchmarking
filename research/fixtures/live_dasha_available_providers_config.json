@@ -1,8 +1,8 @@
 {
-  "run_id": "live_three_provider_smoke",
+  "run_id": "live_dasha_available_providers",
   "domain": "auto",
   "source_case_path": "research/fixtures/tiny_source_case.txt",
-  "output_dir": "research/runs/live_three_provider_smoke",
+  "output_dir": "research/runs/live_dasha_available_providers",
   "mode": "live_multi_provider",
   "response_prompt_style": "natural",
   "agents": {
@@ -29,26 +29,44 @@
     {
       "provider": "openai",
       "model": "gpt-5.2",
-      "samples": 1,
-      "temperature": 0.25
+      "samples": 2,
+      "temperature": 0.55
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.4",
+      "samples": 2,
+      "temperature": 0.55
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.4-mini",
+      "samples": 2,
+      "temperature": 0.65
     },
     {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-20250514",
-      "samples": 1,
-      "temperature": 0.25
+      "model": "claude-sonnet-4-6",
+      "samples": 2,
+      "temperature": 0.55
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5-20251001",
+      "samples": 2,
+      "temperature": 0.65
     },
     {
       "provider": "replicate",
       "model": "meta/meta-llama-3-70b-instruct",
-      "samples": 1,
-      "temperature": 0.25
+      "samples": 2,
+      "temperature": 0.55
     }
   ],
   "clustering": {
     "method": "llm_reasoning_signature",
     "min_cluster_size": 1,
-    "min_observed_clusters": 1,
+    "min_observed_clusters": 3,
     "mixed_cluster_threshold": 0.34,
     "provider": "openai",
     "model": "gpt-5.2"
@@ -60,7 +78,32 @@
     "agreement_threshold": 0.7,
     "escalation_margin": 0.2,
     "repeats": 2,
-    "temperature": 0.15
+    "temperature": 0.15,
+    "judge_models": [
+      {
+        "provider": "openai",
+        "model": "gpt-5.2",
+        "repeats": 1,
+        "temperature": 0.15
+      },
+      {
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-6",
+        "repeats": 1,
+        "temperature": 0.15
+      }
+    ]
+  },
+  "perturbations": {
+    "enabled": true,
+    "max_variations": 2,
+    "require_invariant": true,
+    "require_material": true
+  },
+  "budget": {
+    "max_response_calls": 36,
+    "max_judge_calls": 18,
+    "max_total_llm_calls_excluding_frank_karthic": 90
   },
   "quality_gates": {
     "min_rubric_rows": 8,

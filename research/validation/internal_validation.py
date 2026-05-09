@@ -42,6 +42,16 @@ def _response_cluster_lookup(clusters: dict[str, Any]) -> dict[str, str]:
     return lookup
 
 
+def _member_model_summary(members: list[dict[str, Any]]) -> str:
+    counts = Counter(str(member.get("model", "unknown")) for member in members)
+    if not counts:
+        return "unknown"
+    parts = []
+    for model, count in sorted(counts.items()):
+        parts.append(f"{model} (n={count})" if count > 1 else model)
+    return ", ".join(parts)
+
+
 def _load(run_dir: Path, name: str) -> dict[str, Any] | list[dict[str, Any]]:
     return json.loads((run_dir / name).read_text(encoding="utf-8"))
 
@@ -494,7 +504,7 @@ def write_artifact_examples_section(run_dir: str | Path, section_path: str | Pat
     ])
     for cluster in clusters.get("clusters", []):
         members = cluster.get("members", [])
-        member_models = ", ".join(str(member.get("model", "unknown")) for member in members)
+        member_models = _member_model_summary(members)
         signal = cluster.get("legal_signal", {})
         reasoning = signal.get("reasoning_path") or signal.get("conclusion") or signal.get("outcome", "")
         lines.append(

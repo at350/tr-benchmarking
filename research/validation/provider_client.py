@@ -135,6 +135,7 @@ def _replicate_text(repo_root: Path, model: str, messages: list[dict[str, str]],
     owner, model_name = model.split("/", 1)
     prompt = "\n\n".join(f"{message['role'].upper()}:\n{message['content']}" for message in messages)
     authorization = f"Bearer {_env_value(repo_root, 'REPLICATE_API_TOKEN')}"
+    replicate_max_tokens = max(max_tokens, 1024)
     payload = _post_json(
         f"https://api.replicate.com/v1/models/{owner}/{model_name}/predictions",
         {
@@ -145,7 +146,7 @@ def _replicate_text(repo_root: Path, model: str, messages: list[dict[str, str]],
             "input": {
                 "prompt": prompt,
                 "temperature": temperature,
-                "max_tokens": max_tokens,
+                "max_tokens": replicate_max_tokens,
             },
         },
     )

@@ -12,6 +12,8 @@ from .utils import display_path, write_json
 COMMAND_PATTERN = re.compile(r"\\(?P<command>input|includegraphics|bibliography|cite[a-zA-Z]*)\s*(?:\[[^\]]*\])?\s*\{(?P<arg>[^}]+)\}", re.DOTALL)
 BIB_ENTRY_PATTERN = re.compile(r"@\w+\s*\{\s*([^,\s]+)", re.MULTILINE)
 CONTENT_BLOCKERS = (
+    ("non_ieee_document_class", re.compile(r"\\documentclass(?:\[[^\]]+\])?\{(?!IEEEtran\})[^}]+\}"), "Manuscript should use the IEEEtran document class."),
+    ("non_ieee_bibliography_style", re.compile(r"\\bibliographystyle\{(?!IEEEtran\})[^}]+\}"), "Manuscript should use the IEEEtran bibliography style."),
     ("absolute_local_path", re.compile(r"(/Users/[A-Za-z0-9._-]+|/home/[A-Za-z0-9._-]+|[A-Z]:\\\\Users\\\\[^\\s\"']+)"), "Manuscript contains an absolute local machine path."),
     ("provider_routing_name", re.compile(r"\bReplicate\b"), "Manuscript should discuss model identifiers, not provider-routing names."),
     ("stale_readiness_count", re.compile(r"\b(6\s+of\s+9|6/9|six\s+of\s+nine)\b", re.IGNORECASE), "Manuscript contains stale 6-of-9 readiness wording."),

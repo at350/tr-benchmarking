@@ -79,6 +79,28 @@ def _budget_checks(config: ResearchConfig, call_plan: dict[str, Any]) -> list[di
     return checks
 
 
+def _model_family(model: str) -> str:
+    """Return the actual model family, independent of the transport provider."""
+
+    normalized = model.lower().strip()
+    if "/" in normalized:
+        owner, name = normalized.split("/", 1)
+        if owner in {"google", "anthropic", "openai", "meta", "deepseek-ai", "mistralai", "qwen"}:
+            return owner
+        return f"{owner}/{name.split('-', 1)[0]}"
+    if normalized.startswith(("gpt-", "o1", "o3", "o4")):
+        return "openai"
+    if normalized.startswith("claude"):
+        return "anthropic"
+    if normalized.startswith("gemini"):
+        return "google"
+    if normalized.startswith("llama"):
+        return "meta"
+    if normalized.startswith("deepseek"):
+        return "deepseek-ai"
+    return normalized.split("-", 1)[0] or "unknown"
+
+
 def build_live_preflight(
     config_path: str | Path,
     repo_root: str | Path,
@@ -94,7 +116,7 @@ def build_live_preflight(
     freeze = build_protocol_freeze(config_file, repo_root=root)
     total_samples = sum(spec.samples for spec in config.response_models)
     call_plan = planned_call_counts(config)
-    model_families = {spec.provider for spec in config.response_models}
+    model_families = {_model_family(spec.model) for spec in config.response_models}
     credential_report = _credential_report(root, config)
     missing_credentials = [
         provider
@@ -107,7 +129,7 @@ def build_live_preflight(
         _check(config.response_prompt_style == "natural", "Benchmarked response models answer with natural question-only prompting."),
         _check(len(config.response_models) >= 3, "Response roster has at least three configured model identifiers."),
         _check(total_samples >= 9, "Response roster has at least nine total samples."),
-        _check(len(model_families) >= 3, "Response roster spans at least three provider/model-family routes."),
+        _check(len(model_families) >= 3, "Response roster spans at least three actual model families."),
         _check(all(agent.mode == "llm" for agent in config.agents.values()), "Frank, Karthic, and Dasha are configured as LLM agents."),
         _check(config.clustering.method == "llm_reasoning_signature", "Dasha uses LLM reasoning-signature clustering."),
         _check(config.clustering.min_observed_clusters >= 2, "Dasha requires at least two observed reasoning clusters."),
@@ -146,7 +168,8 @@ def build_live_preflight(
             "max_total_llm_calls_excluding_frank_karthic": config.budget.max_total_llm_calls_excluding_frank_karthic,
         },
         "response_model_count": len(config.response_models),
-        "response_providers": sorted(model_families),
+        "response_model_families": sorted(model_families),
+        "response_providers": sorted({spec.provider for spec in config.response_models}),
         "credential_report": credential_report,
         "checks": checks,
         "warnings": warnings,

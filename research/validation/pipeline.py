@@ -51,27 +51,37 @@ def run_pipeline(config: ResearchConfig, repo_root: str | Path) -> PipelineRunRe
     out = config.output_dir
     out.mkdir(parents=True, exist_ok=True)
     ensure_paper_scaffold(root)
+    print(f"[research-run] {config.run_id}: planning", flush=True)
     call_plan = enforce_live_budget(config)
 
+    print(f"[research-run] {config.run_id}: Frank source-to-packet", flush=True)
     if config.agents["frank"].mode == "llm":
         frank = build_frank_packet_with_llm(root, config)
     else:
         frank = build_frank_packet(config.source_case_path, config.run_id, repo_root=root)
+    write_json(out / "frank_packet.json", frank)
+    print(f"[research-run] {config.run_id}: Karthic rubric", flush=True)
     if config.agents["karthic"].mode == "llm":
         rubric = build_karthic_rubric_with_llm(root, config, frank)
     else:
         rubric = build_karthic_rubric(frank)
+    write_json(out / "karthic_rubric.json", rubric)
+    print(f"[research-run] {config.run_id}: model responses", flush=True)
     responses = _load_responses(config, root, frank)
     for response in responses:
         response.setdefault("response_prompt_style", config.response_prompt_style)
         if config.response_prompt_style == "natural":
             response.setdefault("answer_format", "natural_unconstrained")
         response.setdefault("question_id", frank.get("id"))
+    write_json(out / "responses.json", responses)
     if config.clustering.method == "llm_reasoning_signature":
-        responses = add_llm_reasoning_signatures(root, config, frank, responses)
+        print(f"[research-run] {config.run_id}: Dasha reasoning signatures", flush=True)
+        responses = add_llm_reasoning_signatures(root, config, frank, responses, checkpoint_path=out / "responses.json")
+        write_json(out / "responses.json", responses)
     max_variations = config.perturbations.max_variations if config.perturbations.max_variations > 0 else None
     tracks = build_question_tracks(frank, max_variations) if config.perturbations.enabled else build_question_tracks(frank, 0)
     has_multiple_tracks = len({str(response.get("track_id") or response.get("question_id") or "original") for response in responses}) > 1
+    print(f"[research-run] {config.run_id}: Dasha clustering", flush=True)
     if config.perturbations.enabled or has_multiple_tracks:
         clusters = cluster_responses_by_track(
             responses,
@@ -84,10 +94,13 @@ def run_pipeline(config: ResearchConfig, repo_root: str | Path) -> PipelineRunRe
             primary_gate_id=frank.get("controller_card", {}).get("primary_gate_id"),
             frank_packet=frank,
         )
+    write_json(out / "dasha_clusters.json", clusters)
+    print(f"[research-run] {config.run_id}: judge scoring", flush=True)
     if config.judge.mode == "llm":
         judge = judge_clusters_with_openai(root, clusters, rubric, config.judge)
     else:
         judge = judge_clusters(clusters, rubric, config.judge.agreement_threshold)
+    print(f"[research-run] {config.run_id}: Zak and validation artifacts", flush=True)
     zak = build_zak_packets(judge, clusters, rubric)
     perturbation_report = build_perturbation_report(tracks, responses, clusters) if config.perturbations.enabled else {
         "schema_version": "research.perturbation_validation.v1",

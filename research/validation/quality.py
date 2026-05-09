@@ -8,12 +8,67 @@ from .config import QualityGateConfig
 from .utils import jaccard, tokenize
 
 
+SCENARIO_FACT_TERMS = {
+    "agreed",
+    "argues",
+    "beneficiary",
+    "certificate",
+    "changed",
+    "claimed",
+    "contract",
+    "died",
+    "drafted",
+    "later",
+    "married",
+    "named",
+    "obtained",
+    "oral",
+    "paid",
+    "possession",
+    "promise",
+    "promised",
+    "refused",
+    "replacement",
+    "signed",
+    "wedding",
+    "wife",
+    "writing",
+}
+
+
+def question_quality_errors(question: str, label: str = "question") -> list[str]:
+    """Return errors when a Frank question is too abstract for natural model benchmarking."""
+
+    text = " ".join(str(question or "").split())
+    word_count = len(text.split())
+    tokens = tokenize(text)
+    sentence_count = sum(text.count(mark) for mark in ".?!")
+    fact_hits = len(tokens & SCENARIO_FACT_TERMS)
+    errors = []
+    if word_count < 65:
+        errors.append(f"{label} is too short to be a self-contained legal scenario")
+    if sentence_count < 3:
+        errors.append(f"{label} does not include enough factual scenario sentences")
+    if "?" not in text:
+        errors.append(f"{label} lacks a neutral call question")
+    if text.lower().startswith("if ") and word_count < 90:
+        errors.append(f"{label} is framed as an abstract conditional rather than a case-like hypo")
+    if fact_hits < 4:
+        errors.append(f"{label} lacks enough concrete party, timing, writing, or dispute facts")
+    return errors
+
+
 def validate_frank_packet(packet: dict) -> list[str]:
     errors = []
     required = ["source", "selected_pack", "doctrine_family", "source_extraction", "gold_answer", "neutral_question", "variations", "controller_card"]
     for key in required:
         if not packet.get(key):
             errors.append(f"Frank packet missing {key}")
+    errors.extend(question_quality_errors(str(packet.get("neutral_question", "")), "Frank neutral_question"))
+    for variation in packet.get("variations", []):
+        if isinstance(variation, dict):
+            variation_id = variation.get("id", "unknown")
+            errors.extend(question_quality_errors(str(variation.get("question", "")), f"Frank variation {variation_id} question"))
     if "Bounded uncertainty:" in str(packet):
         errors.append("Frank packet contains deprecated standalone Bounded uncertainty heading")
     if packet.get("controller_card", {}).get("packet_status") != "ready_for_karthic":

@@ -23,6 +23,29 @@ MATERIAL_MARKERS = (
 )
 
 
+def _surface_invariant_track(frank_packet: dict[str, Any]) -> dict[str, Any]:
+    """Create a doctrine-neutral invariant edit when Frank only emits material variants."""
+
+    original_question = str(frank_packet.get("neutral_question", ""))
+    question = (
+        "Assume the same facts, except the contracting or benefit-association parties "
+        "are renamed Alex, Jordan, and North Star Association. "
+        f"{original_question}"
+    ).strip()
+    return {
+        "track_id": "surface_invariant",
+        "variant_id": "surface_invariant",
+        "question_id": f"{frank_packet['id']}:surface_invariant",
+        "question": question,
+        "perturbation_type": "invariant",
+        "changed_fact": (
+            "Only party labels are changed: the claimant is Alex, the counterparty or spouse "
+            "is Jordan, and the association or company is North Star Association."
+        ),
+        "expected_behavior": "answer_invariant; no legal gate, source fact, or outcome should change.",
+    }
+
+
 def _classify_perturbation(variation: dict[str, Any]) -> str:
     explicit = str(variation.get("perturbation_type", "")).strip().lower()
     if explicit in {"base", "invariant", "material"}:
@@ -38,6 +61,55 @@ def _classify_perturbation(variation: dict[str, Any]) -> str:
     return "invariant"
 
 
+def _variation_track(frank_packet: dict[str, Any], variation: dict[str, Any], index: int) -> dict[str, Any]:
+    variant_id = str(variation.get("id") or f"variation_{index}")
+    question = str(variation.get("question") or frank_packet.get("neutral_question", ""))
+    return {
+        "track_id": variant_id,
+        "variant_id": variant_id,
+        "question_id": f"{frank_packet['id']}:{variant_id}",
+        "question": question,
+        "perturbation_type": _classify_perturbation(variation),
+        "changed_fact": str(variation.get("changed_fact", "")),
+        "expected_behavior": str(variation.get("expected_behavior", "")),
+    }
+
+
+def _select_variation_tracks(
+    frank_packet: dict[str, Any],
+    variations: list[dict[str, Any]],
+    max_variations: int | None,
+) -> list[dict[str, Any]]:
+    if max_variations == 0:
+        return []
+
+    requested = len(variations) if max_variations is None else max(max_variations, 0)
+    if requested == 0:
+        return []
+
+    candidates = [_variation_track(frank_packet, variation, index) for index, variation in enumerate(variations, start=1)]
+    selected: list[dict[str, Any]] = []
+
+    first_invariant = next((track for track in candidates if track["perturbation_type"] == "invariant"), None)
+    first_material = next((track for track in candidates if track["perturbation_type"] == "material"), None)
+
+    if first_invariant:
+        selected.append(first_invariant)
+    elif requested >= 1:
+        selected.append(_surface_invariant_track(frank_packet))
+
+    if requested >= 2 and first_material:
+        selected.append(first_material)
+
+    for track in candidates:
+        if len(selected) >= requested:
+            break
+        if any(existing["track_id"] == track["track_id"] for existing in selected):
+            continue
+        selected.append(track)
+    return selected[:requested]
+
+
 def build_question_tracks(frank_packet: dict[str, Any], max_variations: int | None = 0) -> list[dict[str, Any]]:
     """Convert Frank's original question and variations into executable tracks."""
 
@@ -51,22 +123,7 @@ def build_question_tracks(frank_packet: dict[str, Any], max_variations: int | No
         "expected_behavior": "baseline",
     }]
     variations = frank_packet.get("variations", [])
-    if max_variations == 0:
-        variations = []
-    elif max_variations is not None and max_variations > 0:
-        variations = variations[:max_variations]
-    for index, variation in enumerate(variations, start=1):
-        variant_id = str(variation.get("id") or f"variation_{index}")
-        question = str(variation.get("question") or frank_packet.get("neutral_question", ""))
-        tracks.append({
-            "track_id": variant_id,
-            "variant_id": variant_id,
-            "question_id": f"{frank_packet['id']}:{variant_id}",
-            "question": question,
-            "perturbation_type": _classify_perturbation(variation),
-            "changed_fact": str(variation.get("changed_fact", "")),
-            "expected_behavior": str(variation.get("expected_behavior", "")),
-        })
+    tracks.extend(_select_variation_tracks(frank_packet, variations, max_variations))
     return tracks
 
 

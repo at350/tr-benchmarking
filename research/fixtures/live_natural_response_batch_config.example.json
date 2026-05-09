@@ -69,7 +69,8 @@
     "model": "gpt-5.2",
     "agreement_threshold": 0.7,
     "escalation_margin": 0.2,
-    "repeats": 2
+    "repeats": 2,
+    "temperature": 0.15
   },
   "quality_gates": {
     "min_rubric_rows": 8,

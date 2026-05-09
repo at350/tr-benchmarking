@@ -41,11 +41,12 @@ def ensure_paper_scaffold(repo_root: Path) -> None:
 
     main = paper / "main.tex"
     if not main.exists():
-        main.write_text(r"""\documentclass[11pt]{article}
-\usepackage[margin=1in]{geometry}
+        main.write_text(r"""\documentclass[conference]{IEEEtran}
+\usepackage{cite}
 \usepackage{booktabs}
 \usepackage{graphicx}
-\usepackage{hyperref}
+\usepackage{array}
+\usepackage[hidelinks]{hyperref}
 \title{A Source-Grounded Pipeline for Evaluating Legal Reasoning in Large Language Models}
 \author{TR Benchmarking Research Team}
 \date{\today}
@@ -55,7 +56,7 @@ def ensure_paper_scaffold(repo_root: Path) -> None:
 \input{sections/methods}
 \input{sections/validation}
 \input{sections/limitations}
-\bibliographystyle{plain}
+\bibliographystyle{IEEEtran}
 \bibliography{references}
 \end{document}
 """, encoding="utf-8")

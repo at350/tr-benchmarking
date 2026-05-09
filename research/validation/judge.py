@@ -241,6 +241,7 @@ def _judge_representative_with_llm(
     judge_config: Any,
     provider: str | None = None,
     model: str | None = None,
+    temperature: float | None = None,
 ) -> list[dict[str, Any]]:
     representative = next(member for member in cluster["members"] if member["id"] == cluster["representative_response_id"])
     compact_rows = [
@@ -272,7 +273,7 @@ def _judge_representative_with_llm(
                 ),
             },
         ],
-        temperature=0.0,
+        temperature=float(temperature if temperature is not None else getattr(judge_config, "temperature", 0.0)),
         max_tokens=2200,
     )
     by_id = {row["id"]: row for row in rubric["rows"]}
@@ -302,6 +303,7 @@ def _judge_panel(judge_config: Any) -> list[dict[str, Any]]:
             "provider": str(getattr(item, "provider", getattr(judge_config, "provider", "openai"))),
             "model": str(getattr(item, "model", getattr(judge_config, "model", "unknown"))),
             "repeats": max(1, int(getattr(item, "repeats", getattr(judge_config, "repeats", 1)))),
+            "temperature": float(getattr(item, "temperature", getattr(judge_config, "temperature", 0.0))),
         })
     return panel
 
@@ -310,10 +312,20 @@ def judge_clusters_with_openai(repo_root: Path, clusters: dict, rubric: dict, ju
     cluster_row_scores = {}
     repeats_by_cluster = {}
     panel = _judge_panel(judge_config)
-    for cluster in clusters["clusters"]:
+    total_calls = sum(item["repeats"] for item in panel) * len(clusters["clusters"])
+    call_index = 0
+    for cluster_index, cluster in enumerate(clusters["clusters"], start=1):
         repeat_sets = []
         for judge_model in panel:
-            for _ in range(judge_model["repeats"]):
+            for repeat_index in range(judge_model["repeats"]):
+                call_index += 1
+                print(
+                    "[research-run] judge "
+                    f"{call_index}/{total_calls} cluster={cluster.get('id')} "
+                    f"cluster_index={cluster_index}/{len(clusters['clusters'])} "
+                    f"model={judge_model['model']} repeat={repeat_index + 1}/{judge_model['repeats']}",
+                    flush=True,
+                )
                 repeat_sets.append(
                     _judge_representative_with_llm(
                         repo_root,
@@ -322,6 +334,7 @@ def judge_clusters_with_openai(repo_root: Path, clusters: dict, rubric: dict, ju
                         judge_config,
                         provider=judge_model["provider"],
                         model=judge_model["model"],
+                        temperature=judge_model["temperature"],
                     )
                 )
         repeats_by_cluster[cluster["id"]] = repeat_sets

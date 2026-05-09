@@ -9,7 +9,7 @@ from typing import Any
 
 from .config import ResearchConfig, load_config
 from .instruction_context import INSTRUCTION_FILES, load_agent_instruction_context
-from .utils import stable_hash, write_json
+from .utils import display_path, stable_hash, write_json
 
 
 def _serializable(value: Any) -> Any:
@@ -83,11 +83,11 @@ def build_protocol_freeze(
         "quality_gates": _serializable(config.quality_gates),
         "perturbations": _serializable(config.perturbations),
         "budget": _serializable(config.budget),
-        "fixture_responses_path": str(config.fixture_responses_path),
+        "fixture_responses_path": display_path(config.fixture_responses_path, root),
         "instruction_contexts": instruction_contexts,
         "instruction_files": instruction_files,
         "normalization": {
-            "dasha_signature_version": "reasoning_bucket_v2",
+            "dasha_signature_version": "reasoning_bucket_v3",
             "judge_score_scale": "0-4",
             "score_projection_policy": "Representative centroid score applies to all responses in the Dasha cluster.",
         },

@@ -285,6 +285,21 @@ def _bucket_trigger(signature: dict, gate_aliases: dict[str, tuple[str, ...]] | 
 
 def _bucket_exception(signature: dict) -> str:
     text = _signature_text(signature)
+    if _contains_any(
+        text,
+        (
+            "no signed writing",
+            "no writing",
+            "lack of writing",
+            "absence of writing",
+            "absent a sufficient writing",
+            "without a certificate",
+            "no certificate",
+            "never obtained any certificate",
+            "not evidenced by a writing",
+        ),
+    ):
+        return "no_writing_or_no_exception"
     if _contains_any(text, ("certificate", "memorandum", "sufficient writing", "signed writing", "writing requirement", "satisfies writing")):
         return "writing_or_certificate"
     if _contains_any(text, ("replacement", "bylaw", "association rule", "last designation", "final certificate")):
@@ -296,6 +311,81 @@ def _bucket_exception(signature: dict) -> str:
     if _contains_any(text, ("none", "no exception")):
         return "none"
     return re.sub(r"[^a-z0-9]+", "_", str(signature.get("exception_or_defense", "none")).lower()).strip("_")[:80] or "none"
+
+
+def _bucket_reasoning_path(signature: dict) -> str:
+    """Normalize the legal theory used by a response, not just its outcome."""
+
+    text = _signature_text(signature)
+    if _contains_any(text, ("promissory estoppel", "equitable estoppel", "reliance")):
+        return "promissory_estoppel_or_reliance"
+    if _contains_any(text, ("constructive trust", "unjust enrichment", "equity enforces", "equitable claim")):
+        return "constructive_trust_or_equity"
+    if _contains_any(
+        text,
+        (
+            "oral promise barred",
+            "no signed writing",
+            "lack of writing",
+            "absence of a writing",
+            "absence of writing",
+            "statute of frauds bars",
+            "unenforceable under the statute",
+        ),
+    ):
+        return "statute_bars_no_writing"
+    if _contains_any(
+        text,
+        (
+            "certificate satisfies",
+            "certificate as a writing",
+            "certificate as memorandum",
+            "certificate/memorandum",
+            "sufficient writing",
+            "written memorandum",
+            "memorializes",
+            "signed writing",
+        ),
+    ):
+        return "writing_or_certificate_satisfies_gate"
+    if _contains_any(
+        text,
+        (
+            "replacement certificate controls",
+            "association rules control",
+            "bylaws control",
+            "final certificate",
+            "last designation",
+            "change of beneficiary",
+        ),
+    ):
+        return "association_or_replacement_controls"
+    if _contains_any(text, ("one-year", "one year", "cannot be performed within", "within a year")):
+        return "one_year_gate_reasoning"
+    if _contains_any(
+        text,
+        (
+            "marriage-consideration",
+            "marriage consideration",
+            "made upon consideration of marriage",
+            "antenuptial",
+            "premarital promise",
+            "marriage provision",
+        ),
+    ):
+        return "marriage_consideration_gate_reasoning"
+    if _contains_any(text, ("depends", "jurisdiction-dependent", "fact-dependent", "if ", "assuming", "uncertain")):
+        return "conditional_multigate_reasoning"
+    if _contains_any(text, ("main purpose", "main-purpose", "own business", "own pecuniary interest")):
+        return "main_purpose_suretyship_exception"
+    if _contains_any(text, ("contra proferentem", "against the drafter", "construe against")):
+        return "contra_proferentem_reasoning"
+    if _contains_any(text, ("plain meaning", "ordinary meaning", "text-first", "unambiguous")):
+        return "plain_meaning_reasoning"
+    if _contains_any(text, ("exclusive remedy", "specific remedy", "service-credit schedule")):
+        return "exclusive_remedy_reasoning"
+    raw = str(signature.get("reasoning_path") or signature.get("conclusion") or "general_reasoning")
+    return re.sub(r"[^a-z0-9]+", "_", raw.lower()).strip("_")[:80] or "general_reasoning"
 
 
 def choose_representative(members: list[dict]) -> str:
@@ -387,7 +477,7 @@ def _normalized_signature(
         _bucket_trigger(signature, gate_aliases=gate_aliases),
         _bucket_outcome(signature),
         _bucket_exception(signature),
-        "reasoning_bucket_v2",
+        _bucket_reasoning_path(signature),
     )
 
 
@@ -442,7 +532,7 @@ def cluster_responses_by_signature(responses: list[dict], frank_packet: dict | N
         "schema_version": "research.dasha.llm.v1",
         "method": "llm_reasoning_signature",
         "normalization": {
-            "version": "reasoning_bucket_v2",
+            "version": "reasoning_bucket_v3",
             "source_gate_aliases_used": bool(gate_aliases),
             "source_gate_ids": sorted(gate_aliases),
         },

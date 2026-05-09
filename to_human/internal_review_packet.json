@@ -16,9 +16,10 @@
     "planned_total_llm_calls_excluding_frank_karthic": 69
   },
   "evidence_gaps": [
+    "Dasha natural-response clustering",
     "Perturbation validation"
   ],
-  "met_gates": 7,
+  "met_gates": 6,
   "partial_gates": 2,
   "partial_gates_list": [
     "Judge row-level scoring and rankings",

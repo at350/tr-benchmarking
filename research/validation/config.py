@@ -42,6 +42,7 @@ class JudgeConfig:
     agreement_threshold: float
     escalation_margin: float
     repeats: int
+    temperature: float = 0.0
     judge_models: tuple["JudgeModelSpec", ...] = ()
 
 
@@ -50,6 +51,7 @@ class JudgeModelSpec:
     provider: str
     model: str
     repeats: int
+    temperature: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -191,11 +193,13 @@ def load_config(config_path: str | Path, repo_root: str | Path | None = None) ->
             agreement_threshold=float(judge.get("agreement_threshold", 0.7)),
             escalation_margin=float(judge.get("escalation_margin", 0.2)),
             repeats=max(1, int(judge.get("repeats", 1))),
+            temperature=float(judge.get("temperature", 0.0)),
             judge_models=tuple(
                 JudgeModelSpec(
                     provider=str(item.get("provider", judge.get("provider", "openai"))),
                     model=str(item.get("model", judge.get("model", "gpt-4o-mini"))),
                     repeats=max(1, int(item.get("repeats", judge.get("repeats", 1)))),
+                    temperature=float(item.get("temperature", judge.get("temperature", 0.0))),
                 )
                 for item in judge.get("judge_models", [])
             ),

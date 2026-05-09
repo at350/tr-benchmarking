@@ -52,6 +52,7 @@ from research.validation.review_pack import build_review_packet
 from research.validation.run_bundle import build_run_bundle_audit
 from research.validation.secrets_lint import lint_secrets
 from research.validation.metrics import bootstrap_ci, macro_f1, mean_absolute_error, weighted_kappa
+from research.validation.utils import write_json
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -143,6 +144,7 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertEqual(config.judge.mode, "llm")
         self.assertTrue(config.judge.model)
         self.assertGreaterEqual(config.judge.repeats, 2)
+        self.assertGreater(config.judge.temperature, 0.0)
 
     def test_live_config_can_define_judge_panel(self):
         config = load_config(ROOT / "research/fixtures/live_multi_provider_config.example.json", repo_root=ROOT)
@@ -150,6 +152,7 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertGreaterEqual(len(config.judge.judge_models), 2)
         self.assertEqual(config.judge.judge_models[0].model, "gpt-5.2")
         self.assertTrue(all(spec.repeats >= 1 for spec in config.judge.judge_models))
+        self.assertTrue(all(spec.temperature > 0.0 for spec in config.judge.judge_models))
 
     def test_protocol_freeze_records_config_source_instructions_and_judge_panel(self):
         output_path = ROOT / "research/runs/protocol_freeze_test.json"
@@ -199,6 +202,8 @@ class ResearchPipelineTests(unittest.TestCase):
         local_path = "/" + "Users" + "/example/project/paper"
         (temp_dir / "main.tex").write_text(
             "\n".join([
+                "\\documentclass{article}",
+                "\\bibliographystyle{plain}",
                 "This paper reports six of nine gates.",
                 "It accidentally names Replicate in the manuscript.",
                 f"It also contains {local_path}.",
@@ -218,6 +223,8 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertIn("provider_routing_name", kinds)
         self.assertIn("absolute_local_path", kinds)
         self.assertIn("statute_of_frauds_typo", kinds)
+        self.assertIn("non_ieee_document_class", kinds)
+        self.assertIn("non_ieee_bibliography_style", kinds)
 
     def test_secrets_lint_passes_current_shareable_repo_files(self):
         output_path = ROOT / "research/runs/secrets_lint_test.json"
@@ -560,6 +567,50 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertEqual(config.clustering.method, "llm_reasoning_signature")
         self.assertEqual({spec.provider for spec in config.response_models}, {"openai", "anthropic", "gemini", "replicate"})
         self.assertGreaterEqual(sum(spec.samples for spec in config.response_models), 10)
+        self.assertTrue(all(spec.temperature > 0.0 for spec in config.response_models))
+
+    def test_preflight_counts_replicate_routed_models_by_actual_model_family(self):
+        config_path = ROOT / "research/runs/replicate_family_preflight.json"
+        output_path = ROOT / "research/runs/replicate_family_preflight_summary.json"
+        payload = json.loads((ROOT / "research/fixtures/live_dasha_available_providers_config.json").read_text())
+        payload["run_id"] = "replicate_family_preflight"
+        payload["output_dir"] = "research/runs/replicate_family_preflight"
+        payload["response_models"] = [
+            {"provider": "replicate", "model": "google/gemini-3-flash", "samples": 1, "temperature": 0.55},
+            {"provider": "replicate", "model": "anthropic/claude-4.5-sonnet", "samples": 1, "temperature": 0.55},
+            {"provider": "replicate", "model": "meta/meta-llama-3-70b-instruct", "samples": 1, "temperature": 0.55},
+            {"provider": "replicate", "model": "deepseek-ai/deepseek-r1", "samples": 1, "temperature": 0.55},
+            {"provider": "replicate", "model": "openai/gpt-4.1-mini", "samples": 1, "temperature": 0.55},
+        ]
+        payload["budget"] = {
+            "max_response_calls": 20,
+            "max_judge_calls": 20,
+            "max_total_llm_calls_excluding_frank_karthic": 50,
+        }
+        try:
+            write_json(config_path, payload)
+            summary = build_live_preflight(config_path, repo_root=ROOT, output_path=output_path)
+        finally:
+            if config_path.exists():
+                config_path.unlink()
+            if output_path.exists():
+                output_path.unlink()
+
+        self.assertEqual(summary["response_providers"], ["replicate"])
+        self.assertGreaterEqual(len(summary["response_model_families"]), 5)
+        self.assertIn("google", summary["response_model_families"])
+
+    def test_replicate_roster_config_uses_provider_as_route_not_model_family(self):
+        summary = build_live_preflight(
+            ROOT / "research/fixtures/live_replicate_roster_config.example.json",
+            repo_root=ROOT,
+        )
+
+        self.assertEqual(summary["status"], "live_preflight_passed")
+        self.assertIn("replicate", summary["response_providers"])
+        self.assertGreaterEqual(len(summary["response_model_families"]), 5)
+        self.assertIn("google", summary["response_model_families"])
+        self.assertIn("deepseek-ai", summary["response_model_families"])
 
     def test_openai_anthropic_smoke_config_uses_llm_driven_pipeline(self):
         config = load_config(ROOT / "research/fixtures/live_openai_anthropic_config.example.json", repo_root=ROOT)
@@ -625,6 +676,101 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertEqual(tracks[1]["perturbation_type"], "invariant")
         self.assertEqual(tracks[2]["perturbation_type"], "material")
 
+    def test_frank_quality_gate_rejects_abstract_doctrinal_questions(self):
+        from research.validation.quality import question_quality_errors
+
+        bad = (
+            "If the only evidence is the premarital oral promise conditioned on marriage and no later "
+            "certificate ever named the spouse, can the spouse enforce the promise?"
+        )
+        good = (
+            "In Illinois, a member of a fraternal benefit association told his fiancee before their wedding "
+            "that if she married him, he would change his benefit certificate so she would be the beneficiary. "
+            "She agreed, they married, but he never obtained a new certificate, never signed a designation "
+            "naming her, and later died while relatives claimed the death benefit under the existing association "
+            "records. The spouse argues the oral premarital promise should be enforced, while the relatives argue "
+            "the marriage provision of the Statute of Frauds bars the claim. Can the spouse enforce the promise "
+            "to obtain the death benefit?"
+        )
+
+        self.assertTrue(question_quality_errors(bad, "bad"))
+        self.assertEqual(question_quality_errors(good, "good"), [])
+
+    def test_llm_frank_repairs_scenario_poor_variation_questions(self):
+        config = load_config(ROOT / "research/fixtures/live_replicate_roster_config.example.json", repo_root=ROOT)
+        bad_packet = {
+            "doctrine_family": "Statute of Frauds",
+            "detected_doctrine_gates": [{"id": "G1", "label": "Marriage provision", "rule": "Marriage promises need writing.", "source_evidence": "source"}],
+            "source_extraction": {"jurisdiction": "Illinois"},
+            "neutral_question": "Can the wife enforce the promise?",
+            "gold_answer": "Jurisdiction assumption: Illinois.",
+            "variations": [{
+                "id": "A1",
+                "lane": "A",
+                "changed_fact": "No certificate.",
+                "question": "If no certificate named the spouse, can she enforce the promise?",
+                "expected_behavior": "bar_more_likely",
+            }],
+            "controller_card": {"primary_gate_id": "G1"},
+        }
+        repaired_packet = {
+            "neutral_question": (
+                "In Illinois, a member of a fraternal benefit association told his fiancee before their wedding "
+                "that if she married him, he would change his benefit certificate so she would be the beneficiary. "
+                "She agreed, they married, he obtained a certificate naming her, and she kept possession of it. "
+                "After the marriage deteriorated, he obtained a replacement certificate naming relatives, and both "
+                "sides claimed the death benefit after he died. Who has the better claim to the death benefit?"
+            ),
+            "variations": [{
+                **bad_packet["variations"][0],
+                "question": (
+                    "In Illinois, a member of a fraternal benefit association told his fiancee before their wedding "
+                    "that if she married him, he would change his benefit certificate so she would be the beneficiary. "
+                    "She agreed and they married, but he never obtained a certificate naming her and never signed a "
+                    "beneficiary designation. After he died, the spouse claimed the death benefit based only on the "
+                    "oral premarital promise, while relatives argued the association records controlled. Can the spouse "
+                    "enforce the promise under the marriage provision of the Statute of Frauds?"
+                ),
+            }],
+        }
+
+        with patch("research.validation.llm_agents.generate_json", side_effect=[bad_packet, repaired_packet]):
+            packet = build_frank_packet_with_llm(ROOT, config)
+
+        self.assertIn("fraternal benefit association", packet["variations"][0]["question"])
+        self.assertGreater(len(packet["variations"][0]["question"].split()), 65)
+        self.assertEqual(packet["source_extraction"], {"jurisdiction": "Illinois"})
+        self.assertEqual(packet["gold_answer"], "Jurisdiction assumption: Illinois.")
+
+    def test_question_tracks_synthesize_invariant_when_frank_only_emits_material_variations(self):
+        packet = {
+            "id": "material_only_track_test",
+            "neutral_question": "Who has the better legal claim?",
+            "variations": [
+                {
+                    "id": "no_certificate",
+                    "perturbation_type": "material",
+                    "changed_fact": "Remove the signed certificate.",
+                    "question": "Who has the better claim if there is no signed certificate?",
+                    "expected_behavior": "answer_should_change",
+                },
+                {
+                    "id": "association_rules",
+                    "perturbation_type": "material",
+                    "changed_fact": "Add an association bylaw that makes the replacement certificate final.",
+                    "question": "Who has the better claim under the replacement-certificate bylaw?",
+                    "expected_behavior": "answer_should_change",
+                },
+            ],
+        }
+
+        tracks = build_question_tracks(packet, max_variations=2)
+
+        self.assertEqual([track["track_id"] for track in tracks], ["original", "surface_invariant", "no_certificate"])
+        self.assertEqual(tracks[1]["perturbation_type"], "invariant")
+        self.assertIn("renamed Alex, Jordan", tracks[1]["question"])
+        self.assertEqual(tracks[2]["perturbation_type"], "material")
+
     def test_base_question_track_excludes_variations_when_disabled(self):
         packet = build_frank_packet(ROOT / "research/fixtures/tiny_source_case.txt", "base_track_only")
         tracks = build_question_tracks(packet, max_variations=0)
@@ -651,6 +797,45 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertTrue(any("Alpha Mutual" in question or "Beta Mutual" in question for question in questions_seen))
         self.assertTrue(all(response.get("track_id") for response in responses))
         self.assertTrue(all(response.get("perturbation_type") for response in responses))
+
+    def test_dasha_signature_extraction_checkpoints_after_each_response(self):
+        config = load_config(self.config_path, repo_root=ROOT)
+        packet = build_frank_packet(ROOT / "research/fixtures/tiny_source_case.txt", "dasha_checkpoint")
+        checkpoint_path = self.output_dir / "responses.json"
+        responses = [
+            {"id": "r1", "model": "m1", "text": "The wife wins because the certificate supports the promise."},
+            {"id": "r2", "model": "m2", "text": "The later beneficiaries win because the replacement controls."},
+        ]
+        signatures = [
+            {
+                "doctrine": "Statute of Frauds",
+                "issue": "beneficiary dispute",
+                "rule_trigger": "marriage certificate",
+                "outcome": "wife prevails",
+                "exception_or_defense": "certificate",
+                "reasoning_path": "certificate satisfies writing",
+                "conclusion": "wife wins",
+            },
+            {
+                "doctrine": "Statute of Frauds",
+                "issue": "beneficiary dispute",
+                "rule_trigger": "association replacement",
+                "outcome": "later beneficiaries prevail",
+                "exception_or_defense": "replacement",
+                "reasoning_path": "replacement controls",
+                "conclusion": "later beneficiaries win",
+            },
+        ]
+
+        with patch("research.validation.llm_agents.generate_json", side_effect=signatures):
+            from research.validation.llm_agents import add_llm_reasoning_signatures
+
+            signed = add_llm_reasoning_signatures(ROOT, config, packet, responses, checkpoint_path=checkpoint_path)
+
+        checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(signed), 2)
+        self.assertEqual(sum("reasoning_signature" in response for response in checkpoint), 2)
+        self.assertEqual(checkpoint[0]["reasoning_signature"]["reasoning_path"], "certificate satisfies writing")
 
     def test_dasha_clusters_are_kept_separate_by_question_track(self):
         responses = [
@@ -1059,6 +1244,84 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertIn({"r1", "r2"}, clustered_ids)
         self.assertIn({"r3"}, clustered_ids)
 
+    def test_dasha_reasoning_path_bucket_prevents_over_merging_same_outcome(self):
+        responses = [
+            {
+                "id": "writing_path",
+                "model": "m1",
+                "text": "The certificate is a sufficient writing.",
+                "reasoning_signature": {
+                    "doctrine": "Statute of Frauds marriage provision",
+                    "issue": "beneficiary rights",
+                    "rule_trigger": "promise in consideration of marriage with beneficiary certificate",
+                    "outcome": "wife has enforceable rights",
+                    "exception_or_defense": "certificate satisfies writing requirement",
+                    "reasoning_path": "The later certificate naming the wife functions as a sufficient written memorandum of the premarital promise.",
+                    "conclusion": "wife prevails",
+                },
+            },
+            {
+                "id": "equity_path",
+                "model": "m2",
+                "text": "Equity imposes a constructive trust.",
+                "reasoning_signature": {
+                    "doctrine": "Statute of Frauds marriage provision",
+                    "issue": "beneficiary rights",
+                    "rule_trigger": "promise in consideration of marriage with beneficiary certificate",
+                    "outcome": "wife has enforceable rights",
+                    "exception_or_defense": "certificate satisfies writing requirement",
+                    "reasoning_path": "Even if paperwork is disputed, equity imposes a constructive trust to prevent unjust enrichment.",
+                    "conclusion": "wife prevails",
+                },
+            },
+        ]
+
+        clusters = cluster_responses(responses)
+        keys = {tuple(cluster["normalized_cluster_key"]) for cluster in clusters["clusters"]}
+
+        self.assertEqual(len(clusters["clusters"]), 2)
+        self.assertTrue(any(key[-1] == "writing_or_certificate_satisfies_gate" for key in keys))
+        self.assertTrue(any(key[-1] == "constructive_trust_or_equity" for key in keys))
+
+    def test_dasha_no_writing_signature_does_not_bucket_as_certificate_exception(self):
+        responses = [
+            {
+                "id": "no_writing_a",
+                "model": "m1",
+                "text": "No certificate was issued, so the oral premarital promise is barred.",
+                "reasoning_signature": {
+                    "doctrine": "Statute of Frauds marriage provision",
+                    "issue": "oral premarital beneficiary promise",
+                    "rule_trigger": "promise made upon consideration of marriage",
+                    "outcome": "claim barred",
+                    "exception_or_defense": "no signed writing or certificate",
+                    "reasoning_path": "The marriage-consideration gate applies and the absence of a writing bars the claim.",
+                    "conclusion": "later beneficiaries prevail",
+                },
+            },
+            {
+                "id": "no_writing_b",
+                "model": "m2",
+                "text": "Without a certificate or sufficient writing, the statute defeats the spouse's claim.",
+                "reasoning_signature": {
+                    "doctrine": "Statute of Frauds marriage provision",
+                    "issue": "oral premarital beneficiary promise",
+                    "rule_trigger": "antenuptial promise made in consideration of marriage",
+                    "outcome": "barred by statute",
+                    "exception_or_defense": "absence of writing",
+                    "reasoning_path": "This turns on the marriage provision and no writing removes the promise from enforcement.",
+                    "conclusion": "later beneficiaries control",
+                },
+            },
+        ]
+
+        clusters = cluster_responses(responses)
+        keys = [tuple(cluster["normalized_cluster_key"]) for cluster in clusters["clusters"]]
+
+        self.assertEqual(len(clusters["clusters"]), 1)
+        self.assertEqual(keys[0][3], "no_writing_or_no_exception")
+        self.assertEqual(keys[0][4], "statute_bars_no_writing")
+
     def test_dasha_member_audit_flags_centroid_member_key_mismatches(self):
         clusters = {
             "clusters": [
@@ -1207,7 +1470,7 @@ class ResearchPipelineTests(unittest.TestCase):
         ]
 
         def fake_generate_json(**kwargs):
-            calls.append((kwargs["provider"], kwargs["model"]))
+            calls.append((kwargs["provider"], kwargs["model"], kwargs["temperature"]))
             return outputs.pop(0)
 
         judge_config = JudgeConfig(
@@ -1225,7 +1488,7 @@ class ResearchPipelineTests(unittest.TestCase):
         with patch("research.validation.judge.generate_json", side_effect=fake_generate_json):
             scores = judge_clusters_with_openai(ROOT, clusters, rubric, judge_config)
 
-        self.assertEqual(calls, [("openai", "judge-a"), ("anthropic", "judge-b")])
+        self.assertEqual(calls, [("openai", "judge-a", 0.0), ("anthropic", "judge-b", 0.0)])
         self.assertEqual([item["model"] for item in scores["judge_panel"]], ["judge-a", "judge-b"])
         self.assertEqual(scores["judge_stability"]["repeat_count"], 2)
         self.assertEqual(scores["cluster_scores"][0]["row_scores"][0]["mean_score"], 3.0)
@@ -1286,7 +1549,7 @@ class ResearchPipelineTests(unittest.TestCase):
 
         with (
             patch.object(provider_client, "_env_value", return_value="token"),
-            patch.object(provider_client, "_post_json", return_value=payloads[0]),
+            patch.object(provider_client, "_post_json", return_value=payloads[0]) as post_json,
             patch.object(provider_client, "_get_json", return_value=payloads[1]) as get_json,
             patch.object(provider_client.time, "sleep"),
         ):
@@ -1299,6 +1562,7 @@ class ResearchPipelineTests(unittest.TestCase):
             )
 
         self.assertEqual(text, "done")
+        self.assertEqual(post_json.call_args.args[2]["input"]["max_tokens"], 1024)
         get_json.assert_called_once()
 
     def test_internal_stress_suite_validates_500_response_reasoning_clusters(self):
@@ -1343,6 +1607,8 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertIn("Dasha Cluster Examples", text)
         self.assertIn("fixture-model-a", text)
         self.assertIn("cluster\\_", text)
+        self.assertIn("fixture-model-a (n=", text)
+        self.assertNotIn("fixture-model-a, fixture-model-a", text)
         self.assertNotIn("provider", text.lower())
         self.assertNotIn("replicate", text.lower())
 

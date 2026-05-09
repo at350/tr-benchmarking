@@ -4,7 +4,9 @@
   "output_dir": "research/runs/live_openai_calibration",
   "mode": "live_openai",
   "response_prompt_style": "natural",
-  "models": ["gpt-4o-mini"],
+  "models": [
+    "gpt-4o-mini"
+  ],
   "responses_per_model": 3,
   "clustering": {
     "method": "legal_signal",
@@ -16,11 +18,18 @@
     "model": "gpt-4o-mini",
     "agreement_threshold": 0.7,
     "escalation_margin": 0.2,
-    "repeats": 2
+    "repeats": 2,
+    "temperature": 0.15
   },
   "quality_gates": {
     "min_rubric_rows": 5,
     "max_duplicate_similarity": 0.82,
-    "required_categories": ["doctrine", "rule", "facts", "exceptions", "counterargument"]
+    "required_categories": [
+      "doctrine",
+      "rule",
+      "facts",
+      "exceptions",
+      "counterargument"
+    ]
   }
 }

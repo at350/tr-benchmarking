@@ -1,5 +1,5 @@
 {
-  "artifact_count": 104,
+  "artifact_count": 105,
   "artifacts": [
     {
       "bytes": 12746,
@@ -7,9 +7,9 @@
       "sha256_16": "3cc06dd7b408cb0f"
     },
     {
-      "bytes": 13836,
+      "bytes": 14965,
       "path": "VISION.md",
-      "sha256_16": "72f3f45d1c43bc62"
+      "sha256_16": "8581dce98519ee92"
     },
     {
       "bytes": 1119,
@@ -64,12 +64,17 @@
     {
       "bytes": 4102,
       "path": "experiments/live-config-preflight/results.json",
-      "sha256_16": "2e7e8bc047db5fcb"
+      "sha256_16": "a1f9a6530e0e8bfd"
     },
     {
-      "bytes": 2591,
+      "bytes": 2423,
+      "path": "experiments/live-dasha-multimodel-perturbation/protocol.md",
+      "sha256_16": "a3377714cd11a59d"
+    },
+    {
+      "bytes": 2604,
       "path": "experiments/method-readiness/analysis.md",
-      "sha256_16": "6fae7065c913228c"
+      "sha256_16": "bfa10debbb1f6c98"
     },
     {
       "bytes": 1201,
@@ -77,9 +82,9 @@
       "sha256_16": "75f0454727c848aa"
     },
     {
-      "bytes": 4049,
+      "bytes": 4062,
       "path": "experiments/method-readiness/results/method_readiness.json",
-      "sha256_16": "8bc31b94f2763023"
+      "sha256_16": "a922136a2b8462e0"
     },
     {
       "bytes": 1069,
@@ -134,7 +139,7 @@
     {
       "bytes": 193,
       "path": "experiments/security-lint/results.json",
-      "sha256_16": "addd09efcc4f530e"
+      "sha256_16": "686372e2bb432154"
     },
     {
       "bytes": 880,
@@ -187,9 +192,9 @@
       "sha256_16": "446ee38ab6a7fe0c"
     },
     {
-      "bytes": 833,
+      "bytes": 838,
       "path": "paper/main.tex",
-      "sha256_16": "7608781eeb779acf"
+      "sha256_16": "15f024e9b14151d1"
     },
     {
       "bytes": 4665,
@@ -232,9 +237,9 @@
       "sha256_16": "af6f4325eda88719"
     },
     {
-      "bytes": 23985,
+      "bytes": 24648,
       "path": "paper/sections/methods.tex",
-      "sha256_16": "3f95c969a3bcbe98"
+      "sha256_16": "2f8799e442df43de"
     },
     {
       "bytes": 3045,
@@ -242,9 +247,9 @@
       "sha256_16": "b6e35e53103c7f2c"
     },
     {
-      "bytes": 10795,
+      "bytes": 11289,
       "path": "paper/sections/reproducibility.tex",
-      "sha256_16": "de697984adbb7de0"
+      "sha256_16": "2eb07ccfd4f830a7"
     },
     {
       "bytes": 6216,
@@ -302,9 +307,9 @@
       "sha256_16": "b4f97c896562b8c1"
     },
     {
-      "bytes": 1755,
+      "bytes": 1804,
       "path": "paper/tables/review_readiness.tex",
-      "sha256_16": "b983a5199e32fc83"
+      "sha256_16": "54d1676e655fd254"
     },
     {
       "bytes": 1734,
@@ -322,14 +327,14 @@
       "sha256_16": "2d1154d26c701316"
     },
     {
-      "bytes": 2724,
+      "bytes": 2807,
       "path": "research/fixtures/live_multi_provider_config.example.json",
-      "sha256_16": "b2d60021d629d068"
+      "sha256_16": "1752fa3c12131418"
     },
     {
-      "bytes": 1974,
+      "bytes": 1999,
       "path": "research/fixtures/live_natural_response_batch_config.example.json",
-      "sha256_16": "6ef914c557586ccf"
+      "sha256_16": "79a7eba84856f258"
     },
     {
       "bytes": 1060,
@@ -367,14 +372,14 @@
       "sha256_16": "58291e4be0e58932"
     },
     {
-      "bytes": 7588,
+      "bytes": 7803,
       "path": "research/validation/config.py",
-      "sha256_16": "fc740d1b6e3758fa"
+      "sha256_16": "ee28cb8da60c1b9f"
     },
     {
-      "bytes": 18660,
+      "bytes": 22078,
       "path": "research/validation/dasha.py",
-      "sha256_16": "ad3e372107f63f64"
+      "sha256_16": "c91692a8d1ec2f9e"
     },
     {
       "bytes": 30473,
@@ -382,9 +387,9 @@
       "sha256_16": "00c6ac75e7c2fc97"
     },
     {
-      "bytes": 3765,
+      "bytes": 3794,
       "path": "research/validation/freeze.py",
-      "sha256_16": "75d4574ed14660cf"
+      "sha256_16": "18ad617b60f9471c"
     },
     {
       "bytes": 2630,
@@ -407,9 +412,9 @@
       "sha256_16": "5e2107af35d9402c"
     },
     {
-      "bytes": 15554,
+      "bytes": 15852,
       "path": "research/validation/judge.py",
-      "sha256_16": "41fd4858977e731e"
+      "sha256_16": "c64f6f1533ece7c6"
     },
     {
       "bytes": 8509,
@@ -417,9 +422,9 @@
       "sha256_16": "b6cf16bfcdd4692e"
     },
     {
-      "bytes": 17615,
+      "bytes": 18049,
       "path": "research/validation/llm_agents.py",
-      "sha256_16": "9f2d6151ec625b28"
+      "sha256_16": "7b0c94fba5588c6f"
     },
     {
       "bytes": 2894,
@@ -432,19 +437,19 @@
       "sha256_16": "6877f415f9e3c900"
     },
     {
-      "bytes": 6219,
+      "bytes": 6530,
       "path": "research/validation/paper_lint.py",
-      "sha256_16": "33e084205871a78d"
+      "sha256_16": "d6b0a1d859b596ed"
     },
     {
-      "bytes": 7990,
+      "bytes": 10147,
       "path": "research/validation/perturbations.py",
-      "sha256_16": "484d8006c04af8b7"
+      "sha256_16": "d33d866f38e11755"
     },
     {
-      "bytes": 8040,
+      "bytes": 8658,
       "path": "research/validation/pipeline.py",
-      "sha256_16": "531ab1f8406eaac5"
+      "sha256_16": "c526d09d5f4121af"
     },
     {
       "bytes": 7562,
@@ -467,9 +472,9 @@
       "sha256_16": "1921699d0bb4d927"
     },
     {
-      "bytes": 3282,
+      "bytes": 3306,
       "path": "research/validation/report.py",
-      "sha256_16": "3a171fd0ce4db66c"
+      "sha256_16": "82be95cef9548b48"
     },
     {
       "bytes": 6754,
@@ -487,9 +492,9 @@
       "sha256_16": "cafd7b5564abefe6"
     },
     {
-      "bytes": 1552,
+      "bytes": 1746,
       "path": "research/validation/utils.py",
-      "sha256_16": "5c0673affba39353"
+      "sha256_16": "378a38a7794f810a"
     },
     {
       "bytes": 1957,
@@ -497,24 +502,24 @@
       "sha256_16": "8bad9d4c1098570f"
     },
     {
-      "bytes": 7619,
+      "bytes": 7649,
       "path": "to_human/claim_ledger.json",
-      "sha256_16": "c37cccc25b040cce"
+      "sha256_16": "308ec0783cd80eb0"
     },
     {
-      "bytes": 3720,
+      "bytes": 3743,
       "path": "to_human/claim_ledger.md",
-      "sha256_16": "356810a58980b3c1"
+      "sha256_16": "3afbfd34004aeb82"
     },
     {
-      "bytes": 1336,
+      "bytes": 1377,
       "path": "to_human/internal_review_packet.json",
-      "sha256_16": "30f273886d9617b5"
+      "sha256_16": "7d386350c34ffb74"
     },
     {
-      "bytes": 1415,
+      "bytes": 1530,
       "path": "to_human/internal_review_packet.md",
-      "sha256_16": "9432487d94ef6bdc"
+      "sha256_16": "28e0f3e377fa817a"
     },
     {
       "bytes": 2120,
@@ -528,7 +533,7 @@
     "no_call_audit.json",
     "no_call_audit.md"
   ],
-  "manifest_hash": "115e6ac08834987e",
+  "manifest_hash": "cd85a0f664e7e919",
   "patterns": [
     "README_RESEARCH.md",
     "VISION.md",

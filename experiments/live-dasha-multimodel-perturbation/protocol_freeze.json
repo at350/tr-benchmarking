@@ -1,0 +1,256 @@
+{
+  "agents": {
+    "dasha": {
+      "mode": "llm",
+      "model": "gpt-5.2",
+      "provider": "openai",
+      "temperature": 0.0
+    },
+    "frank": {
+      "mode": "llm",
+      "model": "gpt-5.2",
+      "provider": "openai",
+      "temperature": 0.0
+    },
+    "karthic": {
+      "mode": "llm",
+      "model": "gpt-5.2",
+      "provider": "openai",
+      "temperature": 0.0
+    }
+  },
+  "budget": {
+    "max_judge_calls": 18,
+    "max_response_calls": 36,
+    "max_total_llm_calls_excluding_frank_karthic": 90
+  },
+  "clustering": {
+    "method": "llm_reasoning_signature",
+    "min_cluster_size": 1,
+    "min_observed_clusters": 3,
+    "mixed_cluster_threshold": 0.34,
+    "model": "gpt-5.2",
+    "provider": "openai"
+  },
+  "config_hash": "3d2ef75128a4511e",
+  "config_path": "research/fixtures/live_dasha_available_providers_config.json",
+  "fixture_responses_path": "research/fixtures/tiny_responses.json",
+  "instruction_contexts": {
+    "dasha": {
+      "context_hash": "2337c307422df995",
+      "loaded_files": [
+        "instructions/00_GENERAL_LEGAL_REASONING_PROTOCOL.md",
+        "instructions/README.md",
+        "instructions/dasha/56_Dasha_Evaluation_Spec_v2.md"
+      ]
+    },
+    "frank": {
+      "context_hash": "0d1ff734c8ddf3ba",
+      "loaded_files": [
+        "instructions/00_GENERAL_LEGAL_REASONING_PROTOCOL.md",
+        "instructions/README.md",
+        "instructions/frank/00_MAIN_GPT_INSTRUCTIONS.txt",
+        "instructions/frank/01_CORE_WORKFLOW_TEMPLATE.txt"
+      ]
+    },
+    "karthic": {
+      "context_hash": "3ddaf083d24405fd",
+      "loaded_files": [
+        "instructions/00_GENERAL_LEGAL_REASONING_PROTOCOL.md",
+        "instructions/README.md",
+        "instructions/karthic/08_Karthic_Rubric_Build_Spec_v1.md"
+      ]
+    }
+  },
+  "instruction_files": {
+    "dasha": [
+      {
+        "bytes": 2620,
+        "path": "instructions/00_GENERAL_LEGAL_REASONING_PROTOCOL.md",
+        "sha256_16": "234fbeabc1bd0a82"
+      },
+      {
+        "bytes": 849,
+        "path": "instructions/README.md",
+        "sha256_16": "f5550e4e8e105fd1"
+      },
+      {
+        "bytes": 14015,
+        "path": "instructions/dasha/56_Dasha_Evaluation_Spec_v2.md",
+        "sha256_16": "3748ea91bc226a09"
+      },
+      {
+        "bytes": 4891,
+        "path": "instructions/dasha/57_Dasha_Evaluator_Instructions_v2.txt",
+        "sha256_16": "45395c19c7f67edb"
+      },
+      {
+        "bytes": 5492,
+        "path": "instructions/dasha/60_Centroid_Composition_Metadata_and_Simple_Zak_Rule_v1.md",
+        "sha256_16": "991446becc8be05b"
+      }
+    ],
+    "frank": [
+      {
+        "bytes": 2620,
+        "path": "instructions/00_GENERAL_LEGAL_REASONING_PROTOCOL.md",
+        "sha256_16": "234fbeabc1bd0a82"
+      },
+      {
+        "bytes": 849,
+        "path": "instructions/README.md",
+        "sha256_16": "f5550e4e8e105fd1"
+      },
+      {
+        "bytes": 3291,
+        "path": "instructions/frank/00_MAIN_GPT_INSTRUCTIONS.txt",
+        "sha256_16": "94d774506e95751b"
+      },
+      {
+        "bytes": 22701,
+        "path": "instructions/frank/01_CORE_WORKFLOW_TEMPLATE.txt",
+        "sha256_16": "ae8bbc25f8a78855"
+      },
+      {
+        "bytes": 9077,
+        "path": "instructions/frank/03_CORE_OUTPUT_SHAPE_AND_PROMPT_STRUCTURE.txt",
+        "sha256_16": "522b62d9f21750ef"
+      },
+      {
+        "bytes": 13352,
+        "path": "instructions/frank/04_CORE_QUESTION_WRITING_CHECKLIST.txt",
+        "sha256_16": "236071a78ee29c38"
+      },
+      {
+        "bytes": 10018,
+        "path": "instructions/frank/54_Dual_Rubric_Protocol_Original_vs_Variation_v1.md",
+        "sha256_16": "6627d3fe28025894"
+      }
+    ],
+    "karthic": [
+      {
+        "bytes": 2620,
+        "path": "instructions/00_GENERAL_LEGAL_REASONING_PROTOCOL.md",
+        "sha256_16": "234fbeabc1bd0a82"
+      },
+      {
+        "bytes": 849,
+        "path": "instructions/README.md",
+        "sha256_16": "f5550e4e8e105fd1"
+      },
+      {
+        "bytes": 22180,
+        "path": "instructions/karthic/08_Karthic_Rubric_Build_Spec_v1.md",
+        "sha256_16": "a2d374dd1509eafe"
+      },
+      {
+        "bytes": 10364,
+        "path": "instructions/karthic/09_Cross_Pack_Scoring_Overlays_Caps_Penalties_v1.md",
+        "sha256_16": "3fef3aaf6e369059"
+      },
+      {
+        "bytes": 9077,
+        "path": "instructions/frank/03_CORE_OUTPUT_SHAPE_AND_PROMPT_STRUCTURE.txt",
+        "sha256_16": "522b62d9f21750ef"
+      },
+      {
+        "bytes": 10018,
+        "path": "instructions/frank/54_Dual_Rubric_Protocol_Original_vs_Variation_v1.md",
+        "sha256_16": "6627d3fe28025894"
+      }
+    ]
+  },
+  "judge": {
+    "agreement_threshold": 0.7,
+    "escalation_margin": 0.2,
+    "judge_models": [
+      {
+        "model": "gpt-5.2",
+        "provider": "openai",
+        "repeats": 1,
+        "temperature": 0.15
+      },
+      {
+        "model": "claude-sonnet-4-6",
+        "provider": "anthropic",
+        "repeats": 1,
+        "temperature": 0.15
+      }
+    ],
+    "mode": "llm",
+    "model": "gpt-5.2",
+    "provider": "openai",
+    "repeats": 2,
+    "temperature": 0.15
+  },
+  "mode": "live_multi_provider",
+  "normalization": {
+    "dasha_signature_version": "reasoning_bucket_v3",
+    "judge_score_scale": "0-4",
+    "score_projection_policy": "Representative centroid score applies to all responses in the Dasha cluster."
+  },
+  "perturbations": {
+    "enabled": true,
+    "max_variations": 2,
+    "require_invariant": true,
+    "require_material": true
+  },
+  "protocol_hash": "c0a6f1cc053e965a",
+  "quality_gates": {
+    "max_duplicate_similarity": 0.82,
+    "min_rubric_rows": 8,
+    "required_categories": [
+      "doctrine",
+      "rule",
+      "facts",
+      "exceptions",
+      "counterargument"
+    ]
+  },
+  "response_models": [
+    {
+      "model": "gpt-5.2",
+      "provider": "openai",
+      "samples": 2,
+      "temperature": 0.55
+    },
+    {
+      "model": "gpt-5.4",
+      "provider": "openai",
+      "samples": 2,
+      "temperature": 0.55
+    },
+    {
+      "model": "gpt-5.4-mini",
+      "provider": "openai",
+      "samples": 2,
+      "temperature": 0.65
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "provider": "anthropic",
+      "samples": 2,
+      "temperature": 0.55
+    },
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "provider": "anthropic",
+      "samples": 2,
+      "temperature": 0.65
+    },
+    {
+      "model": "meta/meta-llama-3-70b-instruct",
+      "provider": "replicate",
+      "samples": 2,
+      "temperature": 0.55
+    }
+  ],
+  "response_prompt_style": "natural",
+  "run_id": "live_dasha_available_providers",
+  "schema_version": "research.protocol_freeze.v1",
+  "source": {
+    "bytes": 932,
+    "path": "research/fixtures/tiny_source_case.txt",
+    "sha256_16": "56a36cc674b73d7a"
+  }
+}

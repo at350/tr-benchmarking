@@ -11,7 +11,7 @@
       "claim": "The pipeline can run from a source case to Frank, Karthic, natural model responses, Dasha clusters, Judge scores, Zak state, and model rankings for the current SOF case.",
       "evidence": [
         "readiness=internal_method_ready_with_gaps",
-        "gates=7/10"
+        "gates=6/10"
       ],
       "id": "C1",
       "limitation": "Current live evidence is one small Statute-of-Frauds case study, not broad legal-domain validity.",
@@ -71,16 +71,16 @@
         "responses=9",
         "clusters=3",
         "min_observed_clusters=2",
-        "cluster_purity=1.0",
-        "member_coherence=1.0",
+        "cluster_purity=0.905",
+        "member_coherence=0.778",
         "mean_centroid_text_similarity=0.755",
         "non_latin_signal_flags=0",
-        "natural_audit=natural_response_audit_passed",
+        "natural_audit=needs_natural_response_review",
         "observed_clusters=3"
       ],
       "id": "C5",
       "limitation": "Run larger natural batches across more model families and held-out questions.",
-      "status": "supported"
+      "status": "evidence_gap"
     },
     {
       "artifacts": [
@@ -183,7 +183,7 @@
       "claim": "The shareable repo artifacts currently pass secret scanning.",
       "evidence": [
         "secrets_status=secrets_lint_passed",
-        "scanned_files=249"
+        "scanned_files=267"
       ],
       "id": "C12",
       "limitation": "Secret lint is a pattern scan, not a substitute for institutional secret-scanning tools.",
@@ -199,7 +199,8 @@
   ],
   "status": "claim_ledger_ready",
   "status_counts": {
+    "evidence_gap": 1,
     "partial": 3,
-    "supported": 9
+    "supported": 8
   }
 }

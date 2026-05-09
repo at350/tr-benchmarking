@@ -9,11 +9,18 @@ rules, and validation checks described below.
 
 Each run is defined by a frozen configuration. The configuration must include
 the legal source text or source identifier, a run identifier, the response-model
-roster, sample count per model, response temperature policy, perturbation
-policy, clustering method, judge model, quality gates, and output location. The
-configuration should also record whether the run is offline, live, or a fixture
-stress test. All stochastic choices, including model temperature offsets and
-fixture sampling seeds, must be explicit.
+roster, sample count per model, stage-specific temperature policy,
+perturbation policy, clustering method, judge model, quality gates, and output
+location. The temperature policy must distinguish deterministic benchmark
+construction from stochastic response generation: Frank and Karthic may be
+fixed at temperature 0 for reproducible source and rubric artifacts, while
+response models should use nonzero sampling temperatures and repeated samples
+when the goal is to observe natural variation in legal reasoning. Judge calls
+should record their temperature and, for reliability claims, use repeats or a
+panel so score variability is measured. The configuration should also record
+whether the run is offline, live, or a fixture stress test. All stochastic
+choices, including model temperature offsets and fixture sampling seeds, must be
+explicit.
 
 The reference implementation materializes this contract with a protocol-freeze
 manifest before a run is treated as frozen. The freeze manifest records the
