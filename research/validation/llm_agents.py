@@ -10,8 +10,9 @@ from typing import Any, Callable
 
 from .config import AgentConfig, ResearchConfig
 from .instruction_context import load_agent_instruction_context
+from .perturbations import build_question_tracks
 from .provider_client import generate_json, generate_text
-from .utils import stable_hash
+from .utils import display_path, stable_hash
 
 
 JsonGenerator = Callable[[list[dict[str, str]], AgentConfig], dict[str, Any]]
@@ -25,6 +26,37 @@ def structured_answer_instruction(headings: tuple[str, ...]) -> str:
         "Use the provided source and question only.\n"
         f"{rendered}"
     )
+
+
+def model_response_messages(
+    config: ResearchConfig,
+    frank_packet: dict[str, Any],
+    question: str | None = None,
+) -> list[dict[str, str]]:
+    """Build the prompt sent to benchmarked response models."""
+
+    question = str(question or frank_packet["neutral_question"])
+    if config.response_prompt_style == "structured_legacy":
+        source_excerpt = frank_packet["source"]["excerpt"]
+        format_instruction = structured_answer_instruction(config.answer_headings)
+        return [
+            {
+                "role": "system",
+                "content": (
+                    "You are producing an independent benchmark answer to a legal question. "
+                    "Use your own legal judgment from the supplied source and question; do not "
+                    "try to match a hidden gold answer or harmonize with other models. Follow "
+                    "the required structure exactly."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Source excerpt:\n{source_excerpt}\n\nQuestion:\n{question}\n\n{format_instruction}",
+            },
+        ]
+    if config.response_prompt_style != "natural":
+        raise ValueError(f"Unsupported response_prompt_style: {config.response_prompt_style}")
+    return [{"role": "user", "content": question}]
 
 
 def _slug(value: str) -> str:
@@ -89,7 +121,7 @@ def build_frank_packet_with_llm(
         "schema_version": "research.frank.llm.v1",
         "id": f"frank_{config.run_id}",
         "source": {
-            "path": str(config.source_case_path),
+            "path": display_path(config.source_case_path, repo_root),
             "sha256_16": stable_hash(source_text),
             "excerpt": source_text[:1200],
         },
@@ -284,41 +316,42 @@ def _normalize_rubric_row(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def generate_model_responses(repo_root: Path, config: ResearchConfig, frank_packet: dict[str, Any]) -> list[dict[str, Any]]:
-    source_excerpt = frank_packet["source"]["excerpt"]
-    question = frank_packet["neutral_question"]
-    format_instruction = structured_answer_instruction(config.answer_headings)
+    max_variations = config.perturbations.max_variations if config.perturbations.max_variations > 0 else None
+    tracks = (
+        build_question_tracks(frank_packet, max_variations)
+        if config.perturbations.enabled
+        else build_question_tracks(frank_packet, 0)
+    )
     responses: list[dict[str, Any]] = []
-    for spec in config.response_models:
-        for sample_index in range(spec.samples):
-            text = generate_text(
-                repo_root=repo_root,
-                provider=spec.provider,
-                model=spec.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are producing a benchmark answer to a legal question. Follow the required structure exactly.",
-                    },
-                    {
-                        "role": "user",
-                        "content": (
-                            f"Source excerpt:\n{source_excerpt}\n\nQuestion:\n{question}\n\n{format_instruction}"
-                        ),
-                    },
-                ],
-                temperature=spec.temperature + (sample_index * 0.05),
-                max_tokens=1600,
-            )
-            responses.append({
-                "id": f"{_slug(spec.provider)}_{_slug(spec.model)}_{sample_index + 1}",
-                "provider": spec.provider,
-                "model": spec.model,
-                "sample_index": sample_index + 1,
-                "generated_at_unix": int(time.time()),
-                "question_id": frank_packet["id"],
-                "answer_format": list(config.answer_headings),
-                "text": text,
-            })
+    for track in tracks:
+        messages = model_response_messages(config, frank_packet, question=str(track["question"]))
+        for spec in config.response_models:
+            for sample_index in range(spec.samples):
+                text = generate_text(
+                    repo_root=repo_root,
+                    provider=spec.provider,
+                    model=spec.model,
+                    messages=messages,
+                    temperature=spec.temperature + (sample_index * 0.05),
+                    max_tokens=1600,
+                )
+                responses.append({
+                    "id": f"{_slug(spec.provider)}_{_slug(spec.model)}_{_slug(str(track['track_id']))}_{sample_index + 1}",
+                    "provider": spec.provider,
+                    "model": spec.model,
+                    "sample_index": sample_index + 1,
+                    "generated_at_unix": int(time.time()),
+                    "question_id": track["question_id"],
+                    "track_id": track["track_id"],
+                    "variant_id": track["variant_id"],
+                    "perturbation_type": track["perturbation_type"],
+                    "expected_behavior": track["expected_behavior"],
+                    "response_prompt_style": config.response_prompt_style,
+                    "answer_format": "natural_unconstrained"
+                    if config.response_prompt_style == "natural"
+                    else list(config.answer_headings),
+                    "text": text,
+                })
     return responses
 
 

@@ -1,0 +1,158 @@
+{
+  "blocking_errors": [],
+  "budget": {
+    "max_judge_calls": 12,
+    "max_response_calls": 30,
+    "max_total_llm_calls_excluding_frank_karthic": 80
+  },
+  "call_plan": {
+    "base_response_samples_per_track": 10,
+    "estimated_min_clusters_for_judging": 3,
+    "judge_invocations_per_cluster": 3,
+    "planned_dasha_signature_calls": 30,
+    "planned_min_judge_calls": 9,
+    "planned_question_tracks": 3,
+    "planned_response_calls": 30,
+    "planned_total_llm_calls_excluding_frank_karthic": 69
+  },
+  "checks": [
+    {
+      "message": "Config mode is live-capable.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Benchmarked response models answer with natural question-only prompting.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Response roster has at least three configured model identifiers.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Response roster has at least nine total samples.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Response roster spans at least three provider/model-family routes.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Frank, Karthic, and Dasha are configured as LLM agents.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Dasha uses LLM reasoning-signature clustering.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Dasha requires at least two observed reasoning clusters.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Judge is configured for LLM row-level scoring.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Judge stability uses repeats or a judge panel.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Judge panel is configured.",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "message": "Rubric quality gate requires at least eight rows.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Source case file exists.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Protocol freeze manifest can be built.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Planned response calls are within configured budget.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Planned minimum judge calls are within configured budget.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Planned total LLM calls excluding Frank/Karthic are within configured budget.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Perturbation config requires invariant checks.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Perturbation config requires material checks.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Missing local credentials for: gemini",
+      "passed": false,
+      "severity": "warning"
+    }
+  ],
+  "config_path": "research/fixtures/live_multi_provider_config.example.json",
+  "credential_report": {
+    "anthropic": {
+      "available": true,
+      "env": "ANTHROPIC_API_KEY"
+    },
+    "gemini": {
+      "available": false,
+      "env": "GEMINI_API_KEY or GOOGLE_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY"
+    },
+    "openai": {
+      "available": true,
+      "env": "OPENAI_API_KEY"
+    },
+    "replicate": {
+      "available": true,
+      "env": "REPLICATE_API_TOKEN"
+    }
+  },
+  "protocol_hash": "3c98d84c3a0efde1",
+  "response_model_count": 5,
+  "response_providers": [
+    "anthropic",
+    "gemini",
+    "openai",
+    "replicate"
+  ],
+  "run_id": "live_multi_provider_calibration",
+  "schema_version": "research.live_preflight.v1",
+  "status": "live_preflight_passed",
+  "total_response_samples": 10,
+  "warnings": [
+    {
+      "message": "Missing local credentials for: gemini",
+      "passed": false,
+      "severity": "warning"
+    }
+  ]
+}

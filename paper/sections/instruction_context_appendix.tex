@@ -1,0 +1,132 @@
+\section{Appendix: Agent Instruction Context}
+\label{app:instruction-context}
+
+This appendix expands the instruction-stream contract in implementation-neutral
+terms. The method does not require a particular repository layout. It requires
+that each agent receive a bounded, ordered, versioned text context and that the
+rendered context be hashed and stored with the resulting artifact.
+
+\subsection{Shared Cross-Agent Protocol}
+
+All agents begin with the same legal reasoning protocol. The protocol has five
+rules.
+
+First, source authority controls legal substance. The source case, statute,
+Restatement section, regulation, contract, or other supplied authority is the
+controlling legal input for the run. Doctrine examples are drafting aids only.
+
+Second, calibration domains are not global assumptions. The reported validation
+uses Statute of Frauds because it has useful boundary facts, but the agents must
+infer doctrine from the source. If the source supports another doctrine, the same
+packet, rubric, clustering, and judging architecture is used with
+doctrine-appropriate gates, elements, defenses, and exceptions.
+
+Third, the schema is doctrine-general. Fields such as
+\texttt{doctrine\_gates}, \texttt{primary\_gate\_id},
+\texttt{rule\_trigger}, and \texttt{exception\_or\_defense} refer to the
+controlling decision points of the source-supported doctrine. They are not
+Statute-of-Frauds-only labels.
+
+Fourth, variations must identify the legal effect of the edited fact. Invariant
+variations change legally irrelevant surface facts. Material variations change
+facts that should affect a doctrine element, defense, exception, burden, remedy,
+or outcome. Each variation records the expected behavior before model answers
+are generated.
+
+Fifth, uncertainty is preserved. If the source is too thin,
+jurisdiction-specific, procedurally tangled, or unsupported by the current
+instruction context, the agent must state the limitation and preserve it for
+escalation rather than inventing missing law.
+
+\subsection{Frank Context}
+
+Frank's instruction context defines source-to-benchmark generation. It tells
+Frank to perform source intake, infer the doctrine family, identify material
+facts and source limits, generate a neutral benchmark question, produce a
+source-grounded gold answer, create boundary variations, and freeze a controller
+card for downstream stages. Frank should stop rather than force a benchmark when
+the source cannot support a stable packet.
+
+The source extraction component records authority level, jurisdiction,
+procedural posture, legal issue, rule statement, trigger facts, holding or
+best-supported answer path, limits, source gaps, benchmark confidence, and
+review flags. The gold-packet component records doctrine family, controlling
+trigger, gate order, supporting facts, non-trigger facts, competing barriers,
+exceptions or substitutes, jurisdiction-sensitive points, likely model mistakes,
+and benchmark posture. The controller card freezes the current question, gold
+answer, primary gate id, trigger test, trigger facts, non-triggered sibling
+gates, compliance status, strongest counterargument, fallback theories, omitted
+control facts, and source metadata.
+
+Frank's question-writing component controls what response models see. The
+question must be neutral, exam-like, and source-faithful. It should preserve the
+holding-driving facts and one or two plausible distractors while avoiding answer
+leakage. The call of the question should not reveal the controlling doctrine,
+tell the model which side should win, or turn the prompt into a checklist of
+subissues. Jurisdiction is stated only when the benchmark depends on
+jurisdiction-specific law.
+
+\subsection{Karthic Context}
+
+Karthic's instruction context defines rubric construction from the locked Frank
+packet. Karthic is not asked to create a generic grading sheet. It builds a
+modular scoring instrument derived from the gold answer, source-supported
+doctrine, expected failure modes, and, when available, observed response
+clusters.
+
+Karthic first audits the packet fields and marks them as fixed, fixed but
+jurisdiction-sensitive, or needing confirmation. It then locks the doctrinal path
+by stating the controlling doctrine, gate order, benchmark posture, and strongest
+counterargument. Rubric rows are organized into modules for metadata, structural
+gatekeeping, primary doctrine gates, fallback doctrines and defenses, and
+cross-cutting answer discipline. Scored rows require observable legal behavior,
+not stylistic preferences.
+
+Each full row card should contain a row code, module, weight, description,
+non-applicability guidance, golden target summary, observable features of a
+strong answer, allowed omissions, contradiction flags, comparison guidance,
+scoring anchors, failure labels, and row status. Broad rows are split only when
+the split improves legal discrimination. Overlapping rows require a distinctness
+rationale so that one legal error is not counted twice. Weights are assigned by
+legal importance rather than prose length, and answer-level penalties or caps
+are applied only after row scoring.
+
+\subsection{Dasha Context}
+
+Dasha's instruction context defines reasoning-signature extraction and
+centroid-level evaluation. Dasha does not write the question, gold answer, or
+rubric. It reads raw model responses after generation and extracts a normalized
+description of the legal path each response appears to use.
+
+The Dasha track audit records which question version is active, which rubric
+belongs to that question, whether the run is single-track or perturbation-track,
+which judge model is used, whether judge aggregation is single-model or
+ensemble-based, and whether the judge is separate from the response-model pool.
+Missing inputs that would distort scoring are review flags rather than fields to
+silently invent.
+
+Dasha's primary scored unit is the centroid. A centroid receives row-level
+scores under the Karthic rubric. If perturbation tracks are active,
+original-question outputs are clustered and scored only against the base track,
+and variation outputs are clustered and scored only against their corresponding
+variation track. Comparisons between original and variation tracks occur only
+after both tracks have been independently clustered.
+
+Dasha also records centroid composition metadata: cluster size, per-model answer
+counts and shares, represented model count, dominant model, and dominant model
+share. This metadata is descriptive and must not become a scoring input.
+
+\subsection{Judge and Zak Context}
+
+The judge context requires row-level rubric application. For every cluster
+representative, the judge receives the representative response, the cluster
+legal signal, and the Karthic rubric rows. It returns exactly one score and
+rationale for every row. The score scale, weighting rule, and aggregation rule
+are fixed in the run configuration.
+
+Zak is the escalation layer. It creates packets only when the frozen thresholds
+indicate uncertainty, disagreement, mixed clusters, missing rows, or other
+configured failure states. An escalation packet contains the active track,
+disputed clusters, relevant rubric rows, score summaries, response excerpts,
+reason for escalation, and a concise handoff note. If no escalation is required,
+the run still records an explicit no-escalation state.

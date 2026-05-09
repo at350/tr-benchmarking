@@ -10,11 +10,12 @@ using three response model identifiers with three samples each:
 \texttt{gpt-5.2}. Dasha used LLM reasoning signatures, and the judge used
 \texttt{gpt-5.2} as the rubric-conditioned evaluator.
 
-The run completed with status \texttt{internal\_validation\_ready} in the software
-manifest and \texttt{internal\_validation\_passed} in the internal validation
-summary. The run produced 9 model responses, 10 rubric rows, 1 Dasha cluster,
-10 row-level judge scores, and 3 model ranking entries. Table
-\ref{tab:internal-validation} summarizes the stage checks.
+The run used the corrected natural response protocol: each response model
+received only the Frank-generated question, with no system prompt, no hidden
+gold answer, and no required memo headings. The run produced 9 model responses,
+10 rubric rows, 3 Dasha clusters, 30 row-level judge scores, 9 projected member
+scores, and 3 model ranking entries. Table \ref{tab:internal-validation}
+summarizes the resulting stage checks.
 
 \begin{table}[h]
 \centering
@@ -24,9 +25,10 @@ summary. The run produced 9 model responses, 10 rubric rows, 1 Dasha cluster,
 \end{table}
 
 This live run is intentionally small to control cost. Its purpose is not to
-estimate model performance with narrow confidence intervals; its purpose is to
-prove that the real model-generation path runs from source case to model ranking without
-manual patching.
+estimate population-level model performance with narrow confidence intervals.
+It demonstrates that the real model-generation path runs from source case to
+model ranking without manual patching, and that Dasha can separate multiple
+observed legal-reasoning paths in a natural-response batch.
 
 \subsection{Natural-Response Dasha Audit}
 
@@ -45,13 +47,44 @@ coverage, and no preassigned reasoning labels. Table
 
 This audit is intentionally separate from the deterministic stress suite. It is
 the evidence that Dasha is operating on model outputs rather than on categories
-given to the response generator. In this batch, the normalized Dasha signature
-merged all nine answers into one reasoning cluster: wife/certificate enforcement
-over later replacement-certificate control. Because centroid scores are projected
-to every cluster member, the model ranking is tied in this run. That is a
-substantive result of the clustering step, not a ranking failure. A publishable
-robustness claim still requires larger live batches across more model families,
-held-out questions, and repeated samples.
+given to the response generator. In this batch, the normalized Dasha signatures
+formed three clusters. One cluster captured a more conditional enforceability
+theory; one captured the dominant spouse-enforcement theory with Statute of
+Frauds and association-rule defenses treated as non-dispositive; and one
+captured a more equity-forward constructive-trust theory. The audit therefore
+passes the configured divergence gate, while still remaining too small to
+support broad claims about all models or all Statute-of-Frauds cases.
+
+\begin{table}[h]
+\centering
+\caption{Dasha cluster summary for the live natural-response run.}
+\label{tab:dasha-cluster-summary}
+\input{tables/dasha_cluster_summary}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Projected model rankings from centroid scores.}
+\label{tab:model-rankings}
+\input{tables/model_rankings}
+\end{table}
+
+\subsection{Question Perturbation Validation}
+
+The perturbation loop was added as a separate validation lane. Frank variations
+are converted into executable question tracks, responses retain their
+\texttt{track\_id}, Dasha clusters each track separately, and the perturbation
+report compares each variant's dominant reasoning signal against the original
+question. Table \ref{tab:perturbation-validation} shows the reported
+perturbation smoke: a surface party-name edit preserved the original answer
+path, while a material no-writing edit changed the dominant answer path.
+
+\begin{table}[h]
+\centering
+\caption{Perturbation validation smoke test.}
+\label{tab:perturbation-validation}
+\input{tables/perturbation_validation_summary}
+\end{table}
 
 \subsection{Controlled 500-Response Dasha Regression Test}
 
@@ -73,16 +106,20 @@ The regression test produced eight observed clusters for eight expected reasonin
 archetypes. Cluster purity, cluster completeness, and macro-F1 were all 1.0.
 This proves that the clustering layer preserves normalized legal-reasoning
 distinctions at the target 500-response scale when the signatures are already
-known. It does not substitute for the natural-response audit.
+known. It does not substitute for the natural-response audit; instead, it
+functions as a regression and scale test for cluster bookkeeping, centroid
+projection, and metrics generation.
 
 \subsection{Internal Test Coverage}
 
-The current codebase has 32 research-pipeline tests covering offline run-bundle
+The reference implementation has 65 research-pipeline tests covering offline run-bundle
 exports, Frank packet quality, Karthic rubric quality, SOF gate regression
 cases, Dasha clustering invariants, sparse-response gate context, LLM reasoning
-signature clustering, judge projection and model ranking, model roster config
-loading, model-call polling, natural-response audit generation, metrics, and
-internal stress-table generation. The
-legacy rubric-automation package retains four passing tests. Together, these
-tests make the pre-expert-review manuscript reproducible: the reported claims
-are backed by executable checks rather than by visual inspection alone.
+signature clustering, source-derived Dasha gate aliasing, a non-SOF
+contract-interpretation transfer smoke, judge projection and model ranking,
+low-margin Zak escalation, repeated-judge and panel-judge stability aggregation,
+Dasha member/centroid audit generation, protocol-freeze manifests, manuscript reference and hygiene linting, model roster config loading, model-call polling, natural-response audit
+generation, live-config preflight, credential-alias checks, live-call budget caps, runtime budget enforcement, run-bundle integrity auditing, secret and local-path linting, internal review packet generation, claim-ledger generation, handoff-manifest generation, consolidated no-call audit, method-readiness reporting, review-readiness table generation, metrics, perturbation-track generation, perturbation reporting, and
+internal stress-table generation. These tests make the pre-expert-review
+manuscript reproducible: the reported claims are backed by executable checks
+rather than by visual inspection alone.

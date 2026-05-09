@@ -1,0 +1,205 @@
+{
+  "claims": [
+    {
+      "artifacts": [
+        "experiments/method-readiness/results/method_readiness.json",
+        "experiments/live-config-preflight/results.json",
+        "experiments/security-lint/results.json",
+        "experiments/run-bundle-integrity/results.json",
+        "research/runs/live_natural_response_batch"
+      ],
+      "claim": "The pipeline can run from a source case to Frank, Karthic, natural model responses, Dasha clusters, Judge scores, Zak state, and model rankings for the current SOF case.",
+      "evidence": [
+        "readiness=internal_method_ready_with_gaps",
+        "gates=7/10"
+      ],
+      "id": "C1",
+      "limitation": "Current live evidence is one small Statute-of-Frauds case study, not broad legal-domain validity.",
+      "status": "supported"
+    },
+    {
+      "artifacts": [
+        "experiments/method-readiness/results/method_readiness.json",
+        "research/runs/live_natural_response_batch/frank_packet.json"
+      ],
+      "claim": "Frank produced a source-grounded legal packet with a neutral question and variations for the current case.",
+      "evidence": [
+        "doctrine=Statute of Frauds (marriage provision) applied to a premarital promise to make/keep a spouse as beneficiary of a fraternal benefit certificate; interaction with fraternal benefit association certificate rules and change-of-beneficiary procedures",
+        "question_chars=600",
+        "variations=4"
+      ],
+      "id": "C2",
+      "limitation": "Run Frank on held-out source cases before broad external-validity claims.",
+      "status": "supported"
+    },
+    {
+      "artifacts": [
+        "experiments/method-readiness/results/method_readiness.json",
+        "research/runs/live_natural_response_batch/karthic_rubric.json"
+      ],
+      "claim": "Karthic produced a fresh dynamic rubric with source-supported rows for the current case.",
+      "evidence": [
+        "rows=10",
+        "categories=conclusion,counterargument,doctrine,exceptions,facts,rule,source_support,variation"
+      ],
+      "id": "C3",
+      "limitation": "Add held-out rubric artifact review and later expert agreement.",
+      "status": "supported"
+    },
+    {
+      "artifacts": [
+        "experiments/method-readiness/results/method_readiness.json",
+        "research/runs/live_natural_response_batch/responses.json"
+      ],
+      "claim": "Benchmarked response models answered naturally rather than through forced legal headings.",
+      "evidence": [
+        "response_prompt_style=natural",
+        "responses=9",
+        "models=3"
+      ],
+      "id": "C4",
+      "limitation": "Live model rosters should use question-only prompting by default.",
+      "status": "supported"
+    },
+    {
+      "artifacts": [
+        "experiments/method-readiness/results/method_readiness.json",
+        "research/runs/live_natural_response_batch/dasha_clusters.json"
+      ],
+      "claim": "Dasha clustered the current natural-response batch into coherent legal-reasoning groups.",
+      "evidence": [
+        "responses=9",
+        "clusters=3",
+        "min_observed_clusters=2",
+        "cluster_purity=1.0",
+        "member_coherence=1.0",
+        "mean_centroid_text_similarity=0.755",
+        "non_latin_signal_flags=0",
+        "natural_audit=natural_response_audit_passed",
+        "observed_clusters=3"
+      ],
+      "id": "C5",
+      "limitation": "Run larger natural batches across more model families and held-out questions.",
+      "status": "supported"
+    },
+    {
+      "artifacts": [
+        "experiments/run-bundle-integrity/results.json",
+        "research/runs/live_natural_response_batch/manifest.json"
+      ],
+      "claim": "The saved live run bundle is internally reviewable and its major artifacts match the manifest.",
+      "evidence": [
+        "bundle_status=run_bundle_reviewable",
+        "checks=33",
+        "blocking_errors=0",
+        "responses=9",
+        "clusters=3"
+      ],
+      "id": "C6",
+      "limitation": "Regenerate bundle audit after any claim-supporting run or artifact rewrite.",
+      "status": "supported"
+    },
+    {
+      "artifacts": [
+        "experiments/method-readiness/results/method_readiness.json",
+        "research/fixtures/tiny_perturbation_config.json"
+      ],
+      "claim": "Perturbation validation has been implemented as a metamorphic-test path.",
+      "evidence": [
+        "perturbation_report=not_configured"
+      ],
+      "id": "C7",
+      "limitation": "Run invariant and material perturbation tracks with live model responses.",
+      "status": "partial"
+    },
+    {
+      "artifacts": [
+        "experiments/method-readiness/results/method_readiness.json",
+        "research/runs/live_natural_response_batch/judge_scores.json"
+      ],
+      "claim": "LLM-as-judge scoring produces row-level scores and model rankings for clustered centroids.",
+      "evidence": [
+        "judge_model=gpt-5.2",
+        "judge_panel=1",
+        "row_scores=30",
+        "agreement_score=0.755",
+        "stability=not_repeated",
+        "judge_repeats=1",
+        "model_rankings=3"
+      ],
+      "id": "C8",
+      "limitation": "Quantify live repeat or panel stability before stronger reliability claims.",
+      "status": "partial"
+    },
+    {
+      "artifacts": [
+        "experiments/method-readiness/results/method_readiness.json",
+        "experiments/zak-positive-escalation-regression/analysis.md"
+      ],
+      "claim": "Zak escalation mechanics exist for low-confidence or unstable cases.",
+      "evidence": [
+        "needs_zak=False",
+        "packets=0"
+      ],
+      "id": "C9",
+      "limitation": "Calibrate live escalation thresholds with repeated judge evidence.",
+      "status": "supported"
+    },
+    {
+      "artifacts": [
+        "experiments/method-readiness/results/method_readiness.json",
+        "research/runs/internal_stress/stress_summary.json"
+      ],
+      "claim": "The 500-response stress test supports scale and bookkeeping mechanics, not natural discovery claims.",
+      "evidence": [
+        "stress_status=internal_stress_passed",
+        "stress_responses=500",
+        "stress_macro_f1=1.0"
+      ],
+      "id": "C10",
+      "limitation": "Keep this separated from live discovery evidence.",
+      "status": "supported"
+    },
+    {
+      "artifacts": [
+        "experiments/live-config-preflight/results.json"
+      ],
+      "claim": "The next live perturbation run is bounded and preflighted before model spending.",
+      "evidence": [
+        "preflight_status=live_preflight_passed",
+        "warnings=1",
+        "blocking_errors=0",
+        "planned_total_calls=69",
+        "total_call_cap=80"
+      ],
+      "id": "C11",
+      "limitation": "Resolve credential warnings before claim-supporting paid live runs.",
+      "status": "partial"
+    },
+    {
+      "artifacts": [
+        "experiments/security-lint/results.json"
+      ],
+      "claim": "The shareable repo artifacts currently pass secret scanning.",
+      "evidence": [
+        "secrets_status=secrets_lint_passed",
+        "scanned_files=249"
+      ],
+      "id": "C12",
+      "limitation": "Secret lint is a pattern scan, not a substitute for institutional secret-scanning tools.",
+      "status": "supported"
+    }
+  ],
+  "schema_version": "research.claim_ledger.v1",
+  "source_artifacts": [
+    "experiments/method-readiness/results/method_readiness.json",
+    "experiments/live-config-preflight/results.json",
+    "experiments/security-lint/results.json",
+    "experiments/run-bundle-integrity/results.json"
+  ],
+  "status": "claim_ledger_ready",
+  "status_counts": {
+    "partial": 3,
+    "supported": 9
+  }
+}

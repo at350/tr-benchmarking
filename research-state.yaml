@@ -1,0 +1,220 @@
+project: legal-reasoning-evaluation-pipeline
+branch: codex/research-validation
+status: active-autoresearch
+last_updated: 2026-05-09
+
+research_question: >
+  Can a source-grounded automated pipeline generate legal benchmark questions,
+  dynamic rubrics, natural model responses, legal-reasoning clusters, rubric
+  judge scores, model rankings, and escalation packets with enough internal
+  validity to support a pre-expert-review research manuscript?
+
+current_scope:
+  calibration_domain: Statute of Frauds
+  target_scope: doctrine-general legal source-to-score evaluation
+  current_milestone: robust internal validation and presentable manuscript
+  future_milestone: expert legal review and broader doctrine validation
+
+continuity:
+  heartbeat: autoresearch-loop
+  interval: 20 minutes
+  read_first:
+    - research-state.yaml
+    - findings.md
+    - VISION.md
+
+frozen_or_reported_artifacts:
+  live_case_study_run: research/runs/live_natural_response_batch
+  stress_run: research/runs/internal_stress
+  perturbation_smoke_config: research/fixtures/tiny_perturbation_config.json
+  manuscript: paper/main.tex
+  website_manuscript: http://127.0.0.1:3000/paper
+
+current_evidence:
+  unit_tests: 65
+  live_natural_responses:
+    models:
+      - gpt-5.2
+      - claude-sonnet-4-20250514
+      - meta/meta-llama-3-70b-instruct
+    responses: 9
+    observed_clusters: 3
+    dasha_member_coherence: 1.0
+    status: internal_validation_passed
+  deterministic_stress:
+    responses: 500
+    purpose: scale and bookkeeping regression, not natural discovery evidence
+  perturbation_smoke:
+    purpose: executable invariant/material question-track regression
+  non_sof_transfer_smoke:
+    doctrine_family: Contract interpretation
+    config: research/fixtures/tiny_contract_config.json
+    status: offline_internal_validation_passed
+    purpose: >
+      Schema-transfer regression showing that Frank, Karthic, Dasha, judge, and
+      Zak can run on a non-Statute-of-Frauds source packet without retaining a
+      statute_of_frauds artifact or collapsing opposing contract-interpretation
+      answers into one cluster.
+  zak_positive_escalation:
+    status: offline_regression_passed
+    purpose: >
+      Regression showing that low-margin centroid judge scores and unstable
+      repeated judge rows produce Zak packets rather than silent no-escalation
+      records.
+  judge_panel_path:
+    status: offline_regression_passed
+    purpose: >
+      Config and aggregation path for multi-model LLM-as-judge panels, recording
+      panel composition and aggregating row-level scores through the same
+      stability metrics used for repeated judge calls.
+  protocol_freeze_manifest:
+    status: offline_regression_passed
+    purpose: >
+      Reproducibility artifact that records config hash, source hash,
+      instruction-context hashes, model rosters, judge panel, quality gates, and
+      normalization versions without storing secrets or generated outputs.
+  paper_static_lint:
+    status: passed
+    purpose: >
+      Static manuscript check for missing LaTeX inputs, figures,
+      bibliographies, citation keys, stale readiness counts, provider-routing
+      names, absolute local paths, JD-review dependencies, and common Statute
+      of Frauds typos in environments without latexmk or pdflatex.
+  method_readiness_report:
+    status: internal_method_ready_with_gaps
+    artifact: experiments/method-readiness/results/method_readiness.json
+    summary: >
+      Vision-gate report generated from the saved live natural-response run,
+      live multi-provider preflight, and deterministic 500-response stress run.
+      It marks 7 of 10 gates as met, judge stability and live preflight as
+      partial, and live perturbation validation as the remaining evidence gap.
+      The manuscript review-readiness table is generated from this same report.
+  run_bundle_integrity:
+    status: run_bundle_reviewable
+    artifact: experiments/run-bundle-integrity/results.json
+    summary: >
+      No-call audit of the saved live source-to-score run bundle. It checks
+      required artifacts, JSON parseability, manifest schema, artifact hashes,
+      response-count consistency, natural-response metadata, Dasha member ids,
+      judge cluster-score coverage, model rankings, and Zak packet presence.
+      Current result has 33 checks and zero blocking errors.
+  live_preflight:
+    status: passed_with_warnings
+    purpose: >
+      No-call check that validates live config structure, protocol-freeze
+      buildability, natural response prompting, response roster diversity,
+      judge stability configuration, source availability, and local credential
+      warnings before spending model budget.
+    call_plan:
+      planned_question_tracks: 3
+      planned_response_calls: 30
+      planned_dasha_signature_calls: 30
+      planned_min_judge_calls: 9
+      planned_total_llm_calls_excluding_frank_karthic: 69
+    budget:
+      max_response_calls: 30
+      max_judge_calls: 12
+      max_total_llm_calls_excluding_frank_karthic: 80
+    warnings:
+      - Local environment is missing GEMINI_API_KEY, GOOGLE_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY for the configured Gemini route.
+  runtime_budget_enforcement:
+    status: offline_regression_passed
+    purpose: >
+      Regression showing that `run_pipeline` enforces live-call budget caps
+      before invoking Frank, Karthic, response models, Dasha, or Judge, so
+      skipping preflight cannot silently start an over-budget live run.
+  secrets_lint:
+    status: passed
+    artifact: experiments/security-lint/results.json
+    purpose: >
+      Shareability check that scans repo research artifacts for likely API keys
+      or credential assignments while excluding local env files, virtual
+      environments, dependency folders, and build outputs. It also blocks
+      absolute local machine paths in shareable artifacts.
+  internal_review_packet:
+    status: ready_for_internal_review_with_declared_gaps
+    artifacts:
+      - to_human/internal_review_packet.md
+      - to_human/internal_review_packet.html
+      - to_human/internal_review_packet.json
+    purpose: >
+      Human-facing handoff generated from readiness, preflight, and secret-lint
+      artifacts plus the run-bundle integrity audit. It reports 7 of 10 gates
+      met, 2 partial gates, the live perturbation evidence gap, and the bounded
+      69-call plan.
+  claim_ledger:
+    status: claim_ledger_ready
+    artifacts:
+      - to_human/claim_ledger.md
+      - to_human/claim_ledger.html
+      - to_human/claim_ledger.json
+    summary: >
+      Machine-generated paper-review ledger mapping 12 manuscript claims to
+      evidence artifacts and limitations. Current counts are 9 supported and 3
+      partial claims; the partial claims are live perturbation validation,
+      live judge stability, and preflight credential readiness.
+  no_call_audit:
+    status: no_call_audit_passed_with_declared_gaps
+    artifacts:
+      - to_human/no_call_audit.md
+      - to_human/no_call_audit.html
+      - to_human/no_call_audit.json
+    purpose: >
+      Consolidated no-call review command that runs paper lint, secret lint,
+      live preflight, run-bundle integrity, readiness, review-pack generation,
+      and claim-ledger generation without model calls, and records the current
+      handoff-manifest status. Current result has zero blocking errors and five
+      declared warnings or gaps.
+  handoff_manifest:
+    status: handoff_manifest_ready
+    artifacts:
+      - to_human/handoff_manifest.json
+    artifact_count: 104
+    purpose: >
+      Checksum manifest for the current researcher-facing handoff set: paper
+      sources, figures, fixtures, experiment reports, human-review artifacts,
+      and research validation code. It excludes itself and no-call audit files
+      to avoid circular hashes.
+
+hypotheses:
+  H1:
+    title: Source-derived gate aliasing improves Dasha doctrine generality.
+    status: exploratory_supported_by_unit_and_non_sof_fixture
+    prediction: >
+      If Dasha receives Frank's detected doctrine gates, semantically equivalent
+      non-SOF reasoning signatures should bucket together by source-derived gate
+      aliases rather than by hard-coded SOF labels or exact string matches.
+  H2:
+    title: Perturbation tracks provide metamorphic validation of benchmark sensitivity.
+    status: implemented_smoke_needs_live_run
+    prediction: >
+      Invariant edits should preserve dominant reasoning signatures, while
+      legally material edits should change dominant outcome or reasoning path.
+  H3:
+    title: Centroid-level judging can produce interpretable model rankings if clusters are coherent.
+    status: repeat_panel_and_escalation_paths_implemented_needs_live_run
+    prediction: >
+      Row-level centroid scores can be projected to cluster members and
+      aggregated into model rankings, but reliability claims require repeated
+      judge calls, ablations, and later expert comparison.
+
+open_gaps:
+  - Run a larger live natural-response batch with more model families and tracks.
+  - Run repeated or ensemble judge scoring on a live batch to quantify judge stability.
+  - Run perturbation tracks with live model responses, not only deterministic smoke fixtures.
+  - Add live held-out non-SOF source cases to test doctrine transfer beyond offline fixtures.
+  - Calibrate live Zak escalation thresholds after repeated judge runs.
+  - Compile the LaTeX paper in an environment with latexmk or pdflatex; current environment only supports static paper linting.
+
+next_actions:
+  - Use the method-readiness report to decide the next live run configuration.
+  - Freeze the selected live config before any new claim-supporting run.
+  - Run preflight on the selected live config and resolve blocking errors before any paid run.
+  - Use `python3 -m research.validation readiness` after each claim-supporting run so the paper cannot silently overstate partial evidence.
+  - Run `python3 -m research.validation secrets-lint` before sharing branches or promoting generated artifacts.
+  - Regenerate `python3 -m research.validation review-pack` after readiness, preflight, or security results change.
+  - Regenerate `python3 -m research.validation claim-ledger` whenever paper claims or validation artifacts change.
+  - Use `python3 -m research.validation no-call-audit` as the single pre-review check before sharing the branch.
+  - Regenerate the live batch if paper claims need stored normalized member keys in dasha_clusters.json itself.
+  - Run the repeat-aware judge mode on the live natural-response batch before stronger manuscript claims.
+  - Keep literature notes current and only cite verified sources.

@@ -3,19 +3,33 @@
 The present validation is internal and pre-expert-review. It asks whether each
 automated stage produces plausible, auditable artifacts without manual patching
 and whether the pipeline mechanics work at enough controlled scale to support a
-research claim before external review. The generated run bundle includes the
+research claim before external review. In this manuscript, ``good'' means that
+the artifact is source-grounded, legally coherent, aligned with the role
+instructions and examples, shaped correctly for the next stage, and explicit
+about uncertainty. It does not mean that external legal experts have already
+certified the artifact. The generated run bundle includes the
 Frank packet, Karthic rubric, model responses, Dasha clusters, judge scores, Zak
 packets, manifest, and internal validation summary.
 
-The internal validator checks five stage families. Frank passes when the packet
+The internal validator checks five stage families, and the paper separately
+reports a stage-level artifact assessment. Frank passes when the packet
 contains a doctrine, source-grounded question, variations, gold answer, and
 ready handoff status. Karthic passes when the rubric has enough rows, canonical
-categories, non-duplicated criteria, and source-support snippets. Dasha passes
-when unlabeled model answers to the same Frank question are all assigned to
-Dasha clusters after response generation, with no preassigned reasoning labels
-used as input. Judge passes when every cluster receives every rubric row score
-and model rankings are generated. Zak passes when escalation packet state is
-explicitly captured, even if no escalation is needed.
+categories, non-duplicated criteria, and source-support snippets. Dasha has two
+separate gates. The coverage gate passes when unlabeled model answers to the
+same Frank question are all assigned to clusters after response generation, with
+no preassigned reasoning labels used as input. The divergence gate passes only
+when the configured live run observes at least the required number of distinct
+legal-reasoning clusters. Judge passes when every cluster receives every rubric
+row score, model rankings are generated, and any repeated-judge stability report
+does not require review. Zak passes when escalation packet state is explicitly
+captured, including escalation for unstable repeated judge rows when applicable.
+Perturbation validation passes when the run contains both invariant and material
+question edits, invariant edits preserve the dominant legal answer path, and
+material edits change the dominant answer path or reasoning signature. This is a
+domain-specific metamorphic test: the validation target is the relation between
+the original and edited legal questions, not a standalone answer label for each
+question.
 
 The validation logic is implemented as executable checks rather than prose-only
 review. Frank checks target packet completeness and deprecated-heading failure
@@ -23,38 +37,62 @@ modes. Karthic checks row count, required category coverage, duplicate-like row
 criteria, source-support fields, and weight normalization. Dasha checks that all
 responses are assigned to clusters, that clusters are internally consistent under
 the same normalized signature-bucket function used by the clustering step, and
-that no unexpected non-Latin text appears in legal signals. Judge checks that the
+that each member's normalized signature key agrees with its centroid key. It
+also checks that no unexpected non-Latin text appears in legal signals. Judge checks that the
 number of returned row scores equals \texttt{clusters} times \texttt{rubric
 rows}, that every model receives projected member scores, and that rankings are
-materialized. Zak checks explicit escalation state even when no packet is needed.
+materialized. When judge repeats or judge panels are configured, it also checks
+the stability summary produced from repeated or panel row scores and records the
+panel composition. Zak checks explicit escalation state even when no packet is
+needed.
 These checks were chosen because they correspond to the pipeline's main failure
 modes: unsupported legal framing, generic rubrics, schema drift, paraphrase
 over-splitting, missing judge rows, and silent escalation failure.
 
 The internal evidence package has three layers. First, unit and regression tests
 exercise config loading, prompt hashing, Frank packet completeness, Karthic
-rubric coverage, Dasha clustering invariants, judge projection, Zak escalation,
-model-call clients, and statistical metrics. Second, a real live batch
+rubric coverage, Dasha clustering invariants, judge projection, repeated-judge
+and panel-judge stability aggregation, Zak escalation, model-call clients, and
+statistical metrics. Second, a real live batch
 executes the full LLM-driven path using three response model identifiers with
 three samples each: \texttt{gpt-5.2},
 \texttt{claude-sonnet-4-20250514}, and
 \texttt{meta/meta-llama-3-70b-instruct}. Third, a natural-response Dasha audit
 checks that the clustered inputs are unlabeled model answers to one Frank
-question, not responses generated from preassigned reasoning categories. Fourth,
-a deterministic 500-response regression suite tests the clustering container on
-eight known Statute-of-Frauds signatures; that suite is a scale and bookkeeping
-check, not the main evidence for Dasha's discovery behavior.
+question, not responses generated from preassigned reasoning categories. It also
+checks whether the batch produced enough observed reasoning divergence to stress
+Dasha and whether each clustered member agrees with its centroid key. Fourth, a deterministic 500-response regression suite tests the
+clustering container on eight known Statute-of-Frauds signatures; that suite is
+a scale and bookkeeping check, not the main evidence for Dasha's discovery
+behavior. Fifth, a perturbation smoke test executes an original question,
+an invariant party-name edit, and a material no-writing edit, then verifies that
+the invariant edit preserves the answer path while the material edit changes it.
 
 The validation is intentionally layered. Unit tests isolate parser and invariant
 logic without paying for model calls. The natural-response batch then exercises
 the live path that matters scientifically: multiple model outputs answer the
-same source-derived legal question before Dasha sees them. The deterministic
-500-response regression is retained because it catches implementation regressions
-in clustering, projection, and table generation at the target response scale, but
-it is not used to claim that Dasha has discovered reasoning families from
-unlabeled model text. This distinction is central to the method: discovery is
-tested only on unlabeled model answers; labeled fixtures test software
-bookkeeping.
+same source-derived legal question before Dasha sees them. The reported run
+passes the configured Dasha divergence gate because it produced three
+observed reasoning clusters against a target of two, but it remains a small
+single-case sample. The deterministic 500-response regression is retained
+because it catches implementation regressions in clustering, projection, and
+table generation at the target response scale, but it is not used to claim that
+Dasha has discovered reasoning families from unlabeled model text. This
+distinction is central to the method: discovery is tested only on unlabeled
+model answers; labeled fixtures test software bookkeeping. Separate Zak
+regressions force low-margin and unstable-judge conditions so that escalation
+packet creation is tested as a positive behavior, not only as an empty
+no-escalation record.
+
+The internal review layer then asks the legal-methodological questions that
+schema checks cannot answer by themselves: whether Frank's framing is what a
+researcher expected from the source and instruction examples; whether Karthic's
+rows are legally useful rather than generic; whether Dasha's sampled cluster
+members share a legal theory with their centroid; and whether the judge
+rationales follow the rubric rows. The manuscript therefore reports
+both executable gates and human-readable artifact examples. The executable gates
+make the run reproducible; the artifact assessment makes the legal quality
+claim inspectable.
 
 This protocol does not replace expert legal review. It is the complete internal
 evidence gate before any external claim: the pipeline must prove that it can

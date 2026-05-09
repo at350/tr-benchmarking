@@ -23,6 +23,18 @@ def write_json(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def display_path(path: str | Path, root: str | Path = ".") -> str:
+    """Return a repo-relative path when possible for shareable artifacts."""
+
+    root_path = Path(root).resolve()
+    path_obj = Path(path)
+    resolved = path_obj.resolve() if path_obj.exists() or path_obj.is_absolute() else (root_path / path_obj).resolve()
+    try:
+        return str(resolved.relative_to(root_path))
+    except ValueError:
+        return str(path_obj)
+
+
 def tokenize(text: str) -> set[str]:
     cleaned = "".join(ch.lower() if ch.isalnum() else " " for ch in text)
     return {token for token in cleaned.split() if len(token) > 2}

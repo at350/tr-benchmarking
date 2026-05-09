@@ -3,6 +3,7 @@
   "source_case_path": "research/fixtures/tiny_source_case.txt",
   "output_dir": "research/runs/tiny_offline",
   "mode": "offline",
+  "response_prompt_style": "natural",
   "models": ["fixture-model-a", "fixture-model-b"],
   "responses_per_model": 3,
   "clustering": {

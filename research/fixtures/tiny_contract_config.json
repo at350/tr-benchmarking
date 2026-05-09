@@ -1,0 +1,39 @@
+{
+  "run_id": "tiny_contract_transfer",
+  "domain": "contract_interpretation",
+  "source_case_path": "research/fixtures/tiny_contract_source_case.txt",
+  "output_dir": "research/runs/tiny_contract_transfer",
+  "mode": "offline",
+  "fixture_responses_path": "research/fixtures/tiny_contract_responses.json",
+  "response_prompt_style": "natural",
+  "models": ["fixture-contract-a", "fixture-contract-b", "fixture-contract-c"],
+  "responses_per_model": 1,
+  "clustering": {
+    "method": "llm_reasoning_signature",
+    "min_cluster_size": 1,
+    "min_observed_clusters": 2,
+    "mixed_cluster_threshold": 0.34
+  },
+  "judge": {
+    "mode": "deterministic",
+    "model": "gpt-4o-mini",
+    "agreement_threshold": 0.7,
+    "escalation_margin": 0.2
+  },
+  "quality_gates": {
+    "min_rubric_rows": 8,
+    "max_duplicate_similarity": 0.82,
+    "required_categories": [
+      "gate",
+      "doctrine",
+      "rule",
+      "facts",
+      "elements",
+      "exceptions",
+      "counterargument",
+      "conclusion",
+      "variation",
+      "source_support"
+    ]
+  }
+}

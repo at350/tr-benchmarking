@@ -15,6 +15,8 @@ from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from .perturbations import build_question_tracks
+
 
 CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
 
@@ -48,7 +50,7 @@ def load_openai_api_key(repo_root: Path) -> str:
     if direct:
         return direct
 
-    for env_path in (repo_root / ".env", repo_root / "frontend" / ".env", repo_root / "lsh" / ".env"):
+    for env_path in (repo_root / ".env", repo_root / "frontend" / ".env"):
         candidate = _read_env_file(env_path).get("OPENAI_API_KEY", "").strip()
         if candidate:
             return candidate
@@ -101,39 +103,43 @@ def generate_live_responses(repo_root: Path, config: Any, frank_packet: dict) ->
     """Generate fresh model answers to the locked Frank neutral question."""
 
     responses: list[dict[str, Any]] = []
-    source_excerpt = frank_packet["source"]["excerpt"]
-    question = frank_packet["neutral_question"]
-    system_prompt = (
-        "You are generating a law-student style answer for benchmarking. "
-        "Use only the provided source excerpt and question. State the likely outcome, "
-        "the controlling legal reason, important source facts, and the strongest counterargument. "
-        "Do not mention that this is a benchmark."
+    max_variations = (
+        config.perturbations.max_variations
+        if getattr(config, "perturbations", None) and config.perturbations.max_variations > 0
+        else None
     )
-    user_prompt = (
-        f"Source excerpt:\n{source_excerpt}\n\n"
-        f"Question:\n{question}\n\n"
-        "Answer in a compact IRAC-style paragraph."
+    tracks = (
+        build_question_tracks(frank_packet, max_variations)
+        if getattr(config, "perturbations", None) and config.perturbations.enabled
+        else build_question_tracks(frank_packet, 0)
     )
+    response_prompt_style = getattr(config, "response_prompt_style", "natural")
+    if response_prompt_style != "natural":
+        raise ValueError("live_openai response generation only supports natural response prompts")
 
-    for model in config.models:
-        for sample_index in range(config.responses_per_model):
-            text = chat_completion(
-                repo_root=repo_root,
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.35 + (sample_index * 0.08),
-            )
-            responses.append({
-                "id": f"{model.replace('/', '_')}_{sample_index + 1}",
-                "model": model,
-                "sample_index": sample_index + 1,
-                "generated_at_unix": int(time.time()),
-                "question_id": frank_packet["id"],
-                "text": text,
-            })
+    for track in tracks:
+        for model in config.models:
+            for sample_index in range(config.responses_per_model):
+                text = chat_completion(
+                    repo_root=repo_root,
+                    model=model,
+                    messages=[{"role": "user", "content": str(track["question"])}],
+                    temperature=0.35 + (sample_index * 0.08),
+                )
+                responses.append({
+                    "id": f"{model.replace('/', '_')}_{track['track_id']}_{sample_index + 1}",
+                    "model": model,
+                    "sample_index": sample_index + 1,
+                    "generated_at_unix": int(time.time()),
+                    "question_id": track["question_id"],
+                    "track_id": track["track_id"],
+                    "variant_id": track["variant_id"],
+                    "perturbation_type": track["perturbation_type"],
+                    "expected_behavior": track["expected_behavior"],
+                    "response_prompt_style": response_prompt_style,
+                    "answer_format": "natural_unconstrained",
+                    "text": text,
+                })
 
     return responses
 

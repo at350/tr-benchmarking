@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .budget import enforce_live_budget
 from .config import ResearchConfig
 from .dasha import cluster_responses
 from .frank import build_frank_packet
@@ -19,9 +20,10 @@ from .llm_agents import (
     generate_model_responses,
 )
 from .openai_client import generate_live_responses
+from .perturbations import build_perturbation_report, build_question_tracks, cluster_responses_by_track
 from .quality import find_mixed_reasoning_clusters, validate_frank_packet, validate_rubric_pack
 from .report import build_markdown_report, ensure_paper_scaffold
-from .utils import stable_hash, write_json
+from .utils import display_path, stable_hash, write_json
 
 
 @dataclass(frozen=True)
@@ -49,30 +51,72 @@ def run_pipeline(config: ResearchConfig, repo_root: str | Path) -> PipelineRunRe
     out = config.output_dir
     out.mkdir(parents=True, exist_ok=True)
     ensure_paper_scaffold(root)
+    call_plan = enforce_live_budget(config)
 
     if config.agents["frank"].mode == "llm":
         frank = build_frank_packet_with_llm(root, config)
     else:
-        frank = build_frank_packet(config.source_case_path, config.run_id)
+        frank = build_frank_packet(config.source_case_path, config.run_id, repo_root=root)
     if config.agents["karthic"].mode == "llm":
         rubric = build_karthic_rubric_with_llm(root, config, frank)
     else:
         rubric = build_karthic_rubric(frank)
     responses = _load_responses(config, root, frank)
+    for response in responses:
+        response.setdefault("response_prompt_style", config.response_prompt_style)
+        if config.response_prompt_style == "natural":
+            response.setdefault("answer_format", "natural_unconstrained")
+        response.setdefault("question_id", frank.get("id"))
     if config.clustering.method == "llm_reasoning_signature":
         responses = add_llm_reasoning_signatures(root, config, frank, responses)
-    clusters = cluster_responses(responses, primary_gate_id=frank.get("controller_card", {}).get("primary_gate_id"))
+    max_variations = config.perturbations.max_variations if config.perturbations.max_variations > 0 else None
+    tracks = build_question_tracks(frank, max_variations) if config.perturbations.enabled else build_question_tracks(frank, 0)
+    has_multiple_tracks = len({str(response.get("track_id") or response.get("question_id") or "original") for response in responses}) > 1
+    if config.perturbations.enabled or has_multiple_tracks:
+        clusters = cluster_responses_by_track(
+            responses,
+            primary_gate_id=frank.get("controller_card", {}).get("primary_gate_id"),
+            frank_packet=frank,
+        )
+    else:
+        clusters = cluster_responses(
+            responses,
+            primary_gate_id=frank.get("controller_card", {}).get("primary_gate_id"),
+            frank_packet=frank,
+        )
     if config.judge.mode == "llm":
         judge = judge_clusters_with_openai(root, clusters, rubric, config.judge)
     else:
         judge = judge_clusters(clusters, rubric, config.judge.agreement_threshold)
     zak = build_zak_packets(judge, clusters, rubric)
+    perturbation_report = build_perturbation_report(tracks, responses, clusters) if config.perturbations.enabled else {
+        "schema_version": "research.perturbation_validation.v1",
+        "status": "not_configured",
+        "track_count": 1,
+        "checks": [],
+    }
 
     quality_errors = []
     quality_errors.extend(validate_frank_packet(frank))
     quality_errors.extend(validate_rubric_pack(rubric, config.quality_gates))
     for mixed in find_mixed_reasoning_clusters(clusters, config.clustering.mixed_cluster_threshold):
         quality_errors.append(f"Mixed Dasha cluster {mixed['cluster_id']}: {mixed['reason']}")
+    if len(clusters.get("clusters", [])) < config.clustering.min_observed_clusters:
+        quality_errors.append(
+            "Dasha observed "
+            f"{len(clusters.get('clusters', []))} clusters, below configured diversity target "
+            f"{config.clustering.min_observed_clusters}"
+        )
+    if config.perturbations.enabled:
+        checks = perturbation_report.get("checks", [])
+        has_invariant = any(check.get("perturbation_type") == "invariant" for check in checks)
+        has_material = any(check.get("perturbation_type") == "material" for check in checks)
+        if config.perturbations.require_invariant and not has_invariant:
+            quality_errors.append("Perturbation validation did not include an invariant question edit.")
+        if config.perturbations.require_material and not has_material:
+            quality_errors.append("Perturbation validation did not include a material legal question edit.")
+        if perturbation_report.get("status") != "perturbation_validation_passed":
+            quality_errors.append("Perturbation validation needs review.")
 
     status = "internal_validation_ready" if not quality_errors else "needs_engineering_iteration"
     manifest = {
@@ -80,11 +124,17 @@ def run_pipeline(config: ResearchConfig, repo_root: str | Path) -> PipelineRunRe
         "run_id": config.run_id,
         "pipeline_status": status,
         "mode": config.mode,
-        "source_case_path": str(config.source_case_path),
-        "output_dir": str(out),
+        "source_case_path": display_path(config.source_case_path, root),
+        "output_dir": display_path(out, root),
         "models": list(config.models),
         "response_models": [spec.__dict__ for spec in config.response_models],
+        "response_prompt_style": config.response_prompt_style,
+        "perturbations": config.perturbations.__dict__,
+        "budget": config.budget.__dict__,
+        "planned_call_counts": call_plan,
+        "question_tracks": tracks,
         "agents": {name: agent.__dict__ for name, agent in config.agents.items()},
+        "clustering": config.clustering.__dict__,
         "responses_per_model": config.responses_per_model,
         "artifact_hashes": {
             "frank_packet": stable_hash(frank),
@@ -92,6 +142,7 @@ def run_pipeline(config: ResearchConfig, repo_root: str | Path) -> PipelineRunRe
             "dasha_clusters": stable_hash(clusters),
             "judge_scores": stable_hash(judge),
             "zak_packets": stable_hash(zak),
+            "perturbation_report": stable_hash(perturbation_report),
         },
         "prompt_hashes": {
             **frank.get("prompt_hashes", {}),
@@ -108,6 +159,7 @@ def run_pipeline(config: ResearchConfig, repo_root: str | Path) -> PipelineRunRe
     write_json(out / "dasha_clusters.json", clusters)
     write_json(out / "judge_scores.json", judge)
     write_json(out / "zak_packets.json", zak)
+    write_json(out / "perturbation_report.json", perturbation_report)
     (out / "report.md").write_text(
         build_markdown_report(config.run_id, manifest, frank, rubric, clusters, judge, zak),
         encoding="utf-8",

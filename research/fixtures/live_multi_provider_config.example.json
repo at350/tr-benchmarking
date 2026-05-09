@@ -4,6 +4,7 @@
   "source_case_path": "research/fixtures/tiny_source_case.txt",
   "output_dir": "research/runs/live_multi_provider_calibration",
   "mode": "live_multi_provider",
+  "response_prompt_style": "natural",
   "agents": {
     "frank": {
       "mode": "llm",
@@ -20,7 +21,7 @@
     "dasha": {
       "mode": "llm",
       "provider": "openai",
-      "model": "gpt-5.2-mini",
+      "model": "gpt-5.2",
       "temperature": 0
     }
   },
@@ -43,7 +44,7 @@
     },
     {
       "provider": "openai",
-      "model": "gpt-5.2-mini",
+      "model": "gpt-5.4",
       "samples": 2,
       "temperature": 0.35
     },
@@ -69,16 +70,41 @@
   "clustering": {
     "method": "llm_reasoning_signature",
     "min_cluster_size": 1,
+    "min_observed_clusters": 2,
     "mixed_cluster_threshold": 0.34,
     "provider": "openai",
-    "model": "gpt-5.2-mini"
+    "model": "gpt-5.2"
   },
   "judge": {
     "mode": "llm",
     "provider": "openai",
     "model": "gpt-5.2",
     "agreement_threshold": 0.7,
-    "escalation_margin": 0.2
+    "escalation_margin": 0.2,
+    "repeats": 2,
+    "judge_models": [
+      {
+        "provider": "openai",
+        "model": "gpt-5.2",
+        "repeats": 2
+      },
+      {
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-20250514",
+        "repeats": 1
+      }
+    ]
+  },
+  "perturbations": {
+    "enabled": true,
+    "max_variations": 2,
+    "require_invariant": true,
+    "require_material": true
+  },
+  "budget": {
+    "max_response_calls": 30,
+    "max_judge_calls": 12,
+    "max_total_llm_calls_excluding_frank_karthic": 80
   },
   "quality_gates": {
     "min_rubric_rows": 8,

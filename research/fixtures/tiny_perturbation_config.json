@@ -1,0 +1,56 @@
+{
+  "run_id": "tiny_perturbation",
+  "source_case_path": "research/fixtures/tiny_source_case.txt",
+  "output_dir": "research/runs/tiny_perturbation",
+  "mode": "offline",
+  "response_prompt_style": "natural",
+  "response_models": [
+    {
+      "provider": "openai",
+      "model": "fixture-model-a",
+      "samples": 1,
+      "temperature": 0.2
+    },
+    {
+      "provider": "anthropic",
+      "model": "fixture-model-b",
+      "samples": 1,
+      "temperature": 0.2
+    }
+  ],
+  "fixture_responses_path": "research/fixtures/tiny_perturbation_responses.json",
+  "perturbations": {
+    "enabled": true,
+    "max_variations": 2,
+    "require_invariant": true,
+    "require_material": true
+  },
+  "clustering": {
+    "method": "hybrid_legal_feature_signature",
+    "min_cluster_size": 1,
+    "min_observed_clusters": 2,
+    "mixed_cluster_threshold": 0.34
+  },
+  "judge": {
+    "mode": "deterministic",
+    "model": "gpt-4o-mini",
+    "agreement_threshold": 0.7,
+    "escalation_margin": 0.2
+  },
+  "quality_gates": {
+    "min_rubric_rows": 5,
+    "max_duplicate_similarity": 0.82,
+    "required_categories": [
+      "gate",
+      "doctrine",
+      "rule",
+      "facts",
+      "writing",
+      "exceptions",
+      "counterargument",
+      "conclusion",
+      "variation",
+      "source_support"
+    ]
+  }
+}

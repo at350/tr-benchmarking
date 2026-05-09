@@ -128,3 +128,24 @@ body {
   background: #f8fafc;
   font-weight: 700;
 }
+
+.paper-figure {
+  margin: 1.6rem 0 2.1rem;
+}
+
+.paper-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+}
+
+.paper-figure figcaption {
+  margin-top: 0.55rem;
+  font-family: var(--font-geist-sans), "Avenir Next", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.45;
+  color: #334155;
+}

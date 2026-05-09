@@ -1,0 +1,557 @@
+{
+  "artifact_count": 104,
+  "artifacts": [
+    {
+      "bytes": 12746,
+      "path": "README_RESEARCH.md",
+      "sha256_16": "3cc06dd7b408cb0f"
+    },
+    {
+      "bytes": 13836,
+      "path": "VISION.md",
+      "sha256_16": "72f3f45d1c43bc62"
+    },
+    {
+      "bytes": 1119,
+      "path": "experiments/dasha-member-centroid-audit/analysis.md",
+      "sha256_16": "2d367b5d37b7254c"
+    },
+    {
+      "bytes": 1103,
+      "path": "experiments/dasha-member-centroid-audit/protocol.md",
+      "sha256_16": "11bc85164d840b5c"
+    },
+    {
+      "bytes": 1182,
+      "path": "experiments/dasha-source-gate-aliasing/analysis.md",
+      "sha256_16": "1a72fd8ac3da4587"
+    },
+    {
+      "bytes": 1103,
+      "path": "experiments/dasha-source-gate-aliasing/protocol.md",
+      "sha256_16": "33116b81e4c850c8"
+    },
+    {
+      "bytes": 731,
+      "path": "experiments/judge-panel-aggregation/analysis.md",
+      "sha256_16": "21aa19407cb54f5e"
+    },
+    {
+      "bytes": 1013,
+      "path": "experiments/judge-panel-aggregation/protocol.md",
+      "sha256_16": "0ff5746a6dcb90fd"
+    },
+    {
+      "bytes": 833,
+      "path": "experiments/judge-repeat-stability/analysis.md",
+      "sha256_16": "fc850361ea8ebd60"
+    },
+    {
+      "bytes": 1017,
+      "path": "experiments/judge-repeat-stability/protocol.md",
+      "sha256_16": "9a2113f967ad6822"
+    },
+    {
+      "bytes": 2292,
+      "path": "experiments/live-config-preflight/analysis.md",
+      "sha256_16": "e159e03d13e6ddb6"
+    },
+    {
+      "bytes": 1586,
+      "path": "experiments/live-config-preflight/protocol.md",
+      "sha256_16": "0b3d204a4be90088"
+    },
+    {
+      "bytes": 4102,
+      "path": "experiments/live-config-preflight/results.json",
+      "sha256_16": "2e7e8bc047db5fcb"
+    },
+    {
+      "bytes": 2591,
+      "path": "experiments/method-readiness/analysis.md",
+      "sha256_16": "6fae7065c913228c"
+    },
+    {
+      "bytes": 1201,
+      "path": "experiments/method-readiness/protocol.md",
+      "sha256_16": "75f0454727c848aa"
+    },
+    {
+      "bytes": 4049,
+      "path": "experiments/method-readiness/results/method_readiness.json",
+      "sha256_16": "8bc31b94f2763023"
+    },
+    {
+      "bytes": 1069,
+      "path": "experiments/non-sof-contract-transfer-smoke/analysis.md",
+      "sha256_16": "a837fb3d40b04afb"
+    },
+    {
+      "bytes": 1423,
+      "path": "experiments/non-sof-contract-transfer-smoke/protocol.md",
+      "sha256_16": "1b351ca862bac59f"
+    },
+    {
+      "bytes": 502,
+      "path": "experiments/paper-static-lint/analysis.md",
+      "sha256_16": "809113fb84c3947e"
+    },
+    {
+      "bytes": 664,
+      "path": "experiments/paper-static-lint/protocol.md",
+      "sha256_16": "07f8cc0139f1ec59"
+    },
+    {
+      "bytes": 805,
+      "path": "experiments/protocol-freeze-manifest/analysis.md",
+      "sha256_16": "9536d6e9d891d911"
+    },
+    {
+      "bytes": 873,
+      "path": "experiments/protocol-freeze-manifest/protocol.md",
+      "sha256_16": "59ecc56a43fc378d"
+    },
+    {
+      "bytes": 2149,
+      "path": "experiments/run-bundle-integrity/analysis.md",
+      "sha256_16": "728e419d62094806"
+    },
+    {
+      "bytes": 5812,
+      "path": "experiments/run-bundle-integrity/results.json",
+      "sha256_16": "a9b7dc11c5473c26"
+    },
+    {
+      "bytes": 739,
+      "path": "experiments/security-lint/analysis.md",
+      "sha256_16": "c56e60c597208561"
+    },
+    {
+      "bytes": 781,
+      "path": "experiments/security-lint/protocol.md",
+      "sha256_16": "e1fca21a8e6ef8ea"
+    },
+    {
+      "bytes": 193,
+      "path": "experiments/security-lint/results.json",
+      "sha256_16": "addd09efcc4f530e"
+    },
+    {
+      "bytes": 880,
+      "path": "experiments/zak-positive-escalation-regression/analysis.md",
+      "sha256_16": "a4429916228b98b0"
+    },
+    {
+      "bytes": 1046,
+      "path": "experiments/zak-positive-escalation-regression/protocol.md",
+      "sha256_16": "b9b7a63d9aefa60f"
+    },
+    {
+      "bytes": 16320,
+      "path": "findings.md",
+      "sha256_16": "9b528718790fb701"
+    },
+    {
+      "bytes": 56433,
+      "path": "paper/figures/fig_clustering_judging.png",
+      "sha256_16": "2dfc1eb7e3452ed5"
+    },
+    {
+      "bytes": 6598,
+      "path": "paper/figures/fig_clustering_judging.svg",
+      "sha256_16": "14a41b36ea28459d"
+    },
+    {
+      "bytes": 62784,
+      "path": "paper/figures/fig_perturbation_tracks.png",
+      "sha256_16": "dc49d778c5677ab0"
+    },
+    {
+      "bytes": 6536,
+      "path": "paper/figures/fig_perturbation_tracks.svg",
+      "sha256_16": "1c8f34e04ea78f46"
+    },
+    {
+      "bytes": 64552,
+      "path": "paper/figures/fig_pipeline_overview.png",
+      "sha256_16": "b887736816990a0a"
+    },
+    {
+      "bytes": 7133,
+      "path": "paper/figures/fig_pipeline_overview.svg",
+      "sha256_16": "c7e8c4392c33437d"
+    },
+    {
+      "bytes": 9159,
+      "path": "paper/figures/generate_figures.mjs",
+      "sha256_16": "446ee38ab6a7fe0c"
+    },
+    {
+      "bytes": 833,
+      "path": "paper/main.tex",
+      "sha256_16": "7608781eeb779acf"
+    },
+    {
+      "bytes": 4665,
+      "path": "paper/references.bib",
+      "sha256_16": "8585258e09660d74"
+    },
+    {
+      "bytes": 2087,
+      "path": "paper/sections/abstract.tex",
+      "sha256_16": "08b440dafffdc56a"
+    },
+    {
+      "bytes": 9736,
+      "path": "paper/sections/artifact_examples.tex",
+      "sha256_16": "dbf83678b1b1754f"
+    },
+    {
+      "bytes": 4057,
+      "path": "paper/sections/contributions.tex",
+      "sha256_16": "47185a077e1db622"
+    },
+    {
+      "bytes": 3084,
+      "path": "paper/sections/discussion.tex",
+      "sha256_16": "5827978523b3b65e"
+    },
+    {
+      "bytes": 7328,
+      "path": "paper/sections/instruction_context_appendix.tex",
+      "sha256_16": "a393bc3b8161f0f2"
+    },
+    {
+      "bytes": 2378,
+      "path": "paper/sections/introduction.tex",
+      "sha256_16": "c938bccce888bb4c"
+    },
+    {
+      "bytes": 3074,
+      "path": "paper/sections/limitations.tex",
+      "sha256_16": "af6f4325eda88719"
+    },
+    {
+      "bytes": 23985,
+      "path": "paper/sections/methods.tex",
+      "sha256_16": "3f95c969a3bcbe98"
+    },
+    {
+      "bytes": 3045,
+      "path": "paper/sections/related_work.tex",
+      "sha256_16": "b6e35e53103c7f2c"
+    },
+    {
+      "bytes": 10795,
+      "path": "paper/sections/reproducibility.tex",
+      "sha256_16": "de697984adbb7de0"
+    },
+    {
+      "bytes": 6216,
+      "path": "paper/sections/results.tex",
+      "sha256_16": "1341762d023b4dcf"
+    },
+    {
+      "bytes": 2415,
+      "path": "paper/sections/review_readiness.tex",
+      "sha256_16": "444da8d3fd57a6b3"
+    },
+    {
+      "bytes": 6867,
+      "path": "paper/sections/stage_assessment.tex",
+      "sha256_16": "0dca386f5a46c124"
+    },
+    {
+      "bytes": 6865,
+      "path": "paper/sections/validation.tex",
+      "sha256_16": "4e0ca234bf3485b0"
+    },
+    {
+      "bytes": 621,
+      "path": "paper/tables/dasha_cluster_summary.tex",
+      "sha256_16": "41eef84fb3e9725b"
+    },
+    {
+      "bytes": 1526,
+      "path": "paper/tables/doctrine_transfer_argument.tex",
+      "sha256_16": "c49a0b99f5630db3"
+    },
+    {
+      "bytes": 268,
+      "path": "paper/tables/internal_stress_summary.tex",
+      "sha256_16": "f7a8434cfbd911dc"
+    },
+    {
+      "bytes": 893,
+      "path": "paper/tables/internal_validation_summary.tex",
+      "sha256_16": "019750ffe56f1aa5"
+    },
+    {
+      "bytes": 218,
+      "path": "paper/tables/model_rankings.tex",
+      "sha256_16": "4c7bcc7849b2112e"
+    },
+    {
+      "bytes": 444,
+      "path": "paper/tables/natural_response_audit.tex",
+      "sha256_16": "9477a09c8e18ed9e"
+    },
+    {
+      "bytes": 252,
+      "path": "paper/tables/perturbation_validation_summary.tex",
+      "sha256_16": "b4f97c896562b8c1"
+    },
+    {
+      "bytes": 1755,
+      "path": "paper/tables/review_readiness.tex",
+      "sha256_16": "b983a5199e32fc83"
+    },
+    {
+      "bytes": 1734,
+      "path": "paper/tables/stage_artifact_assessment.tex",
+      "sha256_16": "f67a9d2153246d74"
+    },
+    {
+      "bytes": 8421,
+      "path": "research-log.md",
+      "sha256_16": "d114352508479154"
+    },
+    {
+      "bytes": 10643,
+      "path": "research-state.yaml",
+      "sha256_16": "2d1154d26c701316"
+    },
+    {
+      "bytes": 2724,
+      "path": "research/fixtures/live_multi_provider_config.example.json",
+      "sha256_16": "b2d60021d629d068"
+    },
+    {
+      "bytes": 1974,
+      "path": "research/fixtures/live_natural_response_batch_config.example.json",
+      "sha256_16": "6ef914c557586ccf"
+    },
+    {
+      "bytes": 1060,
+      "path": "research/fixtures/tiny_contract_config.json",
+      "sha256_16": "4c10e63b9320f673"
+    },
+    {
+      "bytes": 1306,
+      "path": "research/fixtures/tiny_perturbation_config.json",
+      "sha256_16": "fbf1469b2c419a41"
+    },
+    {
+      "bytes": 189,
+      "path": "research/validation/__init__.py",
+      "sha256_16": "ae93b92670c541bb"
+    },
+    {
+      "bytes": 15116,
+      "path": "research/validation/__main__.py",
+      "sha256_16": "dd4d6a5cfb549c2b"
+    },
+    {
+      "bytes": 8360,
+      "path": "research/validation/audit.py",
+      "sha256_16": "75c51b6e2972d175"
+    },
+    {
+      "bytes": 3454,
+      "path": "research/validation/budget.py",
+      "sha256_16": "6081635b4534ba14"
+    },
+    {
+      "bytes": 10745,
+      "path": "research/validation/claim_ledger.py",
+      "sha256_16": "58291e4be0e58932"
+    },
+    {
+      "bytes": 7588,
+      "path": "research/validation/config.py",
+      "sha256_16": "fc740d1b6e3758fa"
+    },
+    {
+      "bytes": 18660,
+      "path": "research/validation/dasha.py",
+      "sha256_16": "ad3e372107f63f64"
+    },
+    {
+      "bytes": 30473,
+      "path": "research/validation/frank.py",
+      "sha256_16": "00c6ac75e7c2fc97"
+    },
+    {
+      "bytes": 3765,
+      "path": "research/validation/freeze.py",
+      "sha256_16": "75d4574ed14660cf"
+    },
+    {
+      "bytes": 2630,
+      "path": "research/validation/handoff_manifest.py",
+      "sha256_16": "32561a6da7b47380"
+    },
+    {
+      "bytes": 2339,
+      "path": "research/validation/instruction_context.py",
+      "sha256_16": "fd5a9c9402278a2c"
+    },
+    {
+      "bytes": 11986,
+      "path": "research/validation/internal_stress.py",
+      "sha256_16": "f49f3243110e7a25"
+    },
+    {
+      "bytes": 22308,
+      "path": "research/validation/internal_validation.py",
+      "sha256_16": "5e2107af35d9402c"
+    },
+    {
+      "bytes": 15554,
+      "path": "research/validation/judge.py",
+      "sha256_16": "41fd4858977e731e"
+    },
+    {
+      "bytes": 8509,
+      "path": "research/validation/karthic.py",
+      "sha256_16": "b6cf16bfcdd4692e"
+    },
+    {
+      "bytes": 17615,
+      "path": "research/validation/llm_agents.py",
+      "sha256_16": "9f2d6151ec625b28"
+    },
+    {
+      "bytes": 2894,
+      "path": "research/validation/metrics.py",
+      "sha256_16": "11de43ca8c22464a"
+    },
+    {
+      "bytes": 7846,
+      "path": "research/validation/openai_client.py",
+      "sha256_16": "6877f415f9e3c900"
+    },
+    {
+      "bytes": 6219,
+      "path": "research/validation/paper_lint.py",
+      "sha256_16": "33e084205871a78d"
+    },
+    {
+      "bytes": 7990,
+      "path": "research/validation/perturbations.py",
+      "sha256_16": "484d8006c04af8b7"
+    },
+    {
+      "bytes": 8040,
+      "path": "research/validation/pipeline.py",
+      "sha256_16": "531ab1f8406eaac5"
+    },
+    {
+      "bytes": 7562,
+      "path": "research/validation/preflight.py",
+      "sha256_16": "349733c217edfbe3"
+    },
+    {
+      "bytes": 9053,
+      "path": "research/validation/provider_client.py",
+      "sha256_16": "7a51ff374c321d00"
+    },
+    {
+      "bytes": 4212,
+      "path": "research/validation/quality.py",
+      "sha256_16": "ac58e49d4c808be5"
+    },
+    {
+      "bytes": 11078,
+      "path": "research/validation/readiness.py",
+      "sha256_16": "1921699d0bb4d927"
+    },
+    {
+      "bytes": 3282,
+      "path": "research/validation/report.py",
+      "sha256_16": "3a171fd0ce4db66c"
+    },
+    {
+      "bytes": 6754,
+      "path": "research/validation/review_pack.py",
+      "sha256_16": "6aee2affde171a78"
+    },
+    {
+      "bytes": 9300,
+      "path": "research/validation/run_bundle.py",
+      "sha256_16": "e2fbd736a3c968dc"
+    },
+    {
+      "bytes": 3801,
+      "path": "research/validation/secrets_lint.py",
+      "sha256_16": "cafd7b5564abefe6"
+    },
+    {
+      "bytes": 1552,
+      "path": "research/validation/utils.py",
+      "sha256_16": "5c0673affba39353"
+    },
+    {
+      "bytes": 1957,
+      "path": "to_human/autoresearch_progress.md",
+      "sha256_16": "8bad9d4c1098570f"
+    },
+    {
+      "bytes": 7619,
+      "path": "to_human/claim_ledger.json",
+      "sha256_16": "c37cccc25b040cce"
+    },
+    {
+      "bytes": 3720,
+      "path": "to_human/claim_ledger.md",
+      "sha256_16": "356810a58980b3c1"
+    },
+    {
+      "bytes": 1336,
+      "path": "to_human/internal_review_packet.json",
+      "sha256_16": "30f273886d9617b5"
+    },
+    {
+      "bytes": 1415,
+      "path": "to_human/internal_review_packet.md",
+      "sha256_16": "9432487d94ef6bdc"
+    },
+    {
+      "bytes": 2120,
+      "path": "to_human/method_readiness_report.md",
+      "sha256_16": "ba66cc3dd0a5634f"
+    }
+  ],
+  "excluded_filenames": [
+    "handoff_manifest.json",
+    "no_call_audit.html",
+    "no_call_audit.json",
+    "no_call_audit.md"
+  ],
+  "manifest_hash": "115e6ac08834987e",
+  "patterns": [
+    "README_RESEARCH.md",
+    "VISION.md",
+    "findings.md",
+    "research-log.md",
+    "research-state.yaml",
+    "paper/main.tex",
+    "paper/references.bib",
+    "paper/sections/*.tex",
+    "paper/tables/*.tex",
+    "paper/figures/*",
+    "research/fixtures/live_multi_provider_config.example.json",
+    "research/fixtures/live_natural_response_batch_config.example.json",
+    "research/fixtures/tiny_perturbation_config.json",
+    "research/fixtures/tiny_contract_config.json",
+    "experiments/*/protocol.md",
+    "experiments/*/analysis.md",
+    "experiments/*/results*.json",
+    "experiments/*/results/*.json",
+    "to_human/*.md",
+    "to_human/*.json",
+    "research/validation/*.py"
+  ],
+  "schema_version": "research.handoff_manifest.v1",
+  "status": "handoff_manifest_ready"
+}

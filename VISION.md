@@ -16,6 +16,35 @@ evidence that each automated stage works well enough to justify the pipeline as
 a research method. Expert legal review remains a future publication-hardening
 step, not the dependency for the present internal manuscript.
 
+The manuscript must validate the pipeline stage by stage. It should not merely
+say that the pipeline ran. For each stage, it should ask whether the generated
+artifact is legally and methodologically good enough for the next stage:
+
+- Frank: Is the doctrine framing legally solid, source-grounded, and consistent
+  with the examples and instruction context? Is the benchmark question neutral?
+  Is the gold answer the answer we expected from the source? Are the generated
+  perturbation questions executable, with clear invariant versus material
+  expectations?
+- Karthic: Is the rubric derived from Frank's gold packet, comprehensive,
+  non-generic, non-duplicative, weighted, source-supported, and useful for
+  judging real model answers?
+- Model responses: Did the benchmarked models answer the same Frank question
+  and the selected perturbation questions naturally, without hidden labels, gold
+  answers, or forced answer sections?
+- Dasha: Do the clusters represent genuinely similar legal reasoning rather
+  than surface phrasing, and do sampled members belong with their centroids?
+- Judge: Does the LLM-as-judge apply every rubric row to the centroid in an
+  explainable way, project scores correctly to members, and produce rankings
+  that follow from the rubric rather than from model identity?
+- Zak: Are failures, disagreement, low confidence, or mixed clusters surfaced
+  as escalation packets instead of being silently accepted?
+
+"Good" for the present internal manuscript means that automated gates pass and
+the artifacts survive a research-team review against those questions. It does
+not mean final publication truth; it means the pipeline has produced coherent,
+auditable artifacts on a real case and has shown a plausible transfer mechanism
+for other cases and doctrines.
+
 ## Final User Experience
 
 A research team member should be able to provide a legal source case and run the
@@ -75,20 +104,16 @@ and understand exactly what legal reasoning the model is being judged on.
 
 The response generation stage should run a configurable roster of actual model
 identifiers, including GPT, Claude, Gemini, Llama, and any other model families
-added later. Each model should answer the same Frank-generated question under
-the same controlled format; infrastructure used to reach those models is
-implementation detail, not the research object.
+added later. Each model should answer the same Frank-generated question in its
+natural response style. The default response prompt should be the question only:
+no system prompt, no hidden gold answer, no source excerpt outside the question,
+and no required jurisdiction/outcome/doctrine heading template. Infrastructure
+used to reach those models is implementation detail, not the research object.
 
-Responses should use a structured format aligned with the gold answer:
-
-- Jurisdiction assumption
-- Bottom-line outcome
-- Controlling doctrine
-- Transaction / formation characterization
-- Writing requirement and trigger, or doctrine-specific equivalent
-- Compliance / substitute / exception analysis, or doctrine-specific equivalent
-- Other defenses or competing doctrines
-- Strongest counterargument
+Structured legal fields belong to Frank, Karthic, Dasha, and Judge artifacts,
+not to the benchmarked model responses. Dasha should recover jurisdiction,
+outcome, doctrine, trigger, exception, counterargument, and reasoning path after
+the fact from whatever answer the model naturally gives.
 
 The system should support large batches, including hundreds of responses across
 models, samples, and temperatures. Every generation must record the actual model
@@ -165,6 +190,27 @@ The final research product should include evidence for:
 - Model ranking validity: confidence intervals, sensitivity analyses, and
   robustness across cases and variations
 
+For the current pre-expert-review manuscript, the evidence should be organized
+as a source-to-score case study plus robustness checks:
+
+- Source-to-score case study: one real source case is carried through Frank,
+  Karthic, model response generation, Dasha, Judge, Zak, and paper export.
+- Stage artifact review: each generated artifact is evaluated against the
+  stage-specific quality question above, not merely against a JSON schema.
+- Natural-response clustering check: response models answer naturally, then
+  Dasha clusters only after generation.
+- Perturbation check: invariant edits, such as party-name changes, should
+  preserve the dominant legal answer path; material edits, such as changing a
+  legally operative duration or writing fact, should change the dominant answer
+  path or reasoning signature.
+- Controlled scale check: a 500-response fixture tests clustering bookkeeping,
+  centroid projection, and metrics at target scale without being mistaken for
+  natural-response discovery evidence.
+- Doctrine-transfer argument: the paper must explain exactly which components
+  are doctrine-general, which SOF-specific contexts were used for calibration,
+  and what evidence remains necessary before claiming broad legal-domain
+  validity.
+
 Expected metrics include, where appropriate:
 
 - Cohen's kappa or weighted kappa
@@ -186,8 +232,12 @@ should contain:
 - validation design: held-out internal cases, metrics, confidence intervals,
   and later expert review
 - results: accuracy, reliability, cluster quality, model rankings, error modes
+- stage-by-stage artifact assessment: Frank packet quality, Karthic rubric
+  quality, Dasha cluster coherence, Judge row scoring, and Zak escalation
 - discussion: why clustering by reasoning gives more insight than scoring every
   answer independently
+- transfer discussion: why the architecture is designed to work beyond SOF and
+  what validation would be required to prove that claim
 - limitations: domain coverage, judge bias, source-case dependence, model
   version drift, and need for broader doctrine validation
 - reproducibility appendix: configs, prompts, hashes, model settings, and run

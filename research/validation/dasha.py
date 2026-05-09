@@ -1,4 +1,4 @@
-"""Dasha legal-reasoning clustering with deterministic SOF fallback fixtures."""
+"""Dasha legal-reasoning clustering for source-grounded benchmark responses."""
 
 from __future__ import annotations
 
@@ -120,6 +120,17 @@ def _feature_match_score(left: dict, right: dict) -> float:
     return sum(1 for key in keys if left.get(key) == right.get(key)) / len(keys)
 
 
+def _member_signal_key(member: dict) -> tuple[str, ...]:
+    if "_dasha_normalized_signature" in member:
+        return tuple(str(item) for item in member["_dasha_normalized_signature"])
+    signal = member.get("legal_signal", {})
+    if signal:
+        return tuple(str(signal.get(key, "")) for key in ("gate", "outcome", "exception", "reasoning"))
+    if "reasoning_signature" in member:
+        return _normalized_signature(member["reasoning_signature"])
+    return ("unknown",)
+
+
 def _signature_text(signature: dict) -> str:
     values = []
     for key in ("doctrine", "issue", "rule_trigger", "outcome", "exception_or_defense", "reasoning_path", "conclusion"):
@@ -132,6 +143,40 @@ def _signature_text(signature: dict) -> str:
 
 def _bucket_outcome(signature: dict) -> str:
     text = _signature_text(signature)
+    if _contains_any(
+        text,
+        (
+            "seller has the stronger",
+            "seller's argument",
+            "seller argues",
+            "exclusive remedy",
+            "limits all remedies",
+            "displacing damages",
+            "displace damages",
+        ),
+    ) and not _contains_any(
+        text,
+        (
+            "buyer has the stronger",
+            "buyer's interpretation likely prevails",
+            "buyer likely prevails",
+            "preserves damages",
+            "all remedies available",
+        ),
+    ):
+        return "seller_limited_remedy_controls"
+    if _contains_any(
+        text,
+        (
+            "buyer has the stronger",
+            "buyer's interpretation likely prevails",
+            "buyer likely prevails",
+            "preserves damages",
+            "all remedies available",
+            "damages available",
+        ),
+    ):
+        return "buyer_remedy_preserved"
     if _contains_any(text, ("later-named", "children and sister", "replacement certificate controls", "later beneficiaries", "superior claim to the death")) and not _contains_any(text, ("wife prevails", "wife entitled", "wife favored", "spouse likely has superior")):
         return "later_beneficiaries_control"
     if _contains_any(text, ("wife prevails", "wife entitled", "wife favored", "spouse likely has superior", "wife has superior", "wife has the better", "spouse has the stronger")):
@@ -143,8 +188,84 @@ def _bucket_outcome(signature: dict) -> str:
     return "outcome_uncertain"
 
 
-def _bucket_trigger(signature: dict) -> str:
+def _slug(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")[:80] or "unknown"
+
+
+def _tokens(value: str) -> set[str]:
+    stop = {
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "by",
+        "for",
+        "from",
+        "in",
+        "is",
+        "of",
+        "or",
+        "the",
+        "to",
+        "with",
+    }
+    return {token for token in re.findall(r"[a-z0-9]+", value.lower()) if len(token) > 2 and token not in stop}
+
+
+def _source_gate_aliases(frank_packet: dict | None = None) -> dict[str, tuple[str, ...]]:
+    """Build doctrine-general trigger aliases from Frank's detected gates."""
+
+    if not frank_packet:
+        return {}
+    raw_gates = (
+        frank_packet.get("doctrine_gates")
+        or frank_packet.get("detected_doctrine_gates")
+        or frank_packet.get("statute_of_frauds", {}).get("gates")
+        or []
+    )
+    aliases: dict[str, tuple[str, ...]] = {}
+    for gate in raw_gates:
+        if not isinstance(gate, dict):
+            continue
+        gate_id = _slug(str(gate.get("id") or gate.get("label") or gate.get("rule") or "gate"))
+        candidates = [
+            str(gate.get("id", "")),
+            str(gate.get("label", "")),
+            str(gate.get("rule", "")),
+            str(gate.get("source_evidence", "")),
+        ]
+        aliases[gate_id] = tuple(
+            sorted({candidate.lower().strip() for candidate in candidates if candidate and candidate.strip()})
+        )
+    return aliases
+
+
+def _bucket_from_source_gates(text: str, gate_aliases: dict[str, tuple[str, ...]]) -> str | None:
+    if not gate_aliases:
+        return None
+    text_tokens = _tokens(text)
+    best_gate: str | None = None
+    best_score = 0.0
+    for gate_id, aliases in gate_aliases.items():
+        score = 0.0
+        for alias in aliases:
+            if alias and alias in text:
+                score = max(score, 1.0)
+            alias_tokens = _tokens(alias)
+            if alias_tokens:
+                score = max(score, len(text_tokens & alias_tokens) / len(alias_tokens))
+        if score > best_score:
+            best_gate = gate_id
+            best_score = score
+    return best_gate if best_score >= 0.5 else None
+
+
+def _bucket_trigger(signature: dict, gate_aliases: dict[str, tuple[str, ...]] | None = None) -> str:
     text = _signature_text(signature)
+    source_gate = _bucket_from_source_gates(text, gate_aliases or {})
+    if source_gate:
+        return source_gate
     if _contains_any(text, ("marriage", "premarital", "spouse", "wife", "fiancee", "fiancée")):
         if _contains_any(text, ("certificate", "beneficiary", "designation", "replacement")):
             return "marriage_beneficiary_certificate"
@@ -209,9 +330,13 @@ def _centroid_quality(members: list[dict], representative_id: str) -> dict:
     }
 
 
-def cluster_responses(responses: list[dict], primary_gate_id: str | None = None) -> dict:
+def cluster_responses(
+    responses: list[dict],
+    primary_gate_id: str | None = None,
+    frank_packet: dict | None = None,
+) -> dict:
     if responses and all("reasoning_signature" in response for response in responses):
-        return cluster_responses_by_signature(responses)
+        return cluster_responses_by_signature(responses, frank_packet=frank_packet)
 
     grouped: dict[tuple[str, str, str, str], list[dict]] = defaultdict(list)
     for response in responses:
@@ -246,7 +371,10 @@ def cluster_responses(responses: list[dict], primary_gate_id: str | None = None)
     }
 
 
-def _normalized_signature(signature: dict) -> tuple[str, str, str, str, str]:
+def _normalized_signature(
+    signature: dict,
+    gate_aliases: dict[str, tuple[str, ...]] | None = None,
+) -> tuple[str, str, str, str, str]:
     doctrine = _signature_text({"doctrine": signature.get("doctrine", "")})
     if "statute of frauds" in doctrine or "sof" in doctrine:
         doctrine_bucket = "statute_of_frauds"
@@ -256,17 +384,19 @@ def _normalized_signature(signature: dict) -> tuple[str, str, str, str, str]:
         doctrine_bucket = re.sub(r"[^a-z0-9]+", "_", doctrine).strip("_")[:80] or "unknown"
     return (
         doctrine_bucket,
-        _bucket_trigger(signature),
+        _bucket_trigger(signature, gate_aliases=gate_aliases),
         _bucket_outcome(signature),
         _bucket_exception(signature),
         "reasoning_bucket_v2",
     )
 
 
-def cluster_responses_by_signature(responses: list[dict]) -> dict:
+def cluster_responses_by_signature(responses: list[dict], frank_packet: dict | None = None) -> dict:
+    gate_aliases = _source_gate_aliases(frank_packet)
     grouped: dict[tuple[str, str, str, str, str], list[dict]] = defaultdict(list)
     for response in responses:
-        grouped[_normalized_signature(response["reasoning_signature"])].append(response)
+        signature_key = _normalized_signature(response["reasoning_signature"], gate_aliases=gate_aliases)
+        grouped[signature_key].append({**response, "_dasha_normalized_signature": list(signature_key)})
 
     clusters = []
     for index, (signature_key, members) in enumerate(sorted(grouped.items()), start=1):
@@ -296,6 +426,7 @@ def cluster_responses_by_signature(responses: list[dict]) -> dict:
             },
             "representative_response_id": representative_id,
             "member_response_ids": [member["id"] for member in members],
+            "normalized_cluster_key": list(signature_key),
             "members": members,
             "size": len(members),
             "centroid_quality": {
@@ -310,5 +441,10 @@ def cluster_responses_by_signature(responses: list[dict]) -> dict:
     return {
         "schema_version": "research.dasha.llm.v1",
         "method": "llm_reasoning_signature",
+        "normalization": {
+            "version": "reasoning_bucket_v2",
+            "source_gate_aliases_used": bool(gate_aliases),
+            "source_gate_ids": sorted(gate_aliases),
+        },
         "clusters": clusters,
     }

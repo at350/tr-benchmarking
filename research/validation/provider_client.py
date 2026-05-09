@@ -19,11 +19,23 @@ def _env_value(repo_root: Path, name: str) -> str:
     direct = os.environ.get(name, "").strip()
     if direct:
         return direct
-    for env_path in (repo_root / ".env", repo_root / "frontend" / ".env", repo_root / "lsh" / ".env"):
+    for env_path in (repo_root / ".env", repo_root / "frontend" / ".env"):
         candidate = _read_env_file(env_path).get(name, "").strip()
         if candidate:
             return candidate
     raise RuntimeError(f"{name} is not set in process env or ignored local env files.")
+
+
+def _env_value_any(repo_root: Path, names: tuple[str, ...]) -> str:
+    for name in names:
+        try:
+            return _env_value(repo_root, name)
+        except RuntimeError:
+            continue
+    raise RuntimeError(
+        "None of these credential names are set in process env or ignored local env files: "
+        + ", ".join(names)
+    )
 
 
 def _post_json(url: str, headers: dict[str, str], body: dict[str, Any], timeout: int = 120) -> dict[str, Any]:
@@ -101,8 +113,9 @@ def _anthropic_text(repo_root: Path, model: str, messages: list[dict[str, str]],
 
 def _gemini_text(repo_root: Path, model: str, messages: list[dict[str, str]], temperature: float, max_tokens: int) -> str:
     prompt = "\n\n".join(f"{message['role'].upper()}:\n{message['content']}" for message in messages)
+    api_key = _env_value_any(repo_root, ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"))
     payload = _post_json(
-        f"https://generativelanguage.googleapis.com/v1beta/models/{quote(model)}:generateContent?key={_env_value(repo_root, 'GEMINI_API_KEY')}",
+        f"https://generativelanguage.googleapis.com/v1beta/models/{quote(model)}:generateContent?key={api_key}",
         {},
         {
             "contents": [{"parts": [{"text": prompt}]}],

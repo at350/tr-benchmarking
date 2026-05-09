@@ -1,0 +1,62 @@
+[
+  {
+    "id": "base_a",
+    "model": "fixture-model-a",
+    "question_id": "frank_tiny_perturbation:original",
+    "track_id": "original",
+    "variant_id": "original",
+    "perturbation_type": "base",
+    "expected_behavior": "baseline",
+    "text": "The wife has the better claim. The controlling issue is the marriage provision of the Statute of Frauds. The premarital promise induced marriage, and the certificate naming her as beneficiary supports the promised change despite the later replacement certificate."
+  },
+  {
+    "id": "base_b",
+    "model": "fixture-model-b",
+    "question_id": "frank_tiny_perturbation:original",
+    "track_id": "original",
+    "variant_id": "original",
+    "perturbation_type": "base",
+    "expected_behavior": "baseline",
+    "text": "The wife likely wins because the marriage-conditioned promise and beneficiary certificate create enforceable rights. The later-named beneficiaries can argue the replacement controls, but the wife still has the better legal path."
+  },
+  {
+    "id": "surface_a",
+    "model": "fixture-model-a",
+    "question_id": "frank_tiny_perturbation:surface_party_name_swap",
+    "track_id": "surface_party_name_swap",
+    "variant_id": "surface_party_name_swap",
+    "perturbation_type": "invariant",
+    "expected_behavior": "answer_invariant",
+    "text": "Changing the association name to Beta Mutual should not affect the legal answer. The wife has the better claim for the same marriage-promise and certificate reasons."
+  },
+  {
+    "id": "surface_b",
+    "model": "fixture-model-b",
+    "question_id": "frank_tiny_perturbation:surface_party_name_swap",
+    "track_id": "surface_party_name_swap",
+    "variant_id": "surface_party_name_swap",
+    "perturbation_type": "invariant",
+    "expected_behavior": "answer_invariant",
+    "text": "The name change is legally irrelevant. The spouse still likely wins because the premarital marriage promise and the certificate naming her support enforceable beneficiary rights."
+  },
+  {
+    "id": "material_a",
+    "model": "fixture-model-a",
+    "question_id": "frank_tiny_perturbation:marriage_no_writing",
+    "track_id": "marriage_no_writing",
+    "variant_id": "marriage_no_writing",
+    "perturbation_type": "material",
+    "expected_behavior": "bar_more_likely",
+    "text": "Without any certificate, signed designation, or other writing, the marriage provision of the Statute of Frauds likely bars enforcing the premarital promise."
+  },
+  {
+    "id": "material_b",
+    "model": "fixture-model-b",
+    "question_id": "frank_tiny_perturbation:marriage_no_writing",
+    "track_id": "marriage_no_writing",
+    "variant_id": "marriage_no_writing",
+    "perturbation_type": "material",
+    "expected_behavior": "bar_more_likely",
+    "text": "The answer changes when no writing or beneficiary certificate exists. The wife may have reliance arguments, but the Statute of Frauds marriage provision likely bars the oral promise."
+  }
+]

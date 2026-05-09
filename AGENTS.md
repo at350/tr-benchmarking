@@ -11,11 +11,9 @@ reasoning, score centroids with a rubric, and rank models.
 
 Do not claim the project is publishable yet. The current state is a working
 general LLM-driven pipeline path plus SOF offline regression tests and a small
-three-provider live smoke using OpenAI, Anthropic, and Replicate as providers.
-The actual Replicate-served response model in the current smoke config is
-`meta/meta-llama-3-70b-instruct`. The next work is larger calibration across
-multiple SOF cases, more model samples, repeated judge scoring, and eventually
-held-out expert labels.
+natural-response live batch across several model identifiers. The next work is
+larger calibration across multiple SOF cases, more model samples, repeated judge
+scoring, and eventually held-out expert labels.
 
 Important: SOF is a calibration domain, not a live-path assumption. The live
 Frank/Karthic/Dasha path loads `instructions/00_GENERAL_LEGAL_REASONING_PROTOCOL.md`
@@ -62,10 +60,12 @@ Use `research/validation/` as the source of truth:
 2. Frank emits source traceability, neutral question, gold answer, boundary
    variations, and controller card.
 3. Karthic builds a dynamic rubric from the locked Frank packet.
-4. Dasha clusters model responses by legal reasoning.
-5. Judge scores cluster representatives against the rubric.
-6. Judge projects centroid scores to cluster members and ranks models.
-7. Zak emits escalation packets only when configured uncertainty/disagreement
+4. Perturbation tracks convert selected Frank variations into executable
+   invariant and material question edits.
+5. Dasha clusters model responses by legal reasoning within each question track.
+6. Judge scores cluster representatives against the rubric.
+7. Judge projects centroid scores to cluster members and ranks models.
+8. Zak emits escalation packets only when configured uncertainty/disagreement
    thresholds are met.
 
 ## Run Commands
@@ -95,6 +95,20 @@ python3 -m research.validation run --config research/fixtures/live_three_provide
 python3 -m research.validation validate --run-dir research/runs/live_three_provider_smoke --table paper/tables/internal_validation_summary.tex
 ```
 
+Current natural-response live batch used by the manuscript:
+
+```bash
+python3 -m research.validation run --config research/fixtures/live_natural_response_batch_config.example.json
+python3 -m research.validation validate --run-dir research/runs/live_natural_response_batch --table paper/tables/internal_validation_summary.tex --natural-table paper/tables/natural_response_audit.tex --artifact-section paper/sections/artifact_examples.tex
+```
+
+Perturbation smoke, no API calls:
+
+```bash
+python3 -m research.validation run --config research/fixtures/tiny_perturbation_config.json
+python3 -m research.validation validate --run-dir research/runs/tiny_perturbation --perturbation-table paper/tables/perturbation_validation_summary.tex
+```
+
 Internal 500-response stress suite, no API calls:
 
 ```bash
@@ -111,7 +125,6 @@ Required checks:
 
 ```bash
 python3 -m unittest discover -s research/validation/tests -p 'test*.py'
-PYTHONPATH=. python3 -m unittest discover -s tests -p 'test*.py'  # from rubric-automation/
 python3 -m py_compile $(find research/validation -name '*.py' -not -path '*/__pycache__/*')
 cd frontend && npm run build
 ```

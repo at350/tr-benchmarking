@@ -4,6 +4,7 @@
   "source_case_path": "research/fixtures/tiny_source_case.txt",
   "output_dir": "research/runs/live_openai_anthropic_smoke",
   "mode": "live_multi_provider",
+  "response_prompt_style": "natural",
   "agents": {
     "frank": {
       "mode": "llm",
@@ -41,6 +42,7 @@
   "clustering": {
     "method": "llm_reasoning_signature",
     "min_cluster_size": 1,
+    "min_observed_clusters": 1,
     "mixed_cluster_threshold": 0.34,
     "provider": "openai",
     "model": "gpt-5.2"
@@ -50,7 +52,8 @@
     "provider": "openai",
     "model": "gpt-5.2",
     "agreement_threshold": 0.7,
-    "escalation_margin": 0.2
+    "escalation_margin": 0.2,
+    "repeats": 2
   },
   "quality_gates": {
     "min_rubric_rows": 8,

@@ -10,14 +10,13 @@ datasets/.DS_Store
 # Python/runtime artifacts
 __pycache__/
 *.py[cod]
+.venv/
 .pytest_cache/
 .mypy_cache/
+.env
+.env.*
 
 # Fresh research outputs are generated locally and promoted only as curated fixtures.
 research/runs/
 research/tmp/
 legal-workflow-data/
-lsh/data/
-lsh/results/
-lsh-IRAC/data/
-lsh-IRAC/results/

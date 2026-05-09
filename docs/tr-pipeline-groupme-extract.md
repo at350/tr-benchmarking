@@ -3,6 +3,12 @@
 Source: GroupMe `Innovation Lab` chat, exported read-only on 2026-05-08.
 Scope reviewed: 1,847 messages from 2026-01-20 through 2026-05-07.
 
+This document is historical context. Some repo anchors below name older
+prototype paths that were removed from the research branch cleanup. The active
+implementation lives in `research/validation/`; the active instructions live in
+`instructions/`; the active manuscript lives in `paper/`; and the only UI is the
+minimal workbench in `frontend/`.
+
 ## High-Level Takeaway
 
 The project is not primarily a web app. The intended deliverable is a research pipeline for evaluating open-ended legal reasoning from LLMs. The app is only a demonstration surface for the methodology.

@@ -1,0 +1,110 @@
+\section{Stage-Level Artifact Assessment}
+
+The internal validation question is not simply whether the code executed. The
+pipeline is useful only if each generated artifact is strong enough to support
+the next stage. We therefore assess the reported Statute-of-Frauds run as a
+source-to-score case study: a single source case is passed through Frank,
+Karthic, natural model-response generation, Dasha clustering, rubric-conditioned
+judging, Zak escalation logic, and paper export. The question at each boundary
+is whether the artifact is legally coherent, source-grounded, consistent with
+the instruction examples, and auditable by a research team.
+
+\begin{table}[h]
+\centering
+\caption{Stage-level artifact assessment for the live SOF case study.}
+\label{tab:stage-artifact-assessment}
+\input{tables/stage_artifact_assessment}
+\end{table}
+
+For Frank, the central question is whether the source case has been converted
+into a legally sound benchmark rather than merely summarized. In the reported
+run, Frank identified the Statute-of-Frauds marriage-provision theory and its
+interaction with fraternal-benefit certificate rules; generated a neutral
+Illinois-law question; produced a structured gold answer; and created four
+boundary variations. In the perturbation lane, those variations become
+executable question tracks rather than prose-only notes. The artifact is useful for technical review because it preserves the
+legally operative facts: the premarital promise, marriage consideration,
+certificate naming the wife, later replacement certificate, and association
+rules. The remaining limitation is that the legal assessment is still internal:
+the evidence supports the claim that Frank produced a coherent source-grounded
+packet, not that outside experts have certified the gold answer.
+
+For Karthic, the question is whether the rubric is a fresh scoring instrument
+derived from Frank rather than a generic grading checklist. The reported run
+produced 10 rows covering doctrine, rule, facts, exceptions, counterargument,
+conclusion, variation sensitivity, and source support. That is the right shape
+for the reported case because the answer space turns on doctrinal gate selection,
+writing or certificate significance, later-beneficiary defenses, equitable
+theories, and disciplined conclusion language. The reference implementation
+stores the scoring core of each row rather than every full row-card field
+specified in the ideal Karthic instructions. This is acceptable for the present
+reported run, but the manuscript marks it as a limitation before publication.
+
+For Dasha, the question is whether unlabeled natural model answers are grouped
+by legal reasoning. The reported run used nine natural responses to the same
+Frank question and observed three clusters: a conditional enforceability path, a
+dominant spouse-enforcement path, and an equity-forward constructive-trust path.
+This is the kind of separation the pipeline is intended to find, because the
+clusters differ in legal theory rather than merely in wording. For perturbation
+runs, Dasha clusters each question track separately before comparing dominant
+signals, which prevents a variant answer from being absorbed into the original
+question's cluster. The strongest
+remaining risk is extraction error: Dasha in the reported configuration uses an LLM to extract a
+reasoning signature, then groups exact normalized buckets. The method is
+auditable, but future validation should repeat extraction, compare alternate
+clusterers, and increase the number of natural model responses.
+
+For Judge, the question is whether the rubric is actually applied row by row to
+the Dasha centroids. The reported run generated 30 row-level scores: 10 rubric
+rows across 3 clusters. The judge then projected centroid scores to all 9 member
+responses and produced model rankings. This demonstrates the intended
+compression mechanism: score the legal-reasoning centroid, then propagate the
+score to responses using that reasoning path. The present ranking is not a
+population-level claim about model quality because the live batch is small and
+uses one judge model. It is evidence that the judge machinery can apply the
+rubric and produce auditable rankings from centroid scores.
+
+For Zak, the validation question is whether uncertainty is represented
+explicitly. In this run, judge agreement was 0.755 against a 0.7 threshold, so
+no escalation packet was generated. That is a passing no-escalation case because
+the manifest records the threshold result and the empty packet state. The
+implementation also includes positive offline regressions: one forces a
+low-margin centroid comparison to create a disputed-cluster packet, and one
+forces unstable repeated judge rows to create an unstable-row packet. These
+regressions show that Zak packet creation is not merely an empty no-escalation
+record. The remaining work is to calibrate the live thresholds so escalation is
+neither too rare nor too noisy.
+
+\subsection{Transfer Beyond Statute of Frauds}
+
+The pipeline is designed to be doctrine-general, but the evidence in this
+manuscript is intentionally narrower. The doctrine-transfer claim is therefore
+architectural rather than empirical: the same source-to-packet schema,
+instruction-context mechanism, natural-response protocol, reasoning-signature
+extraction, centroid judging, and escalation logic can be reused for another
+area of law if that area supplies adequate source material and role-specific
+instruction context. Statute of Frauds is the calibration domain because it
+contains multiple gates, exceptions, boundary variations, and plausible model
+failure modes. Those properties make it a useful stressor for the general
+pipeline design.
+
+\begin{table}[h]
+\centering
+\caption{Doctrine-transfer argument and remaining validation burden.}
+\label{tab:doctrine-transfer}
+\input{tables/doctrine_transfer_argument}
+\end{table}
+
+The current implementation also includes an offline contract-interpretation
+transfer smoke test. That fixture verifies that the artifact schema and Dasha
+normalization path can run outside Statute of Frauds, but it is intentionally
+reported as schema-transfer evidence rather than broad legal-domain validity.
+The strongest future claim would require held-out live cases from other legal
+domains. For each domain, the same stage-level questions should be asked: did
+Frank infer the correct doctrinal elements from the source; did Karthic build a
+useful rubric from that packet; did Dasha recover and cluster natural model
+reasoning paths; did Judge apply the rubric consistently; and did Zak surface
+failures instead of hiding them? Until that evidence exists, the paper should
+claim that the method is designed for doctrine transfer, internally demonstrated
+on Statute of Frauds, and smoke-tested on one non-SOF fixture, not that broad
+legal-domain validity has already been proven.

@@ -7,18 +7,18 @@ factual characterizations, or counterarguments. A benchmark that only grades
 individual responses can therefore obscure whether models understand the
 structure of the doctrine or merely produce plausible conclusions.
 
-This project proposes a source-grounded pipeline for evaluating legal reasoning
+This paper proposes a source-grounded pipeline for evaluating legal reasoning
 paths. The pipeline starts from a source case and automatically constructs the
 benchmark artifacts needed to test models: a legal question, gold answer,
 controlled variations, a rubric, response clusters, centroid scores, projected
 member scores, model rankings, and escalation packets. Statute of Frauds is the
-first calibration domain because the project currently has detailed source
-materials and instruction packs for that area. The system is designed, however,
-to be doctrine-general: the live path asks Frank and Karthic to infer doctrine
-and rubric structure from the source case instead of hard-coding Statute of
-Frauds labels.
+first calibration domain because it supplies clear doctrinal gates and boundary
+facts for testing the method. The system is designed, however, to be
+doctrine-general: the live path asks Frank and Karthic to infer doctrine and
+rubric structure from the source case instead of hard-coding Statute of Frauds
+labels.
 
-The current goal is pre-expert-review internal validation. The manuscript asks
+The goal of the reported study is pre-expert-review internal validation. The manuscript asks
 whether the pipeline is coherent, reproducible, robust enough to inspect, and
 technically defensible using only automated artifacts and internal review. The
 claim at this stage is deliberately bounded but complete: the pipeline can run
@@ -26,3 +26,12 @@ end to end on a source case, produce auditable artifacts for every stage, cluste
 legal reasoning signatures at controlled scale, apply rubric-based LLM judging,
 project centroid scores, generate model rankings, and surface failures through
 explicit escalation packets.
+
+The validation is organized around the questions a research team would ask while
+reviewing the run bundle. Did Frank produce the expected legal framing, neutral
+question, gold answer, and variations? Did Karthic convert that packet into a
+comprehensive rubric rather than a generic checklist? Did the response models
+answer naturally? Did Dasha cluster the resulting answers by legal theory? Did
+the judge apply the rubric faithfully enough to make projected rankings
+auditable? The manuscript treats those stage-level questions as part of the
+method, not as informal commentary outside the paper.

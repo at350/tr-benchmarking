@@ -1,0 +1,128 @@
+{
+  "gates": [
+    {
+      "evidence": [
+        "doctrine=Statute of Frauds (marriage provision) applied to a premarital promise to make/keep a spouse as beneficiary of a fraternal benefit certificate; interaction with fraternal benefit association certificate rules and change-of-beneficiary procedures",
+        "question_chars=600",
+        "variations=4"
+      ],
+      "gap": "Run Frank on held-out source cases before broad external-validity claims.",
+      "gate": "Frank source-to-packet validity",
+      "status": "met"
+    },
+    {
+      "evidence": [
+        "rows=10",
+        "categories=conclusion,counterargument,doctrine,exceptions,facts,rule,source_support,variation"
+      ],
+      "gap": "Add held-out rubric artifact review and later expert agreement.",
+      "gate": "Karthic dynamic rubric validity",
+      "status": "met"
+    },
+    {
+      "evidence": [
+        "response_prompt_style=natural",
+        "responses=9",
+        "models=3"
+      ],
+      "gap": "Live model rosters should use question-only prompting by default.",
+      "gate": "Natural response protocol",
+      "status": "met"
+    },
+    {
+      "evidence": [
+        "bundle_status=run_bundle_reviewable",
+        "checks=33",
+        "blocking_errors=0",
+        "responses=9",
+        "clusters=3"
+      ],
+      "gap": "Regenerate bundle audit after any claim-supporting run or artifact rewrite.",
+      "gate": "Run bundle integrity",
+      "status": "met"
+    },
+    {
+      "evidence": [
+        "responses=9",
+        "clusters=3",
+        "min_observed_clusters=2",
+        "cluster_purity=1.0",
+        "member_coherence=1.0",
+        "mean_centroid_text_similarity=0.755",
+        "non_latin_signal_flags=0",
+        "natural_audit=natural_response_audit_passed",
+        "observed_clusters=3"
+      ],
+      "gap": "Run larger natural batches across more model families and held-out questions.",
+      "gate": "Dasha natural-response clustering",
+      "status": "met"
+    },
+    {
+      "evidence": [
+        "perturbation_report=not_configured"
+      ],
+      "gap": "Run invariant and material perturbation tracks with live model responses.",
+      "gate": "Perturbation validation",
+      "status": "evidence_gap"
+    },
+    {
+      "evidence": [
+        "judge_model=gpt-5.2",
+        "judge_panel=1",
+        "row_scores=30",
+        "agreement_score=0.755",
+        "stability=not_repeated",
+        "judge_repeats=1",
+        "model_rankings=3"
+      ],
+      "gap": "Quantify live repeat or panel stability before stronger reliability claims.",
+      "gate": "Judge row-level scoring and rankings",
+      "status": "partial"
+    },
+    {
+      "evidence": [
+        "needs_zak=False",
+        "packets=0"
+      ],
+      "gap": "Calibrate live escalation thresholds with repeated judge evidence.",
+      "gate": "Zak escalation mechanism",
+      "status": "met"
+    },
+    {
+      "evidence": [
+        "stress_status=internal_stress_passed",
+        "stress_responses=500",
+        "stress_macro_f1=1.0"
+      ],
+      "gap": "Keep this separated from live discovery evidence.",
+      "gate": "Controlled scale regression",
+      "status": "met"
+    },
+    {
+      "evidence": [
+        "preflight_status=live_preflight_passed",
+        "warnings=1",
+        "blocking_errors=0"
+      ],
+      "gap": "Resolve credential warnings before claim-supporting paid live runs.",
+      "gate": "Live-run preflight",
+      "status": "partial"
+    }
+  ],
+  "interpretation": "This report is an internal readiness artifact. It distinguishes implemented and tested method components from live-evidence gaps.",
+  "judge_stability": {},
+  "met_gates": 7,
+  "partial_gates": 2,
+  "preflight_warnings": [
+    {
+      "message": "Missing local credentials for: gemini",
+      "passed": false,
+      "severity": "warning"
+    }
+  ],
+  "run_dir": "research/runs/live_natural_response_batch",
+  "run_id": "live_natural_response_batch",
+  "schema_version": "research.method_readiness.v1",
+  "status": "internal_method_ready_with_gaps",
+  "total_gates": 10
+}

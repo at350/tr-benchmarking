@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from .config import QualityGateConfig
 from .utils import jaccard, tokenize
 
@@ -53,19 +55,40 @@ def find_mixed_reasoning_clusters(clusters: dict, threshold: float) -> list[dict
         if len(members) > 1:
             representative = next((member for member in members if member["id"] == cluster["representative_response_id"]), members[0])
             similarities = [jaccard(representative["text"], member["text"]) for member in members if member is not representative]
+            representative_signal_terms = tokenize(json.dumps(representative.get("legal_signal", {}), sort_keys=True))
             shared_legal_terms = [
-                len(tokenize(representative["text"]) & tokenize(member["text"]) & {
-                    "wife",
-                    "marriage",
-                    "premarital",
-                    "certificate",
-                    "replacement",
-                    "association",
-                    "beneficiaries",
-                    "children",
-                    "sister",
-                    "promise",
-                })
+                len(
+                    (
+                        tokenize(representative["text"])
+                        | representative_signal_terms
+                    )
+                    & (
+                        tokenize(member["text"])
+                        | tokenize(json.dumps(member.get("legal_signal", {}), sort_keys=True))
+                    )
+                    & {
+                        "wife",
+                        "marriage",
+                        "premarital",
+                        "certificate",
+                        "replacement",
+                        "association",
+                        "beneficiaries",
+                        "children",
+                        "sister",
+                        "promise",
+                        "contract",
+                        "interpretation",
+                        "plain",
+                        "meaning",
+                        "ambiguity",
+                        "remedy",
+                        "damages",
+                        "seller",
+                        "buyer",
+                        "covenant",
+                    }
+                )
                 for member in members
                 if member is not representative
             ]

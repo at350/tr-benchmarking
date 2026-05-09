@@ -1,0 +1,239 @@
+{
+  "blocking_errors": [],
+  "checks": [
+    {
+      "details": {},
+      "message": "manifest.json exists",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "manifest.json parses as JSON",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "frank_packet.json exists",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "frank_packet.json parses as JSON",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "karthic_rubric.json exists",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "karthic_rubric.json parses as JSON",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "responses.json exists",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "responses.json parses as JSON",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "dasha_clusters.json exists",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "dasha_clusters.json parses as JSON",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "judge_scores.json exists",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "judge_scores.json parses as JSON",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "zak_packets.json exists",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "zak_packets.json parses as JSON",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "report.md exists",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "manifest schema is research.manifest.v1",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "manifest pipeline status is internal_validation_ready",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "manifest records no quality errors",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {
+        "actual": "cc71f2f114102fb3",
+        "expected": "cc71f2f114102fb3"
+      },
+      "message": "frank_packet.json matches manifest hash",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {
+        "actual": "8b6ffec8f3bbf929",
+        "expected": "8b6ffec8f3bbf929"
+      },
+      "message": "karthic_rubric.json matches manifest hash",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {
+        "actual": "67668f26d49ff070",
+        "expected": "67668f26d49ff070"
+      },
+      "message": "dasha_clusters.json matches manifest hash",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {
+        "actual": "2e3355c705b5f7c8",
+        "expected": "2e3355c705b5f7c8"
+      },
+      "message": "judge_scores.json matches manifest hash",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {
+        "actual": "6f2f7e4035dd66c1",
+        "expected": "6f2f7e4035dd66c1"
+      },
+      "message": "zak_packets.json matches manifest hash",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "perturbation_report.json has no recorded hash because it is absent",
+      "passed": true,
+      "severity": "warning"
+    },
+    {
+      "details": {
+        "actual": 9,
+        "expected": 9
+      },
+      "message": "response count matches configured model sample plan",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "response prompt style is natural",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "all responses record natural prompt style",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "all responses have id, model, and text",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "Dasha clusters include member response ids",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {
+        "missing": []
+      },
+      "message": "Dasha member ids are present in responses.json",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "judge has one score block per Dasha cluster",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "judge includes model rankings",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "details": {},
+      "message": "Zak artifact includes packets list",
+      "passed": true,
+      "severity": "error"
+    }
+  ],
+  "counts": {
+    "clusters": 3,
+    "responses": 9,
+    "rubric_rows": 10,
+    "zak_packets": 0
+  },
+  "run_dir": "research/runs/live_natural_response_batch",
+  "run_id": "live_natural_response_batch",
+  "schema_version": "research.run_bundle_audit.v1",
+  "source": {
+    "doctrine_family": "Statute of Frauds (marriage provision) applied to a premarital promise to make/keep a spouse as beneficiary of a fraternal benefit certificate; interaction with fraternal benefit association certificate rules and change-of-beneficiary procedures",
+    "frank_packet_id": "frank_live_natural_response_batch",
+    "rubric_id": "karthic_live_natural_response_batch"
+  },
+  "status": "run_bundle_reviewable",
+  "warning_count": 0
+}

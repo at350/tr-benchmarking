@@ -28,6 +28,7 @@ class AgentConfig:
 class ClusteringConfig:
     method: str
     min_cluster_size: int
+    min_observed_clusters: int
     mixed_cluster_threshold: float
     provider: str
     model: str
@@ -40,6 +41,15 @@ class JudgeConfig:
     model: str
     agreement_threshold: float
     escalation_margin: float
+    repeats: int
+    judge_models: tuple["JudgeModelSpec", ...] = ()
+
+
+@dataclass(frozen=True)
+class JudgeModelSpec:
+    provider: str
+    model: str
+    repeats: int
 
 
 @dataclass(frozen=True)
@@ -47,6 +57,21 @@ class QualityGateConfig:
     min_rubric_rows: int
     max_duplicate_similarity: float
     required_categories: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class PerturbationConfig:
+    enabled: bool
+    max_variations: int
+    require_invariant: bool
+    require_material: bool
+
+
+@dataclass(frozen=True)
+class BudgetConfig:
+    max_response_calls: int
+    max_judge_calls: int
+    max_total_llm_calls_excluding_frank_karthic: int
 
 
 @dataclass(frozen=True)
@@ -58,12 +83,15 @@ class ResearchConfig:
     mode: str
     models: tuple[str, ...]
     response_models: tuple[ModelSpec, ...]
+    response_prompt_style: str
     answer_headings: tuple[str, ...]
     agents: dict[str, AgentConfig]
     responses_per_model: int
     clustering: ClusteringConfig
     judge: JudgeConfig
     quality_gates: QualityGateConfig
+    perturbations: PerturbationConfig
+    budget: BudgetConfig
     fixture_responses_path: Path
 
 
@@ -84,6 +112,8 @@ def load_config(config_path: str | Path, repo_root: str | Path | None = None) ->
     clustering = raw.get("clustering", {})
     judge = raw.get("judge", {})
     gates = raw.get("quality_gates", {})
+    perturbations = raw.get("perturbations", {})
+    budget = raw.get("budget", {})
     agents_raw = raw.get("agents", {})
 
     source_case = _resolve(root, raw["source_case_path"])
@@ -133,6 +163,7 @@ def load_config(config_path: str | Path, repo_root: str | Path | None = None) ->
         mode=str(raw.get("mode", "offline")),
         models=legacy_models,
         response_models=response_models,
+        response_prompt_style=str(raw.get("response_prompt_style", "natural")),
         answer_headings=tuple(str(item) for item in raw.get("answer_headings", [
             "Jurisdiction assumption",
             "Bottom-line outcome",
@@ -148,6 +179,7 @@ def load_config(config_path: str | Path, repo_root: str | Path | None = None) ->
         clustering=ClusteringConfig(
             method=str(clustering.get("method", "legal_signal")),
             min_cluster_size=int(clustering.get("min_cluster_size", 2)),
+            min_observed_clusters=int(clustering.get("min_observed_clusters", 1)),
             mixed_cluster_threshold=float(clustering.get("mixed_cluster_threshold", 0.34)),
             provider=str(clustering.get("provider", agents["dasha"].provider)),
             model=str(clustering.get("model", agents["dasha"].model)),
@@ -158,11 +190,33 @@ def load_config(config_path: str | Path, repo_root: str | Path | None = None) ->
             model=str(judge.get("model", "gpt-4o-mini")),
             agreement_threshold=float(judge.get("agreement_threshold", 0.7)),
             escalation_margin=float(judge.get("escalation_margin", 0.2)),
+            repeats=max(1, int(judge.get("repeats", 1))),
+            judge_models=tuple(
+                JudgeModelSpec(
+                    provider=str(item.get("provider", judge.get("provider", "openai"))),
+                    model=str(item.get("model", judge.get("model", "gpt-4o-mini"))),
+                    repeats=max(1, int(item.get("repeats", judge.get("repeats", 1)))),
+                )
+                for item in judge.get("judge_models", [])
+            ),
         ),
         quality_gates=QualityGateConfig(
             min_rubric_rows=int(gates.get("min_rubric_rows", 5)),
             max_duplicate_similarity=float(gates.get("max_duplicate_similarity", 0.82)),
             required_categories=tuple(str(item) for item in gates.get("required_categories", [])),
+        ),
+        perturbations=PerturbationConfig(
+            enabled=bool(perturbations.get("enabled", False)),
+            max_variations=int(perturbations.get("max_variations", 0)),
+            require_invariant=bool(perturbations.get("require_invariant", False)),
+            require_material=bool(perturbations.get("require_material", False)),
+        ),
+        budget=BudgetConfig(
+            max_response_calls=int(budget.get("max_response_calls", 0)),
+            max_judge_calls=int(budget.get("max_judge_calls", 0)),
+            max_total_llm_calls_excluding_frank_karthic=int(
+                budget.get("max_total_llm_calls_excluding_frank_karthic", 0)
+            ),
         ),
         fixture_responses_path=fixture_responses,
     )

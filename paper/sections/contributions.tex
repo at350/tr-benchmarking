@@ -1,28 +1,31 @@
-\section{Contributions and Claim Map}
+\section{Contributions}
 
-The pipeline is intended to be understandable as a research instrument, not only
-as a software demo. Its main contribution is an automated source-to-ranking
-method that evaluates legal reasoning paths rather than isolated answer strings.
-The method is novel in four connected ways. First, the benchmark is generated
-from a source case rather than from a static hand-authored question. Second, the
-rubric is generated dynamically from the locked source packet instead of reused
-as a generic checklist. Third, responses are compressed by legal reasoning
-signature before judging, so the scored unit is a centroid representing a line of
-legal reasoning. Fourth, the judge projects centroid scores back to all cluster
-members, producing model rankings while preserving row-level rationales and
-escalation state.
+This work studies a source-grounded procedure for evaluating legal reasoning in
+LLM answers. Its central premise is that legal benchmark construction should not
+begin with a fixed hand-authored prompt and a generic scoring checklist. Instead,
+the benchmark instance, rubric, response clusters, and model ranking should all
+be derived from the same legal source case under a reproducible protocol.
 
-\begin{tabular}{p{0.20\linewidth}p{0.25\linewidth}p{0.25\linewidth}p{0.20\linewidth}}
-\toprule
-Claim & Implementation & Why it is distinctive & Current evidence \\
-\midrule
-Source-grounded benchmark generation & Frank reads a source case plus canonical instruction context and emits a versioned JSON packet with doctrine gates, source extraction, gold answer, neutral question, variations, and controller card & The question, gold answer, and variations are derived from the same source artifact rather than manually patched after model outputs are seen & Live natural-response batch begins from one source case and produces a complete Frank packet with prompt and source hashes \\
-Dynamic legal rubric generation & Karthic consumes only the locked Frank packet and instruction context, then emits weighted source-supported rubric rows with schema repair and category normalization & The rubric is case-specific and source-grounded, not a reusable generic legal-quality rubric & Live run produced 10 Karthic rows across required categories and passed validation gates \\
-Reasoning-path clustering & Dasha extracts reasoning signatures from model answers, normalizes them into legal-reasoning buckets, and clusters unlabeled responses after generation & The pipeline compresses answers by legal theory, not by surface wording or known labels supplied to the response generator & Natural-response audit clustered 9 unlabeled answers to one Frank question into 1 shared wife/certificate reasoning centroid \\
-Centroid judging and projection & Judge scores one representative per Dasha cluster row-by-row against Karthic, then projects the weighted centroid score to all cluster members & The method reduces judging cost and makes rankings explainable through cluster-level legal rationales & Live run produced 10 row-level judge scores and projected scores to 9 responses across 3 model identifiers \\
-Escalation visibility & Zak creates packets only when uncertainty, disagreement, or quality thresholds fail & Failures become explicit research artifacts rather than silent exclusions & Live run recorded no escalation needed; validator still checks that escalation state exists \\
-\bottomrule
-\end{tabular}
+The paper makes three contributions. First, it formalizes a source-to-benchmark
+pipeline in which a legal source case is converted into a neutral question, a
+source-grounded gold answer, boundary variations, and a case-specific rubric.
+This design is intended to preserve traceability between the legal source and
+the evaluation instrument.
+
+Second, it introduces reasoning-path clustering as an intermediate evaluation
+unit. Rather than scoring every raw answer independently, the pipeline extracts
+legal reasoning signatures from model outputs and groups answers that appear to
+share the same doctrinal path, outcome theory, and exception or defense posture.
+This allows the evaluation to describe not only whether a model is correct, but
+which legal theory it appears to be using.
+
+Third, it evaluates a centroid-based judging protocol. A rubric-conditioned
+judge scores representative responses for each reasoning cluster, and those
+scores are projected to the remaining cluster members to produce model-level
+rankings. This design separates three questions that are often conflated in
+LLM-evaluation work: how benchmark questions are generated, how legally similar
+answers are grouped, and how answer quality is scored once a reasoning path has
+been identified.
 
 \subsection{Statute-of-Frauds Litmus Test}
 
@@ -33,11 +36,14 @@ administrator promises, writing substitutes, and equitable exceptions. That
 structure makes it a useful early test for whether an automated pipeline can
 generate legally meaningful variations and separate different reasoning paths.
 
-The current evidence is strongest for pipeline mechanics and for representative
-Statute-of-Frauds reasoning paths. The live model batch validates the full
-source-to-ranking path on a marriage-consideration beneficiary-certificate case.
-The 500-response regression suite then checks the Dasha clustering container
-against eight Statute-of-Frauds archetypes: wife/certificate enforcement,
+In the present validation, the strongest evidence concerns pipeline mechanics
+and representative Statute-of-Frauds reasoning paths. The live model batch
+exercises the full source-to-ranking path on a marriage-consideration
+beneficiary-certificate case, but because the sampled models converged on one
+wife/certificate theory, it is not a sufficient test of Dasha's
+divergence-detection claim. The 500-response regression suite checks the Dasha
+clustering container against eight Statute-of-Frauds archetypes:
+wife/certificate enforcement,
 association replacement-certificate control, one-year/no-writing bar,
 one-year-under-year enforceability, suretyship/main-purpose exception, land
 part-performance, goods/UCC quantity defect, and executor personal-promise

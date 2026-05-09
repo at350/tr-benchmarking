@@ -1,0 +1,40 @@
+{
+  "budget": {
+    "max_judge_calls": 12,
+    "max_response_calls": 30,
+    "max_total_llm_calls_excluding_frank_karthic": 80
+  },
+  "bundle_status": "run_bundle_reviewable",
+  "call_plan": {
+    "base_response_samples_per_track": 10,
+    "estimated_min_clusters_for_judging": 3,
+    "judge_invocations_per_cluster": 3,
+    "planned_dasha_signature_calls": 30,
+    "planned_min_judge_calls": 9,
+    "planned_question_tracks": 3,
+    "planned_response_calls": 30,
+    "planned_total_llm_calls_excluding_frank_karthic": 69
+  },
+  "evidence_gaps": [
+    "Perturbation validation"
+  ],
+  "met_gates": 7,
+  "partial_gates": 2,
+  "partial_gates_list": [
+    "Judge row-level scoring and rankings",
+    "Live-run preflight"
+  ],
+  "preflight_status": "live_preflight_passed",
+  "preflight_warning_count": 1,
+  "readiness_status": "internal_method_ready_with_gaps",
+  "schema_version": "research.internal_review_packet.v1",
+  "secrets_status": "secrets_lint_passed",
+  "source_artifacts": {
+    "bundle": "experiments/run-bundle-integrity/results.json",
+    "preflight": "experiments/live-config-preflight/results.json",
+    "readiness": "experiments/method-readiness/results/method_readiness.json",
+    "secrets": "experiments/security-lint/results.json"
+  },
+  "status": "ready_for_internal_review_with_declared_gaps",
+  "total_gates": 10
+}

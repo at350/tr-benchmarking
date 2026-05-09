@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TR Research Workbench",
-  description: "Minimal research workbench for the TR legal-evaluation pipeline",
+  title: "Legal Reasoning Research Workbench",
+  description: "Minimal research workbench for a source-grounded legal-evaluation pipeline",
 };
 
 export default function RootLayout({

@@ -3,6 +3,7 @@
   "source_case_path": "research/fixtures/tiny_source_case.txt",
   "output_dir": "research/runs/live_openai_calibration",
   "mode": "live_openai",
+  "response_prompt_style": "natural",
   "models": ["gpt-4o-mini"],
   "responses_per_model": 3,
   "clustering": {
@@ -14,7 +15,8 @@
     "mode": "llm",
     "model": "gpt-4o-mini",
     "agreement_threshold": 0.7,
-    "escalation_margin": 0.2
+    "escalation_margin": 0.2,
+    "repeats": 2
   },
   "quality_gates": {
     "min_rubric_rows": 5,

@@ -2,24 +2,33 @@
 
 \subsection{Pipeline Overview}
 
-The implementation is a Python research harness under
-\texttt{research/validation/} with a minimal Next.js workbench used only for
-running and inspecting artifacts. Runs are controlled by JSON configuration
-files that specify a source-case path, output directory, model identifiers,
-sample counts, temperatures, quality gates, clustering method, and judge
-settings. The harness writes every stage artifact as JSON: Frank packet, Karthic
-rubric, model responses, Dasha clusters, judge scores, Zak packets, manifest,
-Markdown report, validation summaries, and paper tables. This design was chosen
-so that the research claim is reproducible from files rather than from an
-interactive UI session.
+The reference implementation is a command-line research harness with an optional
+inspection interface. Runs are controlled by JSON configuration files that
+specify a source-case path or source text, output directory, model identifiers,
+sample counts, temperatures, quality gates, clustering method, perturbation
+policy, and judge settings. The harness writes every stage artifact as JSON:
+Frank packet, Karthic rubric, model responses, Dasha clusters, judge scores, Zak
+packets, manifest, validation summaries, and paper tables. This design was
+chosen so that the research claim is reproducible from recorded artifacts rather
+than from an interactive UI session.
 
-The pipeline has five named stages. Frank ingests a source case and produces a
-doctrine-aware benchmark packet. Karthic generates a rubric from the locked
-Frank packet. Dasha clusters generated model responses by legal reasoning
+The pipeline has six functional stages. Frank ingests a source case and produces
+a doctrine-aware benchmark packet. Karthic generates a rubric from the locked
+Frank packet. The perturbation layer converts selected Frank variations into
+executable question tracks. Response generation collects natural model answers
+for each track. Dasha clusters generated model responses by legal reasoning
 signatures. Judge scores Dasha centroids against Karthic rows and projects those
-scores to all members of each cluster. Zak produces escalation packets when
-uncertainty or disagreement warrants further review. The stages communicate only
-through serialized artifacts, which makes each boundary auditable and testable.
+scores to all members of each cluster, while Zak produces escalation packets
+when uncertainty or disagreement warrants further review. The stages communicate
+only through serialized artifacts, which makes each boundary auditable and
+testable.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_pipeline_overview.png}
+\caption{End-to-end source-to-score pipeline. A legal source case is converted into auditable benchmark artifacts, natural model responses, Dasha clusters, rubric-conditioned judge scores, projected rankings, and Zak escalation records.}
+\label{fig:pipeline-overview}
+\end{figure}
 
 \subsection{Model-Call and Provenance Layer}
 
@@ -30,24 +39,76 @@ agents. When an agent returns malformed JSON, \texttt{generate\_json} attempts a
 repair pass and then re-parses the result. This keeps Frank, Karthic, Dasha, and
 Judge on explicit schemas instead of free-form prose.
 
+The agent architecture is stateless and artifact-mediated. Frank, Karthic,
+Dasha, and Judge are not long-running autonomous processes, do not call tools,
+and do not share conversational memory. Each stage is one or more model calls
+whose complete inputs are the stage instruction stream, the relevant upstream
+JSON artifact, and the run configuration. The stage output is parsed into a
+versioned JSON artifact and becomes the only input passed downstream. This is
+deliberate: the experiment should be reproducible from source text, prompt
+hashes, model identifiers, configuration values, and JSON artifacts rather than
+from an opaque chat history.
+
+The reported live run used \texttt{gpt-5.2} at temperature 0 for Frank,
+Karthic, Dasha signature extraction, and LLM-as-judge scoring. The response
+model roster for that run contained three model identifiers with three samples
+each: \texttt{gpt-5.2}, \texttt{claude-sonnet-4-20250514}, and
+\texttt{meta/meta-llama-3-70b-instruct}. The expanded calibration configuration
+also includes \texttt{gpt-5.4} and \texttt{gemini-3-pro-preview}, but those
+broader roster results are not yet reported as manuscript evidence. Runtime
+adapters are treated as execution plumbing; the research unit is the named model
+output and its recorded prompt provenance.
+
+\begin{table}[h]
+\centering
+\caption{Model roles in the reported live run.}
+\label{tab:model-roles}
+\begin{tabular}{p{0.22\linewidth}p{0.30\linewidth}p{0.38\linewidth}}
+\toprule
+Pipeline role & Model identifier & Function \\
+\midrule
+Frank & \texttt{gpt-5.2} & Convert source case into doctrine gates, neutral question, gold answer, variations, and controller card. \\
+Karthic & \texttt{gpt-5.2} & Convert the locked Frank packet into a source-grounded row-level rubric. \\
+Dasha extractor & \texttt{gpt-5.2} & Read each model response and emit a normalized legal-reasoning signature. \\
+Judge & \texttt{gpt-5.2} & Score each Dasha representative against every Karthic rubric row. \\
+Response models & \texttt{gpt-5.2}; \texttt{claude-sonnet-4-20250514}; \texttt{meta/meta-llama-3-70b-instruct} & Answer the same Frank-generated question before clustering. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 Every run records provenance at three levels. First, source text is hashed with a
 short SHA-256 content hash. Second, each live prompt bundle is hashed after
 including the instruction context and agent settings. Third, generated responses
-record model identifier, sample index, question id, answer-format instruction,
+record model identifier, sample index, question id, response prompt style,
 timestamp, and text. The purpose is not merely bookkeeping: prompt hashes make it
 possible to distinguish a substantive methodological change from a repeated run
 under the same frozen instructions.
 
 \subsection{Instruction Context}
 
-Frank, Karthic, and Dasha each load bounded instruction context from the
-\texttt{instructions/} tree at runtime. The first file for all three agents is a
-cross-agent legal reasoning protocol stating that Statute of Frauds is a
-calibration domain, not a hard-coded assumption. Additional agent-specific files
-provide Frank source-to-question instructions, Karthic rubric instructions, and
-Dasha evaluation instructions. The loaded context is included directly in the
-agent prompt and hashed into the output artifact. This was added to prevent the
-live path from silently depending on old deterministic Statute-of-Frauds logic.
+The instruction context is not an implicit memory store or a hidden code path.
+It is an ordered text bundle inserted into the prompt of each pipeline agent.
+At runtime, the harness reads a fixed list of versioned prompt components,
+prepends each excerpt with a stable component identifier, concatenates the
+excerpts up to a declared budget, and records a hash of the resulting bundle in
+the stage artifact. The resulting string is what this manuscript calls the
+instruction stream: an ordered prompt prefix that contains the general legal
+reasoning protocol plus the role-specific operating rules for the current agent.
+Thus, the legal and procedural constraints available to Frank, Karthic, and
+Dasha are reproducible text inputs rather than informal background knowledge.
+
+The first component in every agent bundle is a cross-agent legal reasoning protocol.
+That protocol states that Statute of Frauds is the first calibration domain, not
+the global assumption; that source authority controls legal substance; that
+schema terms such as \texttt{doctrine\_gates} and \texttt{exception\_or\_defense}
+refer to the controlling elements of whatever doctrine the source supports; and
+that uncertainty should be escalated rather than filled by forcing a familiar
+doctrine. After this shared protocol, each agent receives role-specific
+instructions. Frank receives source-intake, packet-building, and question-writing
+rules. Karthic receives rubric-construction and scoring-overlay rules. Dasha
+receives centroid-evaluation, judge-panel, citation-checking, and Zak-escalation
+rules. The appendix at the end of the manuscript describes the contents of these
+bundles in detail.
 
 \subsection{Frank: Source-to-Benchmark Generation}
 
@@ -59,7 +120,7 @@ characterization, writing or element trigger, compliance or exception analysis,
 other defenses, and strongest counterargument. This structure is doctrine-aware:
 for non-Statute-of-Frauds cases, the heading content should map to the
 appropriate doctrinal elements rather than force an irrelevant writing analysis.
-The live Frank prompt loads the canonical instruction tree, including the
+The live Frank prompt loads the frozen instruction stream, including the
 cross-agent general legal reasoning protocol, and expressly treats Statute of
 Frauds as a calibration domain rather than a default doctrine.
 
@@ -77,56 +138,198 @@ prompt assumptions.
 
 \subsection{Karthic: Dynamic Rubric Construction}
 
-Karthic builds a fresh rubric for every locked Frank packet. The required rubric
-coverage includes doctrine or gate, rule or element, facts, compliance,
-exceptions or defenses, counterarguments, conclusion, variation sensitivity, and
-source support. Rows include identifiers, categories, weights, criteria, and
-source-support snippets. Category normalization is applied after LLM generation
-so semantically equivalent labels such as ``doctrine/gate'' and
-``doctrine\_gate'' map to the canonical category ``doctrine.''
+Karthic builds a fresh rubric by converting the locked Frank packet into a
+modular scoring instrument. The input is not only the neutral question. Karthic
+receives the full Frank packet: source hash and excerpt, inferred doctrine
+family, detected doctrine gates, source-extraction facts, gold answer,
+variations, primary gate id, strongest counterargument, and controller-card
+status. It also receives the Karthic instruction stream, which specifies a
+fixed build procedure. The purpose of this stage is to turn Frank's legal theory
+into observable scoring rows while preserving source support and avoiding
+double-counting.
 
-The rubric artifact is versioned as \texttt{research.karthic.llm.v1}. Karthic is
-asked for a top-level \texttt{rows} array, but the parser also accepts common LLM
-output shapes such as \texttt{rubric.rows}, \texttt{base\_rubric.rows}, and
-module-level row arrays. If the first rubric fails minimum row count or required
-category checks, the harness runs a strict repair prompt requiring at least the
-configured number of rows, required categories, source-grounded criteria, row
-ids, weights, and source-support fields. If weights do not sum to one, they are
-renormalized across rows. This repair step is engineering calibration, not a
-research claim; the frozen artifact still records the final prompt hash and row
-schema.
+The construction procedure has six steps. First, Karthic performs a packet
+audit. It checks that the current question, controlling doctrine, trigger test,
+trigger facts, variation lane, and selected variation are mutually consistent.
+Fields are treated as fixed, fixed but jurisdiction-sensitive, or needing
+confirmation. Second, it locks the doctrinal path by writing the controlling
+doctrine, required gate order, benchmark posture, and strongest expected
+counterargument. If those cannot be stated from the packet, the rubric should
+not be locked. Third, it instantiates the fixed parent module shell: metadata
+tags, structural gatekeeping, primary doctrine gates, fallback doctrines and
+defenses, and cross-cutting answer discipline. Metadata is not scored.
+
+Fourth, Karthic drafts coarse scored rows inside those modules. Rows are
+intended to cover the legally meaningful path rather than generic answer
+quality. The required coverage includes doctrine or gate, rule or element,
+facts, compliance, exceptions or defenses, counterarguments, conclusion,
+variation sensitivity, and source support when applicable. The full instruction
+spec describes each row as a row card with a code, module, weight, description,
+non-applicability guidance, golden target summary, observable features,
+allowed omissions, contradiction flags, comparison guidance, 0--4 scoring
+anchors, failure labels, and row status. The reference implementation stores the
+scoring core of that card: \texttt{id}, \texttt{category}, \texttt{weight},
+\texttt{criterion}, and \texttt{source\_support}. This distinction matters:
+the method is designed around full row cards, while the present JSON artifact
+materializes the fields needed for automated scoring and validation.
+
+Fifth, Karthic decomposes, prunes, and audits overlap. It splits a broad row
+only when the split improves legal discrimination, such as when one row merges a
+trigger analysis with an exception analysis or collapses two distinct doctrinal
+gates. It merges or removes rows that are stylistic, duplicative, too
+correlated, or better represented as failure-label modifiers. For close rows,
+the instruction spec requires a distinctness rationale so that one underlying
+legal error is not counted twice.
+
+Sixth, Karthic assigns weights and variation handling. The instruction spec
+starts from module-level defaults of 28 percent for structural gatekeeping, 40
+percent for primary doctrine gates, 19 percent for fallback doctrines and
+defenses, and 13 percent for cross-cutting answer discipline. The controlling
+doctrine row should usually be the heaviest row, secondary gates should not
+outweigh the controller, fallback rows should remain secondary unless the source
+makes them central, and Module 4 should stay light. Variation notes are tied
+only to the selected Frank variation: answer-invariant Lane A variations
+preserve doctrine, outcome, gate order, and weights, while Lane B missing-fact
+variations may add or strengthen rows about bounded uncertainty and conditional
+branching.
+
+\begin{table}[h]
+\centering
+\caption{Karthic rubric-construction procedure.}
+\label{tab:karthic-procedure}
+\begin{tabular}{p{0.18\linewidth}p{0.34\linewidth}p{0.38\linewidth}}
+\toprule
+Step & Operation & Output used downstream \\
+\midrule
+Packet audit & Check Frank question, doctrine, trigger facts, variation lane, and controller-card fields for consistency. & Fixed fields and review flags. \\
+Path lock & State controlling doctrine, gate order, benchmark posture, and strongest counterargument. & Rubric theory of the case. \\
+Module shell & Instantiate metadata, structural gatekeeping, primary doctrine, fallback, and answer-discipline modules. & Stable row organization. \\
+Row drafting & Create source-grounded rows that observe legal behavior rather than prose style. & Scored row candidates. \\
+Decompose and audit & Split, merge, prune, and document overlap to prevent double-counting. & Non-duplicative row set. \\
+Weight and patch & Assign legally important weights and patch only the selected variation track. & Final rubric rows and scoring policy. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The rubric artifact is versioned as \texttt{research.karthic.llm.v1}. The live
+implementation asks Karthic, using \texttt{gpt-5.2} at temperature 0 in the
+reported run, for strict JSON with a top-level \texttt{rows} array. Each row
+must contain an id, category, weight, criterion, and source-support field. The
+parser accepts common alternate LLM shapes such as \texttt{rubric.rows},
+\texttt{base\_rubric.rows}, and module-level row arrays, then normalizes
+semantic category aliases: for example, ``doctrine/gate'',
+``doctrine\_gate'', and ``gate'' are all mapped to \texttt{doctrine};
+``exceptions/defenses'' maps to \texttt{exceptions}; and ``source'' maps to
+\texttt{source\_support}.
+
+After parsing, the harness applies automated quality gates. It checks minimum
+row count, required category coverage, missing row ids or criteria, and
+duplicate-like criteria using token-level Jaccard similarity. If the first
+rubric fails minimum row count or required category checks, the harness runs a
+strict repair prompt requiring at least the configured number of rows, all
+required categories, doctrine-specific source-grounded criteria, row ids,
+weights, and source-support fields. If weights do not sum to one, they are
+renormalized across rows. This repair step is engineering calibration rather
+than evidence of legal validity, but the final artifact still records the prompt
+hash and schema so the frozen rubric can be reproduced.
 
 \subsection{Response Generation}
 
-The pipeline evaluates a roster of concrete model identifiers. The current
+The pipeline evaluates a roster of concrete model identifiers. The reference
 implementation can route calls through different execution backends, but the
 research unit is the model output, not the backend used to obtain it. Every
-model receives the same Frank-generated question and answer-format instruction.
-Each response records the model identifier, sample index, timestamp, question
-id, answer format, and prompt provenance.
+model receives the same Frank-generated question. By default, response models
+receive no system prompt, no source excerpt outside the question, and no required
+heading structure. The user message is the Frank question itself. This was
+chosen because the scientific object is the model's natural legal response, not
+its ability to fill a researcher-imposed memo template. Each response records
+the model identifier, sample index, timestamp, question id, response prompt
+style, and prompt provenance.
 
-The live natural-response batch used the same Frank question for all response
-models. The answer prompt included the source excerpt, the neutral legal
-question, and a fixed heading order. Temperature is controlled in the run config
-and offset slightly across repeated samples from the same model to induce
+The reported live natural-response batch used
+\texttt{response\_prompt\_style = natural}: each model received only the Frank
+question and answered in its own format. Temperature is controlled in the run
+config and offset slightly across repeated samples from the same model to induce
 natural answer variation without changing the question or rubric. No response is
 given a target reasoning label before generation.
 
+\subsection{Question Perturbation Tracks}
+
+Frank's variations are not treated as decorative examples. The implementation
+converts the original question and selected Frank variations into executable
+question tracks. Each track has a stable \texttt{track\_id},
+\texttt{question\_id}, edited question text, perturbation type, changed fact,
+and expected behavior. The original question is the base track. Invariant
+perturbations change legally irrelevant surface facts, such as party or company
+names; the expected behavior is that the dominant answer path remains stable.
+Material perturbations change legally operative facts, such as duration,
+writing, price, beneficiary designation, possession, or default posture; the
+expected behavior is that the dominant answer path or reasoning signature
+changes.
+
+This design follows the logic of minimal-pair and counterfactual robustness
+testing: edits should be as small as possible, and the expected effect of the
+edit should be stated before model responses are generated. In the live path,
+the same response roster can answer each track using the natural question-only
+prompt. Dasha then clusters responses separately by track so an answer to a
+variant cannot be hidden inside the original-question cluster. The perturbation
+report compares each variant's dominant Dasha signal to the original track.
+Invariant tracks pass when the dominant outcome and reasoning path are
+preserved; material tracks pass when the dominant outcome or reasoning path
+differs. This gives the pipeline a built-in test for over-sensitivity to
+irrelevant facts and under-sensitivity to legally controlling facts.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_perturbation_tracks.png}
+\caption{Question perturbation validation. Frank's base question and selected variations become separate executable tracks. Invariant edits are expected to preserve the dominant Dasha signal; material legal edits are expected to change the dominant outcome or reasoning path when the doctrine requires it.}
+\label{fig:perturbation-tracks}
+\end{figure}
+
 \subsection{Dasha: Reasoning-Signature Clustering}
 
-Dasha extracts a normalized reasoning signature from each response. The live
-signature includes doctrine, issue, rule trigger, outcome, exception or defense,
-reasoning path, conclusion, and key distinguishing facts. The first version of
-the live clustering grouped by near-exact signature strings, which over-split
-paraphrases. The current implementation therefore converts each LLM-generated
-signature into a compact bucket tuple:
+Dasha has two distinct responsibilities in the live path: semantic extraction
+and grouping. First, for each generated response, Dasha receives three inputs:
+the Dasha instruction stream, a truncated copy of the locked Frank packet, and
+the raw response text. It is prompted to return strict JSON with the keys
+\texttt{doctrine}, \texttt{issue}, \texttt{rule\_trigger}, \texttt{outcome},
+\texttt{exception\_or\_defense}, \texttt{reasoning\_path},
+\texttt{conclusion}, and \texttt{key\_distinguishing\_facts}. This extraction
+step is the semantic abstraction layer: it asks the model to state what legal
+path the response appears to use, without telling the response model which path
+to use and without giving Dasha a preassigned label.
+
+Second, the implementation normalizes the extracted signature before clustering.
+The sanitizer removes unexpected non-Latin script fragments and collapses
+whitespace. The normalizer then maps the signature into a bucket tuple:
 \texttt{(doctrine\_bucket, trigger\_bucket, outcome\_bucket,
-exception\_bucket, reasoning\_version)}. For the current Statute-of-Frauds
-calibration case, this distinguishes marriage-beneficiary-certificate reasoning,
-later-beneficiary/replacement-control reasoning, one-year reasoning, suretyship
-reasoning, land-interest reasoning, and goods/UCC reasoning when those paths are
-present. The same mechanism falls back to normalized source-derived terms for
-non-SOF doctrines.
+exception\_bucket, reasoning\_version)}. The doctrine bucket maps explicit
+Statute-of-Frauds signatures to \texttt{statute\_of\_frauds}, contract-general
+signatures to \texttt{contracts}, and otherwise uses a slugified doctrine term.
+The trigger bucket first tries to match the signature against Frank's
+source-derived gate aliases. Those aliases are built from the detected gate id,
+label, rule statement, and source evidence in the locked Frank packet. This lets
+a contract-interpretation packet, for example, cluster paraphrases of
+\texttt{plain\_meaning} separately from paraphrases of
+\texttt{contra\_proferentem} without requiring Statute-of-Frauds-specific
+labels. If no source-derived gate matches, the implementation uses calibrated
+fallback buckets for the Statute-of-Frauds validation domain and then a
+normalized \texttt{rule\_trigger}. The outcome bucket separates legally
+meaningful bottom-line results such as claim succeeds, claim barred,
+beneficiary control, or uncertainty. The exception bucket separates the main
+defense, substitute, compliance theory, equitable doctrine, or explicit
+``none'' signal.
+
+The fifth tuple element, \texttt{reasoning\_version}, is a method version marker
+rather than an additional learned feature. The extracted
+\texttt{reasoning\_path} remains in the cluster artifact for audit and
+representative interpretation, but the reported grouping decision is driven by
+doctrine, trigger, outcome, and exception buckets. This is important for
+interpreting the evidence: the reported Dasha configuration does not use
+embeddings or a trained clustering model. It is an LLM semantic-extraction layer followed by
+deterministic normalization and exact grouping over legal-reasoning buckets.
+That design is transparent and auditable, but it means the quality of clustering
+depends on the Dasha extraction prompt and bucket definitions.
 
 Responses with the same normalized bucket tuple are grouped into clusters. Each
 cluster has a representative centroid, member ids, centroid/member consistency
@@ -134,9 +337,18 @@ metrics, and a legal signal summary. The representative response is selected by
 maximizing a combination of token-level Jaccard similarity and feature-match
 similarity against other members. Mean text similarity is retained as a warning
 signal, not as the clustering key, because legally equivalent answers often use
-different surface language. Deterministic Statute-of-Frauds keyword clustering
-remains only as an offline regression fallback when no LLM reasoning signatures
-exist.
+different surface language. The run bundle also stores each member's normalized
+signature key and the cluster's normalized key, allowing the validation layer to
+audit whether every member remains aligned with its centroid. Deterministic
+Statute-of-Frauds keyword clustering remains only as an offline regression
+fallback when no LLM reasoning signatures exist.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_clustering_judging.png}
+\caption{Dasha clustering and rubric-score projection. Raw model answers are first abstracted into legal-reasoning signatures, grouped into centroids, scored against Karthic rubric rows, and then projected back to all member responses for model-level rankings.}
+\label{fig:clustering-judging}
+\end{figure}
 
 \subsection{Judge and Zak}
 
@@ -153,9 +365,16 @@ compact copy of every Karthic row. It must return one row score for every rubric
 row. Scores are clipped to the 0--4 range and combined using the rubric weights.
 The resulting centroid score is copied to every response in that cluster. Model
 rankings are then computed as the mean projected score for each model identifier.
+The live judge configuration now supports repeated judge calls and judge panels.
+When repeats or multiple judge models are enabled, each centroid-row score is
+collected multiple times, aggregated by mean score, and accompanied by a
+stability report containing pairwise mean absolute error, pairwise weighted
+kappa, maximum row-score range, unstable row flags, and the recorded judge-panel
+composition. Rows whose repeated or panel scores differ by two or more scale
+points are escalated through Zak rather than silently averaged.
 This projection rule is why a run with one Dasha cluster can produce tied model
 rankings: if all models use the same legal reasoning path, the method treats the
-centroid as the scored unit. Zak is intentionally simple in the current
-implementation: if judge agreement or quality thresholds fail, it emits a packet
-containing the disputed cluster ids and rubric row ids; otherwise it records that
-no escalation was required.
+centroid as the scored unit. Zak is intentionally simple in the reported
+implementation: if judge agreement, judge-repeat stability, or quality
+thresholds fail, it emits a packet containing the disputed cluster ids and
+rubric row ids; otherwise it records that no escalation was required.

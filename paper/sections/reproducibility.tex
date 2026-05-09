@@ -1,0 +1,168 @@
+\section{Reproducibility Specification}
+
+This section states the implementation contract independently of any particular
+storage layout. A researcher can implement the method in any programming
+environment if the implementation preserves the inputs, artifacts, normalization
+rules, and validation checks described below.
+
+\subsection{Run Configuration}
+
+Each run is defined by a frozen configuration. The configuration must include
+the legal source text or source identifier, a run identifier, the response-model
+roster, sample count per model, response temperature policy, perturbation
+policy, clustering method, judge model, quality gates, and output location. The
+configuration should also record whether the run is offline, live, or a fixture
+stress test. All stochastic choices, including model temperature offsets and
+fixture sampling seeds, must be explicit.
+
+The reference implementation materializes this contract with a protocol-freeze
+manifest before a run is treated as frozen. The freeze manifest records the
+configuration hash, source hash, ordered instruction-stream hashes for Frank,
+Karthic, and Dasha, response-model roster, clustering settings, judge model or
+judge-panel roster, perturbation policy, quality gates, normalization versions,
+and a top-level protocol hash. It intentionally omits API keys and generated
+model outputs. This separates the research protocol from mutable local
+environment state and makes later result bundles auditable against the exact
+method that was intended to run.
+
+The repository also includes a static manuscript linter for environments without
+a TeX engine. The linter does not replace \texttt{latexmk} or
+\texttt{pdflatex}, but it verifies that all \texttt{\textbackslash input}
+targets, figure files, bibliography files, and citation keys referenced by the
+paper resolve. A compiled PDF remains the stronger artifact when a full TeX
+installation is available.
+
+Finally, the implementation provides a no-call preflight check for live
+configs. Preflight builds the protocol-freeze metadata in memory and checks that
+the run is live-capable, uses natural response prompting, has a sufficiently
+diverse response roster, uses LLM agents for Frank, Karthic, and Dasha, uses
+reasoning-signature clustering, requires multiple observed clusters, configures
+LLM judging with repeats or a panel, and can find the source case. It also
+reports local credential and perturbation-policy warnings before any model call
+is made. This makes budgeted live runs auditable before execution rather than
+only after artifacts have been generated.
+
+\begin{table}[h]
+\centering
+\caption{Minimum run-configuration fields required to reproduce a pipeline run.}
+\label{tab:run-config-contract}
+\begin{tabular}{p{0.24\linewidth}p{0.66\linewidth}}
+\toprule
+Field group & Required contents \\
+\midrule
+Source & Source-case text or stable source identifier; jurisdiction if the benchmark depends on jurisdiction-specific law; source hash. \\
+Agents & Model identifier, provider adapter, temperature, instruction-stream hash, and output schema for Frank, Karthic, Dasha extraction, and Judge. \\
+Responses & Response-model identifiers, sample count per model, temperature policy, response prompt style, and question track ids. \\
+Perturbations & Whether perturbations are enabled; maximum number of variations; requirement for invariant and material tracks; expected behavior for each track. \\
+Clustering & Signature schema version; normalization version; minimum observed clusters; mixed-cluster threshold; representative-selection rule. \\
+Judge and Zak & Rubric scale, judge aggregation rule, disagreement threshold, escalation margin, and packet-generation rule. \\
+Outputs & Versioned JSON artifacts, prompt hashes, response provenance, validation summary, generated tables, and figure inputs. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Artifact Schemas}
+
+The pipeline is reproducible because stages exchange versioned artifacts rather
+than conversational state. Frank emits the benchmark packet. Karthic emits
+rubric rows. Response generation emits raw model answers with question-track
+metadata. Dasha emits clusters with member ids and legal signals. Judge emits
+row-level centroid scores and projected member scores. Zak emits either an empty
+no-escalation state or an escalation packet.
+
+\begin{table}[h]
+\centering
+\caption{Required artifact interfaces for an independent implementation.}
+\label{tab:artifact-contract}
+\begin{tabular}{p{0.18\linewidth}p{0.72\linewidth}}
+\toprule
+Artifact & Required fields \\
+\midrule
+Frank packet & \texttt{id}, \texttt{source\_hash}, \texttt{doctrine\_family}, \texttt{detected\_doctrine\_gates}, \texttt{source\_extraction}, \texttt{neutral\_question}, \texttt{gold\_answer}, \texttt{variations}, \texttt{controller\_card}, \texttt{prompt\_hashes}. \\
+Karthic rubric & \texttt{id}, \texttt{source\_hash}, \texttt{frank\_packet\_id}, \texttt{rows}, \texttt{weights}, \texttt{prompt\_hashes}. Each row requires an id, category, weight, criterion, source-support field, and scoring anchors or equivalent rubric guidance. \\
+Responses & \texttt{id}, \texttt{model}, \texttt{sample\_index}, \texttt{text}, \texttt{question\_id}, \texttt{track\_id}, \texttt{variant\_id}, \texttt{perturbation\_type}, \texttt{expected\_behavior}, timestamp or generation provenance. \\
+Dasha clusters & \texttt{id}, \texttt{method}, \texttt{legal\_signal}, \texttt{representative\_response\_id}, \texttt{member\_response\_ids}, \texttt{size}, \texttt{centroid\_quality}, and, in perturbation runs, question-track metadata. \\
+Judge scores & One row-level score and rationale for every rubric row and every cluster representative; weighted centroid scores; projected member scores; model rankings. \\
+Zak packets & Escalation status, triggering threshold, disputed cluster ids, disputed rubric row ids, rationale, and handoff text when escalation is required. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Instruction-Stream Construction}
+
+The agent context is an ordered prompt bundle, not hidden memory. A reproducible
+implementation should store each prompt component with a stable component id,
+role, version, and text. At runtime, the implementation concatenates the
+components in fixed order, prefixes each component with its id, truncates only at
+a declared token or character budget, and records a cryptographic hash over the
+rendered stream. The same rendered stream and upstream artifact must be supplied
+to the same model identifier to reproduce the stage input.
+
+The shared first component is a cross-agent legal reasoning protocol. It states
+that source authority controls legal substance, that calibration examples do not
+override the source, that schema fields are doctrine-general, that uncertainty is
+preserved rather than silently filled, and that perturbations must identify the
+expected legal effect of the edited fact. Role-specific components then define
+the agent contract. Frank receives source-intake, packet-building, question
+writing, gold-answer, and variation instructions. Karthic receives packet-audit,
+row-card, weighting, duplicate-control, and scoring-overlay instructions. Dasha
+receives signature-extraction, track-audit, clustering, centroid-metadata, and
+escalation instructions. Judge receives rubric-application and row-score
+rationale instructions.
+
+\subsection{Agent Calls}
+
+Frank receives the source text and its instruction stream, then returns one
+strict JSON packet. Karthic receives the locked Frank packet and its instruction
+stream, then returns one strict JSON rubric. Response models receive only the
+question text for the active track under the natural response protocol; they do
+not receive the gold answer, rubric, hidden reasoning labels, or required memo
+headings. Dasha receives the locked Frank packet, its instruction stream, and one
+raw response at a time, then returns a strict JSON reasoning signature. Judge
+receives one Dasha representative, the cluster legal signal, and all Karthic row
+criteria, then returns one score and rationale per row.
+
+\subsection{Dasha Clustering Algorithm}
+
+The reported configuration clusters responses by normalized legal-reasoning
+signatures rather than by surface text. For each response, Dasha extracts a
+signature with the fields \texttt{doctrine}, \texttt{issue},
+\texttt{rule\_trigger}, \texttt{outcome}, \texttt{exception\_or\_defense},
+\texttt{reasoning\_path}, \texttt{conclusion}, and
+\texttt{key\_distinguishing\_facts}. The implementation sanitizes the signature,
+lowercases text, removes unexpected script fragments, collapses whitespace, and
+maps aliases into canonical buckets.
+
+The cluster key is the tuple
+\texttt{(doctrine\_bucket, trigger\_bucket, outcome\_bucket,
+exception\_bucket, normalization\_version)}. The doctrine bucket is a normalized
+doctrine name. The trigger bucket is the best matching gate or element from the
+Frank packet; if no source-derived gate matches, it falls back to the normalized
+\texttt{rule\_trigger}. The outcome bucket captures the legal result or dominant
+entitlement theory. The exception bucket captures the main defense, substitute,
+exception, or compliance theory. The normalization version makes changes to the
+bucket rules explicit. In Statute-of-Frauds calibration runs, the trigger bucket
+includes gates such as marriage consideration, one-year, suretyship, land,
+goods, and executor promises; other doctrine families require their own
+source-derived gate names and synonym maps.
+
+Responses are grouped by exact cluster-key match within each question track. A
+perturbation run never clusters different tracks together. For each cluster, the
+representative response is the member with the highest average similarity to the
+other members, combining token-level Jaccard similarity with feature agreement
+over gate, outcome, exception, and reasoning fields. Text similarity is retained
+as a centroid-quality diagnostic, not as the clustering key. A cluster is flagged
+for review when sampled members visibly use different legal theories, when the
+normalized signal conflicts with the response text, or when centroid/member
+feature agreement falls below the configured threshold.
+
+\subsection{Score Projection and Ranking}
+
+The judge scores only cluster representatives. Each representative receives a
+0--4 score and rationale for every Karthic rubric row. The weighted centroid
+score is then copied to every response assigned to that centroid. Model rankings
+are computed from the projected member scores, typically by averaging all
+projected scores for a model across samples and question tracks. This projection
+rule is valid only if Dasha cluster membership is legally coherent; therefore
+cluster audit and perturbation validation are prerequisites for interpreting
+rankings.

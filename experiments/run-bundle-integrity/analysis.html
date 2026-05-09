@@ -1,0 +1,42 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Run Bundle Integrity Audit</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:1040px;margin:40px auto;padding:0 24px;line-height:1.5;color:#17202a}pre{white-space:pre-wrap;font-family:inherit}</style></head><body><pre># Run Bundle Integrity Audit
+
+- Status: `run_bundle_reviewable`
+- Run: `live_natural_response_batch`
+- Run directory: `research/runs/live_natural_response_batch`
+
+| Check | Severity | Status |
+|---|---:|---:|
+| manifest.json exists | `error` | `pass` |
+| manifest.json parses as JSON | `error` | `pass` |
+| frank_packet.json exists | `error` | `pass` |
+| frank_packet.json parses as JSON | `error` | `pass` |
+| karthic_rubric.json exists | `error` | `pass` |
+| karthic_rubric.json parses as JSON | `error` | `pass` |
+| responses.json exists | `error` | `pass` |
+| responses.json parses as JSON | `error` | `pass` |
+| dasha_clusters.json exists | `error` | `pass` |
+| dasha_clusters.json parses as JSON | `error` | `pass` |
+| judge_scores.json exists | `error` | `pass` |
+| judge_scores.json parses as JSON | `error` | `pass` |
+| zak_packets.json exists | `error` | `pass` |
+| zak_packets.json parses as JSON | `error` | `pass` |
+| report.md exists | `error` | `pass` |
+| manifest schema is research.manifest.v1 | `error` | `pass` |
+| manifest pipeline status is internal_validation_ready | `error` | `pass` |
+| manifest records no quality errors | `error` | `pass` |
+| frank_packet.json matches manifest hash | `error` | `pass` |
+| karthic_rubric.json matches manifest hash | `error` | `pass` |
+| dasha_clusters.json matches manifest hash | `error` | `pass` |
+| judge_scores.json matches manifest hash | `error` | `pass` |
+| zak_packets.json matches manifest hash | `error` | `pass` |
+| perturbation_report.json has no recorded hash because it is absent | `warning` | `pass` |
+| response count matches configured model sample plan | `error` | `pass` |
+| response prompt style is natural | `error` | `pass` |
+| all responses record natural prompt style | `error` | `pass` |
+| all responses have id, model, and text | `error` | `pass` |
+| Dasha clusters include member response ids | `error` | `pass` |
+| Dasha member ids are present in responses.json | `error` | `pass` |
+| judge has one score block per Dasha cluster | `error` | `pass` |
+| judge includes model rankings | `error` | `pass` |
+| Zak artifact includes packets list | `error` | `pass` |
+</pre></body></html>

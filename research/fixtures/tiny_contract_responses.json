@@ -1,0 +1,58 @@
+[
+  {
+    "id": "contract_plain_1",
+    "model": "fixture-contract-a",
+    "text": "The buyer has the stronger interpretation. The remedy covenant says all remedies at law or in equity remain available for uncured service failures. The service-credit schedule is limited to routine outages, so the plain meaning preserves damages for a severe uncured outage.",
+    "reasoning_signature": {
+      "doctrine": "contract interpretation",
+      "issue": "software-license remedy covenant",
+      "rule_trigger": "ordinary meaning of the remedy covenant text",
+      "outcome": "buyer may pursue damages",
+      "exception_or_defense": "service-credit limitation does not displace clear remedy covenant",
+      "reasoning_path": "plain meaning of unambiguous covenant preserves damages for severe uncured failures",
+      "conclusion": "buyer interpretation succeeds"
+    }
+  },
+  {
+    "id": "contract_plain_2",
+    "model": "fixture-contract-a",
+    "text": "A text-first reading favors the buyer because the all-remedies clause is broader than the operational service-credit schedule. The schedule can be read as applying to routine outages only, leaving damages available for severe uncured failures.",
+    "reasoning_signature": {
+      "doctrine": "contract interpretation",
+      "issue": "software-license remedy covenant",
+      "rule_trigger": "unambiguous contract text and ordinary meaning",
+      "outcome": "buyer may pursue damages",
+      "exception_or_defense": "routine outage credit provision is limited",
+      "reasoning_path": "plain meaning controls; broad remedy covenant survives narrower service-credit language",
+      "conclusion": "buyer interpretation succeeds"
+    }
+  },
+  {
+    "id": "contract_contra_1",
+    "model": "fixture-contract-b",
+    "text": "If the remedy covenant and service-credit schedule cannot be reconciled, the ambiguity should be construed against Apex because Apex drafted the agreement. That fallback canon supports the buyer's damages interpretation.",
+    "reasoning_signature": {
+      "doctrine": "contract interpretation",
+      "issue": "software-license remedy covenant",
+      "rule_trigger": "ambiguity against the drafter",
+      "outcome": "buyer may pursue damages",
+      "exception_or_defense": "contra proferentem resolves unresolved ambiguity",
+      "reasoning_path": "competing remedy clauses create ambiguity; construe against Apex as drafter",
+      "conclusion": "buyer interpretation succeeds"
+    }
+  },
+  {
+    "id": "contract_seller_1",
+    "model": "fixture-contract-c",
+    "text": "The seller has the stronger argument if the service-credit schedule is treated as the exclusive operational remedy for outages. On that reading, damages are displaced by the specific remedy schedule.",
+    "reasoning_signature": {
+      "doctrine": "contract interpretation",
+      "issue": "software-license remedy covenant",
+      "rule_trigger": "specific remedy limitation controls",
+      "outcome": "seller limits buyer to service credits",
+      "exception_or_defense": "specific service-credit schedule overrides broad remedy language",
+      "reasoning_path": "specific limitation prevails over general all-remedies clause",
+      "conclusion": "seller interpretation succeeds"
+    }
+  }
+]

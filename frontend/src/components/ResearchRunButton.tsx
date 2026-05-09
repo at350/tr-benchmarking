@@ -228,7 +228,8 @@ function PipelineInspector({ result }: { result: PipelineResult }) {
 
       <Section id="dasha-clusters" title="4. Dasha Responses And Clusters">
         <p className="text-sm leading-6 text-slate-700">
-          Dasha clusters responses by SOF gate, outcome, exception/substitute, and reasoning path.
+          Dasha clusters responses by normalized legal-reasoning signatures recovered from
+          natural model answers.
         </p>
         <JsonBlock value={{ method: dasha.method, clusters: dasha.clusters }} />
       </Section>

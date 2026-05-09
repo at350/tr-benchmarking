@@ -6,20 +6,43 @@ answers by reasoning path, a judge can score representative centroids and then
 project those scores to all cluster members. This creates an interpretable
 middle layer between raw model generations and aggregate model rankings.
 
-The internal evidence supports the feasibility of that design. The live run
-shows that the source-to-ranking path works with real model outputs. The controlled
+The reported evidence supports the feasibility of that design on a small
+live natural-response batch. The live run shows that the source-to-ranking path
+works with real model outputs and that Dasha can separate more than one observed
+legal-reasoning path without preassigned response labels. The controlled
 500-response regression test shows that, once reasoning signatures are
 available, Dasha can preserve eight legally distinct Statute-of-Frauds reasoning
-paths at the intended compression scale. The natural-response audit is the more important Dasha
-evidence because it starts with model answers to the same Frank question rather
-than with preassigned reasoning categories. The unit and regression tests show
-that the main engineering failure modes are executable checks rather than
-undocumented review habits.
+paths at the intended compression scale. These two evidence layers answer
+different questions: the live run tests discovery from natural answers, while
+the regression suite tests scale, metrics, and bookkeeping under known
+archetypes.
 
-The remaining risk is upstream semantic extraction, not the cluster container
-itself. If Dasha assigns incorrect normalized signatures, the clustering layer
-will faithfully preserve the wrong abstraction. The next internal improvement is
-therefore repeated signature extraction, judge ensembling, and adversarial
-signature audits on larger live batches. Those additions would strengthen the
-paper, but the current manuscript already stands as a complete internal
-validation of the pipeline mechanics and evidence protocol before expert review.
+The stage-level assessment is equally important. Frank and Karthic are not
+validated merely by emitting JSON. They are validated by whether the generated
+question, gold answer, variations, and rubric rows preserve the legally
+operative facts and match the methodology described in the instruction context.
+Likewise, Dasha is not validated merely by reporting a cluster count; its
+clusters must be interpretable as different legal theories. Judge is not
+validated merely by producing a scalar score; it must apply the Karthic rows to
+the centroid and leave row-level rationales that can be reviewed. This is why
+the run bundle and paper appendix include concrete artifacts rather than only
+aggregate metrics.
+
+The broader transfer claim is deliberately modest. The architecture is designed
+so that the case source and instruction stream determine the doctrine-specific
+content, while the pipeline mechanics remain stable: source extraction,
+question generation, perturbation-track generation, rubric construction,
+natural response generation, reasoning clustering, centroid judging, and
+escalation. That gives a plausible path to other areas of law, but it is not
+yet broad empirical validation. The next stage is to run the same stage-level
+and perturbation review protocol on held-out cases and additional doctrine
+families without changing the pipeline in between.
+
+The remaining risk is not only the cluster container itself. Dasha depends on an
+LLM semantic-extraction step; if that step assigns incorrect normalized
+signatures, deterministic grouping will preserve the wrong abstraction. The
+judge is also a single rubric-conditioned model in the reported run, so the
+reported model rankings should be read as pipeline outputs rather than stable
+comparative claims about the model families. The next methodological improvement is a
+larger held-out natural-response suite with repeated signature extraction, judge
+ensembling, rubric ablations, and adversarial signature audits.

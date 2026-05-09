@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Autoresearch Progress - Legal Reasoning Evaluation</title>
+    <style>
+      body {
+        margin: 0;
+        background: #f4f6f8;
+        color: #111827;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      main {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 48px 24px;
+      }
+      section {
+        background: #ffffff;
+        border: 1px solid #d8dee8;
+        margin: 0 0 18px;
+        padding: 24px;
+      }
+      h1 {
+        font-size: 34px;
+        line-height: 1.1;
+        margin: 0 0 12px;
+      }
+      h2 {
+        font-size: 18px;
+        margin: 0 0 12px;
+      }
+      p, li {
+        font-size: 15px;
+        line-height: 1.65;
+      }
+      .eyebrow {
+        color: #4b5563;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+      .metric {
+        border-left: 3px solid #111827;
+        padding-left: 14px;
+      }
+      .metric strong {
+        display: block;
+        font-size: 28px;
+      }
+      code {
+        background: #eef2f7;
+        padding: 2px 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section>
+        <p class="eyebrow">Autoresearch progress - 2026-05-09</p>
+        <h1>Legal Reasoning Evaluation Pipeline</h1>
+        <p>
+          The branch now has explicit research state, findings, literature notes,
+          and an experiment record. Dasha was also improved to use Frank's
+          source-derived gates when clustering LLM reasoning signatures. The
+          judge path now supports repeated LLM-as-judge calls and row-level
+          stability escalation. Dasha now records member/centroid coherence.
+        </p>
+      </section>
+      <section>
+        <h2>Current Evidence</h2>
+        <div class="grid">
+          <div class="metric"><strong>43</strong>unit tests after the Dasha and judge-stability regressions</div>
+          <div class="metric"><strong>9</strong>live natural responses in the current case study</div>
+          <div class="metric"><strong>3</strong>observed Dasha clusters in the live batch</div>
+          <div class="metric"><strong>500</strong>controlled stress responses for scale mechanics</div>
+        </div>
+      </section>
+      <section>
+        <h2>Methodology Improvement</h2>
+        <p>
+          Dasha's live signature clustering now builds source-gate aliases from
+          Frank's detected doctrine gates. For non-SOF packets, this lets
+          semantically equivalent legal triggers cluster together without relying
+          on exact string matches or Statute-of-Frauds fallback labels.
+        </p>
+        <p>
+          LLM-as-judge scoring can now be repeated per centroid. The run records
+          pairwise MAE, weighted kappa, maximum row-score range, and unstable
+          rows. Zak escalates rows that vary by two or more points.
+        </p>
+        <p>
+          Dasha clusters now preserve the normalized member key and centroid key
+          used for grouping. Validation records member/centroid coherence and
+          flags mismatches for review.
+        </p>
+      </section>
+      <section>
+        <h2>Next Evidence Gap</h2>
+        <ul>
+          <li>Run live perturbation tracks, not only deterministic perturbation smoke tests.</li>
+          <li>Run the repeat-aware judge path on live centroids to measure actual LLM-as-judge stability.</li>
+          <li>Run a held-out non-SOF source case to test doctrine transfer.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

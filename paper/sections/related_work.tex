@@ -15,16 +15,30 @@ kim2024prometheus2}.
 The judge literature also makes clear why internal validation must test more
 than whether an LLM can emit a score. Position-bias studies show that pairwise
 or listwise judges may change preferences when candidate order changes
-\cite{wang2024positionbias}. Self-preference work shows that judge models may
-favor outputs from their own model family \cite{panickssery2024selfpreference}.
+\cite{shi2024positionbias}. Self-preference work shows that judge models may
+favor outputs from their own model family \cite{wataoka2024selfpreference}.
 For legal evaluation specifically, recent benchmarks and legal judge proposals
 emphasize that legal reasoning requires decomposed factual and doctrinal units,
-not just general answer preference \cite{lexam2025,lemaj2025}. These findings
-motivate our row-level rubric design, centroid-level judging, model-output
-provenance, and explicit separation between internal validation and future
-expert-reviewed legal validity.
+not just general answer preference. LegalBench demonstrates the value of
+law-professional task design and explicit legal-reasoning categories across a
+large task suite \cite{guha2023legalbench}. LEXam uses law-exam questions with
+reference answers and reasoning guidance, and reports an ensemble LLM-as-judge
+setup with human expert validation \cite{lexam2025}. LeMAJ decomposes legal
+answers into legal data points and evaluates them in a way intended to reflect
+legal expert review practices \cite{lemaj2025}. These findings motivate the
+row-level rubric design, centroid-level judging, model-output provenance, and
+explicit separation between internal validation and future expert-reviewed legal
+validity.
 
-Our pipeline differs in three ways. First, the benchmark is generated from a
+The perturbation lane is related to metamorphic testing, where correctness is
+tested through expected relations between multiple inputs and outputs rather
+than through a single oracle \cite{chen2018metamorphic}. In this pipeline,
+Frank's invariant and material variations act as legal metamorphic relations:
+legally irrelevant edits should preserve the dominant answer path, while
+legally operative edits should change the dominant outcome or reasoning path
+when the doctrine requires it.
+
+The pipeline differs in three ways. First, the benchmark is generated from a
 legal source case rather than from a static task prompt. Second, responses are
 clustered by legal reasoning path before judging, allowing many model samples to
 be compressed into interpretable centroids. Third, the judge scores rubric rows

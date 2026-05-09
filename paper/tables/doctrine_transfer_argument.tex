@@ -1,0 +1,11 @@
+\begin{tabular}{p{0.24\linewidth}p{0.34\linewidth}p{0.32\linewidth}}
+\toprule
+Pipeline component & Doctrine-general mechanism & Remaining validation burden \\
+\midrule
+Frank & Uses source text plus instruction context to infer doctrine gates and create a packet schema that is not inherently SOF-only. An offline contract-interpretation smoke fixture now emits generic doctrine gates without a SOF packet. & Run live held-out non-SOF cases and review doctrine detection, question neutrality, and gold-answer quality. \\
+Karthic & Builds rows from the locked Frank packet, so rubric content should follow the source doctrine rather than a fixed SOF checklist. The contract fixture produces a generic source-grounded rubric. & Confirm row coverage and source support in additional doctrine families. \\
+Dasha & Extracts normalized reasoning signatures from natural answers after generation and can use Frank's source-derived gate aliases. The contract fixture separates buyer-remedy, contra-proferentem, and seller-limitation reasoning. & Test whether signature fields and buckets remain discriminative outside SOF on live natural model answers. \\
+Judge & Applies row-level rubric criteria to centroids, independent of the doctrine label. & Repeat judging with alternate judge models, repeats, and expert comparison. \\
+Zak & Escalates low agreement, mixed clusters, or uncertain source support using artifact metadata. & Add positive failure cases across domains to verify escalation sensitivity. \\
+\bottomrule
+\end{tabular}

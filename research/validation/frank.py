@@ -1,11 +1,11 @@
-"""Frank Statute of Frauds packet generation for research runs."""
+"""Frank source-case packet generation for research runs."""
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
 
-from .utils import stable_hash
+from .utils import display_path, stable_hash
 
 
 BENCHMARK_HEADINGS = [
@@ -44,6 +44,19 @@ SOF_GATE_DEFINITIONS = {
         "label": "Goods / UCC 2-201 provision",
         "keywords": ("goods", "merchant", "quantity", "ucc", "$500", "500 dollars"),
         "rule": "A sale of goods at or above the statutory threshold generally requires a signed writing sufficient to show a contract and quantity.",
+    },
+}
+
+CONTRACT_INTERPRETATION_GATES = {
+    "plain_meaning": {
+        "label": "Plain-meaning interpretation",
+        "keywords": ("plain meaning", "ordinary meaning", "unambiguous", "text", "clause", "covenant"),
+        "rule": "If the contractual text is unambiguous, apply its ordinary meaning before turning to ambiguity-resolving doctrines.",
+    },
+    "contra_proferentem": {
+        "label": "Contra proferentem",
+        "keywords": ("ambiguity", "ambiguous", "drafter", "against the drafter", "contra proferentem"),
+        "rule": "If ambiguity remains after ordinary interpretive tools, construe the term against the drafter when the source law supports that canon.",
     },
 }
 
@@ -132,10 +145,52 @@ def detect_sof_gates(source_text: str) -> list[dict]:
     return detected
 
 
+def detect_contract_interpretation_gates(source_text: str) -> list[dict]:
+    lower = source_text.lower()
+    detected = []
+    for gate_id, definition in CONTRACT_INTERPRETATION_GATES.items():
+        evidence = [keyword for keyword in definition["keywords"] if keyword in lower]
+        if evidence:
+            detected.append({
+                "id": gate_id,
+                "label": definition["label"],
+                "rule": definition["rule"],
+                "source_evidence": sorted(set(evidence)),
+            })
+    if not detected and any(term in lower for term in ("contract", "agreement", "clause", "covenant")):
+        detected.append({
+            "id": "contract_text",
+            "label": "Contract text and source-supported interpretation",
+            "rule": "Identify the relevant contractual text and apply the source-supported interpretation rule.",
+            "source_evidence": ["contract text"],
+        })
+    return detected
+
+
+def detect_doctrine_profile(source_text: str) -> dict:
+    contract_gates = detect_contract_interpretation_gates(source_text)
+    lower = source_text.lower()
+    if contract_gates and any(term in lower for term in ("interpret", "interpretation", "ambiguous", "plain meaning", "covenant", "clause")):
+        return {
+            "selected_pack": "contract_interpretation",
+            "doctrine_family": "Contract interpretation",
+            "gates": contract_gates,
+            "focus_key": "doctrine_gates",
+            "source_limit": "The answer must stay within the source-supported contract text, interpretation rules, ambiguity facts, and counterarguments.",
+        }
+    sof_gates = detect_sof_gates(source_text)
+    return {
+        "selected_pack": "pack10",
+        "doctrine_family": sof_gates[0]["label"],
+        "gates": sof_gates,
+        "focus_key": "statute_of_frauds",
+        "source_limit": "The answer must stay within source-supported Statute of Frauds facts, writing evidence, exceptions, and counterarguments.",
+    }
+
+
 def infer_pack(source_text: str) -> tuple[str, str]:
-    gates = detect_sof_gates(source_text)
-    primary = gates[0]
-    return "pack10", primary["label"]
+    profile = detect_doctrine_profile(source_text)
+    return profile["selected_pack"], profile["doctrine_family"]
 
 
 def _jurisdiction(source_text: str) -> str:
@@ -164,6 +219,11 @@ def _key_facts(source_text: str, gates: list[dict]) -> list[str]:
 def _clean_issue(gates: list[dict]) -> str:
     gate_labels = ", ".join(gate["label"] for gate in gates[:3])
     return f"Whether the alleged oral promise is enforceable under the Statute of Frauds, focusing on {gate_labels}."
+
+
+def _clean_generic_issue(doctrine_family: str, gates: list[dict]) -> str:
+    gate_labels = ", ".join(gate["label"] for gate in gates[:3])
+    return f"How the source-supported {doctrine_family} rules apply, focusing on {gate_labels}."
 
 
 def build_benchmark_answer(source_text: str, doctrine_family: str, gates: list[dict] | None = None) -> str:
@@ -217,6 +277,37 @@ def build_benchmark_answer(source_text: str, doctrine_family: str, gates: list[d
     ])
 
 
+def build_generic_benchmark_answer(source_text: str, doctrine_family: str, gates: list[dict]) -> str:
+    primary = gates[0]
+    lower = source_text.lower()
+    if primary["id"] == "plain_meaning":
+        bottom_line = "The text-based interpretation likely controls if the disputed covenant is unambiguous under the supplied source facts."
+        characterization = "The response must start with the contractual words and identify whether they preserve or limit the claimed remedy."
+        compliance = "Ambiguity-resolving canons should not displace clear text unless the source facts show genuine ambiguity."
+        counter = "The strongest counterargument is that contextual facts or drafting history make the clause ambiguous enough to trigger a secondary canon."
+    elif primary["id"] == "contra_proferentem" or "ambiguous" in lower:
+        bottom_line = "If the source-supported text remains ambiguous, construing the term against the drafter may support the non-drafting party's interpretation."
+        characterization = "The response must identify the disputed clause, the competing readings, and why ambiguity remains after ordinary interpretation."
+        compliance = "Contra proferentem is a fallback canon, not the first step when the text is clear."
+        counter = "The strongest counterargument is that the text has a single ordinary meaning, making the ambiguity canon unnecessary."
+    else:
+        bottom_line = "The answer depends on the source-supported interpretation rule and the material contractual text."
+        characterization = "The response must identify the relevant contractual language and the competing interpretations."
+        compliance = "The analysis should separate text, context, ambiguity, and remedy consequences."
+        counter = "The strongest counterargument is the plausible alternative reading preserved by the source."
+
+    return "\n".join([
+        f"Jurisdiction assumption: {_jurisdiction(source_text)}.",
+        f"Bottom-line outcome: {bottom_line}",
+        f"Controlling doctrine: {primary['label']}.",
+        f"Transaction / formation characterization: {characterization}",
+        f"Writing requirement and trigger: Not applicable as a Statute of Frauds writing issue; the controlling trigger is {primary['rule']}",
+        f"Compliance / substitute / exception analysis: {compliance}",
+        "Other defenses or competing doctrines: Secondary doctrines remain subordinate to the source-supported interpretation sequence.",
+        f"Strongest counterargument: {counter}",
+    ])
+
+
 def _neutral_question(source_text: str, gates: list[dict]) -> str:
     primary = gates[0]
     facts = " ".join(_key_facts(source_text, gates)[:3])
@@ -233,8 +324,29 @@ def _neutral_question(source_text: str, gates: list[dict]) -> str:
     )
 
 
+def _neutral_generic_question(source_text: str, doctrine_family: str, gates: list[dict]) -> str:
+    primary = gates[0]
+    facts = " ".join(_key_facts(source_text, gates)[:3])
+    return (
+        f"Using the source-grounded {doctrine_family} rules, analyze the parties' competing interpretations. "
+        f"Focus on {primary['label']}. Key source facts: {facts}"
+    )
+
+
 def _variations(gates: list[dict], source_text: str) -> list[dict]:
     variations: list[dict] = []
+    base_question = _neutral_question(source_text, gates)
+    variations.append({
+        "id": "surface_party_name_swap",
+        "lane": "A",
+        "perturbation_type": "invariant",
+        "changed_fact": "Change only party or organization names, such as changing the association name from Alpha Mutual to Beta Mutual.",
+        "question": (
+            f"{base_question} Assume the same facts, except the organization is called Beta Mutual "
+            "rather than Alpha Mutual. Do not treat the name change as legally relevant."
+        ),
+        "expected_behavior": "answer_invariant",
+    })
     for gate in gates:
         gate_id = gate["id"]
         if gate_id == "one_year":
@@ -242,15 +354,24 @@ def _variations(gates: list[dict], source_text: str) -> list[dict]:
                 {
                     "id": "one_year_boundary_less_than_year",
                     "lane": "A",
+                    "perturbation_type": "material",
                     "changed_fact": "Change the promised duration to nine months beginning immediately.",
-                    "question": "Does the one-year Statute of Frauds gate still apply if full performance within one year is possible?",
+                    "question": (
+                        "A company orally promised employment for nine months beginning immediately, "
+                        "with no signed writing. Using the source-grounded one-year Statute of Frauds rule, "
+                        "is the oral promise enforceable?"
+                    ),
                     "expected_behavior": "gate_not_triggered_or_less_likely",
                 },
                 {
                     "id": "one_year_boundary_more_than_year",
                     "lane": "B",
+                    "perturbation_type": "material",
                     "changed_fact": "Change the promised duration to thirteen months or performance beginning after a delay that makes completion within one year impossible.",
-                    "question": "Does that changed duration trigger the one-year Statute of Frauds gate?",
+                    "question": (
+                        "A company orally promised employment for thirteen months, with no signed writing. "
+                        "Using the source-grounded one-year Statute of Frauds rule, is the oral promise enforceable?"
+                    ),
                     "expected_behavior": "gate_triggered",
                 },
             ])
@@ -259,15 +380,17 @@ def _variations(gates: list[dict], source_text: str) -> list[dict]:
                 {
                     "id": "surety_main_purpose",
                     "lane": "A",
+                    "perturbation_type": "material",
                     "changed_fact": "Make the promisor's dominant purpose protecting his own ownership or business interest.",
-                    "question": "Does the main-purpose exception take the promise outside the suretyship writing requirement?",
+                    "question": "A founder orally promised to pay a company debt mainly to protect his own ownership interest. Does the main-purpose exception affect enforceability despite no signed writing?",
                     "expected_behavior": "exception_may_apply",
                 },
                 {
                     "id": "surety_pure_collateral",
                     "lane": "B",
+                    "perturbation_type": "material",
                     "changed_fact": "Make the promise purely collateral and triggered only if the original debtor defaults.",
-                    "question": "Does the suretyship gate bar enforcement absent a signed writing?",
+                    "question": "A founder orally promised only to pay if the corporation defaulted, with no signed writing and no self-interested main purpose. Does the suretyship gate bar enforcement?",
                     "expected_behavior": "gate_triggered",
                 },
             ])
@@ -276,15 +399,25 @@ def _variations(gates: list[dict], source_text: str) -> list[dict]:
                 {
                     "id": "marriage_no_writing",
                     "lane": "A",
+                    "perturbation_type": "material",
                     "changed_fact": "Remove any later certificate or signed designation supporting the premarital promise.",
-                    "question": "Does the marriage-consideration provision bar enforcement without a writing or substitute?",
+                    "question": (
+                        "Under Illinois law, a member orally promised before marriage to make his fiancee the "
+                        "beneficiary if she married him, but never obtained any certificate or signed designation "
+                        "naming her. Does the Statute of Frauds marriage provision bar enforcement?"
+                    ),
                     "expected_behavior": "bar_more_likely",
                 },
                 {
                     "id": "marriage_written_designation",
                     "lane": "B",
+                    "perturbation_type": "material",
                     "changed_fact": "Add a clear signed designation made after the marriage naming the spouse.",
-                    "question": "Does the signed designation satisfy or substitute for the writing requirement?",
+                    "question": (
+                        "Under Illinois law, a member orally promised before marriage to make his fiancee the "
+                        "beneficiary if she married him and later signed a clear designation naming her. Does the "
+                        "signed designation satisfy or substitute for the writing requirement?"
+                    ),
                     "expected_behavior": "compliance_stronger",
                 },
             ])
@@ -293,15 +426,17 @@ def _variations(gates: list[dict], source_text: str) -> list[dict]:
                 {
                     "id": "land_part_performance",
                     "lane": "A",
+                    "perturbation_type": "material",
                     "changed_fact": "Add possession, payment, and substantial improvements by the claimant.",
-                    "question": "Does part performance support enforcement despite lack of writing?",
+                    "question": "A buyer orally agreed to buy land, took possession, paid part of the price, and made substantial improvements. Does part performance support enforcement despite no signed writing?",
                     "expected_behavior": "exception_may_apply",
                 },
                 {
                     "id": "land_no_possession",
                     "lane": "B",
+                    "perturbation_type": "material",
                     "changed_fact": "Remove possession and improvements, leaving only an oral land-transfer promise.",
-                    "question": "Is the land-interest gate dispositive without a writing?",
+                    "question": "A buyer alleges only an oral land-transfer promise, with no possession, payment, improvements, or signed writing. Is the land-interest gate dispositive?",
                     "expected_behavior": "bar_more_likely",
                 },
             ])
@@ -310,15 +445,17 @@ def _variations(gates: list[dict], source_text: str) -> list[dict]:
                 {
                     "id": "goods_under_threshold",
                     "lane": "A",
+                    "perturbation_type": "material",
                     "changed_fact": "Change the goods price below the statutory threshold.",
-                    "question": "Does UCC 2-201 still require a writing?",
+                    "question": "A seller orally agreed to sell goods below the statutory price threshold. Does UCC 2-201 still require a signed writing?",
                     "expected_behavior": "gate_not_triggered_or_less_likely",
                 },
                 {
                     "id": "goods_admission_or_delivery",
                     "lane": "B",
+                    "perturbation_type": "material",
                     "changed_fact": "Add an admission in pleadings or part delivery/payment.",
-                    "question": "Does a UCC exception permit enforcement despite no signed writing?",
+                    "question": "A seller orally agreed to sell covered goods, and the buyer later admits the contract or accepts part delivery. Does a UCC exception permit enforcement despite no signed writing?",
                     "expected_behavior": "exception_may_apply",
                 },
             ])
@@ -334,49 +471,97 @@ def _variations(gates: list[dict], source_text: str) -> list[dict]:
     return variations
 
 
-def build_frank_packet(source_path: Path, run_id: str) -> dict:
-    source_text = source_path.read_text(encoding="utf-8")
-    gates = detect_sof_gates(source_text)
-    pack, doctrine_family = infer_pack(source_text)
-    benchmark_answer = build_benchmark_answer(source_text, doctrine_family, gates)
-    facts = _key_facts(source_text, gates)
+def _generic_variations(gates: list[dict], source_text: str, doctrine_family: str) -> list[dict]:
+    base_question = _neutral_generic_question(source_text, doctrine_family, gates)
+    variations = [{
+        "id": "surface_party_name_swap",
+        "lane": "A",
+        "perturbation_type": "invariant",
+        "changed_fact": "Change only party names while preserving the clause and drafting facts.",
+        "question": f"{base_question} Assume the same facts, except the seller is called Northstar rather than Apex.",
+        "expected_behavior": "answer_invariant",
+    }]
+    if any(gate["id"] == "plain_meaning" for gate in gates):
+        variations.append({
+            "id": "text_adds_ambiguity",
+            "lane": "B",
+            "perturbation_type": "material",
+            "changed_fact": "Add a second clause that creates a plausible ambiguity about the remedy.",
+            "question": "A contract clause preserves the buyer's remedy, but a later clause appears to limit that remedy. How does the ambiguity affect interpretation?",
+            "expected_behavior": "reasoning_should_shift_to_ambiguity",
+        })
+    if any(gate["id"] == "contra_proferentem" for gate in gates):
+        variations.append({
+            "id": "drafter_identity_swap",
+            "lane": "B",
+            "perturbation_type": "material",
+            "changed_fact": "Change which party drafted the ambiguous clause.",
+            "question": "If the same ambiguous clause was drafted by the buyer rather than the seller, how does that affect the contra proferentem analysis?",
+            "expected_behavior": "reasoning_should_shift_with_drafter",
+        })
+    return variations
 
-    return {
+
+def build_frank_packet(source_path: Path, run_id: str, repo_root: str | Path = ".") -> dict:
+    source_text = source_path.read_text(encoding="utf-8")
+    profile = detect_doctrine_profile(source_text)
+    gates = profile["gates"]
+    pack = profile["selected_pack"]
+    doctrine_family = profile["doctrine_family"]
+    is_sof = profile["focus_key"] == "statute_of_frauds"
+    benchmark_answer = (
+        build_benchmark_answer(source_text, doctrine_family, gates)
+        if is_sof
+        else build_generic_benchmark_answer(source_text, doctrine_family, gates)
+    )
+    facts = _key_facts(source_text, gates)
+    packet = {
         "schema_version": "research.frank.v2",
         "id": f"frank_{run_id}",
         "source": {
-            "path": str(source_path),
+            "path": display_path(source_path, repo_root),
             "sha256_16": stable_hash(source_text),
             "excerpt": _source_excerpt(source_text),
         },
         "selected_pack": pack,
         "doctrine_family": doctrine_family,
-        "statute_of_frauds": {
-            "focus": True,
-            "gates": gates,
+        "doctrine_gates": gates,
+        "doctrine_profile": {
             "primary_gate_id": gates[0]["id"],
+            "calibration_domain": "statute_of_frauds" if is_sof else "doctrine_transfer_fixture",
         },
         "source_extraction": {
             "jurisdiction": _jurisdiction(source_text),
-            "clean_legal_issue": _clean_issue(gates),
+            "clean_legal_issue": _clean_issue(gates) if is_sof else _clean_generic_issue(doctrine_family, gates),
             "trigger_facts": facts,
             "source_limits": [
                 "Frank is generating a research benchmark, not deciding the case conclusively.",
-                "The answer must stay within source-supported Statute of Frauds facts, writing evidence, exceptions, and counterarguments.",
+                profile["source_limit"],
             ],
         },
         "gold_answer": benchmark_answer,
-        "neutral_question": _neutral_question(source_text, gates),
-        "variations": _variations(gates, source_text),
+        "neutral_question": _neutral_question(source_text, gates) if is_sof else _neutral_generic_question(source_text, doctrine_family, gates),
+        "variations": _variations(gates, source_text) if is_sof else _generic_variations(gates, source_text, doctrine_family),
         "controller_card": {
             "packet_status": "ready_for_karthic",
             "rubric_status": "not_started",
             "evaluation_status": "not_ready",
             "selected_lane_code": "none",
             "primary_gate_id": gates[0]["id"],
-            "strongest_counterargument": "The opposing party can argue either that no Statute of Frauds gate is triggered or that a source-recognized writing/substitute/exception changes the result.",
+            "strongest_counterargument": (
+                "The opposing party can argue either that no Statute of Frauds gate is triggered or that a source-recognized writing/substitute/exception changes the result."
+                if is_sof
+                else "The opposing party can argue for a competing source-supported interpretation of the disputed contractual text."
+            ),
         },
         "prompt_hashes": {
             "frank_source_to_packet": stable_hash({"source": source_text, "headings": BENCHMARK_HEADINGS, "gates": gates}),
         },
     }
+    if is_sof:
+        packet["statute_of_frauds"] = {
+            "focus": True,
+            "gates": gates,
+            "primary_gate_id": gates[0]["id"],
+        }
+    return packet

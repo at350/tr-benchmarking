@@ -9,8 +9,12 @@ const sectionFiles = [
   "methods.tex",
   "validation.tex",
   "results.tex",
+  "stage_assessment.tex",
+  "reproducibility.tex",
   "discussion.tex",
   "limitations.tex",
+  "review_readiness.tex",
+  "instruction_context_appendix.tex",
   "artifact_examples.tex",
 ];
 
@@ -19,10 +23,12 @@ const citationLabels: Record<string, string> = {
   liu2023geval: "Liu et al., 2023",
   kim2023prometheus: "Kim et al., 2024a",
   kim2024prometheus2: "Kim et al., 2024b",
-  wang2024positionbias: "Wang et al., 2024",
-  panickssery2024selfpreference: "Panickssery et al., 2024",
-  lemaj2025: "LeMAJ, 2025",
-  lexam2025: "LEXam, 2025",
+  shi2024positionbias: "Shi et al., 2024",
+  wataoka2024selfpreference: "Wataoka et al., 2024",
+  lemaj2025: "Enguehard et al., 2025",
+  lexam2025: "Fan et al., 2025",
+  guha2023legalbench: "Guha et al., 2023",
+  chen2018metamorphic: "Chen et al., 2018",
 };
 
 function escapeHtml(value: string) {
@@ -57,6 +63,21 @@ async function renderTable(repoRoot: string, includePath: string, caption: strin
   return renderTableFromLatex(raw, caption);
 }
 
+async function renderFigure(repoRoot: string, includePath: string | null, caption: string | null) {
+  if (!includePath) {
+    return "";
+  }
+  const figurePath = path.join(repoRoot, "paper", includePath);
+  const image = await readFile(figurePath);
+  const extension = path.extname(figurePath).replace(".", "").toLowerCase();
+  const mime = extension === "svg" ? "image/svg+xml" : `image/${extension || "png"}`;
+  const dataUrl = `data:${mime};base64,${image.toString("base64")}`;
+  const alt = caption ? inlineLatex(caption).replace(/<[^>]+>/g, "") : path.basename(includePath);
+  return `<figure class="paper-figure"><img src="${dataUrl}" alt="${escapeHtml(alt)}" />${
+    caption ? `<figcaption>${inlineLatex(caption)}</figcaption>` : ""
+  }</figure>`;
+}
+
 function renderTableFromLatex(raw: string, caption: string | null) {
   const rows = raw
     .split("\n")
@@ -87,9 +108,11 @@ async function renderLatexSection(repoRoot: string, fileName: string) {
   const blocks: string[] = [];
   const paragraph: string[] = [];
   let inTable = false;
+  let inFigure = false;
   let inTabular = false;
   const tabularLines: string[] = [];
   let pendingCaption: string | null = null;
+  let pendingFigurePath: string | null = null;
 
   const flushParagraph = () => {
     if (!paragraph.length) {
@@ -145,6 +168,14 @@ async function renderLatexSection(repoRoot: string, fileName: string) {
       continue;
     }
 
+    const includeGraphics = trimmed.match(/^\\includegraphics(?:\[[^\]]+\])?\{(.+)\}$/);
+    if (includeGraphics) {
+      if (inFigure) {
+        pendingFigurePath = includeGraphics[1];
+      }
+      continue;
+    }
+
     const input = trimmed.match(/^\\input\{(.+)\}$/);
     if (input) {
       flushParagraph();
@@ -164,7 +195,23 @@ async function renderLatexSection(repoRoot: string, fileName: string) {
       continue;
     }
 
-    if (inTable || trimmed === "\\centering" || trimmed.startsWith("\\label{")) {
+    if (trimmed.startsWith("\\begin{figure}")) {
+      flushParagraph();
+      inFigure = true;
+      pendingFigurePath = null;
+      pendingCaption = null;
+      continue;
+    }
+
+    if (trimmed === "\\end{figure}") {
+      blocks.push(await renderFigure(repoRoot, pendingFigurePath, pendingCaption));
+      pendingFigurePath = null;
+      pendingCaption = null;
+      inFigure = false;
+      continue;
+    }
+
+    if (inTable || inFigure || trimmed === "\\centering" || trimmed.startsWith("\\label{")) {
       continue;
     }
 
@@ -185,12 +232,12 @@ export default async function PaperPreviewPage() {
       <article className="mx-auto max-w-4xl bg-white px-10 py-12 shadow-sm ring-1 ring-slate-200 md:px-16">
         <header className="border-b border-slate-200 pb-8 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            TR Benchmarking Internal Manuscript
+            Legal Reasoning Evaluation Manuscript
           </p>
           <h1 className="mt-4 text-3xl font-semibold tracking-tight">
             A Source-Grounded Pipeline for Evaluating Legal Reasoning in Large Language Models
           </h1>
-          <p className="mt-4 text-sm text-slate-600">TR Benchmarking Research Team</p>
+          <p className="mt-4 text-sm text-slate-600">Legal Reasoning Evaluation Research Team</p>
         </header>
 
         <div
