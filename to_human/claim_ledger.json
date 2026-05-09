@@ -73,14 +73,14 @@
       "claim": "Dasha clustered the current natural-response batch into coherent legal-reasoning groups.",
       "evidence": [
         "responses=60",
-        "clusters=22",
+        "clusters=15",
         "min_observed_clusters=3",
         "cluster_purity=1.0",
         "member_coherence=1.0",
-        "mean_centroid_text_similarity=0.699",
+        "mean_centroid_text_similarity=0.54",
         "non_latin_signal_flags=0",
         "natural_audit=natural_response_audit_passed",
-        "observed_clusters=22"
+        "observed_clusters=15"
       ],
       "id": "C5",
       "limitation": "Run larger natural batches across more model families and held-out questions.",
@@ -97,7 +97,7 @@
         "checks=33",
         "blocking_errors=0",
         "responses=60",
-        "clusters=22"
+        "clusters=15"
       ],
       "id": "C6",
       "limitation": "Regenerate bundle audit after any claim-supporting run or artifact rewrite.",
@@ -126,9 +126,9 @@
       ],
       "claim": "LLM-as-judge scoring produces row-level scores and model rankings for clustered centroids.",
       "evidence": [
-        "judge_model=gpt-5.2,claude-sonnet-4-6",
+        "judge_model=claude-sonnet-4-6,claude-haiku-4-5-20251001",
         "judge_panel=2",
-        "row_scores=220",
+        "row_scores=150",
         "agreement_score=0.0",
         "stability=stable_after_adjudication",
         "judge_repeats=2",

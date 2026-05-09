@@ -22,7 +22,7 @@ def planned_call_counts(config: ResearchConfig) -> dict[str, Any]:
         planned_response_calls if config.clustering.method == "llm_reasoning_signature" else 0
     )
     planned_dasha_canonicalization_calls = (
-        1 if config.clustering.method == "llm_reasoning_signature" and planned_dasha_signature_calls else 0
+        6 if config.clustering.method == "llm_reasoning_signature" and planned_dasha_signature_calls else 0
     )
     judge_invocations_per_cluster = (
         sum(spec.repeats for spec in config.judge.judge_models)

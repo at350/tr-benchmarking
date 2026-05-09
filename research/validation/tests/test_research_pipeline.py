@@ -1514,8 +1514,11 @@ class ResearchPipelineTests(unittest.TestCase):
                 "agency_action_invalid",
                 "record_evidence_ignored",
                 "failure_to_consider_important_aspect",
-                "no_material_secondary_paths",
             ],
+        )
+        self.assertEqual(
+            clusters["clusters"][0]["legal_signal"]["secondary_cluster_profile"],
+            ["no_material_secondary_paths"],
         )
 
     def test_dasha_id_canonicalization_merges_agent_synonyms_before_clustering(self):

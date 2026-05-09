@@ -129,8 +129,8 @@
     },
     {
       "details": {
-        "actual": "92ed3a016cd00659",
-        "expected": "92ed3a016cd00659"
+        "actual": "a79b6e222d6a34ce",
+        "expected": "a79b6e222d6a34ce"
       },
       "message": "dasha_clusters.json matches manifest hash",
       "passed": true,
@@ -138,8 +138,8 @@
     },
     {
       "details": {
-        "actual": "7c33e3bb03d1872e",
-        "expected": "7c33e3bb03d1872e"
+        "actual": "2c610b395e29e268",
+        "expected": "2c610b395e29e268"
       },
       "message": "judge_scores.json matches manifest hash",
       "passed": true,
@@ -147,8 +147,8 @@
     },
     {
       "details": {
-        "actual": "d7f81d7bbcb82736",
-        "expected": "d7f81d7bbcb82736"
+        "actual": "4ad25936b1100b02",
+        "expected": "4ad25936b1100b02"
       },
       "message": "zak_packets.json matches manifest hash",
       "passed": true,
@@ -156,8 +156,8 @@
     },
     {
       "details": {
-        "actual": "24e11f08b65a867c",
-        "expected": "24e11f08b65a867c"
+        "actual": "95aad03b7c085cf5",
+        "expected": "95aad03b7c085cf5"
       },
       "message": "perturbation_report.json matches manifest hash",
       "passed": true,
@@ -224,7 +224,7 @@
     }
   ],
   "counts": {
-    "clusters": 22,
+    "clusters": 15,
     "responses": 60,
     "rubric_rows": 10,
     "zak_packets": 1

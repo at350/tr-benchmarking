@@ -953,26 +953,19 @@ def cluster_responses(
 def _normalized_signature(
     signature: dict,
     gate_aliases: dict[str, tuple[str, ...]] | None = None,
-) -> tuple[str, str, str, str, str, str]:
+) -> tuple[str, str, str, str, str]:
     if _has_agent_canonical_ids(signature):
         doctrine_bucket = _first_present(signature, ("doctrine_id",), fallback="unknown")
         trigger = _first_present(signature, ("rule_trigger_id",), fallback="unknown")
         outcome = _first_present(signature, ("outcome_id",), fallback="unknown")
         exception = _first_present(signature, ("exception_or_defense_id",), fallback="none")
         reasoning = _first_present(signature, ("primary_reasoning_id",), fallback="unknown")
-        secondary_audit_profile = _secondary_path_profile_from_agent_ids(signature)
-        secondary_profile = "+".join(_secondary_cluster_profile_from_agent_ids(
-            secondary_audit_profile,
-            primary_reasoning_id=reasoning,
-            rule_trigger_id=trigger,
-        ))
         return (
             doctrine_bucket,
             trigger,
             outcome,
             exception,
             reasoning,
-            secondary_profile,
         )
 
     doctrine = _signature_text({"doctrine": signature.get("doctrine", "")})
@@ -1005,7 +998,7 @@ def _normalized_signature(
 
 def cluster_responses_by_signature(responses: list[dict], frank_packet: dict | None = None) -> dict:
     gate_aliases = _source_gate_aliases(frank_packet)
-    grouped: dict[tuple[str, str, str, str, str, str], list[dict]] = defaultdict(list)
+    grouped: dict[tuple[str, ...], list[dict]] = defaultdict(list)
     for response in responses:
         signature_key = _normalized_signature(response["reasoning_signature"], gate_aliases=gate_aliases)
         trigger = signature_key[1]
@@ -1035,19 +1028,28 @@ def cluster_responses_by_signature(responses: list[dict], frank_packet: dict | N
                     "outcome": signature_key[2],
                     "exception": signature_key[3],
                     "reasoning": signature_key[4],
-                    "secondary_path_profile": signature_key[5],
+                    "secondary_path_profile": "+".join(member.get("_dasha_secondary_path_profile", [])),
                 },
             }
             for member in members
         ])
         signature = members[0]["reasoning_signature"]
-        secondary_cluster_profile = [item for item in signature_key[5].split("+") if item]
         secondary_path_profile = sorted({
             item
             for member in members
             for item in member.get("_dasha_secondary_path_profile", [])
             if item
         }) or ["no_material_secondary_paths"]
+        secondary_cluster_profile = sorted({
+            item
+            for member in members
+            for item in _secondary_cluster_profile_from_agent_ids(
+                member.get("reasoning_signature", {}),
+                primary_reasoning_id=signature_key[4],
+                rule_trigger_id=signature_key[1],
+            )
+            if item
+        }) if _has_agent_canonical_ids(signature) else secondary_path_profile
         clusters.append({
             "id": f"cluster_{index}",
             "legal_signal": {
@@ -1085,7 +1087,7 @@ def cluster_responses_by_signature(responses: list[dict], frank_packet: dict | N
         "schema_version": "research.dasha.llm.v1",
         "method": "llm_reasoning_signature",
         "normalization": {
-            "version": "agent_contextual_ids_v5",
+            "version": "agent_contextual_ids_v6_primary_key_secondary_audit",
             "legacy_fallback_version": "reasoning_bucket_v4_multipath",
             "agent_canonical_ids_used": all(_has_agent_canonical_ids(response.get("reasoning_signature", {})) for response in responses),
             "source_gate_aliases_used": bool(gate_aliases),

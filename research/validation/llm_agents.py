@@ -20,6 +20,7 @@ from .utils import display_path, stable_hash
 
 JsonGenerator = Callable[[list[dict[str, str]], AgentConfig], dict[str, Any]]
 NON_LATIN_PATTERN = re.compile(r"[\u0400-\u04FF\u0370-\u03FF\u0590-\u05FF\u0600-\u06FF]+")
+DASHA_CANONICALIZATION_VERSION = "dasha_id_canonicalization_v2_complete_inventory"
 
 
 def structured_answer_instruction(headings: tuple[str, ...]) -> str:
@@ -584,7 +585,15 @@ def add_llm_reasoning_signatures(
             temperature=agent.temperature,
             max_tokens=900,
         )
-        signed.append({**response, "reasoning_signature": sanitize_reasoning_signature(signature)})
+        cleaned_signature = sanitize_reasoning_signature(signature)
+        if isinstance(cleaned_signature, dict):
+            cleaned_signature = {
+                **cleaned_signature,
+                "_dasha_extractor_provider": agent.provider,
+                "_dasha_extractor_model": agent.model,
+                "_dasha_instruction_context_hash": instruction_context["context_hash"],
+            }
+        signed.append({**response, "reasoning_signature": cleaned_signature})
         if checkpoint_path:
             checkpoint_payload = signed + responses[index:]
             checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
@@ -607,6 +616,7 @@ def _reasoning_id_payload(responses: list[dict[str, Any]]) -> list[dict[str, Any
         signature = response.get("reasoning_signature", {})
         if not isinstance(signature, dict):
             continue
+        raw_ids = signature.get("_dasha_raw_ids", {}) if isinstance(signature.get("_dasha_raw_ids"), dict) else {}
         secondary_paths = []
         for item in signature.get("secondary_paths", []) if isinstance(signature.get("secondary_paths"), list) else []:
             if not isinstance(item, dict):
@@ -621,7 +631,7 @@ def _reasoning_id_payload(responses: list[dict[str, Any]]) -> list[dict[str, Any
             "response_id": response.get("id"),
             "track_id": response.get("track_id"),
             "model": response.get("model"),
-            "ids": {field: signature.get(field) for field in DASHA_ID_FIELDS},
+            "ids": {field: raw_ids.get(field) or signature.get(field) for field in DASHA_ID_FIELDS},
             "labels": {
                 "rule_trigger": signature.get("rule_trigger"),
                 "outcome": signature.get("outcome"),
@@ -638,14 +648,117 @@ def _signature_ids_hash(responses: list[dict[str, Any]]) -> str:
     return stable_hash(_reasoning_id_payload(responses))
 
 
+def _raw_id_inventory(responses: list[dict[str, Any]]) -> dict[str, list[str]]:
+    inventory: dict[str, set[str]] = {field: set() for field in DASHA_ID_FIELDS}
+    inventory["secondary_path_id"] = set()
+    for response in responses:
+        signature = response.get("reasoning_signature", {})
+        if not isinstance(signature, dict):
+            continue
+        raw_ids = signature.get("_dasha_raw_ids", {}) if isinstance(signature.get("_dasha_raw_ids"), dict) else {}
+        for field in DASHA_ID_FIELDS:
+            raw = str(raw_ids.get(field) or signature.get(field, "")).strip()
+            if raw:
+                inventory[field].add(raw)
+        for item in signature.get("secondary_paths", []) if isinstance(signature.get("secondary_paths"), list) else []:
+            if not isinstance(item, dict):
+                continue
+            raw_path = str(
+                item.get("path_id")
+                or item.get("gate_or_theory_id")
+                or item.get("gate_or_theory")
+                or ""
+            ).strip()
+            if raw_path:
+                inventory["secondary_path_id"].add(raw_path)
+    return {field: sorted(values) for field, values in inventory.items()}
+
+
+def _canonical_map_missing_ids(
+    canonical_maps: dict[str, Any],
+    inventory: dict[str, list[str]],
+) -> dict[str, list[str]]:
+    missing: dict[str, list[str]] = {}
+    for field, raw_ids in inventory.items():
+        field_map = canonical_maps.get(field, {}) if isinstance(canonical_maps.get(field), dict) else {}
+        field_missing = [raw_id for raw_id in raw_ids if not field_map.get(raw_id)]
+        if field_missing:
+            missing[field] = field_missing
+    return missing
+
+
+def _merge_canonical_maps(base: dict[str, Any], update: dict[str, Any]) -> dict[str, dict[str, str]]:
+    merged: dict[str, dict[str, str]] = {}
+    for field in (*DASHA_ID_FIELDS, "secondary_path_id"):
+        field_map: dict[str, str] = {}
+        for source in (base, update):
+            candidate = source.get(field, {}) if isinstance(source, dict) else {}
+            if isinstance(candidate, dict):
+                for raw, canonical in candidate.items():
+                    if str(raw).strip() and str(canonical).strip():
+                        field_map[str(raw)] = str(canonical)
+        merged[field] = field_map
+    return merged
+
+
+def _field_examples(payload: list[dict[str, Any]], field: str, limit: int = 20) -> list[dict[str, Any]]:
+    examples: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    label_key_by_field = {
+        "rule_trigger_id": "rule_trigger",
+        "outcome_id": "outcome",
+        "exception_or_defense_id": "exception_or_defense",
+        "primary_reasoning_id": "primary_reasoning_path",
+    }
+    for item in payload:
+        if field == "secondary_path_id":
+            for secondary in item.get("secondary_paths", []):
+                if not isinstance(secondary, dict):
+                    continue
+                raw = str(secondary.get("path_id") or "").strip()
+                if raw and raw not in seen:
+                    seen.add(raw)
+                    examples.append({
+                        "raw_id": raw,
+                        "gate_or_theory": secondary.get("gate_or_theory"),
+                        "posture": secondary.get("posture"),
+                        "effect_on_outcome": secondary.get("effect_on_outcome"),
+                    })
+                if len(examples) >= limit:
+                    return examples
+            continue
+        raw = str(item.get("ids", {}).get(field) or "").strip()
+        if raw and raw not in seen:
+            seen.add(raw)
+            examples.append({
+                "raw_id": raw,
+                "track_id": item.get("track_id"),
+                "model": item.get("model"),
+                "label": item.get("labels", {}).get(label_key_by_field.get(field, "")),
+                "conclusion": item.get("labels", {}).get("conclusion"),
+            })
+        if len(examples) >= limit:
+            return examples
+    return examples
+
+
+def _field_map_from_response(response: dict[str, Any], field: str) -> dict[str, str]:
+    if isinstance(response.get("canonical_map"), dict):
+        return {str(raw): str(canonical) for raw, canonical in response["canonical_map"].items()}
+    maps = response.get("canonical_maps", {}) if isinstance(response.get("canonical_maps"), dict) else {}
+    field_map = maps.get(field, {}) if isinstance(maps.get(field), dict) else {}
+    return {str(raw): str(canonical) for raw, canonical in field_map.items()}
+
+
 def _apply_canonical_map(responses: list[dict[str, Any]], canonical_maps: dict[str, Any]) -> list[dict[str, Any]]:
     updated = []
     for response in responses:
         signature = dict(response.get("reasoning_signature", {}))
-        raw_ids = {field: signature.get(field) for field in DASHA_ID_FIELDS}
+        stored_raw_ids = signature.get("_dasha_raw_ids", {}) if isinstance(signature.get("_dasha_raw_ids"), dict) else {}
+        raw_ids = {field: stored_raw_ids.get(field) or signature.get(field) for field in DASHA_ID_FIELDS}
         for field in DASHA_ID_FIELDS:
             field_map = canonical_maps.get(field, {}) if isinstance(canonical_maps.get(field), dict) else {}
-            raw = str(signature.get(field, "")).strip()
+            raw = str(raw_ids.get(field, "")).strip()
             if raw and field_map.get(raw):
                 signature[field] = field_map[raw]
         secondary_map = canonical_maps.get("secondary_path_id", {})
@@ -665,6 +778,9 @@ def _apply_canonical_map(responses: list[dict[str, Any]], canonical_maps: dict[s
             signature["secondary_paths"] = secondary_paths
         signature["_dasha_raw_ids"] = raw_ids
         signature["_dasha_id_canonicalized"] = True
+        signature["_dasha_canonicalization_provider"] = str(canonical_maps.get("_provider", ""))
+        signature["_dasha_canonicalization_model"] = str(canonical_maps.get("_model", ""))
+        signature["_dasha_canonicalization_version"] = DASHA_CANONICALIZATION_VERSION
         updated.append({**response, "reasoning_signature": signature})
     return updated
 
@@ -683,65 +799,126 @@ def canonicalize_llm_reasoning_signature_ids(
     signatures = [response.get("reasoning_signature", {}) for response in responses]
     if not all(isinstance(signature, dict) and all(signature.get(field) for field in DASHA_ID_FIELDS) for signature in signatures):
         return responses
-    if all(signature.get("_dasha_id_canonicalized") for signature in signatures if isinstance(signature, dict)):
-        return responses
 
     input_hash = _signature_ids_hash(responses)
     if canonicalization_path and canonicalization_path.exists():
         try:
             cached = json.loads(canonicalization_path.read_text(encoding="utf-8"))
-            if cached.get("input_id_hash") == input_hash and isinstance(cached.get("canonical_maps"), dict):
-                return _apply_canonical_map(responses, cached["canonical_maps"])
+            if (
+                cached.get("input_id_hash") == input_hash
+                and cached.get("canonicalization_version") == DASHA_CANONICALIZATION_VERSION
+                and isinstance(cached.get("canonical_maps"), dict)
+            ):
+                cached_maps = {
+                    **cached["canonical_maps"],
+                    "_provider": cached.get("canonicalization_provider", ""),
+                    "_model": cached.get("canonicalization_model", ""),
+                }
+                return _apply_canonical_map(responses, cached_maps)
         except json.JSONDecodeError:
             pass
 
     agent = config.agents["dasha"]
     instruction_context = load_agent_instruction_context(repo_root, "dasha")
     payload = _reasoning_id_payload(responses)
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are Dasha, canonicalizing legal reasoning ids for clustering. "
-                "Merge semantically equivalent ids across responses. Do not decide scores. "
-                "Return strict JSON only."
-            ),
-        },
-        {
-            "role": "user",
-            "content": (
-                f"Canonical instruction context:\n{instruction_context['context']}\n\n"
-                "Given the Frank packet and Dasha's extracted ids, return JSON with key canonical_maps. "
-                "canonical_maps must contain maps for doctrine_id, rule_trigger_id, outcome_id, "
-                "exception_or_defense_id, primary_reasoning_id, and secondary_path_id. "
-                "Each map's keys are raw ids and values are canonical ids. Merge ids that express the same legal "
-                "doctrine, trigger, outcome, defense/exception, or reasoning path even if wording differs. "
-                "Keep genuinely different legal theories separate. Prefer source gate ids from Frank where available. "
-                "Use concise lowercase snake_case ids. Do not use Statute-of-Frauds labels unless the source and "
-                "response actually support them.\n\n"
-                f"Frank packet:\n{json.dumps(frank_packet, indent=2)[:5000]}\n\n"
-                f"Dasha id payload:\n{json.dumps(payload, indent=2)[:18000]}"
-            ),
-        },
-    ]
-    canonicalization = generate_json(
-        repo_root=repo_root,
-        provider=agent.provider,
-        model=agent.model,
-        messages=messages,
-        temperature=agent.temperature,
-        max_tokens=5000,
-    )
-    canonical_maps = canonicalization.get("canonical_maps", {}) if isinstance(canonicalization, dict) else {}
-    if not isinstance(canonical_maps, dict):
-        canonical_maps = {}
+    inventory = _raw_id_inventory(responses)
+    canonical_maps: dict[str, dict[str, str]] = {}
+    repair_attempted = False
+    field_summaries: dict[str, dict[str, int]] = {}
+    for field, raw_ids in inventory.items():
+        if not raw_ids:
+            canonical_maps[field] = {}
+            continue
+        field_response = generate_json(
+            repo_root=repo_root,
+            provider=agent.provider,
+            model=agent.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are Dasha, canonicalizing one legal reasoning id field for clustering. "
+                        "Return strict JSON only."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Canonical instruction context:\n{instruction_context['context'][:5000]}\n\n"
+                        f"Canonicalize the `{field}` field only. Return JSON with key canonical_map, where every "
+                        "raw id listed below appears exactly once as a key and each value is its canonical id. "
+                        "Merge paraphrases of the same legal answer family. Keep a raw id separate only when the "
+                        "legal trigger, accepted exception, final outcome, or controlling reasoning path is genuinely different. "
+                        "Do not preserve distinctions based only on model, track id, party names, wording, or remedial phrasing. "
+                        "Use concise lowercase snake_case ids. Do not score responses.\n\n"
+                        f"Frank packet excerpt:\n{json.dumps(frank_packet, indent=2)[:4500]}\n\n"
+                        f"Raw ids for `{field}`:\n{json.dumps(raw_ids, indent=2)}\n\n"
+                        f"Representative examples:\n{json.dumps(_field_examples(payload, field), indent=2)[:7000]}"
+                    ),
+                },
+            ],
+            temperature=agent.temperature,
+            max_tokens=3000,
+        )
+        field_map = _field_map_from_response(field_response, field)
+        missing_for_field = [raw_id for raw_id in raw_ids if not field_map.get(raw_id)]
+        if missing_for_field:
+            repair_attempted = True
+            repair_response = generate_json(
+                repo_root=repo_root,
+                provider=agent.provider,
+                model=agent.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are Dasha repairing one incomplete canonical map. Return strict JSON only.",
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            f"The `{field}` canonical_map omitted raw ids. Return a complete JSON object with key "
+                            "canonical_map. Include every raw id below as a key. Reuse prior canonical ids where "
+                            "semantically appropriate and merge equivalent legal answer-family ids.\n\n"
+                            f"All raw ids:\n{json.dumps(raw_ids, indent=2)}\n\n"
+                            f"Missing ids:\n{json.dumps(missing_for_field, indent=2)}\n\n"
+                            f"Prior canonical_map:\n{json.dumps(field_map, indent=2)}"
+                        ),
+                    },
+                ],
+                temperature=agent.temperature,
+                max_tokens=3500,
+            )
+            field_map = {**field_map, **_field_map_from_response(repair_response, field)}
+            missing_for_field = [raw_id for raw_id in raw_ids if not field_map.get(raw_id)]
+        if missing_for_field:
+            raise RuntimeError(
+                "Dasha canonicalization did not cover all raw ids after repair: "
+                f"{field}={len(missing_for_field)}"
+            )
+        canonical_maps[field] = field_map
+        field_summaries[field] = {
+            "raw_id_count": len(raw_ids),
+            "mapped_id_count": len(field_map),
+            "canonical_id_count": len(set(field_map.values())),
+        }
     result = {
         "schema_version": "research.dasha.id_canonicalization.v1",
+        "canonicalization_version": DASHA_CANONICALIZATION_VERSION,
+        "canonicalization_provider": agent.provider,
+        "canonicalization_model": agent.model,
         "input_id_hash": input_hash,
         "context_hash": instruction_context["context_hash"],
+        "raw_id_inventory": inventory,
+        "repair_attempted": repair_attempted,
+        "map_coverage": field_summaries,
         "canonical_maps": canonical_maps,
+    }
+    maps_with_meta: dict[str, Any] = {
+        **canonical_maps,
+        "_provider": agent.provider,
+        "_model": agent.model,
     }
     if canonicalization_path:
         canonicalization_path.parent.mkdir(parents=True, exist_ok=True)
         canonicalization_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    return _apply_canonical_map(responses, canonical_maps)
+    return _apply_canonical_map(responses, maps_with_meta)

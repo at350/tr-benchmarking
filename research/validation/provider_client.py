@@ -230,21 +230,9 @@ def generate_json(
         )
         try:
             return extract_json_object(repaired)
-        except Exception:
-            fallback = _openai_text(
-                repo_root,
-                "gpt-4o-mini",
-                [
-                    {
-                        "role": "system",
-                        "content": "Extract and repair valid JSON. Return only one valid JSON object.",
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Return the intended JSON object from this malformed output:\n\n{raw}",
-                    },
-                ],
-                0.0,
-                max(max_tokens, 4000),
-            )
-            return extract_json_object(fallback)
+        except Exception as exc:
+            snippet = raw[:1000].replace("\n", "\\n")
+            raise RuntimeError(
+                f"{provider}/{model} returned malformed JSON and provider-local repair failed. "
+                f"Raw output starts with: {snippet}"
+            ) from exc
