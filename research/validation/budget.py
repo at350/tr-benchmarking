@@ -49,6 +49,33 @@ def planned_call_counts(config: ResearchConfig) -> dict[str, Any]:
     }
 
 
+def judge_invocations_per_cluster(config: ResearchConfig) -> int:
+    """Return the number of LLM judge calls made for each Dasha cluster."""
+
+    if config.judge.mode != "llm":
+        return 0
+    if config.judge.judge_models:
+        return sum(spec.repeats for spec in config.judge.judge_models)
+    return config.judge.repeats
+
+
+def actual_judge_call_plan(config: ResearchConfig, clusters: dict[str, Any], call_plan: dict[str, Any]) -> dict[str, Any]:
+    """Compute the live-call plan after Dasha reveals the actual cluster count."""
+
+    cluster_count = len(clusters.get("clusters", []))
+    actual_judge_calls = cluster_count * judge_invocations_per_cluster(config)
+    return {
+        **call_plan,
+        "actual_clusters_for_judging": cluster_count,
+        "actual_judge_calls": actual_judge_calls,
+        "actual_total_llm_calls_excluding_frank_karthic": (
+            call_plan["planned_response_calls"]
+            + call_plan["planned_dasha_signature_calls"]
+            + actual_judge_calls
+        ),
+    }
+
+
 def budget_violations(config: ResearchConfig, call_plan: dict[str, Any] | None = None) -> list[str]:
     """Return budget-cap violations for the planned run."""
 
@@ -73,6 +100,31 @@ def budget_violations(config: ResearchConfig, call_plan: dict[str, Any] | None =
     return violations
 
 
+def runtime_budget_violations(config: ResearchConfig, actual_plan: dict[str, Any]) -> list[str]:
+    """Return budget-cap violations once actual cluster count is known."""
+
+    violations = []
+    if (
+        config.budget.max_judge_calls > 0
+        and actual_plan["actual_judge_calls"] > config.budget.max_judge_calls
+    ):
+        violations.append(
+            "Actual judge calls exceed configured budget "
+            f"({actual_plan['actual_judge_calls']} > {config.budget.max_judge_calls})."
+        )
+    if (
+        config.budget.max_total_llm_calls_excluding_frank_karthic > 0
+        and actual_plan["actual_total_llm_calls_excluding_frank_karthic"]
+        > config.budget.max_total_llm_calls_excluding_frank_karthic
+    ):
+        violations.append(
+            "Actual total LLM calls excluding Frank/Karthic exceed configured budget "
+            f"({actual_plan['actual_total_llm_calls_excluding_frank_karthic']} > "
+            f"{config.budget.max_total_llm_calls_excluding_frank_karthic})."
+        )
+    return violations
+
+
 def enforce_live_budget(config: ResearchConfig) -> dict[str, Any]:
     """Raise before live execution if the configured plan exceeds hard caps."""
 
@@ -83,3 +135,19 @@ def enforce_live_budget(config: ResearchConfig) -> dict[str, Any]:
     if violations:
         raise RuntimeError("Live run exceeds configured budget: " + "; ".join(violations))
     return call_plan
+
+
+def enforce_runtime_judge_budget(
+    config: ResearchConfig,
+    clusters: dict[str, Any],
+    call_plan: dict[str, Any],
+) -> dict[str, Any]:
+    """Raise after Dasha if actual judge work would exceed live-run caps."""
+
+    actual_plan = actual_judge_call_plan(config, clusters, call_plan)
+    if config.mode not in LIVE_MODES:
+        return actual_plan
+    violations = runtime_budget_violations(config, actual_plan)
+    if violations:
+        raise RuntimeError("Live run exceeds configured runtime budget: " + "; ".join(violations))
+    return actual_plan

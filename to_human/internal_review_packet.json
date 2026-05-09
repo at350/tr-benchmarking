@@ -16,14 +16,11 @@
     "planned_total_llm_calls_excluding_frank_karthic": 69
   },
   "evidence_gaps": [
-    "Claim-supporting source provenance",
-    "Dasha natural-response clustering",
     "Perturbation validation"
   ],
-  "met_gates": 6,
-  "partial_gates": 2,
+  "met_gates": 9,
+  "partial_gates": 1,
   "partial_gates_list": [
-    "Judge row-level scoring and rankings",
     "Live-run preflight"
   ],
   "preflight_status": "live_preflight_passed",

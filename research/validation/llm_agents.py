@@ -10,6 +10,7 @@ from typing import Any, Callable
 
 from .config import AgentConfig, ResearchConfig
 from .instruction_context import load_agent_instruction_context
+from .perturbations import _classify_perturbation
 from .perturbations import build_question_tracks
 from .provider_client import generate_json, generate_text
 from .quality import question_quality_errors
@@ -108,6 +109,56 @@ def _merge_frank_question_repair(original: dict[str, Any], repaired: dict[str, A
     return merged
 
 
+def _name_invariant_question(question: str) -> str:
+    replacements = (
+        ("Clinton", "Jordan"),
+        ("Amanda", "Alex"),
+        ("Policemen", "Civic Workers"),
+        ("Police", "Civic"),
+    )
+    edited = str(question or "")
+    for source, target in replacements:
+        edited = edited.replace(source, target)
+    if edited == question:
+        edited = (
+            "The claimant is renamed Alex, the counterparty is renamed Jordan, and the relevant "
+            "organization is renamed North Star Association, but the transaction, timing, writings, "
+            "performances, and dispute facts are otherwise identical.\n\n"
+            f"{question}"
+        )
+    return edited
+
+
+def _normalize_frank_variations(raw: dict[str, Any], config: ResearchConfig) -> list[dict[str, Any]]:
+    """Make Frank's perturbation set explicit enough for track-aware testing."""
+
+    variations = [variation for variation in raw.get("variations", []) if isinstance(variation, dict)]
+    normalized = []
+    for index, variation in enumerate(variations, start=1):
+        perturbation_type = _classify_perturbation(variation)
+        normalized.append({
+            **variation,
+            "id": str(variation.get("id") or f"V{index}"),
+            "lane": str(variation.get("lane") or ("A" if perturbation_type == "invariant" else "B")),
+            "perturbation_type": perturbation_type,
+        })
+
+    if config.perturbations.enabled and not any(item["perturbation_type"] == "invariant" for item in normalized):
+        normalized.insert(0, {
+            "id": "V_surface_invariant",
+            "lane": "A",
+            "perturbation_type": "invariant",
+            "changed_fact": (
+                "Only party and organization names are changed; all legally operative facts, dates, "
+                "writings, performances, and later disputes remain the same."
+            ),
+            "question": _name_invariant_question(str(raw.get("neutral_question", ""))),
+            "expected_behavior": "answer_invariant; the dominant legal reasoning and outcome should not change.",
+        })
+
+    return normalized
+
+
 def build_frank_packet_with_llm(
     repo_root: Path,
     config: ResearchConfig,
@@ -138,10 +189,13 @@ def build_frank_packet_with_llm(
                 "the operative promise or transaction, timing, writing/certificate or procedural facts, the later "
                 "dispute, and a neutral call question. Variation questions must restate the full scenario with the "
                 "changed fact integrated; do not write one-sentence questions beginning only with 'If'. "
+                "When perturbation testing is enabled, include at least one invariant variation that changes only "
+                "legally immaterial surface facts such as party names, and at least one material variation that "
+                "changes a legally operative fact so the expected reasoning path or outcome should change. "
                 "Return JSON with keys: "
                 "doctrine_family, detected_doctrine_gates (array of {id,label,rule,source_evidence}), "
                 "source_extraction {jurisdiction, clean_legal_issue, trigger_facts, source_limits}, "
-                "neutral_question, gold_answer, variations (array of {id,lane,changed_fact,question,expected_behavior}), "
+                "neutral_question, gold_answer, variations (array of {id,lane,perturbation_type,changed_fact,question,expected_behavior}), "
                 "controller_card {packet_status,rubric_status,evaluation_status,primary_gate_id,strongest_counterargument}. "
                 f"The gold_answer must use these headings: {list(config.answer_headings)}.\n\n"
                 f"Source case:\n{source_text}"
@@ -210,7 +264,7 @@ def build_frank_packet_with_llm(
         "source_extraction": raw.get("source_extraction", {}),
         "gold_answer": str(raw.get("gold_answer", "")),
         "neutral_question": str(raw.get("neutral_question", "")),
-        "variations": raw.get("variations", []),
+        "variations": _normalize_frank_variations(raw, config),
         "controller_card": {
             **raw_card,
             "packet_status": "ready_for_karthic",

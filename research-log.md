@@ -152,3 +152,9 @@
   original PDF hash, extracted-text hash, format, case id, citation, court,
   jurisdiction, and limitations. Live preflight now checks that source metadata
   is present and complete before a run can be treated as ready.
+- Ran the smaller full live source-to-score pipeline on the real Anglemire PDF.
+  The run completed with `internal_validation_ready`: 9 natural responses, 5
+  Dasha clusters, 11 Karthic rubric rows, 55 repeated judge row scores, 3 model
+  rankings, and 1 Zak escalation packet. No-call audit now reports 10 of 11
+  readiness gates met; the remaining gap is live perturbation validation on the
+  real court-case source.

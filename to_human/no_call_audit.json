@@ -3,14 +3,13 @@
   "claim_ledger": {
     "status": "claim_ledger_ready",
     "status_counts": {
-      "evidence_gap": 7,
       "partial": 1,
-      "supported": 4
+      "supported": 11
     }
   },
   "handoff_manifest": {
     "artifact_count": 106,
-    "manifest_hash": "f2272d27c9890cfb",
+    "manifest_hash": "f8cdcf26aa2db03d",
     "status": "handoff_manifest_ready"
   },
   "live_calls_made": false,
@@ -39,8 +38,8 @@
     "warnings": []
   },
   "readiness": {
-    "met_gates": 7,
-    "partial_gates": 1,
+    "met_gates": 10,
+    "partial_gates": 0,
     "status": "internal_method_ready_with_gaps",
     "total_gates": 11
   },
@@ -56,10 +55,10 @@
     "blocking_errors": 0,
     "check_count": 33,
     "counts": {
-      "clusters": 3,
+      "clusters": 5,
       "responses": 9,
-      "rubric_rows": 10,
-      "zak_packets": 0
+      "rubric_rows": 11,
+      "zak_packets": 1
     },
     "status": "run_bundle_reviewable"
   },
@@ -70,8 +69,6 @@
   },
   "status": "no_call_audit_passed_with_declared_gaps",
   "warnings_and_gaps": [
-    "readiness gap: Claim-supporting source provenance",
-    "readiness gap: Dasha natural-response clustering",
     "readiness gap: Perturbation validation",
     "partial claim: C7 Perturbation validation has been implemented as a metamorphic-test path."
   ]

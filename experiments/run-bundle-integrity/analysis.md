@@ -29,7 +29,7 @@
 | dasha_clusters.json matches manifest hash | `error` | `pass` |
 | judge_scores.json matches manifest hash | `error` | `pass` |
 | zak_packets.json matches manifest hash | `error` | `pass` |
-| perturbation_report.json has no recorded hash because it is absent | `warning` | `pass` |
+| perturbation_report.json matches manifest hash | `error` | `pass` |
 | response count matches configured model sample plan | `error` | `pass` |
 | response prompt style is natural | `error` | `pass` |
 | all responses record natural prompt style | `error` | `pass` |

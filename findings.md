@@ -8,13 +8,18 @@ that locked packet, response models answer the generated question naturally,
 Dasha clusters the resulting responses by legal reasoning, Judge scores cluster
 centroids against rubric rows, and Zak records escalation state.
 
-The present evidence supports software mechanics and exploratory calibration,
-but the claim-supporting live run must be rerun from a real court-case source.
-Earlier live runs used a compact Anglemire-derived source fixture. That is not
-adequate for the main manuscript claim because a source-to-score legal
-benchmark must begin from citable legal material, not from a researcher-written
-summary. The live configs now point to the real Anglemire court-case PDF, and
-the compact fixture is demoted to offline smoke/regression status.
+The present evidence now includes a claim-supporting live run from a real
+court-case PDF: \emph{Anglemire v. Policemen's Benevolent Association of
+Chicago}, 301 Ill. App. 277, 22 N.E.2d 713 (Ill. App. Ct. 1939). Earlier live
+runs used a compact Anglemire-derived source fixture; that fixture is now
+demoted to offline smoke/regression status. The real-case run completed from
+source to ranking: Frank produced a 229-word scenario question with zero quality
+errors, Karthic produced 11 rubric rows, three model identifiers produced nine
+natural answers, Dasha formed five coherent reasoning clusters, repeated judge
+scoring produced 55 row scores, and Zak produced one escalation packet. The
+remaining claim-supporting gap is perturbation validation on the real court
+case, because the completed real-case source-to-score run did not include
+invariant/material question tracks.
 
 ## Patterns And Insights
 

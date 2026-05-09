@@ -33,16 +33,28 @@ frozen_or_reported_artifacts:
   website_manuscript: http://127.0.0.1:3000/paper
 
 current_evidence:
-  unit_tests: 65
+  unit_tests: 76
   live_natural_responses:
+    source_case: cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf
+    case_id: anglemire_v_policemens_benev_assn_chicago_1939
     models:
       - gpt-5.2
       - claude-sonnet-4-20250514
       - meta/meta-llama-3-70b-instruct
     responses: 9
-    observed_clusters: 3
+    observed_clusters: 5
     dasha_member_coherence: 1.0
+    rubric_rows: 11
+    judge_row_scores: 55
+    zak_packets: 1
     status: internal_validation_passed
+    summary: >
+      Completed full source-to-score live run from the real Anglemire court-case
+      PDF. Frank generated a 229-word scenario question with zero quality
+      errors, Karthic generated 11 rubric rows, three response-model identifiers
+      produced nine natural answers, Dasha formed five coherent reasoning
+      clusters, repeated judge scoring produced 55 row scores and three model
+      rankings, and Zak produced one escalation packet.
   live_replicate_roster_dasha:
     run: research/runs/live_replicate_roster
     status: exploratory_dasha_result_from_pre_real_case_config
@@ -114,12 +126,11 @@ current_evidence:
     summary: >
       Vision-gate report generated from the saved live natural-response run,
       live multi-provider preflight, and deterministic 500-response stress run.
-      It now includes a claim-supporting source-provenance gate. Because the
-      frozen live protocol points to the real Anglemire PDF while the completed
-      run bundle was created from the old compact fixture, the report marks
-      source provenance, Dasha natural-response clustering, and perturbation
-      validation as evidence gaps. The manuscript review-readiness table is
-      generated from this same report.
+      It includes a claim-supporting source-provenance gate. After the real
+      Anglemire PDF run, 10 of 11 gates are met; perturbation validation remains
+      the only evidence gap because the completed real-case source-to-score run
+      did not include invariant/material question tracks. The manuscript
+      review-readiness table is generated from this same report.
   run_bundle_integrity:
     status: run_bundle_reviewable
     artifact: experiments/run-bundle-integrity/results.json

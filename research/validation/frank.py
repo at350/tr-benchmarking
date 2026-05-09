@@ -33,12 +33,12 @@ SOF_GATE_DEFINITIONS = {
     },
     "suretyship": {
         "label": "Suretyship / collateral promise provision",
-        "keywords": ("debt", "default", "guarantee", "guaranty", "surety", "vendor", "corporation"),
+        "keywords": ("debt", "default", "guarantee", "guaranty", "surety", "answer for another"),
         "rule": "A collateral promise to answer for another's debt is within the Statute of Frauds unless the main-purpose exception or another source rule applies.",
     },
     "land": {
         "label": "Land-interest provision",
-        "keywords": ("land", "real estate", "lease", "deed", "mortgage", "farm", "parcel"),
+        "keywords": ("real estate", "lease", "deed", "mortgage", "farm", "parcel", "land sale", "interest in land"),
         "rule": "Transfers or qualifying leases of interests in land generally require a signed writing, subject to source-recognized part-performance or reliance doctrines.",
     },
     "goods": {

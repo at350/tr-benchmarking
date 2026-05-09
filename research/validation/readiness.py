@@ -118,7 +118,7 @@ def build_method_readiness_report(
                 f"case_id={source_case.get('case_id', 'missing')}",
                 f"source_type={source_case.get('source_type', 'missing')}",
             ],
-            "Rerun the full pipeline when the frozen real-case source differs from the completed run bundle.",
+            "" if source_match else "Rerun the full pipeline when the frozen real-case source differs from the completed run bundle.",
         )
 
     stress = None

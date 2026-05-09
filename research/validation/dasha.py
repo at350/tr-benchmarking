@@ -146,6 +146,19 @@ def _bucket_outcome(signature: dict) -> str:
     if _contains_any(
         text,
         (
+            "signed premarital",
+            "signed note",
+            "signed writing satisfies",
+            "signed memorandum",
+            "satisfies the statute",
+            "satisfies the writing requirement",
+            "no longer barred",
+        ),
+    ) and _contains_any(text, ("enforceable", "satisfies", "supports enforcing", "supports enforcement", "claim")):
+        return "claim_succeeds"
+    if _contains_any(
+        text,
+        (
             "seller has the stronger",
             "seller's argument",
             "seller argues",
@@ -178,13 +191,13 @@ def _bucket_outcome(signature: dict) -> str:
     ):
         return "buyer_remedy_preserved"
     if _contains_any(text, ("later-named", "children and sister", "replacement certificate controls", "later beneficiaries", "superior claim to the death")) and not _contains_any(text, ("wife prevails", "wife entitled", "wife favored", "spouse likely has superior")):
-        return "later_beneficiaries_control"
+        return "claim_fails_or_later_designation_controls"
     if _contains_any(text, ("wife prevails", "wife entitled", "wife favored", "spouse likely has superior", "wife has superior", "wife has the better", "spouse has the stronger")):
-        return "wife_certificate_controls"
+        return "claim_succeeds"
     if _contains_any(text, ("barred", "unenforceable", "fails", "no superior claim")):
-        return "claim_barred"
+        return "claim_fails_or_later_designation_controls"
     if _contains_any(text, ("enforceable", "succeeds", "superior claim")):
-        return "claim_enforceable"
+        return "claim_succeeds"
     return "outcome_uncertain"
 
 
@@ -263,9 +276,6 @@ def _bucket_from_source_gates(text: str, gate_aliases: dict[str, tuple[str, ...]
 
 def _bucket_trigger(signature: dict, gate_aliases: dict[str, tuple[str, ...]] | None = None) -> str:
     text = _signature_text(signature)
-    source_gate = _bucket_from_source_gates(text, gate_aliases or {})
-    if source_gate:
-        return source_gate
     if _contains_any(text, ("marriage", "premarital", "spouse", "wife", "fiancee", "fiancée")):
         if _contains_any(text, ("certificate", "beneficiary", "designation", "replacement")):
             return "marriage_beneficiary_certificate"
@@ -278,13 +288,45 @@ def _bucket_trigger(signature: dict, gate_aliases: dict[str, tuple[str, ...]] | 
         return "suretyship"
     if _contains_any(text, ("land", "real estate", "lease", "deed", "property")):
         return "land_interest"
-    if _contains_any(text, ("goods", "ucc", "merchant", "quantity", "$500")):
+    if _contains_any(text, ("goods", "merchant", "quantity", "$500")) or re.search(r"\bucc\b", text):
         return "goods"
+    source_gate = _bucket_from_source_gates(text, gate_aliases or {})
+    if source_gate and not re.fullmatch(r"g\d+", source_gate):
+        return source_gate
     return re.sub(r"[^a-z0-9]+", "_", str(signature.get("rule_trigger", "general")).lower()).strip("_")[:80] or "general"
 
 
 def _bucket_exception(signature: dict) -> str:
     text = _signature_text(signature)
+    has_actual_writing = _contains_any(
+        text,
+        (
+            "signed premarital",
+            "signed note",
+            "signed writing satisfies",
+            "signed memorandum",
+            "satisfies the statute",
+            "satisfies the writing requirement",
+            "writing satisfies",
+            "sufficient signed writing",
+        ),
+    )
+    if _contains_any(text, ("no signed writing", "no writing", "lack of writing", "absence of writing")) and not has_actual_writing:
+        return "no_writing_or_no_exception"
+    if _contains_any(
+        text,
+        (
+            "signed premarital",
+            "signed note",
+            "signed writing",
+            "signed memorandum",
+            "satisfies the statute",
+            "satisfies writing",
+            "writing satisfies",
+            "sufficient signed writing",
+        ),
+    ):
+        return "writing_or_certificate"
     if _contains_any(
         text,
         (
@@ -388,6 +430,33 @@ def _bucket_reasoning_path(signature: dict) -> str:
     return re.sub(r"[^a-z0-9]+", "_", raw.lower()).strip("_")[:80] or "general_reasoning"
 
 
+def _coarsen_reasoning_bucket(signature: dict, outcome: str, exception: str, reasoning: str) -> str:
+    """Collapse prose-level signature variation into reviewable legal-reasoning families."""
+
+    text = _signature_text(signature)
+    if reasoning in {"writing_or_certificate_satisfies_gate", "constructive_trust_or_equity"}:
+        return reasoning
+    if outcome == "claim_fails_or_later_designation_controls":
+        if exception == "no_writing_or_no_exception" and not _contains_any(text, ("bylaw", "replacement", "change of beneficiary", "later designation")):
+            return "statute_bars_no_writing"
+        if _contains_any(text, ("bylaw", "beneficiary", "replacement", "certificate", "change of beneficiary", "later designation")):
+            return "sof_bar_and_later_designation_controls"
+        return "sof_bar_no_valid_exception"
+    if outcome == "claim_succeeds":
+        if _contains_any(text, ("constructive trust", "unjust enrichment", "equity", "equitable claim")):
+            return "constructive_trust_or_equity"
+        if exception == "writing_or_certificate" or _contains_any(text, ("signed writing", "signed note", "memorandum", "satisfies")):
+            return "signed_writing_satisfies_sof_and_supports_enforcement"
+        if _contains_any(text, ("estoppel", "reliance", "part performance", "constructive trust", "equity")):
+            return "equitable_override_or_constructive_trust"
+        return "claimant_enforcement_reasoning"
+    if outcome == "outcome_uncertain":
+        if exception == "writing_or_certificate":
+            return "signed_writing_with_bylaw_or_remedy_uncertainty"
+        return "conditional_or_fact_dependent_reasoning"
+    return reasoning
+
+
 def choose_representative(members: list[dict]) -> str:
     if len(members) == 1:
         return members[0]["id"]
@@ -472,12 +541,21 @@ def _normalized_signature(
         doctrine_bucket = "contracts"
     else:
         doctrine_bucket = re.sub(r"[^a-z0-9]+", "_", doctrine).strip("_")[:80] or "unknown"
+    trigger = _bucket_trigger(signature, gate_aliases=gate_aliases)
+    outcome = _bucket_outcome(signature)
+    exception = _bucket_exception(signature)
+    reasoning = _coarsen_reasoning_bucket(
+        signature,
+        outcome=outcome,
+        exception=exception,
+        reasoning=_bucket_reasoning_path(signature),
+    )
     return (
         doctrine_bucket,
-        _bucket_trigger(signature, gate_aliases=gate_aliases),
-        _bucket_outcome(signature),
-        _bucket_exception(signature),
-        _bucket_reasoning_path(signature),
+        trigger,
+        outcome,
+        exception,
+        reasoning,
     )
 
 

@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .budget import enforce_live_budget
+from .budget import enforce_live_budget, enforce_runtime_judge_budget
 from .config import ResearchConfig
 from .dasha import cluster_responses
 from .frank import build_frank_packet
@@ -50,6 +50,15 @@ def _load_responses(
     raise ValueError(f"Unsupported research pipeline mode: {config.mode}")
 
 
+def _resume_json_if_present(path: Path) -> Any | None:
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+
+
 def run_pipeline(config: ResearchConfig, repo_root: str | Path) -> PipelineRunResult:
     """Run the complete research pipeline and export a fresh run bundle."""
 
@@ -61,13 +70,19 @@ def run_pipeline(config: ResearchConfig, repo_root: str | Path) -> PipelineRunRe
     call_plan = enforce_live_budget(config)
 
     print(f"[research-run] {config.run_id}: Frank source-to-packet", flush=True)
-    if config.agents["frank"].mode == "llm":
+    frank = _resume_json_if_present(out / "frank_packet.json") if config.mode in {"live", "live_openai", "live_multi_provider"} else None
+    if frank is not None:
+        print(f"[research-run] {config.run_id}: reusing Frank checkpoint", flush=True)
+    elif config.agents["frank"].mode == "llm":
         frank = build_frank_packet_with_llm(root, config)
     else:
         frank = build_frank_packet(config.source_case_path, config.run_id, repo_root=root)
     write_json(out / "frank_packet.json", frank)
     print(f"[research-run] {config.run_id}: Karthic rubric", flush=True)
-    if config.agents["karthic"].mode == "llm":
+    rubric = _resume_json_if_present(out / "karthic_rubric.json") if config.mode in {"live", "live_openai", "live_multi_provider"} else None
+    if rubric is not None:
+        print(f"[research-run] {config.run_id}: reusing Karthic checkpoint", flush=True)
+    elif config.agents["karthic"].mode == "llm":
         rubric = build_karthic_rubric_with_llm(root, config, frank)
     else:
         rubric = build_karthic_rubric(frank)
@@ -101,6 +116,7 @@ def run_pipeline(config: ResearchConfig, repo_root: str | Path) -> PipelineRunRe
             frank_packet=frank,
         )
     write_json(out / "dasha_clusters.json", clusters)
+    call_plan = enforce_runtime_judge_budget(config, clusters, call_plan)
     print(f"[research-run] {config.run_id}: judge scoring", flush=True)
     if config.judge.mode == "llm":
         judge = judge_clusters_with_openai(root, clusters, rubric, config.judge)

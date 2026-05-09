@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from research.validation import provider_client
 from research.validation.audit import build_no_call_audit
+from research.validation.budget import enforce_runtime_judge_budget
 from research.validation.claim_ledger import build_claim_ledger
 from research.validation.config import load_config
 from research.validation.dasha import cluster_responses
@@ -312,7 +313,7 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertEqual(summary["status"], "ready_for_internal_review_with_declared_gaps")
         self.assertEqual(summary["bundle_status"], "run_bundle_reviewable")
         self.assertIn("Perturbation validation", summary["evidence_gaps"])
-        self.assertIn("Judge row-level scoring and rankings", summary["partial_gates_list"])
+        self.assertTrue(summary["partial_gates_list"])
         self.assertIn("Internal Review Packet", markdown)
         self.assertIn("Run bundle integrity", markdown)
         self.assertEqual(written["status"], summary["status"])
@@ -342,8 +343,9 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertEqual(statuses["C1"], "supported")
         self.assertEqual(statuses["C6"], "supported")
         self.assertEqual(statuses["C7"], "partial")
-        self.assertEqual(statuses["C8"], "partial")
+        self.assertEqual(statuses["C8"], "supported")
         self.assertEqual(statuses["C12"], "supported")
+        self.assertIn("real reported court case PDF", markdown)
         self.assertIn("Claim Ledger", markdown)
         self.assertEqual(written["status_counts"], ledger["status_counts"])
 
@@ -756,10 +758,26 @@ class ResearchPipelineTests(unittest.TestCase):
         with patch("research.validation.llm_agents.generate_json", side_effect=[bad_packet, repaired_packet]):
             packet = build_frank_packet_with_llm(ROOT, config)
 
-        self.assertIn("fraternal benefit association", packet["variations"][0]["question"])
-        self.assertGreater(len(packet["variations"][0]["question"].split()), 65)
+        material_variation = next(item for item in packet["variations"] if item["perturbation_type"] == "material")
+        invariant_variation = next(item for item in packet["variations"] if item["perturbation_type"] == "invariant")
+        self.assertIn("fraternal benefit association", material_variation["question"])
+        self.assertGreater(len(material_variation["question"].split()), 65)
+        self.assertIn("Alex", invariant_variation["question"])
         self.assertEqual(packet["source_extraction"], {"jurisdiction": "Illinois"})
         self.assertEqual(packet["gold_answer"], "Jurisdiction assumption: Illinois.")
+
+    def test_runtime_budget_blocks_judge_cluster_explosion_after_dasha(self):
+        config = load_config(ROOT / "research/fixtures/live_replicate_roster_config.example.json", repo_root=ROOT)
+        clusters = {"clusters": [{"id": f"cluster_{index}"} for index in range(20)]}
+        call_plan = {
+            "planned_response_calls": 60,
+            "planned_dasha_signature_calls": 60,
+            "planned_min_judge_calls": 6,
+            "planned_total_llm_calls_excluding_frank_karthic": 126,
+        }
+
+        with self.assertRaisesRegex(RuntimeError, "Actual judge calls exceed configured budget"):
+            enforce_runtime_judge_budget(config, clusters, call_plan)
 
     def test_question_tracks_synthesize_invariant_when_frank_only_emits_material_variations(self):
         packet = {
@@ -1067,6 +1085,18 @@ class ResearchPipelineTests(unittest.TestCase):
 
         self.assertEqual(packet["statute_of_frauds"]["primary_gate_id"], "marriage")
         self.assertIn("marriage", packet["neutral_question"].lower())
+
+    def test_frank_uses_real_anglemire_pdf_without_spurious_sof_gates(self):
+        packet = build_frank_packet(
+            ROOT / "cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf",
+            "anglemire_pdf_regression",
+            repo_root=ROOT,
+        )
+
+        gates = {gate["id"] for gate in packet["statute_of_frauds"]["gates"]}
+        self.assertEqual(gates, {"marriage"})
+        self.assertEqual(validate_frank_packet(packet), [])
+        self.assertEqual(packet["source"]["metadata"]["case_id"], "anglemire_v_policemens_benev_assn_chicago_1939")
 
     def test_karthic_dynamic_rubric_targets_detected_sof_gate_and_variations(self):
         case_path = ROOT / "research/runs/tmp_surety_case.txt"

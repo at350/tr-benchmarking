@@ -99,7 +99,7 @@ def build_claim_ledger(
                 *source_evidence,
             ],
             source_artifacts + ["research/runs/live_natural_response_batch"],
-            source_gap or "Current live evidence is one small Statute-of-Frauds case study, not broad legal-domain validity.",
+            source_gap if source_mismatch else "Current live evidence is one small Statute-of-Frauds case study, not broad legal-domain validity.",
         ),
         _claim(
             "C2",
