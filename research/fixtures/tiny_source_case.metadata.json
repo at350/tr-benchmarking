@@ -1,0 +1,31 @@
+{
+  "case_id": "sof_fraternal_benefit_marriage_certificate_il",
+  "title": "Illinois fraternal benefit certificate and premarital marriage-consideration promise",
+  "source_path": "research/fixtures/tiny_source_case.txt",
+  "jurisdiction": "Illinois",
+  "doctrine_family": "Statute of Frauds",
+  "source_type": "calibration source excerpt derived from an Illinois appellate fraternal-benefit dispute",
+  "provenance": "Curated research fixture summarizing the legally material facts from the source case used for internal Statute-of-Frauds calibration. It is not a full opinion text and should not be cited as an external legal authority without replacing it with the complete source.",
+  "calibration_role": "Primary internal live-run calibration case for Frank, Karthic, Dasha perturbation behavior, and source-to-score pipeline mechanics.",
+  "summary": "A fraternal benefit association member promised his fiancee before marriage that he would change his benefit certificate to name her as beneficiary. After marriage, he obtained a certificate naming her and she kept it. Later, after the marriage deteriorated, he told the association he could not produce that certificate and obtained a replacement certificate naming his children and sister. After his death, the wife and later-named beneficiaries disputed entitlement to the death benefit.",
+  "material_facts": [
+    "The promise was made before marriage and conditioned on marriage.",
+    "The disputed benefit is a fraternal benefit association death benefit.",
+    "The member later obtained a certificate naming the wife as beneficiary.",
+    "The wife retained possession of the certificate naming her.",
+    "The association rules permitted a replacement certificate when the prior certificate could not be produced.",
+    "The replacement certificate named the member's children and sister.",
+    "The death-benefit dispute is between the wife and later-named beneficiaries."
+  ],
+  "expected_legal_pressure_points": [
+    "Whether the premarital promise is an agreement made upon consideration of marriage.",
+    "Whether the later benefit certificate is a sufficient writing or substitute for the premarital promise.",
+    "Whether association certificate and replacement rules defeat or preserve the wife's claim.",
+    "Whether equitable theories such as constructive trust or reliance should affect the result between rival claimants."
+  ],
+  "limitations": [
+    "This fixture is a compact source excerpt, not a complete reported opinion.",
+    "The fixture supports internal calibration and reproducibility, not broad Statute-of-Frauds validity by itself.",
+    "Future publication-facing runs should replace or supplement this fixture with complete, citable source materials and held-out cases."
+  ]
+}

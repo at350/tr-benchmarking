@@ -180,12 +180,19 @@ def _dominant_signal_for_track(clusters: dict[str, Any], track_id: str) -> dict[
         "cluster_id": dominant.get("id"),
         "outcome": signal.get("outcome") or signal.get("conclusion") or "unknown",
         "reasoning_path": signal.get("reasoning_path") or signal.get("reasoning") or signal.get("rule_trigger") or "",
+        "normalized_cluster_key": dominant.get("normalized_cluster_key"),
     }
 
 
 def _signal_key(signal: dict[str, Any] | None) -> tuple[str, str]:
     if not signal:
         return ("missing", "missing")
+    normalized_key = signal.get("normalized_cluster_key")
+    if isinstance(normalized_key, list) and len(normalized_key) >= 3:
+        # Perturbation checks ask whether the answer family changed. The full
+        # Dasha key remains available on the cluster for reasoning audits, but
+        # literal rule-path prose is too brittle for invariant surface edits.
+        return (str(normalized_key[0]).lower(), str(normalized_key[2]).lower())
     return (str(signal.get("outcome", "")).lower(), str(signal.get("reasoning_path", "")).lower())
 
 

@@ -10,6 +10,11 @@ legal source case, it should infer the relevant doctrine, generate a benchmark,
 run model responses, cluster legal reasoning, score clusters against a
 source-grounded rubric, and produce model-level rankings with auditable evidence.
 
+Claim-supporting runs must begin from real, citable legal source materials,
+such as court opinions or official statutory materials. Curated summaries and
+tiny fixtures are allowed for software regression tests, but they cannot serve
+as the source input for the paper's main pipeline-validity claims.
+
 The current manuscript should not be about the engineering iteration loop. It
 should describe the frozen pipeline, the internal validation protocol, and the
 evidence that each automated stage works well enough to justify the pipeline as
@@ -79,6 +84,14 @@ Frank should work from the source case, not from a prewritten question. It shoul
 - generate boundary variations that change legally meaningful facts
 - identify what each variation is supposed to test
 - produce a locked handoff packet for Karthic
+
+Frank questions must be self-contained legal hypotheticals, not abstract
+doctrinal prompts. A valid neutral question or variation should lay out the
+operative scenario from the source case: party roles, the promise or
+transaction, timing, writing or certificate facts, later dispute, competing
+claims, and the call question. Variations must restate the relevant scenario
+with the changed fact integrated, so benchmarked models can answer naturally
+without hidden context.
 
 For Statute of Frauds, Frank must correctly handle marriage, suretyship, one-year,
 land, UCC goods, executor, and cross-gate confusion scenarios. For other
@@ -153,9 +166,11 @@ small number of interpretable centroids without hiding materially different
 legal reasoning in the same cluster.
 
 Dasha is not internally complete until it has passed a larger live,
-multi-model, multi-sample, perturbation-aware run. The current nine-response
-live case study is useful calibration evidence, but it is not enough for the
-paper to claim that Dasha robustly captures divergent legal reasoning. The
+multi-model, multi-sample, perturbation-aware run and the same run can be
+completed through judge scoring. The original nine-response live case study is
+useful calibration evidence, and the newer 60-response perturbation run is
+useful Dasha evidence after the Frank scenario repair, but neither alone is
+enough for the paper to claim the entire source-to-score pipeline is complete. The
 claim-supporting Dasha run should use natural question-only responses across
 multiple actual model families, including direct and broker-routed models where
 available, repeated samples, and at least the base Frank question plus

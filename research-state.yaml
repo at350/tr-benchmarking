@@ -25,6 +25,8 @@ continuity:
 
 frozen_or_reported_artifacts:
   live_case_study_run: research/runs/live_natural_response_batch
+  claim_supporting_source_case: cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf
+  claim_supporting_source_metadata: cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.metadata.json
   stress_run: research/runs/internal_stress
   perturbation_smoke_config: research/fixtures/tiny_perturbation_config.json
   manuscript: paper/main.tex
@@ -41,6 +43,32 @@ current_evidence:
     observed_clusters: 3
     dasha_member_coherence: 1.0
     status: internal_validation_passed
+  live_replicate_roster_dasha:
+    run: research/runs/live_replicate_roster
+    status: exploratory_dasha_result_from_pre_real_case_config
+    summary: >
+      Fresh post-Frank-repair live run using natural question-only model
+      prompts across ten actual model identifiers routed through configured
+      providers. Frank produced a 180-word neutral scenario and a 199-word
+      material signed-writing variation with zero Frank quality errors. The
+      response stage produced 60 natural responses across original,
+      surface-invariant, and material tracks; all 60 received Dasha reasoning
+      signatures. Dasha produced 41 track-aware clusters, member coherence
+      passed, no mixed-reasoning clusters were detected, the invariant track
+      preserved the dominant answer bucket, and the material signed-writing
+      variation shifted the dominant outcome from later-beneficiaries-control
+      to wife-certificate-controls. Judge scoring was intentionally stopped
+      after Dasha artifacts checkpointed to avoid spending on the wrong
+      question while Frank was under review. Because this run used the old
+      compact source fixture rather than the Anglemire court-case PDF, it is
+      now treated as exploratory Dasha evidence only, not as claim-supporting
+      full-pipeline evidence.
+    artifacts:
+      - research/runs/live_replicate_roster/frank_packet.json
+      - research/runs/live_replicate_roster/responses.json
+      - research/runs/live_replicate_roster/dasha_clusters.json
+      - research/runs/live_replicate_roster/perturbation_report.json
+      - research/runs/live_replicate_roster/dasha_perturbation_audit.json
   deterministic_stress:
     responses: 500
     purpose: scale and bookkeeping regression, not natural discovery evidence
@@ -86,9 +114,12 @@ current_evidence:
     summary: >
       Vision-gate report generated from the saved live natural-response run,
       live multi-provider preflight, and deterministic 500-response stress run.
-      It marks 7 of 10 gates as met, judge stability and live preflight as
-      partial, and live perturbation validation as the remaining evidence gap.
-      The manuscript review-readiness table is generated from this same report.
+      It now includes a claim-supporting source-provenance gate. Because the
+      frozen live protocol points to the real Anglemire PDF while the completed
+      run bundle was created from the old compact fixture, the report marks
+      source provenance, Dasha natural-response clustering, and perturbation
+      validation as evidence gaps. The manuscript review-readiness table is
+      generated from this same report.
   run_bundle_integrity:
     status: run_bundle_reviewable
     artifact: experiments/run-bundle-integrity/results.json
@@ -139,9 +170,9 @@ current_evidence:
       - to_human/internal_review_packet.json
     purpose: >
       Human-facing handoff generated from readiness, preflight, and secret-lint
-      artifacts plus the run-bundle integrity audit. It reports 7 of 10 gates
-      met, 2 partial gates, the live perturbation evidence gap, and the bounded
-      69-call plan.
+      artifacts plus the run-bundle integrity audit. It now reports the real
+      source/run mismatch as an evidence gap rather than presenting the old
+      fixture run as claim-supporting evidence.
   claim_ledger:
     status: claim_ledger_ready
     artifacts:
@@ -186,7 +217,7 @@ hypotheses:
       aliases rather than by hard-coded SOF labels or exact string matches.
   H2:
     title: Perturbation tracks provide metamorphic validation of benchmark sensitivity.
-    status: implemented_smoke_needs_live_run
+    status: live_dasha_supported_pending_completed_judge_run
     prediction: >
       Invariant edits should preserve dominant reasoning signatures, while
       legally material edits should change dominant outcome or reasoning path.
@@ -199,9 +230,10 @@ hypotheses:
       judge calls, ablations, and later expert comparison.
 
 open_gaps:
+  - Rerun the full live source-to-score pipeline from the real Anglemire court-case PDF, not from the compact fixture.
   - Run a larger live natural-response batch with more model families and tracks.
   - Run repeated or ensemble judge scoring on a live batch to quantify judge stability.
-  - Run perturbation tracks with live model responses, not only deterministic smoke fixtures.
+  - Complete repeated or ensemble judge scoring on the new live perturbation run before source-to-score readiness claims.
   - Add live held-out non-SOF source cases to test doctrine transfer beyond offline fixtures.
   - Calibrate live Zak escalation thresholds after repeated judge runs.
   - Compile the LaTeX paper in an environment with latexmk or pdflatex; current environment only supports static paper linting.
@@ -215,6 +247,6 @@ next_actions:
   - Regenerate `python3 -m research.validation review-pack` after readiness, preflight, or security results change.
   - Regenerate `python3 -m research.validation claim-ledger` whenever paper claims or validation artifacts change.
   - Use `python3 -m research.validation no-call-audit` as the single pre-review check before sharing the branch.
-  - Regenerate the live batch if paper claims need stored normalized member keys in dasha_clusters.json itself.
+  - Regenerate readiness, claim-ledger, review-pack, and paper tables after deciding whether the stopped live perturbation run should be promoted as a claim-supporting Dasha-only artifact or rerun end-to-end through judge.
   - Run the repeat-aware judge mode on the live natural-response batch before stronger manuscript claims.
   - Keep literature notes current and only cite verified sources.

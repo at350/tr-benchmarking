@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from .source_metadata import read_source_text, source_case_record
 from .utils import display_path, stable_hash
 
 
@@ -535,7 +536,7 @@ def _generic_variations(gates: list[dict], source_text: str, doctrine_family: st
 
 
 def build_frank_packet(source_path: Path, run_id: str, repo_root: str | Path = ".") -> dict:
-    source_text = source_path.read_text(encoding="utf-8")
+    source_text = read_source_text(source_path)
     profile = detect_doctrine_profile(source_text)
     gates = profile["gates"]
     pack = profile["selected_pack"]
@@ -554,6 +555,7 @@ def build_frank_packet(source_path: Path, run_id: str, repo_root: str | Path = "
             "path": display_path(source_path, repo_root),
             "sha256_16": stable_hash(source_text),
             "excerpt": _source_excerpt(source_text),
+            "metadata": source_case_record(source_path, Path(repo_root).resolve()).get("metadata", {}),
         },
         "selected_pack": pack,
         "doctrine_family": doctrine_family,

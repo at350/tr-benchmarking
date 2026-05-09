@@ -16,6 +16,7 @@
     "planned_total_llm_calls_excluding_frank_karthic": 69
   },
   "evidence_gaps": [
+    "Claim-supporting source provenance",
     "Dasha natural-response clustering",
     "Perturbation validation"
   ],
@@ -37,5 +38,5 @@
     "secrets": "experiments/security-lint/results.json"
   },
   "status": "ready_for_internal_review_with_declared_gaps",
-  "total_gates": 10
+  "total_gates": 11
 }

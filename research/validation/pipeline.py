@@ -17,12 +17,13 @@ from .llm_agents import (
     add_llm_reasoning_signatures,
     build_frank_packet_with_llm,
     build_karthic_rubric_with_llm,
-    generate_model_responses,
+    generate_model_responses_with_checkpoint,
 )
 from .openai_client import generate_live_responses
 from .perturbations import build_perturbation_report, build_question_tracks, cluster_responses_by_track
 from .quality import find_mixed_reasoning_clusters, validate_frank_packet, validate_rubric_pack
 from .report import build_markdown_report, ensure_paper_scaffold
+from .source_metadata import source_case_record
 from .utils import display_path, stable_hash, write_json
 
 
@@ -34,11 +35,16 @@ class PipelineRunResult:
     quality_errors: tuple[str, ...]
 
 
-def _load_responses(config: ResearchConfig, repo_root: Path, frank_packet: dict) -> list[dict[str, Any]]:
+def _load_responses(
+    config: ResearchConfig,
+    repo_root: Path,
+    frank_packet: dict,
+    checkpoint_path: Path | None = None,
+) -> list[dict[str, Any]]:
     if config.mode == "offline":
         return json.loads(config.fixture_responses_path.read_text(encoding="utf-8"))
     if config.mode in {"live", "live_multi_provider"}:
-        return generate_model_responses(repo_root, config, frank_packet)
+        return generate_model_responses_with_checkpoint(repo_root, config, frank_packet, checkpoint_path=checkpoint_path)
     if config.mode == "live_openai":
         return generate_live_responses(repo_root, config, frank_packet)
     raise ValueError(f"Unsupported research pipeline mode: {config.mode}")
@@ -67,7 +73,7 @@ def run_pipeline(config: ResearchConfig, repo_root: str | Path) -> PipelineRunRe
         rubric = build_karthic_rubric(frank)
     write_json(out / "karthic_rubric.json", rubric)
     print(f"[research-run] {config.run_id}: model responses", flush=True)
-    responses = _load_responses(config, root, frank)
+    responses = _load_responses(config, root, frank, checkpoint_path=out / "responses.json")
     for response in responses:
         response.setdefault("response_prompt_style", config.response_prompt_style)
         if config.response_prompt_style == "natural":
@@ -138,6 +144,7 @@ def run_pipeline(config: ResearchConfig, repo_root: str | Path) -> PipelineRunRe
         "pipeline_status": status,
         "mode": config.mode,
         "source_case_path": display_path(config.source_case_path, root),
+        "source": source_case_record(config.source_case_path, root),
         "output_dir": display_path(out, root),
         "models": list(config.models),
         "response_models": [spec.__dict__ for spec in config.response_models],

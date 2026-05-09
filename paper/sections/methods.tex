@@ -4,13 +4,23 @@
 
 The reference implementation is a command-line research harness with an optional
 inspection interface. Runs are controlled by JSON configuration files that
-specify a source-case path or source text, output directory, model identifiers,
+specify a source-case path, output directory, model identifiers,
 sample counts, temperatures, quality gates, clustering method, perturbation
 policy, and judge settings. The harness writes every stage artifact as JSON:
 Frank packet, Karthic rubric, model responses, Dasha clusters, judge scores, Zak
 packets, manifest, validation summaries, and paper tables. This design was
 chosen so that the research claim is reproducible from recorded artifacts rather
 than from an interactive UI session.
+
+For claim-supporting runs, the source-case path must refer to a real, citable
+court-case source and must have a metadata sidecar. The sidecar records case id,
+title, citation, jurisdiction, court, decision date, source type, provenance,
+calibration role, material facts, expected legal pressure points, and
+limitations. The live Statute-of-Frauds configuration uses the Anglemire court
+case PDF; compact text fixtures remain only for offline smoke tests and
+regression tests. When the source is a PDF, the harness extracts text for LLM
+input while hashing both the original PDF bytes and extracted text for
+provenance.
 
 The pipeline has six functional stages. Frank ingests a source case and produces
 a doctrine-aware benchmark packet. Karthic generates a rubric from the locked

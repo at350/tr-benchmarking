@@ -9,6 +9,7 @@ from .budget import budget_violations, planned_call_counts
 from .config import ResearchConfig, load_config
 from .freeze import build_protocol_freeze
 from .openai_client import _read_env_file
+from .source_metadata import load_source_metadata, validate_source_metadata
 from .utils import write_json
 
 
@@ -118,6 +119,8 @@ def build_live_preflight(
     call_plan = planned_call_counts(config)
     model_families = {_model_family(spec.model) for spec in config.response_models}
     credential_report = _credential_report(root, config)
+    source_metadata = load_source_metadata(config.source_case_path)
+    source_metadata_errors = validate_source_metadata(config.source_case_path)
     missing_credentials = [
         provider
         for provider, item in credential_report.items()
@@ -138,6 +141,7 @@ def build_live_preflight(
         _check(bool(config.judge.judge_models), "Judge panel is configured.", severity="warning"),
         _check(config.quality_gates.min_rubric_rows >= 8, "Rubric quality gate requires at least eight rows."),
         _check(config.source_case_path.exists(), "Source case file exists."),
+        _check(not source_metadata_errors, "Source case metadata sidecar is complete."),
         _check(bool(freeze.get("protocol_hash")), "Protocol freeze manifest can be built."),
         *_budget_checks(config, call_plan),
     ]
@@ -160,6 +164,15 @@ def build_live_preflight(
         "run_id": config.run_id,
         "config_path": str(config_file.relative_to(root) if config_file.is_relative_to(root) else config_file),
         "protocol_hash": freeze["protocol_hash"],
+        "source": freeze["source"],
+        "source_case": {
+            "case_id": source_metadata.get("case_id"),
+            "title": source_metadata.get("title"),
+            "jurisdiction": source_metadata.get("jurisdiction"),
+            "doctrine_family": source_metadata.get("doctrine_family"),
+            "source_type": source_metadata.get("source_type"),
+            "metadata_errors": source_metadata_errors,
+        },
         "total_response_samples": total_samples,
         "call_plan": call_plan,
         "budget": {

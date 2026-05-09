@@ -3,13 +3,14 @@
   "claim_ledger": {
     "status": "claim_ledger_ready",
     "status_counts": {
-      "partial": 3,
-      "supported": 9
+      "evidence_gap": 7,
+      "partial": 1,
+      "supported": 4
     }
   },
   "handoff_manifest": {
-    "artifact_count": 104,
-    "manifest_hash": "115e6ac08834987e",
+    "artifact_count": 106,
+    "manifest_hash": "f2272d27c9890cfb",
     "status": "handoff_manifest_ready"
   },
   "live_calls_made": false,
@@ -20,34 +21,28 @@
   "preflight": {
     "blocking_errors": [],
     "budget": {
-      "max_judge_calls": 12,
-      "max_response_calls": 30,
-      "max_total_llm_calls_excluding_frank_karthic": 80
+      "max_judge_calls": 30,
+      "max_response_calls": 60,
+      "max_total_llm_calls_excluding_frank_karthic": 150
     },
     "call_plan": {
-      "base_response_samples_per_track": 10,
+      "base_response_samples_per_track": 20,
       "estimated_min_clusters_for_judging": 3,
-      "judge_invocations_per_cluster": 3,
-      "planned_dasha_signature_calls": 30,
-      "planned_min_judge_calls": 9,
+      "judge_invocations_per_cluster": 2,
+      "planned_dasha_signature_calls": 60,
+      "planned_min_judge_calls": 6,
       "planned_question_tracks": 3,
-      "planned_response_calls": 30,
-      "planned_total_llm_calls_excluding_frank_karthic": 69
+      "planned_response_calls": 60,
+      "planned_total_llm_calls_excluding_frank_karthic": 126
     },
     "status": "live_preflight_passed",
-    "warnings": [
-      {
-        "message": "Missing local credentials for: gemini",
-        "passed": false,
-        "severity": "warning"
-      }
-    ]
+    "warnings": []
   },
   "readiness": {
     "met_gates": 7,
-    "partial_gates": 2,
+    "partial_gates": 1,
     "status": "internal_method_ready_with_gaps",
-    "total_gates": 10
+    "total_gates": 11
   },
   "review_pack": {
     "status": "ready_for_internal_review_with_declared_gaps"
@@ -75,10 +70,9 @@
   },
   "status": "no_call_audit_passed_with_declared_gaps",
   "warnings_and_gaps": [
-    "preflight warning: Missing local credentials for: gemini",
+    "readiness gap: Claim-supporting source provenance",
+    "readiness gap: Dasha natural-response clustering",
     "readiness gap: Perturbation validation",
-    "partial claim: C7 Perturbation validation has been implemented as a metamorphic-test path.",
-    "partial claim: C8 LLM-as-judge scoring produces row-level scores and model rankings for clustered centroids.",
-    "partial claim: C11 The next live perturbation run is bounded and preflighted before model spending."
+    "partial claim: C7 Perturbation validation has been implemented as a metamorphic-test path."
   ]
 }

@@ -51,6 +51,7 @@ from research.validation.readiness import write_review_readiness_table
 from research.validation.review_pack import build_review_packet
 from research.validation.run_bundle import build_run_bundle_audit
 from research.validation.secrets_lint import lint_secrets
+from research.validation.source_metadata import read_source_text, source_case_record, validate_source_metadata
 from research.validation.metrics import bootstrap_ci, macro_f1, mean_absolute_error, weighted_kappa
 from research.validation.utils import write_json
 
@@ -173,11 +174,26 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertEqual(freeze["run_id"], "live_multi_provider_calibration")
         self.assertTrue(freeze["protocol_hash"])
         self.assertIn("source", freeze)
+        self.assertEqual(freeze["source"]["metadata"]["case_id"], "anglemire_v_policemens_benev_assn_chicago_1939")
+        self.assertEqual(freeze["source"]["metadata_path"], "cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.metadata.json")
+        self.assertEqual(freeze["source"]["source_format"], "pdf")
         self.assertIn("frank", freeze["instruction_contexts"])
         self.assertIn("context_hash", freeze["instruction_contexts"]["frank"])
         self.assertGreaterEqual(len(freeze["judge"]["judge_models"]), 2)
         self.assertNotIn("OPENAI_API_KEY", text)
         self.assertNotIn("sk-", text)
+
+    def test_real_pdf_source_case_has_metadata_and_extractable_text(self):
+        source_path = ROOT / "cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf"
+
+        extracted = read_source_text(source_path)
+        record = source_case_record(source_path, ROOT)
+
+        self.assertEqual(validate_source_metadata(source_path), [])
+        self.assertIn("Anglemire", extracted)
+        self.assertIn("Statute of Frauds", extracted)
+        self.assertEqual(record["source_format"], "pdf")
+        self.assertEqual(record["metadata"]["citation"], "301 Ill. App. 277, 22 N.E.2d 713 (Ill. App. Ct. 1939)")
 
     def test_paper_lint_resolves_inputs_figures_bibliography_and_citations(self):
         output_path = ROOT / "research/runs/paper_lint_test.json"
@@ -426,11 +442,14 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertEqual(summary["call_plan"]["planned_min_judge_calls"], 9)
         self.assertEqual(summary["call_plan"]["planned_total_llm_calls_excluding_frank_karthic"], 69)
         self.assertEqual(summary["budget"]["max_total_llm_calls_excluding_frank_karthic"], 80)
+        self.assertEqual(summary["source_case"]["case_id"], "anglemire_v_policemens_benev_assn_chicago_1939")
+        self.assertEqual(summary["source_case"]["jurisdiction"], "Illinois")
         self.assertTrue(summary["protocol_hash"])
         self.assertGreaterEqual(summary["response_model_count"], 5)
         self.assertEqual(summary["blocking_errors"], [])
         self.assertEqual(written["status"], "live_preflight_passed")
         self.assertTrue(any(check["message"] == "Protocol freeze manifest can be built." for check in summary["checks"]))
+        self.assertTrue(any(check["message"] == "Source case metadata sidecar is complete." for check in summary["checks"]))
         self.assertTrue(any(check["message"] == "Perturbation config requires invariant checks." for check in summary["checks"]))
         self.assertTrue(any(check["message"] == "Perturbation config requires material checks." for check in summary["checks"]))
         self.assertTrue(any(check["message"] == "Planned total LLM calls excluding Frank/Karthic are within configured budget." for check in summary["checks"]))
@@ -879,6 +898,50 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertEqual(checks["surface"]["comparison"], "invariant_preserved")
         self.assertTrue(checks["duration"]["passed"])
         self.assertEqual(checks["duration"]["comparison"], "material_difference_observed")
+
+    def test_perturbation_report_uses_normalized_answer_bucket_for_invariant_edits(self):
+        tracks = [
+            {"track_id": "original", "perturbation_type": "base", "expected_behavior": "baseline"},
+            {"track_id": "surface", "perturbation_type": "invariant", "expected_behavior": "answer_invariant"},
+            {"track_id": "writing", "perturbation_type": "material", "expected_behavior": "answer_should_change"},
+        ]
+        responses = [
+            {"id": "r1", "track_id": "original", "model": "m", "text": "later beneficiaries win"},
+            {"id": "r2", "track_id": "surface", "model": "m", "text": "later named relatives prevail"},
+            {"id": "r3", "track_id": "writing", "model": "m", "text": "wife wins"},
+        ]
+        clusters = {
+            "clusters": [
+                {
+                    "id": "original__cluster_1",
+                    "track_id": "original",
+                    "member_response_ids": ["r1"],
+                    "normalized_cluster_key": ["statute_of_frauds", "g1", "later_beneficiaries_control", "writing_or_certificate", "certificate_satisfies"],
+                    "legal_signal": {"outcome": "Later beneficiaries prevail", "reasoning_path": "certificate and replacement rules control"},
+                },
+                {
+                    "id": "surface__cluster_1",
+                    "track_id": "surface",
+                    "member_response_ids": ["r2"],
+                    "normalized_cluster_key": ["statute_of_frauds", "g3", "later_beneficiaries_control", "writing_or_certificate", "different paraphrased path"],
+                    "legal_signal": {"outcome": "Relatives have the better claim", "reasoning_path": "fraternal rules and no vested spouse right"},
+                },
+                {
+                    "id": "writing__cluster_1",
+                    "track_id": "writing",
+                    "member_response_ids": ["r3"],
+                    "normalized_cluster_key": ["statute_of_frauds", "g1", "wife_certificate_controls", "writing_or_certificate", "certificate_satisfies"],
+                    "legal_signal": {"outcome": "Wife prevails", "reasoning_path": "signed writing creates enforceable right"},
+                },
+            ]
+        }
+
+        report = build_perturbation_report(tracks, responses, clusters)
+
+        self.assertEqual(report["status"], "perturbation_validation_passed")
+        checks = {check["track_id"]: check for check in report["checks"]}
+        self.assertEqual(checks["surface"]["comparison"], "invariant_preserved")
+        self.assertEqual(checks["writing"]["comparison"], "material_difference_observed")
 
     def test_pipeline_exports_perturbation_report_for_variant_config(self):
         config_path = ROOT / "research/fixtures/tiny_perturbation_config.json"

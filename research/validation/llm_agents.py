@@ -13,6 +13,7 @@ from .instruction_context import load_agent_instruction_context
 from .perturbations import build_question_tracks
 from .provider_client import generate_json, generate_text
 from .quality import question_quality_errors
+from .source_metadata import read_source_text, source_case_record
 from .utils import display_path, stable_hash
 
 
@@ -112,7 +113,7 @@ def build_frank_packet_with_llm(
     config: ResearchConfig,
     json_generator: JsonGenerator | None = None,
 ) -> dict[str, Any]:
-    source_text = config.source_case_path.read_text(encoding="utf-8")
+    source_text = read_source_text(config.source_case_path)
     agent = config.agents["frank"]
     instruction_context = load_agent_instruction_context(repo_root, "frank")
     messages = [
@@ -130,6 +131,8 @@ def build_frank_packet_with_llm(
                 f"Canonical instruction context:\n{instruction_context['context']}\n\n"
                 "Build a benchmark packet from this source case. Infer the doctrine from the source; "
                 "do not assume Statute of Frauds or any other doctrine unless the source supports it. "
+                "If the source text was extracted from a published case PDF, separate court facts, procedural "
+                "posture, reasoning, and holding from editorial headnotes, search metadata, or publisher text. "
                 "The neutral_question and every variation.question must be a self-contained law-school-style "
                 "hypothetical, not an abstract doctrinal prompt. Each question must include concrete party roles, "
                 "the operative promise or transaction, timing, writing/certificate or procedural facts, the later "
@@ -193,6 +196,7 @@ def build_frank_packet_with_llm(
             "path": display_path(config.source_case_path, repo_root),
             "sha256_16": stable_hash(source_text),
             "excerpt": source_text[:1200],
+            "metadata": source_case_record(config.source_case_path, repo_root).get("metadata", {}),
         },
         "selected_pack": "llm_inferred",
         "doctrine_family": doctrine_family,
@@ -385,6 +389,15 @@ def _normalize_rubric_row(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def generate_model_responses(repo_root: Path, config: ResearchConfig, frank_packet: dict[str, Any]) -> list[dict[str, Any]]:
+    return generate_model_responses_with_checkpoint(repo_root, config, frank_packet)
+
+
+def generate_model_responses_with_checkpoint(
+    repo_root: Path,
+    config: ResearchConfig,
+    frank_packet: dict[str, Any],
+    checkpoint_path: Path | None = None,
+) -> list[dict[str, Any]]:
     max_variations = config.perturbations.max_variations if config.perturbations.max_variations > 0 else None
     tracks = (
         build_question_tracks(frank_packet, max_variations)
@@ -392,10 +405,21 @@ def generate_model_responses(repo_root: Path, config: ResearchConfig, frank_pack
         else build_question_tracks(frank_packet, 0)
     )
     responses: list[dict[str, Any]] = []
+    if checkpoint_path and checkpoint_path.exists():
+        try:
+            loaded = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, list):
+                responses = [response for response in loaded if isinstance(response, dict)]
+        except json.JSONDecodeError:
+            responses = []
+    existing_ids = {str(response.get("id")) for response in responses}
     for track in tracks:
         messages = model_response_messages(config, frank_packet, question=str(track["question"]))
         for spec in config.response_models:
             for sample_index in range(spec.samples):
+                response_id = f"{_slug(spec.provider)}_{_slug(spec.model)}_{_slug(str(track['track_id']))}_{sample_index + 1}"
+                if response_id in existing_ids:
+                    continue
                 print(
                     "[research-run] response "
                     f"track={track['track_id']} model={spec.model} sample={sample_index + 1}/{spec.samples}",
@@ -410,7 +434,7 @@ def generate_model_responses(repo_root: Path, config: ResearchConfig, frank_pack
                     max_tokens=1600,
                 )
                 responses.append({
-                    "id": f"{_slug(spec.provider)}_{_slug(spec.model)}_{_slug(str(track['track_id']))}_{sample_index + 1}",
+                    "id": response_id,
                     "provider": spec.provider,
                     "model": spec.model,
                     "sample_index": sample_index + 1,
@@ -426,6 +450,10 @@ def generate_model_responses(repo_root: Path, config: ResearchConfig, frank_pack
                     else list(config.answer_headings),
                     "text": text,
                 })
+                existing_ids.add(response_id)
+                if checkpoint_path:
+                    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+                    checkpoint_path.write_text(json.dumps(responses, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return responses
 
 

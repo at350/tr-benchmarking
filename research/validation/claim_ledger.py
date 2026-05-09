@@ -62,6 +62,8 @@ def build_claim_ledger(
     secrets = _load(secrets_file)
     bundle = _load(bundle_file) if bundle_file.exists() else {"status": "missing", "blocking_errors": []}
 
+    source_status, source_evidence, source_gap = _gate_status(readiness, "Claim-supporting source provenance")
+    source_mismatch = source_status not in {"met", "missing"}
     frank_status, frank_evidence, frank_gap = _gate_status(readiness, "Frank source-to-packet validity")
     karthic_status, karthic_evidence, karthic_gap = _gate_status(readiness, "Karthic dynamic rubric validity")
     response_status, response_evidence, response_gap = _gate_status(readiness, "Natural response protocol")
@@ -85,50 +87,59 @@ def build_claim_ledger(
         _claim(
             "C1",
             "The pipeline can run from a source case to Frank, Karthic, natural model responses, Dasha clusters, Judge scores, Zak state, and model rankings for the current SOF case.",
-            "supported" if readiness.get("status") in {"internal_method_ready", "internal_method_ready_with_gaps"} else "unsupported",
-            [f"readiness={readiness.get('status')}", f"gates={readiness.get('met_gates')}/{readiness.get('total_gates')}"],
+            (
+                "supported"
+                if source_status in {"met", "missing"}
+                and readiness.get("status") in {"internal_method_ready", "internal_method_ready_with_gaps"}
+                else source_status
+            ),
+            [
+                f"readiness={readiness.get('status')}",
+                f"gates={readiness.get('met_gates')}/{readiness.get('total_gates')}",
+                *source_evidence,
+            ],
             source_artifacts + ["research/runs/live_natural_response_batch"],
-            "Current live evidence is one small Statute-of-Frauds case study, not broad legal-domain validity.",
+            source_gap or "Current live evidence is one small Statute-of-Frauds case study, not broad legal-domain validity.",
         ),
         _claim(
             "C2",
             "Frank produced a source-grounded legal packet with a neutral question and variations for the current case.",
-            "supported" if frank_status == "met" else frank_status,
+            source_status if source_mismatch else ("supported" if frank_status == "met" else frank_status),
             frank_evidence,
             [str(readiness_path), "research/runs/live_natural_response_batch/frank_packet.json"],
-            frank_gap,
+            source_gap if source_mismatch else frank_gap,
         ),
         _claim(
             "C3",
             "Karthic produced a fresh dynamic rubric with source-supported rows for the current case.",
-            "supported" if karthic_status == "met" else karthic_status,
+            source_status if source_mismatch else ("supported" if karthic_status == "met" else karthic_status),
             karthic_evidence,
             [str(readiness_path), "research/runs/live_natural_response_batch/karthic_rubric.json"],
-            karthic_gap,
+            source_gap if source_mismatch else karthic_gap,
         ),
         _claim(
             "C4",
             "Benchmarked response models answered naturally rather than through forced legal headings.",
-            "supported" if response_status == "met" else response_status,
+            source_status if source_mismatch else ("supported" if response_status == "met" else response_status),
             response_evidence,
             [str(readiness_path), "research/runs/live_natural_response_batch/responses.json"],
-            response_gap,
+            source_gap if source_mismatch else response_gap,
         ),
         _claim(
             "C5",
             "Dasha clustered the current natural-response batch into coherent legal-reasoning groups.",
-            "supported" if dasha_status == "met" else dasha_status,
+            source_status if source_mismatch else ("supported" if dasha_status == "met" else dasha_status),
             dasha_evidence,
             [str(readiness_path), "research/runs/live_natural_response_batch/dasha_clusters.json"],
-            dasha_gap,
+            source_gap if source_mismatch else dasha_gap,
         ),
         _claim(
             "C6",
             "The saved live run bundle is internally reviewable and its major artifacts match the manifest.",
-            "supported" if bundle_status == "met" and bundle.get("status") == "run_bundle_reviewable" else bundle_status,
+            source_status if source_mismatch else ("supported" if bundle_status == "met" and bundle.get("status") == "run_bundle_reviewable" else bundle_status),
             bundle_evidence,
             [str(bundle_path), "research/runs/live_natural_response_batch/manifest.json"],
-            bundle_gap,
+            source_gap if source_mismatch else bundle_gap,
         ),
         _claim(
             "C7",
@@ -141,10 +152,10 @@ def build_claim_ledger(
         _claim(
             "C8",
             "LLM-as-judge scoring produces row-level scores and model rankings for clustered centroids.",
-            "partial" if judge_status == "partial" else ("supported" if judge_status == "met" else judge_status),
+            source_status if source_mismatch else ("partial" if judge_status == "partial" else ("supported" if judge_status == "met" else judge_status)),
             judge_evidence,
             [str(readiness_path), "research/runs/live_natural_response_batch/judge_scores.json"],
-            judge_gap,
+            source_gap if source_mismatch else judge_gap,
         ),
         _claim(
             "C9",

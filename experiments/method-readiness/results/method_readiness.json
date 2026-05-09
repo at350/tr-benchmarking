@@ -2,6 +2,17 @@
   "gates": [
     {
       "evidence": [
+        "run_source=research/fixtures/tiny_source_case.txt",
+        "protocol_source=cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf",
+        "case_id=anglemire_v_policemens_benev_assn_chicago_1939",
+        "source_type=real reported court case PDF"
+      ],
+      "gap": "Rerun the full pipeline when the frozen real-case source differs from the completed run bundle.",
+      "gate": "Claim-supporting source provenance",
+      "status": "evidence_gap"
+    },
+    {
+      "evidence": [
         "doctrine=Statute of Frauds (marriage provision) applied to a premarital promise to make/keep a spouse as beneficiary of a fraternal benefit certificate; interaction with fraternal benefit association certificate rules and change-of-beneficiary procedures",
         "question_chars=600",
         "variations=4"
@@ -124,5 +135,5 @@
   "run_id": "live_natural_response_batch",
   "schema_version": "research.method_readiness.v1",
   "status": "internal_method_ready_with_gaps",
-  "total_gates": 10
+  "total_gates": 11
 }

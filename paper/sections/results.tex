@@ -2,8 +2,20 @@
 
 \subsection{Live Source-to-Ranking Run}
 
-The live LLM-driven pipeline was run on a Statute of Frauds calibration case
-using three response model identifiers with three samples each:
+The claim-supporting source input is a real court-case PDF, not a synthetic
+hypothetical or a manually written fact summary. The current Statute-of-Frauds
+calibration case is \emph{Anglemire v. Policemen's Benevolent Association of
+Chicago}, 301 Ill. App. 277, 22 N.E.2d 713 (Ill. App. Ct. 1939). The run
+configuration points to the stored PDF under
+\texttt{cases/MarriageSoF\_Anglemire v Policemens Benev Assn of Chicago.pdf};
+the protocol-freeze artifact records the PDF content hash, extracted-text hash,
+case id, citation, jurisdiction, court, decision date, and source limitations.
+This matters methodologically because Frank must derive the benchmark from a
+citable source authority, not from a reconstructed scenario supplied by the
+researcher.
+
+The live LLM-driven pipeline was run on that real Statute of Frauds calibration
+case using three response model identifiers with three samples each:
 \texttt{gpt-5.2},
 \texttt{claude-sonnet-4-20250514}, and
 \texttt{meta/meta-llama-3-70b-instruct}. Frank and Karthic used

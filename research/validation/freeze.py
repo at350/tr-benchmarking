@@ -9,6 +9,7 @@ from typing import Any
 
 from .config import ResearchConfig, load_config
 from .instruction_context import INSTRUCTION_FILES, load_agent_instruction_context
+from .source_metadata import source_case_record
 from .utils import display_path, stable_hash, write_json
 
 
@@ -31,14 +32,6 @@ def _file_record(path: Path, relative_path: str) -> dict[str, Any]:
         "sha256_16": stable_hash(text),
         "bytes": len(text.encode("utf-8")),
     }
-
-
-def _source_record(config: ResearchConfig, repo_root: Path) -> dict[str, Any]:
-    try:
-        relative = str(config.source_case_path.relative_to(repo_root))
-    except ValueError:
-        relative = str(config.source_case_path)
-    return _file_record(config.source_case_path, relative)
 
 
 def build_protocol_freeze(
@@ -73,7 +66,7 @@ def build_protocol_freeze(
         "run_id": config.run_id,
         "config_path": str(config_file.relative_to(root) if config_file.is_relative_to(root) else config_file),
         "config_hash": stable_hash(raw_config),
-        "source": _source_record(config, root),
+        "source": source_case_record(config.source_case_path, root),
         "mode": config.mode,
         "response_prompt_style": config.response_prompt_style,
         "agents": _serializable(config.agents),

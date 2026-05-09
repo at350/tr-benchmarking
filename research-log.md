@@ -124,3 +124,31 @@
   method-readiness report. The no-call audit now refreshes that table from
   machine-readable gates so the manuscript cannot silently drift from the
   readiness artifact.
+- Identified a blocking Frank failure from live review: an abstract Statute of
+  Frauds prompt was being sent to Dasha without a complete legal scenario. Added
+  scenario-quality gates and LLM Frank question repair so neutral and variation
+  questions must be self-contained law-school-style hypotheticals with concrete
+  parties, timing, writing/certificate facts, a later dispute, and a neutral
+  call question.
+- Reran the live replicate-roster batch after the Frank repair. The new Frank
+  packet passed quality checks with a 180-word neutral scenario and a 199-word
+  signed-writing material variation. The run produced 60 natural responses
+  across ten actual model identifiers and three perturbation tracks, then
+  checkpointed all 60 Dasha reasoning signatures and Dasha clusters.
+- Stopped the run before judge scoring continued, because the immediate
+  research question was whether Frank and Dasha were now valid. Saved Dasha
+  audit artifacts show 41 track-aware clusters, member coherence 1.0, no
+  mixed-reasoning clusters, invariant answer-bucket preservation, and material
+  outcome shift from later-beneficiaries-control to wife-certificate-controls.
+- Hardened perturbation validation to compare normalized answer buckets for
+  invariant/material checks instead of literal long-form reasoning prose, while
+  keeping full Dasha cluster keys available for separate reasoning audits.
+- Reclassified the compact Anglemire-derived `tiny_source_case.txt` as an
+  offline smoke fixture, not a claim-supporting source input. Added source-case
+  metadata sidecars and changed all live configs to use the real court-case PDF
+  `cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf`.
+- Added PDF source extraction and provenance recording. Protocol freeze,
+  preflight, run manifests, and Frank source packets now record source metadata,
+  original PDF hash, extracted-text hash, format, case id, citation, court,
+  jurisdiction, and limitations. Live preflight now checks that source metadata
+  is present and complete before a run can be treated as ready.

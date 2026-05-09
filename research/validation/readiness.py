@@ -96,6 +96,30 @@ def build_method_readiness_report(
     preflight = None
     if live_config_path:
         preflight = build_live_preflight(live_config_path, repo_root=root)
+    source_gate = None
+    if preflight:
+        manifest_source = manifest.get("source", {}) if isinstance(manifest.get("source"), dict) else {}
+        preflight_source = preflight.get("source", {}) if isinstance(preflight.get("source"), dict) else {}
+        manifest_source_path = manifest_source.get("path") or manifest.get("source_case_path")
+        preflight_source_path = preflight_source.get("path")
+        source_match = (
+            bool(manifest_source_path)
+            and manifest_source_path == preflight_source_path
+            and bool(manifest_source.get("sha256_16"))
+            and manifest_source.get("sha256_16") == preflight_source.get("sha256_16")
+        )
+        source_case = preflight.get("source_case", {}) if isinstance(preflight.get("source_case"), dict) else {}
+        source_gate = _gate(
+            "Claim-supporting source provenance",
+            _status(source_match),
+            [
+                f"run_source={manifest_source_path or 'missing'}",
+                f"protocol_source={preflight_source_path or 'missing'}",
+                f"case_id={source_case.get('case_id', 'missing')}",
+                f"source_type={source_case.get('source_type', 'missing')}",
+            ],
+            "Rerun the full pipeline when the frozen real-case source differs from the completed run bundle.",
+        )
 
     stress = None
     if stress_dir:
@@ -113,7 +137,10 @@ def build_method_readiness_report(
     response_count = summary.get("counts", {}).get("responses", 0)
     clusters = summary.get("counts", {}).get("clusters", 0)
 
-    gates = [
+    gates = []
+    if source_gate:
+        gates.append(source_gate)
+    gates.extend([
         _gate(
             "Frank source-to-packet validity",
             _status(checks.get("frank", {}).get("passed", False)),
@@ -205,7 +232,7 @@ def build_method_readiness_report(
             ],
             "Resolve credential warnings before claim-supporting paid live runs.",
         ),
-    ]
+    ])
 
     met = sum(1 for gate in gates if gate["status"] == "met")
     partial = sum(1 for gate in gates if gate["status"] == "partial")

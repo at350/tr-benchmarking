@@ -37,7 +37,7 @@
       "severity": "error"
     },
     {
-      "message": "Response roster spans at least three provider/model-family routes.",
+      "message": "Response roster spans at least three actual model families.",
       "passed": true,
       "severity": "error"
     },
@@ -78,6 +78,11 @@
     },
     {
       "message": "Source case file exists.",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "message": "Source case metadata sidecar is complete.",
       "passed": true,
       "severity": "error"
     },
@@ -136,8 +141,14 @@
       "env": "REPLICATE_API_TOKEN"
     }
   },
-  "protocol_hash": "91220c8221354304",
+  "protocol_hash": "62c64803b85d8af1",
   "response_model_count": 5,
+  "response_model_families": [
+    "anthropic",
+    "google",
+    "meta",
+    "openai"
+  ],
   "response_providers": [
     "anthropic",
     "gemini",
@@ -146,6 +157,57 @@
   ],
   "run_id": "live_multi_provider_calibration",
   "schema_version": "research.live_preflight.v1",
+  "source": {
+    "bytes": 138490,
+    "extracted_text_chars": 13420,
+    "extracted_text_sha256_16": "d8afbe24f25b9ab6",
+    "metadata": {
+      "calibration_role": "Primary real-case source for the full live source-to-score run. Summary fixtures may be used for offline smoke tests, but claim-supporting live runs should use this PDF or another real citable case source.",
+      "case_id": "anglemire_v_policemens_benev_assn_chicago_1939",
+      "citation": "301 Ill. App. 277, 22 N.E.2d 713 (Ill. App. Ct. 1939)",
+      "court": "Appellate Court of Illinois, Second District",
+      "decision_date": "1939-09-22",
+      "doctrine_family": "Statute of Frauds",
+      "expected_legal_pressure_points": [
+        "Whether a premarital oral promise to name a spouse as beneficiary is void under the Statute of Frauds absent a writing.",
+        "Whether later certificate or beneficiary paperwork can satisfy or avoid the writing requirement.",
+        "Whether association rules and later beneficiary designations control the fund.",
+        "Whether equitable or estoppel arguments can overcome the marriage-provision writing requirement."
+      ],
+      "jurisdiction": "Illinois",
+      "limitations": [
+        "The PDF text extraction includes publisher headnotes and metadata; Frank must distinguish court facts and holding from editorial summary.",
+        "This is one real Statute-of-Frauds marriage-provision case, not broad evidence across all Statute-of-Frauds categories.",
+        "Any publication-facing citation should be checked against an official or otherwise citable source version."
+      ],
+      "material_facts": [
+        "The alleged promise was made before marriage and conditioned on marriage.",
+        "The benefit at issue was tied to a fraternal benefit association certificate.",
+        "The plaintiff claimed beneficiary rights after marriage and after the member's death.",
+        "Other claimants asserted rights under later beneficiary paperwork.",
+        "The court addressed the marriage-consideration provision of the Statute of Frauds.",
+        "The case also implicates the legal effect of association beneficiary certificates and changes."
+      ],
+      "provenance": "Court-case PDF stored under cases/ and used as the claim-supporting source authority for the Statute-of-Frauds marriage-provision calibration run.",
+      "source_path": "cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf",
+      "source_type": "real reported court case PDF",
+      "summary": "The case concerns an alleged premarital oral promise by a fraternal benefit certificate holder to name the plaintiff as beneficiary if she married him, a later certificate naming her, a later replacement or changed beneficiary designation naming other claimants, and whether the promise or certificate created enforceable rights under the marriage provision of the Statute of Frauds and association certificate rules.",
+      "title": "Anglemire v. Policemen's Benevolent Association of Chicago"
+    },
+    "metadata_path": "cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.metadata.json",
+    "metadata_sha256_16": "4e0a0cb8e0f51cd5",
+    "path": "cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf",
+    "sha256_16": "169dff00b89baa1c",
+    "source_format": "pdf"
+  },
+  "source_case": {
+    "case_id": "anglemire_v_policemens_benev_assn_chicago_1939",
+    "doctrine_family": "Statute of Frauds",
+    "jurisdiction": "Illinois",
+    "metadata_errors": [],
+    "source_type": "real reported court case PDF",
+    "title": "Anglemire v. Policemen's Benevolent Association of Chicago"
+  },
   "status": "live_preflight_passed",
   "total_response_samples": 10,
   "warnings": [

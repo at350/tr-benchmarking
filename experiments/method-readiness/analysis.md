@@ -2,11 +2,12 @@
 
 - Status: `internal_method_ready_with_gaps`
 - Run: `live_natural_response_batch`
-- Gates met: 6 / 10
+- Gates met: 6 / 11
 - Partial gates: 2
 
 | Gate | Status | Evidence | Remaining gap |
 |---|---:|---|---|
+| Claim-supporting source provenance | `evidence_gap` | run_source=research/fixtures/tiny_source_case.txt; protocol_source=cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf; case_id=anglemire_v_policemens_benev_assn_chicago_1939; source_type=real reported court case PDF | Rerun the full pipeline when the frozen real-case source differs from the completed run bundle. |
 | Frank source-to-packet validity | `met` | doctrine=Statute of Frauds (marriage provision) applied to a premarital promise to make/keep a spouse as beneficiary of a fraternal benefit certificate; interaction with fraternal benefit association certificate rules and change-of-beneficiary procedures; question_chars=600; variations=4 | Run Frank on held-out source cases before broad external-validity claims. |
 | Karthic dynamic rubric validity | `met` | rows=10; categories=conclusion,counterargument,doctrine,exceptions,facts,rule,source_support,variation | Add held-out rubric artifact review and later expert agreement. |
 | Natural response protocol | `met` | response_prompt_style=natural; responses=9; models=3 | Live model rosters should use question-only prompting by default. |

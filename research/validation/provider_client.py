@@ -150,7 +150,7 @@ def _replicate_text(repo_root: Path, model: str, messages: list[dict[str, str]],
             },
         },
     )
-    for _ in range(12):
+    for _ in range(60):
         if payload.get("status") in {"succeeded", "failed", "canceled"}:
             break
         get_url = payload.get("urls", {}).get("get")

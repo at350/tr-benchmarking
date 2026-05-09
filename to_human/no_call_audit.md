@@ -7,17 +7,16 @@
 |---|---:|---|
 | Paper lint | `paper_lint_passed` | errors=0 |
 | Secrets lint | `secrets_lint_passed` | findings=0 |
-| Live preflight | `live_preflight_passed` | warnings=1; blocking_errors=0 |
+| Live preflight | `live_preflight_passed` | warnings=0; blocking_errors=0 |
 | Run bundle | `run_bundle_reviewable` | checks=33; blocking_errors=0 |
-| Readiness | `internal_method_ready_with_gaps` | gates=7/10; partial=2 |
+| Readiness | `internal_method_ready_with_gaps` | gates=7/11; partial=1 |
 | Review packet | `ready_for_internal_review_with_declared_gaps` | to_human/internal_review_packet.md, to_human/internal_review_packet.html, to_human/internal_review_packet.json |
-| Claim ledger | `claim_ledger_ready` | counts={'supported': 9, 'partial': 3} |
-| Handoff manifest | `handoff_manifest_ready` | artifacts=104; hash=115e6ac08834987e |
+| Claim ledger | `claim_ledger_ready` | counts={'evidence_gap': 7, 'partial': 1, 'supported': 4} |
+| Handoff manifest | `handoff_manifest_ready` | artifacts=106; hash=f2272d27c9890cfb |
 
 ## Declared Gaps And Warnings
 
-- preflight warning: Missing local credentials for: gemini
+- readiness gap: Claim-supporting source provenance
+- readiness gap: Dasha natural-response clustering
 - readiness gap: Perturbation validation
 - partial claim: C7 Perturbation validation has been implemented as a metamorphic-test path.
-- partial claim: C8 LLM-as-judge scoring produces row-level scores and model rankings for clustered centroids.
-- partial claim: C11 The next live perturbation run is bounded and preflighted before model spending.

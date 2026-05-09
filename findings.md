@@ -8,19 +8,20 @@ that locked packet, response models answer the generated question naturally,
 Dasha clusters the resulting responses by legal reasoning, Judge scores cluster
 centroids against rubric rows, and Zak records escalation state.
 
-The present evidence supports an internal, pre-expert-review claim on one
-Statute-of-Frauds case. The live natural-response run produced nine answers from
-three model identifiers and three Dasha clusters. The deterministic 500-response
-stress run is useful software evidence for clustering/projection mechanics, but
-it is not discovery evidence because those fixture responses are controlled.
-The perturbation smoke path is implemented and tested, but still needs a live
-multi-model perturbation run before the paper should claim real model
-sensitivity to invariant versus material legal edits.
+The present evidence supports software mechanics and exploratory calibration,
+but the claim-supporting live run must be rerun from a real court-case source.
+Earlier live runs used a compact Anglemire-derived source fixture. That is not
+adequate for the main manuscript claim because a source-to-score legal
+benchmark must begin from citable legal material, not from a researcher-written
+summary. The live configs now point to the real Anglemire court-case PDF, and
+the compact fixture is demoted to offline smoke/regression status.
 
 ## Patterns And Insights
 
 The paper and code must keep three evidence types separate:
 
+- Claim-supporting real-case evidence: the input is a real, citable court case
+  or official legal source with explicit provenance metadata.
 - Live natural-response discovery evidence: models answer without hidden labels
   or forced headings, and Dasha clusters after the fact.
 - Controlled regression evidence: synthetic or fixture responses test scale,
@@ -137,10 +138,10 @@ paths, and the affected manifest hashes were recomputed.
 The human review surface is now generated from machine-readable evidence. The
 internal review packet combines method readiness, live preflight, secret lint,
 and the bounded call plan into Markdown, HTML, and JSON under `to_human/`. It
-states the current branch is ready for internal review with declared gaps, not
-publication-ready: seven of ten gates are met, judge scoring and live preflight
-are partial, run-bundle integrity is met, and live perturbation validation
-remains the evidence gap.
+now marks the real-source mismatch as a blocking evidence gap: the frozen live
+protocol points to the Anglemire PDF, while the completed run bundle was created
+from the old compact fixture. The review packet is therefore useful as a gap
+ledger, not as a publication-readiness claim.
 
 The manuscript now has a generated claim ledger. It maps 12 review claims to
 specific evidence artifacts, statuses, and limitations. The current ledger has
@@ -168,10 +169,11 @@ validity evidence, but it makes the case-study evidence more reproducible and
 harder to accidentally desynchronize.
 
 Run-bundle integrity is now part of the main readiness surface rather than a
-side report. The method-readiness report now counts it as a met gate, so the
-current evidence is 7 of 10 gates met, with judge stability and live preflight
-partial and live perturbation validation as the only evidence gap. The internal
-review packet also exposes the bundle audit directly.
+side report. The method-readiness report now counts bundle integrity as a met
+gate, but separately marks claim-supporting source provenance as an evidence
+gap when the frozen real-case protocol and completed run bundle use different
+source files. This prevents a clean old run from being treated as support for a
+new real-case protocol.
 
 The manuscript review-readiness table is now generated from
 `method_readiness.json`. This removes another manual synchronization point: when
@@ -204,6 +206,41 @@ still need calibration with repeated judge runs.
 
 ## Lessons And Constraints
 
+- Real legal-source provenance is mandatory for claim-supporting runs. The old
+  `tiny_source_case.txt` input was an Anglemire-derived calibration summary and
+  is now only a smoke fixture. Full live configs now point to the real
+  `Anglemire v. Policemen's Benevolent Association of Chicago` PDF in `cases/`,
+  with a metadata sidecar recording citation, court, date, jurisdiction,
+  source type, material facts, and limitations.
+- Frank scenario completeness is a hard dependency for every downstream claim.
+  A recent live run exposed a failure mode where Frank generated an abstract
+  doctrinal question instead of a self-contained legal scenario. That made the
+  Dasha input invalid even if clustering mechanics were otherwise executable.
+  Frank now has a quality gate for scenario length, factual density, multi-
+  sentence context, and a neutral call question; the LLM Frank path also repairs
+  scenario-poor questions while preserving the original doctrine, gates, gold
+  answer, changed facts, and expected behavior.
+- The post-repair live replicate-roster run produced a valid scenario-level
+  Frank packet before Dasha was tested. The neutral question was 180 words, the
+  material signed-writing variation was 199 words, and `validate_frank_packet`
+  returned no errors. This is the first live multi-model perturbation run in
+  which Dasha was tested on acceptable Frank questions rather than abstract
+  doctrinal prompts.
+- The same run produced 60 natural responses across ten actual model
+  identifiers and three tracks. Dasha assigned reasoning signatures to all 60
+  responses, created 41 track-aware clusters, passed member-coherence review,
+  detected no mixed-reasoning clusters, preserved the invariant answer bucket,
+  and observed the material signed-writing variation shift the dominant outcome
+  from later-beneficiaries-control to wife-certificate-controls. This supports
+  the Dasha perturbation mechanism for this case, but it is not yet a completed
+  source-to-score run because judge scoring was intentionally stopped after
+  Dasha artifacts checkpointed.
+- Perturbation validation should not compare raw reasoning prose literally.
+  The invariant track initially failed because the dominant clusters used
+  different paraphrases and source-gate emphasis while preserving the same
+  answer bucket. The audit now compares normalized answer buckets for
+  invariant/material checks while keeping full Dasha keys available for
+  separate reasoning-coherence review.
 - Do not report engineering iteration as the research method.
 - Do not count the 500-response controlled fixture as evidence that Dasha
   discovered natural model reasoning families.

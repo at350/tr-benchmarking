@@ -1,7 +1,7 @@
 {
   "run_id": "live_three_provider_smoke",
   "domain": "auto",
-  "source_case_path": "research/fixtures/tiny_source_case.txt",
+  "source_case_path": "cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf",
   "output_dir": "research/runs/live_three_provider_smoke",
   "mode": "live_multi_provider",
   "response_prompt_style": "natural",

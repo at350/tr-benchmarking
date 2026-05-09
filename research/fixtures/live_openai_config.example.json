@@ -1,6 +1,6 @@
 {
   "run_id": "live_openai_calibration",
-  "source_case_path": "research/fixtures/tiny_source_case.txt",
+  "source_case_path": "cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf",
   "output_dir": "research/runs/live_openai_calibration",
   "mode": "live_openai",
   "response_prompt_style": "natural",
