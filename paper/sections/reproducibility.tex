@@ -143,13 +143,12 @@ fragments, collapses whitespace, and groups exact canonical identifiers.
 
 The cluster key is the tuple
 \texttt{(doctrine\_id, rule\_trigger\_id, outcome\_id,
-exception\_or\_defense\_id, primary\_reasoning\_id,
-secondary\_cluster\_profile)}. The first five values are Dasha's canonical
-legal abstraction. The final value is derived from Dasha's secondary-path list
-and includes only accepted or uncertain non-primary paths. Rejected and merely
-mentioned side paths remain in the audit profile but do not automatically split
-clusters. Legacy keyword buckets exist only for archived fixtures without
-Dasha canonical identifiers.
+exception\_or\_defense\_id, primary\_reasoning\_id)}. These values are Dasha's
+canonical legal abstraction. Secondary paths remain in the audit profile so
+reviewers can see accepted, rejected, and uncertain side theories, but they do
+not automatically split clusters unless Dasha changes one of the primary
+canonical fields. Legacy keyword buckets exist only for archived fixtures
+without Dasha canonical identifiers.
 
 Responses are grouped by exact cluster-key match within each question track. A
 perturbation run never clusters different tracks together. For each cluster, the

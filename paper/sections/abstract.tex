@@ -1,35 +1,35 @@
 \begin{abstract}
-We present a source-grounded pipeline for evaluating legal reasoning in large
-language model outputs. The pipeline begins with a legal source case rather than
-a hand-authored benchmark question. An LLM agent, Frank, extracts the legal
-issue, controlling doctrine, source-grounded gold answer, and controlled
-boundary variations. Karthic generates a fresh rubric from the locked Frank
-packet. A roster of LLMs then answers the same generated question using the
-natural question-only protocol. Dasha extracts normalized legal-reasoning
-signatures from those answers and clusters them into interpretable centroids. A
-rubric-guided LLM judge scores each centroid, projects centroid scores to all
-responses in the cluster, and produces model rankings. Zak creates escalation
-packets only when uncertainty, disagreement, or mixed clusters require further
-review.
+We study the problem of evaluating legal reasoning in large language model
+(LLM) answers when correctness depends on the path through a doctrine, not only
+on the final conclusion. We introduce a source-grounded evaluation pipeline that
+constructs a benchmark instance from a legal source case, elicits natural model
+answers, clusters those answers by inferred legal-reasoning signatures, and
+scores cluster representatives with a case-specific rubric. The pipeline
+contains five artifact-producing modules: Frank generates a source-grounded
+question, gold answer, and perturbations; Karthic derives a row-level rubric
+from the locked Frank packet; Dasha maps each natural answer to a normalized
+legal-reasoning signature and forms centroids; Judge applies the rubric to
+centroid representatives; and Zak records uncertainty or disagreement requiring
+escalation.
 
-We report internal validation on a Statute-of-Frauds calibration case drawn from
-a real court-case PDF. The evidence combines stage-level artifact assessment, a
-60-response live perturbation-aware model batch over ten model identifiers, and
-a deterministic 500-response regression suite over eight Statute-of-Frauds
-reasoning archetypes. The live batch answered three Frank-generated tracks:
-the original question, an invariant party-name edit, and a material signed-
-writing edit. Dasha clustered all 60 unlabeled natural answers into 22
-track-aware legal-reasoning centroids with complete member coverage. The
-invariant edit preserved the dominant answer family, while the material edit
-shifted the dominant answer family. A two-model judge panel produced 220
-final row-level scores; an adjudicator resolved unstable panel rows before score
-projection and model ranking. The controlled stress suite produced eight
-expected clusters with cluster purity, completeness, and macro-F1 equal to 1.0.
-These results support internal technical review of the pipeline as a
-reproducible research method:
-Frank produces a source-grounded benchmark packet, Karthic produces a dynamic
-rubric, Dasha separates observed legal-reasoning paths, Judge applies the rubric
-row by row, and Zak records escalation state. They do not yet establish external
-legal validity across legal domains: held-out cases and expert legal review
-remain required before stronger academic claims.
+We validate the method on a real Illinois Statute-of-Frauds case,
+\emph{Anglemire v. Policemen's Benevolent Association of Chicago}. The live run
+uses ten response-model identifiers, two samples per model, and three
+Frank-generated question tracks: the original scenario, a legally invariant
+party-name edit, and a material signed-writing edit. Across 60 unlabeled
+natural answers, Dasha formed 23 track-aware reasoning centroids with complete
+member coverage (Wilson 95\% CI for member/centroid coherence:
+0.940--1.000). The invariant edit preserved the dominant reasoning family,
+whereas the material edit shifted the dominant answer family with a categorical
+distribution change under a permutation test (total variation distance 1.000,
+\(p=0.0005\)). A two-model judge panel produced 230 final row-level scores;
+18 rows required adjudication, and pre-adjudication agreement was moderate
+(weighted \(\kappa=0.630\), mean absolute error 0.465). Projected centroid
+scores produced model rankings, but bootstrap intervals overlapped at the top
+of the ranking. A separate 500-response deterministic regression suite verifies
+cluster bookkeeping and score projection over eight Statute-of-Frauds reasoning
+archetypes. The results support a bounded claim: the pipeline is reproducible,
+artifact-complete, perturbation-aware, and internally valid for the reported
+case study. Broader legal validity requires held-out cases and external expert
+review.
 \end{abstract}

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import ast
 import json
+import math
 import re
 from collections import Counter
 from pathlib import Path
@@ -10,7 +12,7 @@ from statistics import mean, pstdev
 from typing import Any
 
 from .dasha import _normalized_signature
-from .metrics import bootstrap_ci
+from .metrics import bootstrap_ci, permutation_p_value_tvd, wilson_ci
 from .utils import write_json
 
 
@@ -29,6 +31,16 @@ def _latex_escape(value: str) -> str:
 
 def _latex_cell(value: Any, limit: int = 500) -> str:
     text = re.sub(r"\s+", " ", str(value)).strip()
+    text = (
+        text.replace("✓", "satisfied")
+        .replace("→", r"\(\rightarrow\)")
+        .replace("—", "-")
+        .replace("–", "-")
+        .replace("“", '"')
+        .replace("”", '"')
+        .replace("‘", "'")
+        .replace("’", "'")
+    )
     if len(text) > limit:
         text = text[: limit - 3].rstrip() + "..."
     return _latex_escape(text)
@@ -54,6 +66,56 @@ def _member_model_summary(members: list[dict[str, Any]]) -> str:
 
 def _load(run_dir: Path, name: str) -> dict[str, Any] | list[dict[str, Any]]:
     return json.loads((run_dir / name).read_text(encoding="utf-8"))
+
+
+def _gold_answer_excerpt(gold_answer: Any) -> str:
+    if isinstance(gold_answer, str) and gold_answer.strip().startswith("{"):
+        try:
+            parsed = ast.literal_eval(gold_answer)
+            if isinstance(parsed, dict):
+                gold_answer = parsed
+        except (SyntaxError, ValueError):
+            pass
+    if isinstance(gold_answer, dict):
+        preferred = (
+            "Bottom-line outcome",
+            "Controlling doctrine",
+            "Writing requirement and trigger",
+        )
+        parts = [f"{key}: {gold_answer[key]}" for key in preferred if gold_answer.get(key)]
+        if parts:
+            return " ".join(parts)
+    return str(gold_answer)
+
+
+def _row_support_excerpt(row: dict[str, Any]) -> str:
+    support = row.get("source_support", [])
+    if isinstance(support, list):
+        return "; ".join(str(item) for item in support)
+    return str(support)
+
+
+def _representative_judge_rows(judge: dict[str, Any], limit: int = 8) -> list[tuple[str, dict[str, Any]]]:
+    selected: list[tuple[str, dict[str, Any]]] = []
+    preferred_rows = {"R0", "R1", "R4", "R6", "R8"}
+    for cluster_score in judge.get("cluster_scores", []):
+        cluster_id = str(cluster_score.get("cluster_id", "unknown"))
+        for row in cluster_score.get("row_scores", []):
+            if str(row.get("row_id", "")) in preferred_rows:
+                selected.append((cluster_id, row))
+                break
+        if len(selected) >= limit:
+            break
+    if len(selected) < limit:
+        for cluster_score in judge.get("cluster_scores", []):
+            cluster_id = str(cluster_score.get("cluster_id", "unknown"))
+            for row in cluster_score.get("row_scores", []):
+                item = (cluster_id, row)
+                if item not in selected:
+                    selected.append(item)
+                if len(selected) >= limit:
+                    return selected
+    return selected
 
 
 def _cluster_purity(clusters: dict[str, Any]) -> float:
@@ -158,6 +220,273 @@ def _judge_score_stats(judge: dict[str, Any]) -> dict[str, Any]:
         "bootstrap_ci_low": round(low, 3),
         "bootstrap_ci_high": round(high, 3),
     }
+
+
+def _response_track(response: dict[str, Any]) -> str:
+    return str(response.get("track_id") or str(response.get("question_id", "original")).split(":")[-1])
+
+
+def _cluster_signal_label(cluster: dict[str, Any]) -> str:
+    signal = cluster.get("legal_signal", {})
+    if signal.get("outcome_id"):
+        return str(signal["outcome_id"])
+    key = cluster.get("normalized_cluster_key", [])
+    if len(key) >= 3:
+        return str(key[2])
+    return str(signal.get("outcome") or signal.get("conclusion") or cluster.get("id", "unknown"))
+
+
+def _cluster_track(cluster: dict[str, Any]) -> str:
+    members = cluster.get("members", [])
+    if members:
+        return _response_track(members[0])
+    cluster_id = str(cluster.get("id", ""))
+    if "__" in cluster_id:
+        return cluster_id.split("__", 1)[0]
+    return "unknown"
+
+
+def _entropy(labels: list[str]) -> float:
+    if not labels:
+        return 0.0
+    counts = Counter(labels)
+    total = len(labels)
+    return -sum((count / total) * math.log(count / total) for count in counts.values())
+
+
+def _dominant_label(labels: list[str]) -> str:
+    if not labels:
+        return "unknown"
+    return Counter(labels).most_common(1)[0][0]
+
+
+def build_statistical_validation_summary(
+    run_dir: str | Path,
+    stress_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    """Build inferential and uncertainty diagnostics for the reported run."""
+
+    run = Path(run_dir)
+    responses = _load(run, "responses.json")
+    clusters = _load(run, "dasha_clusters.json")
+    judge = _load(run, "judge_scores.json")
+    perturbation_report = _load(run, "perturbation_report.json") if (run / "perturbation_report.json").exists() else {}
+    internal = _load(run, "internal_validation_summary.json") if (run / "internal_validation_summary.json").exists() else build_internal_validation_summary(run)
+
+    response_to_cluster = {}
+    response_to_label = {}
+    cluster_labels = []
+    cluster_sizes = []
+    feature_similarities = []
+    text_similarities = []
+    for cluster in clusters.get("clusters", []):
+        label = _cluster_signal_label(cluster)
+        cluster_labels.append(label)
+        cluster_sizes.append(len(cluster.get("member_response_ids", [])))
+        feature_similarities.append(float(cluster.get("centroid_quality", {}).get("mean_feature_similarity", 0.0)))
+        text_similarities.append(float(cluster.get("centroid_quality", {}).get("mean_text_similarity", 0.0)))
+        for response_id in cluster.get("member_response_ids", []):
+            response_to_cluster[str(response_id)] = str(cluster.get("id", "unknown"))
+            response_to_label[str(response_id)] = label
+
+    member_audit = internal.get("dasha_member_audit", {})
+    checked_members = int(member_audit.get("checked_members", 0))
+    mismatched_members = int(member_audit.get("mismatched_members", 0))
+    coherent_members = checked_members - mismatched_members
+    coherence_low, coherence_high = wilson_ci(coherent_members, checked_members)
+    size_low, size_high = bootstrap_ci(cluster_sizes, iterations=1000, seed=23) if cluster_sizes else (0.0, 0.0)
+    feature_low, feature_high = bootstrap_ci(feature_similarities, iterations=1000, seed=29) if feature_similarities else (0.0, 0.0)
+
+    labels_by_track: dict[str, list[str]] = {}
+    for response in responses:
+        label = response_to_label.get(str(response.get("id")), "unclustered")
+        labels_by_track.setdefault(_response_track(response), []).append(label)
+    base_track = str(perturbation_report.get("base_track_id", "original"))
+    base_labels = labels_by_track.get(base_track, [])
+    perturbation_tests = []
+    for track, labels in sorted(labels_by_track.items()):
+        if track == base_track:
+            continue
+        tvd, p_value = permutation_p_value_tvd(base_labels, labels, iterations=2000, seed=31)
+        perturbation_type = "unknown"
+        expected_behavior = "unknown"
+        passed = None
+        for check in perturbation_report.get("checks", []):
+            if check.get("track_id") == track:
+                perturbation_type = str(check.get("perturbation_type", "unknown"))
+                expected_behavior = str(check.get("expected_behavior", "unknown"))
+                passed = bool(check.get("passed"))
+                break
+        perturbation_tests.append({
+            "track_id": track,
+            "perturbation_type": perturbation_type,
+            "expected_behavior": expected_behavior,
+            "base_n": len(base_labels),
+            "track_n": len(labels),
+            "base_dominant_label": _dominant_label(base_labels),
+            "track_dominant_label": _dominant_label(labels),
+            "total_variation_distance": round(tvd, 3),
+            "permutation_p_value": round(p_value, 4),
+            "metamorphic_check_passed": passed,
+        })
+
+    row_scores = [
+        row
+        for cluster_score in judge.get("cluster_scores", [])
+        for row in cluster_score.get("row_scores", [])
+    ]
+    unstable_rows = judge.get("judge_stability", {}).get("unstable_rows", [])
+    unstable_low, unstable_high = wilson_ci(len(unstable_rows), len(row_scores))
+    score_ranges = [float(row.get("score_range", 0.0)) for row in row_scores]
+    adjudicated_clusters = judge.get("judge_stability", {}).get("adjudicated_clusters", [])
+
+    model_score_groups: dict[str, list[float]] = {}
+    for member_score in judge.get("member_scores", []):
+        model_score_groups.setdefault(str(member_score.get("model", "unknown")), []).append(float(member_score.get("projected_score", 0.0)))
+    model_uncertainty = []
+    for model, scores in sorted(model_score_groups.items()):
+        low, high = bootstrap_ci(scores, iterations=1000, seed=37) if scores else (0.0, 0.0)
+        model_uncertainty.append({
+            "model": model,
+            "n": len(scores),
+            "mean_projected_score": round(mean(scores), 3) if scores else 0.0,
+            "bootstrap_ci_low": round(low, 3),
+            "bootstrap_ci_high": round(high, 3),
+        })
+    model_uncertainty.sort(key=lambda item: item["mean_projected_score"], reverse=True)
+    top_margin = 0.0
+    top_ci_overlaps_second = False
+    if len(model_uncertainty) >= 2:
+        top_margin = round(model_uncertainty[0]["mean_projected_score"] - model_uncertainty[1]["mean_projected_score"], 3)
+        top_ci_overlaps_second = not (
+            model_uncertainty[0]["bootstrap_ci_low"] > model_uncertainty[1]["bootstrap_ci_high"]
+            or model_uncertainty[1]["bootstrap_ci_low"] > model_uncertainty[0]["bootstrap_ci_high"]
+        )
+
+    stress_summary: dict[str, Any] = {}
+    if stress_dir and (Path(stress_dir) / "stress_summary.json").exists():
+        stress_summary = _load(Path(stress_dir), "stress_summary.json")
+
+    response_labels = [response_to_label.get(str(response.get("id")), "unclustered") for response in responses]
+    label_entropy = _entropy(response_labels)
+    top_share = Counter(response_labels).most_common(1)[0][1] / len(response_labels) if response_labels else 0.0
+    summary = {
+        "schema_version": "research.statistical_validation.v1",
+        "run_id": internal.get("run_id"),
+        "sample": {
+            "natural_response_count": len(responses),
+            "model_count": len({response.get("model") for response in responses}),
+            "track_count": len(labels_by_track),
+            "cluster_count": len(clusters.get("clusters", [])),
+        },
+        "dasha": {
+            "member_coherence": round(coherent_members / checked_members, 3) if checked_members else 0.0,
+            "member_coherence_wilson_ci": [round(coherence_low, 3), round(coherence_high, 3)],
+            "mismatched_members": mismatched_members,
+            "cluster_size_mean": round(mean(cluster_sizes), 3) if cluster_sizes else 0.0,
+            "cluster_size_bootstrap_ci": [round(size_low, 3), round(size_high, 3)],
+            "effective_cluster_count": round(math.exp(label_entropy), 3) if response_labels else 0.0,
+            "top_cluster_label_share": round(top_share, 3),
+            "mean_feature_similarity": round(mean(feature_similarities), 3) if feature_similarities else 0.0,
+            "mean_feature_similarity_bootstrap_ci": [round(feature_low, 3), round(feature_high, 3)],
+            "mean_text_similarity": round(mean(text_similarities), 3) if text_similarities else 0.0,
+        },
+        "perturbations": perturbation_tests,
+        "judge": {
+            "row_score_count": len(row_scores),
+            "unstable_row_count": len(unstable_rows),
+            "unstable_row_rate": round(len(unstable_rows) / len(row_scores), 3) if row_scores else 0.0,
+            "unstable_row_rate_wilson_ci": [round(unstable_low, 3), round(unstable_high, 3)],
+            "mean_row_score_range": round(mean(score_ranges), 3) if score_ranges else 0.0,
+            "max_row_score_range": judge.get("judge_stability", {}).get("max_row_score_range", 0),
+            "mean_pairwise_mae": judge.get("judge_stability", {}).get("mean_pairwise_mae", 0.0),
+            "mean_pairwise_weighted_kappa": judge.get("judge_stability", {}).get("mean_pairwise_weighted_kappa", 0.0),
+            "adjudicated_cluster_count": len(adjudicated_clusters),
+            "stability_status": judge.get("judge_stability", {}).get("status", "unknown"),
+        },
+        "rankings": {
+            "model_score_intervals": model_uncertainty,
+            "top_model_margin": top_margin,
+            "top_two_ci_overlap": top_ci_overlaps_second,
+            "interpretation": (
+                "Projected rankings are generated pipeline outputs. With six projected "
+                "scores per model in the live run, overlapping bootstrap intervals should "
+                "not be interpreted as statistically separated model performance."
+            ),
+        },
+        "controlled_stress": stress_summary,
+        "limitations": [
+            "The live run is a single-case, 60-response study; it supports method diagnostics, not population-level model comparisons.",
+            "Perturbation p-values are exploratory because there is one invariant and one material variant in the reported live run.",
+            "Dasha member coherence measures agreement with the extracted signature key; it does not replace expert review of each legal abstraction.",
+        ],
+    }
+    write_json(run / "statistical_validation.json", summary)
+    return summary
+
+
+def write_statistical_validation_table(summary: dict[str, Any], table_path: str | Path) -> None:
+    path = Path(table_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    dasha = summary.get("dasha", {})
+    judge = summary.get("judge", {})
+    stress = summary.get("controlled_stress", {})
+    perturbations = summary.get("perturbations", [])
+    top_rank = (summary.get("rankings", {}).get("model_score_intervals") or [{}])[0]
+    rows = [
+        (
+            "Dasha member coherence",
+            f"{dasha.get('member_coherence', 0):.3f}",
+            f"95 percent Wilson CI [{dasha.get('member_coherence_wilson_ci', [0, 0])[0]:.3f}, {dasha.get('member_coherence_wilson_ci', [0, 0])[1]:.3f}]",
+            "No centroid/member key mismatches in the saved run; validates bookkeeping, not expert legal truth.",
+        ),
+        (
+            "Dasha cluster diversity",
+            f"{summary.get('sample', {}).get('cluster_count', 0)} clusters; effective count {dasha.get('effective_cluster_count', 0):.2f}",
+            f"Mean size {dasha.get('cluster_size_mean', 0):.2f}; bootstrap CI [{dasha.get('cluster_size_bootstrap_ci', [0, 0])[0]:.2f}, {dasha.get('cluster_size_bootstrap_ci', [0, 0])[1]:.2f}]",
+            "Natural responses did not collapse into a single reasoning family.",
+        ),
+        (
+            "Judge panel stability",
+            f"weighted kappa {judge.get('mean_pairwise_weighted_kappa', 0):.3f}; MAE {judge.get('mean_pairwise_mae', 0):.3f}",
+            f"unstable rows {judge.get('unstable_row_count', 0)}/{judge.get('row_score_count', 0)}; Wilson CI [{judge.get('unstable_row_rate_wilson_ci', [0, 0])[0]:.3f}, {judge.get('unstable_row_rate_wilson_ci', [0, 0])[1]:.3f}]",
+            "Adjudication is required and recorded; judge scores are not treated as silently final.",
+        ),
+        (
+            "Projected ranking uncertainty",
+            str(top_rank.get("model", "unknown")),
+            f"mean {top_rank.get('mean_projected_score', 0):.3f}; bootstrap CI [{top_rank.get('bootstrap_ci_low', 0):.3f}, {top_rank.get('bootstrap_ci_high', 0):.3f}]; top-two overlap={summary.get('rankings', {}).get('top_two_ci_overlap')}",
+            "The live ranking is inspectable but not statistically decisive across model families.",
+        ),
+        (
+            "Controlled 500-response regression",
+            f"macro-F1 {stress.get('macro_f1', 0):.3f}; purity {stress.get('cluster_purity', 0):.3f}",
+            f"n={stress.get('sample_count', 0)}; clusters={stress.get('observed_clusters', 0)}",
+            "Confirms scale/bookkeeping under known signatures; not natural discovery evidence.",
+        ),
+    ]
+    for test in perturbations:
+        rows.append((
+            f"Perturbation: {test.get('track_id')}",
+            f"TVD {test.get('total_variation_distance', 0):.3f}",
+            f"permutation p={test.get('permutation_p_value', 1):.4f}; passed={test.get('metamorphic_check_passed')}",
+            f"{test.get('perturbation_type')} edit: base dominant={test.get('base_dominant_label')}; track dominant={test.get('track_dominant_label')}",
+        ))
+    lines = [
+        r"\begin{tabular}{p{0.21\linewidth}p{0.18\linewidth}p{0.27\linewidth}p{0.24\linewidth}}",
+        r"\toprule",
+        r"Validation target & Estimate & Uncertainty/statistic & Interpretation \\",
+        r"\midrule",
+    ]
+    for label, estimate, stat, interpretation in rows:
+        lines.append(
+            f"{_latex_cell(label, limit=120)} & "
+            f"{_latex_cell(estimate, limit=120)} & "
+            f"{_latex_cell(stat, limit=180)} & "
+            f"{_latex_cell(interpretation, limit=260)} \\\\"
+        )
+    lines.extend([r"\bottomrule", r"\end{tabular}", ""])
+    path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def _unexpected_non_latin_text(clusters: dict[str, Any]) -> list[str]:
@@ -455,8 +784,12 @@ def write_natural_response_audit_table(summary: dict[str, Any], table_path: str 
 
 def write_artifact_examples_section(run_dir: str | Path, section_path: str | Path) -> None:
     run = Path(run_dir)
+    frank = _load(run, "frank_packet.json")
+    rubric = _load(run, "karthic_rubric.json")
     responses = _load(run, "responses.json")
     clusters = _load(run, "dasha_clusters.json")
+    judge = _load(run, "judge_scores.json")
+    zak = _load(run, "zak_packets.json")
     response_cluster = _response_cluster_lookup(clusters)
     natural_prompt = all(
         response.get("answer_format") is None or response.get("answer_format") == "natural_unconstrained"
@@ -475,6 +808,60 @@ def write_artifact_examples_section(run_dir: str | Path, section_path: str | Pat
         ),
         "",
     ]
+    frank_variations = frank.get("variations", []) if isinstance(frank.get("variations"), list) else []
+    lines.extend([
+        r"\subsection{Frank Packet Example}",
+        "",
+        (
+            "The following fields are direct excerpts from the live Frank packet. "
+            "They show the source-derived scenario, expected answer, and the "
+            "perturbation tracks that later generated model responses."
+        ),
+        "",
+        r"\begin{longtable}{p{0.18\linewidth}p{0.72\linewidth}}",
+        r"\toprule",
+        r"Frank field & Live output excerpt \\",
+        r"\midrule",
+        f"Source & {_latex_cell(frank.get('source', {}).get('path', 'unknown'), limit=220)} \\\\",
+        f"Doctrine family & {_latex_cell(frank.get('doctrine_family', 'unknown'), limit=240)} \\\\",
+        f"Neutral question & {_latex_cell(frank.get('neutral_question', ''), limit=1150)} \\\\",
+        f"Gold answer & {_latex_cell(_gold_answer_excerpt(frank.get('gold_answer', '')), limit=900)} \\\\",
+    ])
+    for variation in frank_variations[:3]:
+        label = f"Variation {variation.get('id', 'unknown')} ({variation.get('perturbation_type', 'unknown')})"
+        value = (
+            f"Changed fact: {variation.get('changed_fact', '')} "
+            f"Expected behavior: {variation.get('expected_behavior', '')} "
+            f"Question: {variation.get('question', '')}"
+        )
+        lines.append(f"{_latex_cell(label, limit=120)} & {_latex_cell(value, limit=900)} \\\\")
+    lines.extend([r"\bottomrule", r"\end{longtable}", ""])
+
+    rubric_rows = rubric.get("rows", []) if isinstance(rubric.get("rows"), list) else []
+    lines.extend([
+        r"\subsection{Karthic Rubric Example}",
+        "",
+        (
+            "Karthic generated the following row-level scoring instrument from "
+            "the locked Frank packet. Each row is later applied by Judge to "
+            "Dasha cluster representatives."
+        ),
+        "",
+        r"\begin{longtable}{p{0.07\linewidth}p{0.12\linewidth}p{0.08\linewidth}p{0.43\linewidth}p{0.20\linewidth}}",
+        r"\toprule",
+        r"Row & Category & Weight & Criterion & Source support excerpt \\",
+        r"\midrule",
+    ])
+    for row in rubric_rows:
+        lines.append(
+            f"{_latex_cell(row.get('id', 'unknown'), limit=20)} & "
+            f"{_latex_cell(row.get('category', 'unknown'), limit=50)} & "
+            f"{_latex_cell(row.get('weight', ''), limit=20)} & "
+            f"{_latex_cell(row.get('criterion', ''), limit=430)} & "
+            f"{_latex_cell(_row_support_excerpt(row), limit=220)} \\\\"
+        )
+    lines.extend([r"\bottomrule", r"\end{longtable}", ""])
+
     if not natural_prompt:
         lines.extend([
             (
@@ -492,7 +879,7 @@ def write_artifact_examples_section(run_dir: str | Path, section_path: str | Pat
     lines.extend([
         r"\subsection{Model Response Examples}",
         "",
-        r"\begin{tabular}{p{0.18\linewidth}p{0.13\linewidth}p{0.61\linewidth}}",
+        r"\begin{longtable}{p{0.18\linewidth}p{0.13\linewidth}p{0.61\linewidth}}",
         r"\toprule",
         r"Model & Dasha cluster & Response excerpt \\",
         r"\midrule",
@@ -502,12 +889,12 @@ def write_artifact_examples_section(run_dir: str | Path, section_path: str | Pat
         cluster_id = _latex_cell(response_cluster.get(str(response.get("id")), "unclustered"), limit=40)
         excerpt = _latex_cell(response.get("text", ""), limit=700)
         lines.append(f"{model} & {cluster_id} & {excerpt} \\\\")
-    lines.extend([r"\bottomrule", r"\end{tabular}", ""])
+    lines.extend([r"\bottomrule", r"\end{longtable}", ""])
 
     lines.extend([
         r"\subsection{Dasha Cluster Examples}",
         "",
-        r"\begin{tabular}{p{0.12\linewidth}p{0.22\linewidth}p{0.22\linewidth}p{0.34\linewidth}}",
+        r"\begin{longtable}{p{0.12\linewidth}p{0.22\linewidth}p{0.22\linewidth}p{0.34\linewidth}}",
         r"\toprule",
         r"Cluster & Member models & Outcome & Reasoning signature excerpt \\",
         r"\midrule",
@@ -523,5 +910,57 @@ def write_artifact_examples_section(run_dir: str | Path, section_path: str | Pat
             f"{_latex_cell(signal.get('outcome', 'unknown'), limit=220)} & "
             f"{_latex_cell(reasoning, limit=620)} \\\\"
         )
-    lines.extend([r"\bottomrule", r"\end{tabular}", ""])
+    lines.extend([r"\bottomrule", r"\end{longtable}", ""])
+
+    lines.extend([
+        r"\subsection{Judge Scoring Examples}",
+        "",
+        (
+            "Judge receives a Dasha representative response, the cluster legal "
+            "signal, and the Karthic rows. These rows show examples of the "
+            "row-level scores and rationales that are projected to cluster members."
+        ),
+        "",
+        r"\begin{longtable}{p{0.15\linewidth}p{0.08\linewidth}p{0.08\linewidth}p{0.59\linewidth}}",
+        r"\toprule",
+        r"Cluster & Row & Score & Judge rationale excerpt \\",
+        r"\midrule",
+    ])
+    for cluster_id, row in _representative_judge_rows(judge):
+        score = row.get("mean_score", row.get("score", ""))
+        score_text = f"{score:.2f}" if isinstance(score, (int, float)) else str(score)
+        lines.append(
+            f"{_latex_cell(cluster_id, limit=70)} & "
+            f"{_latex_cell(row.get('row_id', row.get('id', 'unknown')), limit=20)} & "
+            f"{_latex_cell(score_text, limit=20)} & "
+            f"{_latex_cell(row.get('rationale', ''), limit=620)} \\\\"
+        )
+    lines.extend([r"\bottomrule", r"\end{longtable}", ""])
+
+    lines.extend([
+        r"\subsection{Zak Escalation Example}",
+        "",
+        (
+            "Zak records when the judge layer should not be treated as silently "
+            "final. The live run produced the following escalation packet."
+        ),
+        "",
+        r"\begin{longtable}{p{0.18\linewidth}p{0.72\linewidth}}",
+        r"\toprule",
+        r"Zak field & Live output excerpt \\",
+        r"\midrule",
+    ])
+    packets = zak.get("packets", []) if isinstance(zak.get("packets"), list) else []
+    if packets:
+        packet = packets[0]
+        lines.extend([
+            f"Packet id & {_latex_cell(packet.get('id', 'unknown'), limit=80)} \\\\",
+            f"Question & {_latex_cell(packet.get('question', ''), limit=260)} \\\\",
+            f"Disagreement summary & {_latex_cell(packet.get('disagreement_summary', ''), limit=360)} \\\\",
+            f"Cluster ids & {_latex_cell(', '.join(str(item) for item in packet.get('cluster_ids', [])), limit=700)} \\\\",
+            f"Rubric rows & {_latex_cell(', '.join(str(item) for item in packet.get('rubric_row_ids', [])), limit=260)} \\\\",
+        ])
+    else:
+        lines.append(r"No packet & The live run did not trigger Zak escalation. \\")
+    lines.extend([r"\bottomrule", r"\end{longtable}", ""])
     path.write_text("\n".join(lines), encoding="utf-8")

@@ -14,10 +14,12 @@ from .internal_stress import run_internal_stress, write_stress_table
 from .internal_validation import (
     build_internal_validation_summary,
     build_natural_response_audit,
+    build_statistical_validation_summary,
     write_artifact_examples_section,
     write_internal_validation_table,
     write_natural_response_audit_table,
     write_perturbation_validation_table,
+    write_statistical_validation_table,
 )
 from .paper_lint import lint_paper
 from .pipeline import run_pipeline
@@ -41,6 +43,9 @@ def main() -> int:
     validate_parser.add_argument("--artifact-section", default=None, help="Optional LaTeX artifact examples section output path")
     validate_parser.add_argument("--natural-table", default=None, help="Optional natural-response Dasha audit table output path")
     validate_parser.add_argument("--perturbation-table", default=None, help="Optional perturbation validation table output path")
+    validate_parser.add_argument("--stats-json", default=None, help="Optional statistical validation JSON output path")
+    validate_parser.add_argument("--stats-table", default=None, help="Optional statistical validation LaTeX table output path")
+    validate_parser.add_argument("--stress-dir", default="research/runs/internal_stress", help="Optional stress run directory for statistical validation")
     stress_parser = subcommands.add_parser("stress", help="Run deterministic internal stress checks")
     stress_parser.add_argument("--output-dir", default="research/runs/internal_stress", help="Output directory for stress artifacts")
     stress_parser.add_argument("--sample-count", type=int, default=500, help="Number of controlled responses to generate")
@@ -126,6 +131,13 @@ def main() -> int:
             write_natural_response_audit_table(natural_summary, args.natural_table)
         if args.perturbation_table:
             write_perturbation_validation_table(args.run_dir, args.perturbation_table)
+        if args.stats_json or args.stats_table:
+            stats = build_statistical_validation_summary(args.run_dir, stress_dir=args.stress_dir)
+            if args.stats_json:
+                from .utils import write_json
+                write_json(Path(args.stats_json), stats)
+            if args.stats_table:
+                write_statistical_validation_table(stats, args.stats_table)
         print(f"{summary['run_id']}: {summary['status']}")
         return 0 if summary["status"] == "internal_validation_passed" else 2
     if args.command == "stress":

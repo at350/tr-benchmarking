@@ -1049,7 +1049,16 @@ def cluster_responses_by_signature(responses: list[dict], frank_packet: dict | N
                 rule_trigger_id=signature_key[1],
             )
             if item
-        }) if _has_agent_canonical_ids(signature) else secondary_path_profile
+        }) if _has_agent_canonical_ids(signature) else sorted({
+            item
+            for member in members
+            for item in _secondary_cluster_profile(
+                tuple(member.get("_dasha_secondary_path_profile", [])),
+                signature_key[4],
+                signature_key[1],
+            )
+            if item
+        })
         clusters.append({
             "id": f"cluster_{index}",
             "legal_signal": {

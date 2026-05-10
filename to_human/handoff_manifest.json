@@ -1,5 +1,5 @@
 {
-  "artifact_count": 112,
+  "artifact_count": 114,
   "artifacts": [
     {
       "bytes": 12746,
@@ -7,9 +7,14 @@
       "sha256_16": "3cc06dd7b408cb0f"
     },
     {
-      "bytes": 17673,
+      "bytes": 18238,
       "path": "VISION.md",
-      "sha256_16": "c50c979ca403c471"
+      "sha256_16": "1e6a56cbea130bdc"
+    },
+    {
+      "bytes": 1219,
+      "path": "experiments/contextual-dasha-ids/protocol.md",
+      "sha256_16": "000bc27ecdaaaef2"
     },
     {
       "bytes": 1119,
@@ -62,9 +67,9 @@
       "sha256_16": "0b3d204a4be90088"
     },
     {
-      "bytes": 7581,
+      "bytes": 8003,
       "path": "experiments/live-config-preflight/results.json",
-      "sha256_16": "7b54df85d777261c"
+      "sha256_16": "24218f24a219d2c8"
     },
     {
       "bytes": 2423,
@@ -72,9 +77,9 @@
       "sha256_16": "a3377714cd11a59d"
     },
     {
-      "bytes": 2847,
+      "bytes": 2879,
       "path": "experiments/method-readiness/analysis.md",
-      "sha256_16": "c34bd42995d008e4"
+      "sha256_16": "a9798efff981e5ee"
     },
     {
       "bytes": 1201,
@@ -82,19 +87,19 @@
       "sha256_16": "75f0454727c848aa"
     },
     {
-      "bytes": 7957,
+      "bytes": 7853,
       "path": "experiments/method-readiness/results/method_readiness.json",
-      "sha256_16": "ebded435008cc50c"
+      "sha256_16": "9505e593dc89149c"
     },
     {
-      "bytes": 1812,
+      "bytes": 1898,
       "path": "experiments/multipath-dasha/analysis.md",
-      "sha256_16": "acc7d49bc200fb74"
+      "sha256_16": "98fc0a47c82fe595"
     },
     {
-      "bytes": 1424,
+      "bytes": 1489,
       "path": "experiments/multipath-dasha/protocol.md",
-      "sha256_16": "fe18c84494c698bc"
+      "sha256_16": "a40b8338610d27c3"
     },
     {
       "bytes": 763767,
@@ -154,7 +159,7 @@
     {
       "bytes": 5758,
       "path": "experiments/run-bundle-integrity/results.json",
-      "sha256_16": "999ea9e71ea64eda"
+      "sha256_16": "ff8bb87f1cb4afe6"
     },
     {
       "bytes": 739,
@@ -169,7 +174,7 @@
     {
       "bytes": 193,
       "path": "experiments/security-lint/results.json",
-      "sha256_16": "1b6fa85916c3044c"
+      "sha256_16": "b70bc08fff2598d6"
     },
     {
       "bytes": 880,
@@ -182,9 +187,9 @@
       "sha256_16": "b9b7a63d9aefa60f"
     },
     {
-      "bytes": 20863,
+      "bytes": 23802,
       "path": "findings.md",
-      "sha256_16": "657ef10d1ca203bb"
+      "sha256_16": "dd6995f55d6cd3b0"
     },
     {
       "bytes": 56433,
@@ -222,9 +227,9 @@
       "sha256_16": "446ee38ab6a7fe0c"
     },
     {
-      "bytes": 838,
+      "bytes": 895,
       "path": "paper/main.tex",
-      "sha256_16": "15f024e9b14151d1"
+      "sha256_16": "57a6bd7643484f91"
     },
     {
       "bytes": 4665,
@@ -232,19 +237,19 @@
       "sha256_16": "8585258e09660d74"
     },
     {
-      "bytes": 2350,
+      "bytes": 2342,
       "path": "paper/sections/abstract.tex",
-      "sha256_16": "536e722e0e0a6fd5"
+      "sha256_16": "1bbca6ff1848c223"
     },
     {
-      "bytes": 57999,
+      "bytes": 78071,
       "path": "paper/sections/artifact_examples.tex",
-      "sha256_16": "f0b836305c766065"
+      "sha256_16": "aff1d0dae41015ae"
     },
     {
-      "bytes": 4057,
+      "bytes": 3693,
       "path": "paper/sections/contributions.tex",
-      "sha256_16": "47185a077e1db622"
+      "sha256_16": "755000e5134e1998"
     },
     {
       "bytes": 3084,
@@ -252,24 +257,24 @@
       "sha256_16": "5827978523b3b65e"
     },
     {
-      "bytes": 7901,
+      "bytes": 7905,
       "path": "paper/sections/instruction_context_appendix.tex",
-      "sha256_16": "c7da7768660618b6"
+      "sha256_16": "d281e1f6f13c12f0"
     },
     {
-      "bytes": 2378,
+      "bytes": 3096,
       "path": "paper/sections/introduction.tex",
-      "sha256_16": "c938bccce888bb4c"
+      "sha256_16": "3f580a02e65d2cb9"
     },
     {
-      "bytes": 3133,
+      "bytes": 3423,
       "path": "paper/sections/limitations.tex",
-      "sha256_16": "295062956c498faf"
+      "sha256_16": "3bf593f88054e641"
     },
     {
-      "bytes": 26015,
+      "bytes": 27641,
       "path": "paper/sections/methods.tex",
-      "sha256_16": "e07380682b6b436f"
+      "sha256_16": "6a910066d8852c9d"
     },
     {
       "bytes": 3045,
@@ -277,34 +282,34 @@
       "sha256_16": "b6e35e53103c7f2c"
     },
     {
-      "bytes": 11289,
+      "bytes": 11066,
       "path": "paper/sections/reproducibility.tex",
-      "sha256_16": "2eb07ccfd4f830a7"
+      "sha256_16": "aa09216c89347fca"
     },
     {
-      "bytes": 8885,
+      "bytes": 11117,
       "path": "paper/sections/results.tex",
-      "sha256_16": "1eea20b65902a544"
+      "sha256_16": "7f7f5bdd7a557ba6"
     },
     {
-      "bytes": 2390,
+      "bytes": 1958,
       "path": "paper/sections/review_readiness.tex",
-      "sha256_16": "eed5c6f618c950c9"
+      "sha256_16": "200761cba7fb5839"
     },
     {
-      "bytes": 7500,
+      "bytes": 7444,
       "path": "paper/sections/stage_assessment.tex",
-      "sha256_16": "cf1480e1403d5b6f"
+      "sha256_16": "c234edc42529f4a2"
     },
     {
-      "bytes": 7717,
+      "bytes": 8209,
       "path": "paper/sections/validation.tex",
-      "sha256_16": "aa6a0c711e470285"
+      "sha256_16": "bd6cfdffe7a84515"
     },
     {
-      "bytes": 2515,
+      "bytes": 4319,
       "path": "paper/tables/dasha_cluster_summary.tex",
-      "sha256_16": "0ffe3c948aa3764e"
+      "sha256_16": "789f83c9030929e6"
     },
     {
       "bytes": 1526,
@@ -317,19 +322,19 @@
       "sha256_16": "f7a8434cfbd911dc"
     },
     {
-      "bytes": 945,
+      "bytes": 963,
       "path": "paper/tables/internal_validation_summary.tex",
-      "sha256_16": "96b49bf07bfec7f3"
+      "sha256_16": "20f907be32448e59"
     },
     {
       "bytes": 464,
       "path": "paper/tables/model_rankings.tex",
-      "sha256_16": "30b41f6695536e54"
+      "sha256_16": "f0f2ed885b7074ed"
     },
     {
       "bytes": 448,
       "path": "paper/tables/natural_response_audit.tex",
-      "sha256_16": "255782dbda5f7564"
+      "sha256_16": "72834dde57cb76b6"
     },
     {
       "bytes": 228,
@@ -337,24 +342,29 @@
       "sha256_16": "d3af8738c905d832"
     },
     {
-      "bytes": 1749,
+      "bytes": 1820,
       "path": "paper/tables/review_readiness.tex",
-      "sha256_16": "b39b01acea4ee3db"
+      "sha256_16": "f1ebac6081b85596"
     },
     {
-      "bytes": 1734,
+      "bytes": 1679,
       "path": "paper/tables/stage_artifact_assessment.tex",
-      "sha256_16": "f67a9d2153246d74"
+      "sha256_16": "cfb2d23051202d31"
     },
     {
-      "bytes": 13110,
+      "bytes": 1562,
+      "path": "paper/tables/statistical_validation.tex",
+      "sha256_16": "15adbe37ad60528a"
+    },
+    {
+      "bytes": 16870,
       "path": "research-log.md",
-      "sha256_16": "007aafb01c34cb89"
+      "sha256_16": "f0c2264e6a0a4421"
     },
     {
-      "bytes": 14300,
+      "bytes": 17568,
       "path": "research-state.yaml",
-      "sha256_16": "81ea5430ccd18773"
+      "sha256_16": "766bc8badac5aa42"
     },
     {
       "bytes": 2835,
@@ -382,9 +392,9 @@
       "sha256_16": "ae93b92670c541bb"
     },
     {
-      "bytes": 15116,
+      "bytes": 15992,
       "path": "research/validation/__main__.py",
-      "sha256_16": "dd4d6a5cfb549c2b"
+      "sha256_16": "cabb2753e8cef2f2"
     },
     {
       "bytes": 8360,
@@ -392,9 +402,9 @@
       "sha256_16": "75c51b6e2972d175"
     },
     {
-      "bytes": 6096,
+      "bytes": 6463,
       "path": "research/validation/budget.py",
-      "sha256_16": "888507048ff0e3db"
+      "sha256_16": "48ae94202e373bc3"
     },
     {
       "bytes": 11604,
@@ -407,9 +417,9 @@
       "sha256_16": "ee28cb8da60c1b9f"
     },
     {
-      "bytes": 37986,
+      "bytes": 42407,
       "path": "research/validation/dasha.py",
-      "sha256_16": "2afec7597855fad9"
+      "sha256_16": "d2f3a7c3f8c7c093"
     },
     {
       "bytes": 33899,
@@ -417,9 +427,9 @@
       "sha256_16": "159d6851a828e2e2"
     },
     {
-      "bytes": 3582,
+      "bytes": 3576,
       "path": "research/validation/freeze.py",
-      "sha256_16": "12130ed1fdd01476"
+      "sha256_16": "8c47096f93e5ffb8"
     },
     {
       "bytes": 2630,
@@ -437,9 +447,9 @@
       "sha256_16": "f49f3243110e7a25"
     },
     {
-      "bytes": 23225,
+      "bytes": 44935,
       "path": "research/validation/internal_validation.py",
-      "sha256_16": "56c7932db40c51e7"
+      "sha256_16": "4c59f5dc8901dd7f"
     },
     {
       "bytes": 20920,
@@ -452,14 +462,14 @@
       "sha256_16": "b6cf16bfcdd4692e"
     },
     {
-      "bytes": 27250,
+      "bytes": 43468,
       "path": "research/validation/llm_agents.py",
-      "sha256_16": "b593793b9b144794"
+      "sha256_16": "e323d29d8d0a1826"
     },
     {
-      "bytes": 2894,
+      "bytes": 4522,
       "path": "research/validation/metrics.py",
-      "sha256_16": "11de43ca8c22464a"
+      "sha256_16": "1ead5101b7d6c866"
     },
     {
       "bytes": 7846,
@@ -477,9 +487,9 @@
       "sha256_16": "530e2a0122a231a2"
     },
     {
-      "bytes": 11015,
+      "bytes": 11375,
       "path": "research/validation/pipeline.py",
-      "sha256_16": "275403da03b41d92"
+      "sha256_16": "4905d4e2fd708b63"
     },
     {
       "bytes": 9211,
@@ -487,9 +497,9 @@
       "sha256_16": "7c1a69571336b445"
     },
     {
-      "bytes": 9112,
+      "bytes": 8739,
       "path": "research/validation/provider_client.py",
-      "sha256_16": "1ca4e3e0e2d91532"
+      "sha256_16": "8b6524bcebb560ca"
     },
     {
       "bytes": 6012,
@@ -537,24 +547,24 @@
       "sha256_16": "8bad9d4c1098570f"
     },
     {
-      "bytes": 7911,
+      "bytes": 7953,
       "path": "to_human/claim_ledger.json",
-      "sha256_16": "49f2fe7c8dc7c1ce"
+      "sha256_16": "849e0bb9eae08951"
     },
     {
-      "bytes": 3946,
+      "bytes": 3981,
       "path": "to_human/claim_ledger.md",
-      "sha256_16": "ba82e6422ceb8390"
+      "sha256_16": "8f1140ba8392301b"
     },
     {
-      "bytes": 1224,
+      "bytes": 1307,
       "path": "to_human/internal_review_packet.json",
-      "sha256_16": "af44c0a6a79920fa"
+      "sha256_16": "0d9e195f263e3cb2"
     },
     {
-      "bytes": 1113,
+      "bytes": 1203,
       "path": "to_human/internal_review_packet.md",
-      "sha256_16": "e0c7eda9c2a0e3f3"
+      "sha256_16": "7a98ced5efab80bd"
     },
     {
       "bytes": 2120,
@@ -568,7 +578,7 @@
     "no_call_audit.json",
     "no_call_audit.md"
   ],
-  "manifest_hash": "4afc06c42e550ad4",
+  "manifest_hash": "18928e67371bcb48",
   "patterns": [
     "README_RESEARCH.md",
     "VISION.md",

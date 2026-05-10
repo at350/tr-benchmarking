@@ -1,9 +1,9 @@
-\section{Internal Results}
+\section{Experiments and Results}
 
 \subsection{Live Source-to-Ranking Run}
 
-The claim-supporting source input is a real court-case PDF, not a synthetic
-hypothetical or a manually written fact summary. The current Statute-of-Frauds
+The claim-supporting source input is a real court-case PDF rather than a
+synthetic hypothetical or manually written fact summary. The Statute-of-Frauds
 calibration case is \emph{Anglemire v. Policemen's Benevolent Association of
 Chicago}, 301 Ill. App. 277, 22 N.E.2d 713 (Ill. App. Ct. 1939). The run
 configuration points to the stored PDF under
@@ -21,15 +21,16 @@ case using ten response model identifiers with two samples per question track:
 \texttt{google/gemini-3-pro}, \texttt{anthropic/claude-4.5-sonnet},
 \texttt{openai/gpt-4.1-mini}, \texttt{deepseek-ai/deepseek-r1}, and
 \texttt{meta/meta-llama-3-70b-instruct}. Frank and Karthic used
-\texttt{gpt-5.2}. Dasha used LLM reasoning signatures, and Judge used a
-two-model \texttt{gpt-5.2}/\texttt{claude-sonnet-4-6} panel with adjudication
-for unstable rows.
+\texttt{gpt-5.2}. Dasha used \texttt{claude-sonnet-4-6} to extract and
+canonicalize legal-reasoning signatures, and Judge used a two-model
+\texttt{claude-sonnet-4-6}/\texttt{claude-haiku-4-5-20251001} panel with
+\texttt{claude-sonnet-4-6} adjudication for unstable rows.
 
 The run used the corrected natural response protocol: each response model
 received only the Frank-generated question, with no system prompt, no hidden
 gold answer, and no required memo headings. The run produced 60 model responses
-over the original, invariant, and material question tracks; 10 rubric rows; 22
-Dasha clusters; 220 final row-level judge scores; adjudicated final centroid scores;
+over the original, invariant, and material question tracks; 10 rubric rows; 23
+Dasha clusters; 230 final row-level judge scores; adjudicated final centroid scores;
 60 projected member scores; and 10 model ranking entries. Table
 \ref{tab:internal-validation}
 summarizes the resulting stage checks.
@@ -41,11 +42,48 @@ summarizes the resulting stage checks.
 \input{tables/internal_validation_summary}
 \end{table}
 
+\subsection{Statistical Validation Diagnostics}
+
+Table \ref{tab:statistical-validation} reports the statistical diagnostics that
+are computable from the current run bundle. These diagnostics do not convert the
+single-case study into a population-level benchmark. Instead, they quantify
+uncertainty for the specific methodological claims made in this paper: Dasha
+member/centroid coherence, observed reasoning diversity, perturbation behavior,
+judge-panel stability, projected-ranking uncertainty, and controlled
+500-response regression behavior.
+
+\begin{table*}[t]
+\centering
+\caption{Statistical validation diagnostics for the live run and controlled regression.}
+\label{tab:statistical-validation}
+\input{tables/statistical_validation}
+\end{table*}
+
+The diagnostics sharpen the interpretation of the evidence. Dasha assigned all
+60 live responses to centroids without a member/signature mismatch
+(Wilson 95\% CI: 0.940--1.000), which supports the cluster bookkeeping claim.
+The material signed-writing perturbation produced a large response-distribution
+shift from the original track (total variation distance 1.000; permutation
+\(p=0.0005\)), while the invariant party-name edit preserved the dominant
+answer family (total variation distance 0.100; permutation \(p=1.0000\)). The
+judge panel showed moderate row-level agreement before adjudication
+(weighted \(\kappa=0.630\), mean absolute error 0.465), and 18 of 230 row
+scores required adjudication. Projected model-score intervals overlap near the
+top of the ranking, so the ranking is an auditable pipeline output, not a
+statistically decisive model-family comparison.
+
 This live run is intentionally bounded to control cost. Its purpose is not to
 estimate population-level model performance with narrow confidence intervals.
 It demonstrates that the real model-generation path runs from source case to
 model ranking without manual patching, and that Dasha can separate multiple
 observed legal-reasoning paths in a perturbation-aware natural-response batch.
+The appendix therefore includes direct run-bundle excerpts for every stage:
+Frank's generated scenario, gold answer, and perturbations; Karthic's complete
+row-level rubric; natural model responses; Dasha cluster membership and
+reasoning signatures; Judge row-score rationales; and the Zak escalation packet.
+These examples are generated from the same artifacts used to compute the tables,
+so the manuscript's practical claim can be inspected at the artifact level
+rather than inferred only from aggregate metrics.
 
 \subsection{Natural-Response Dasha Audit}
 
@@ -65,7 +103,7 @@ cluster coverage, and no preassigned reasoning labels. Table
 This audit is intentionally separate from the deterministic stress suite. It is
 the evidence that Dasha is operating on model outputs rather than on categories
 given to the response generator. In this batch, the normalized Dasha signatures
-formed 22 track-aware clusters. On the original and invariant tracks, the
+formed 23 track-aware clusters. On the original and invariant tracks, the
 dominant cluster family rejected enforcement of the unwritten marriage-
 consideration promise and let the later bylaw-compliant designation control.
 Minority clusters captured equitable override, constructive-trust, and
@@ -96,13 +134,13 @@ issue: natural legal answers often discuss several gates or equitable theories
 before settling on one. Regenerating Dasha signatures with explicit
 primary-path and secondary-path fields completed for all 60 saved responses
 without malformed JSON failures. A first pass that clustered on every
-secondary path overfragmented into 49 clusters. The tuned rule preserves the
-full secondary-path audit profile but clusters only on accepted or uncertain
-non-primary paths. After repairing a negative-language normalization error
-around words such as ``unenforceable,'' the full source-to-score rerun produced
-22 track-aware clusters: 6 on the original question, 8 on the
-surface-invariant edit, and 8 on the material signed-writing edit. Judge scored
-those 22 centroids with a two-model panel, yielding 44 panel calls, 220 final
+secondary path overfragmented, so the tuned rule preserves the full
+secondary-path audit profile while clustering on Dasha's primary canonical
+fields. After repairing a negative-language normalization error around words
+such as ``unenforceable,'' the full source-to-score rerun produced 23
+track-aware clusters: 7 on the original question, 6 on the surface-invariant
+edit, and 10 on the material signed-writing edit. Judge scored those 23
+centroids with a two-model panel, yielding 46 panel calls, 230 final
 row-level scores, 11 adjudications, projected member scores for all 60
 responses, and updated model rankings. The most common cluster profile remained
 no material secondary path, but the audit also captured uncertain
@@ -151,9 +189,9 @@ known. It does not substitute for the natural-response audit; instead, it
 functions as a regression and scale test for cluster bookkeeping, centroid
 projection, and metrics generation.
 
-\subsection{Internal Test Coverage}
+\subsection{Implementation Test Coverage}
 
-The reference implementation has 77 research-pipeline tests covering offline run-bundle
+The reference implementation has 82 research-pipeline tests covering offline run-bundle
 exports, Frank packet quality, Karthic rubric quality, SOF gate regression
 cases, Dasha clustering invariants, sparse-response gate context, LLM reasoning
 signature clustering, source-derived Dasha gate aliasing, a non-SOF

@@ -19,9 +19,11 @@ from research.validation.internal_validation import (
     build_dasha_member_audit,
     build_internal_validation_summary,
     build_natural_response_audit,
+    build_statistical_validation_summary,
     write_natural_response_audit_table,
     write_artifact_examples_section,
     write_internal_validation_table,
+    write_statistical_validation_table,
 )
 from research.validation.judge import judge_clusters
 from research.validation.karthic import build_karthic_rubric
@@ -54,7 +56,15 @@ from research.validation.review_pack import build_review_packet
 from research.validation.run_bundle import build_run_bundle_audit
 from research.validation.secrets_lint import lint_secrets
 from research.validation.source_metadata import read_source_text, source_case_record, validate_source_metadata
-from research.validation.metrics import bootstrap_ci, macro_f1, mean_absolute_error, weighted_kappa
+from research.validation.metrics import (
+    bootstrap_ci,
+    categorical_tvd,
+    macro_f1,
+    mean_absolute_error,
+    permutation_p_value_tvd,
+    weighted_kappa,
+    wilson_ci,
+)
 from research.validation.utils import write_json
 
 
@@ -123,10 +133,17 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertAlmostEqual(mean_absolute_error([4, 3, 2], [3, 3, 4]), 1.0)
         self.assertAlmostEqual(macro_f1(["a", "a", "b"], ["a", "b", "b"]), 2 / 3)
         self.assertGreater(weighted_kappa([0, 1, 2, 2], [0, 1, 1, 2]), 0)
+        self.assertAlmostEqual(categorical_tvd(["a", "a"], ["b", "b"]), 1.0)
 
         low, high = bootstrap_ci([1, 1, 0, 1], iterations=200, seed=7)
         self.assertLessEqual(low, 0.75)
         self.assertGreaterEqual(high, 0.75)
+        wilson_low, wilson_high = wilson_ci(10, 10)
+        self.assertLess(wilson_low, 1.0)
+        self.assertEqual(wilson_high, 1.0)
+        tvd, p_value = permutation_p_value_tvd(["a"] * 8, ["b"] * 8, iterations=100, seed=7)
+        self.assertEqual(tvd, 1.0)
+        self.assertLess(p_value, 0.05)
 
     def test_env_file_parser_handles_basic_openai_key(self):
         env_path = ROOT / "research/runs/tmp_env_parse.env"
@@ -443,7 +460,7 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertEqual(summary["call_plan"]["planned_dasha_signature_calls"], 30)
         self.assertEqual(summary["call_plan"]["judge_invocations_per_cluster"], 3)
         self.assertEqual(summary["call_plan"]["planned_min_judge_calls"], 9)
-        self.assertEqual(summary["call_plan"]["planned_total_llm_calls_excluding_frank_karthic"], 69)
+        self.assertEqual(summary["call_plan"]["planned_total_llm_calls_excluding_frank_karthic"], 75)
         self.assertEqual(summary["budget"]["max_total_llm_calls_excluding_frank_karthic"], 80)
         self.assertEqual(summary["source_case"]["case_id"], "anglemire_v_policemens_benev_assn_chicago_1939")
         self.assertEqual(summary["source_case"]["jurisdiction"], "Illinois")
@@ -1932,6 +1949,22 @@ class ResearchPipelineTests(unittest.TestCase):
         self.assertTrue(summary["stage_checks"]["dasha"]["passed"])
         self.assertEqual(summary["dasha_member_audit"]["status"], "member_audit_passed")
         self.assertTrue(table_path.exists())
+
+    def test_statistical_validation_summary_and_table_are_generated_from_run_artifacts(self):
+        config = load_config(self.config_path, repo_root=ROOT)
+        run_pipeline(config, repo_root=ROOT)
+
+        summary = build_statistical_validation_summary(self.output_dir)
+        table_path = self.output_dir / "statistical_validation_table.tex"
+        write_statistical_validation_table(summary, table_path)
+        table = table_path.read_text(encoding="utf-8")
+
+        self.assertEqual(summary["schema_version"], "research.statistical_validation.v1")
+        self.assertEqual(summary["sample"]["natural_response_count"], 6)
+        self.assertIn("member_coherence_wilson_ci", summary["dasha"])
+        self.assertEqual(summary["judge"]["row_score_count"], 20)
+        self.assertIn("Projected ranking uncertainty", table)
+        self.assertIn("Judge panel stability", table)
 
     def test_replicate_client_polls_until_prediction_succeeds(self):
         payloads = [

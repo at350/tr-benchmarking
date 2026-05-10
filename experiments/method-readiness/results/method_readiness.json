@@ -46,7 +46,7 @@
         "checks=33",
         "blocking_errors=0",
         "responses=60",
-        "clusters=15"
+        "clusters=23"
       ],
       "gap": "Regenerate bundle audit after any claim-supporting run or artifact rewrite.",
       "gate": "Run bundle integrity",
@@ -55,14 +55,14 @@
     {
       "evidence": [
         "responses=60",
-        "clusters=15",
+        "clusters=23",
         "min_observed_clusters=3",
         "cluster_purity=1.0",
         "member_coherence=1.0",
-        "mean_centroid_text_similarity=0.54",
+        "mean_centroid_text_similarity=0.723",
         "non_latin_signal_flags=0",
         "natural_audit=natural_response_audit_passed",
-        "observed_clusters=15"
+        "observed_clusters=23"
       ],
       "gap": "Run larger natural batches across more model families and held-out questions.",
       "gate": "Dasha natural-response clustering",
@@ -83,7 +83,7 @@
       "evidence": [
         "judge_model=claude-sonnet-4-6,claude-haiku-4-5-20251001",
         "judge_panel=2",
-        "row_scores=150",
+        "row_scores=230",
         "agreement_score=0.0",
         "stability=stable_after_adjudication",
         "judge_repeats=2",
@@ -115,64 +115,69 @@
     {
       "evidence": [
         "preflight_status=live_preflight_passed",
-        "warnings=0",
+        "warnings=1",
         "blocking_errors=0"
       ],
       "gap": "Resolve credential warnings before claim-supporting paid live runs.",
       "gate": "Live-run preflight",
-      "status": "met"
+      "status": "partial"
     }
   ],
   "interpretation": "This report is an internal readiness artifact. It distinguishes implemented and tested method components from live-evidence gaps.",
   "judge_stability": {
     "adjudicated_clusters": [
+      "V1__cluster_1",
+      "V1__cluster_10",
       "V1__cluster_2",
       "V1__cluster_3",
+      "V1__cluster_4",
       "V1__cluster_5",
       "V1__cluster_6",
-      "V_surface_invariant__cluster_4",
-      "original__cluster_4"
+      "V1__cluster_8",
+      "V1__cluster_9",
+      "V_surface_invariant__cluster_1",
+      "V_surface_invariant__cluster_6"
     ],
-    "max_row_score_range": 2,
-    "mean_pairwise_mae": 0.52,
+    "max_row_score_range": 3,
+    "mean_pairwise_mae": 0.465,
     "mean_pairwise_weighted_kappa": 0.63,
     "repeat_count": 2,
     "status": "stable_after_adjudication",
     "unstable_rows": [
       {
-        "cluster_id": "original__cluster_4",
+        "cluster_id": "V_surface_invariant__cluster_1",
         "range": 2,
-        "row_id": "R4",
+        "row_id": "R0",
+        "scores": [
+          0,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V_surface_invariant__cluster_1",
+        "range": 2,
+        "row_id": "R2",
         "scores": [
           1,
           3
         ]
       },
       {
-        "cluster_id": "original__cluster_4",
-        "range": 2,
-        "row_id": "R5",
+        "cluster_id": "V_surface_invariant__cluster_6",
+        "range": 3,
+        "row_id": "R7",
         "scores": [
           1,
-          3
+          4
         ]
       },
       {
-        "cluster_id": "original__cluster_4",
+        "cluster_id": "V1__cluster_1",
         "range": 2,
-        "row_id": "R8",
+        "row_id": "R9",
         "scores": [
-          1,
-          3
-        ]
-      },
-      {
-        "cluster_id": "V_surface_invariant__cluster_4",
-        "range": 2,
-        "row_id": "R8",
-        "scores": [
-          3,
-          1
+          2,
+          0
         ]
       },
       {
@@ -189,35 +194,35 @@
         "range": 2,
         "row_id": "R0",
         "scores": [
-          3,
-          1
+          2,
+          4
         ]
       },
       {
         "cluster_id": "V1__cluster_3",
         "range": 2,
-        "row_id": "R1",
+        "row_id": "R2",
         "scores": [
-          4,
+          1,
+          3
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_3",
+        "range": 2,
+        "row_id": "R4",
+        "scores": [
+          0,
           2
         ]
       },
       {
-        "cluster_id": "V1__cluster_3",
+        "cluster_id": "V1__cluster_4",
         "range": 2,
-        "row_id": "R7",
+        "row_id": "R2",
         "scores": [
-          2,
-          0
-        ]
-      },
-      {
-        "cluster_id": "V1__cluster_3",
-        "range": 2,
-        "row_id": "R9",
-        "scores": [
-          2,
-          0
+          1,
+          3
         ]
       },
       {
@@ -237,15 +242,84 @@
           2,
           0
         ]
+      },
+      {
+        "cluster_id": "V1__cluster_8",
+        "range": 2,
+        "row_id": "R0",
+        "scores": [
+          3,
+          1
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_8",
+        "range": 2,
+        "row_id": "R4",
+        "scores": [
+          0,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_8",
+        "range": 2,
+        "row_id": "R9",
+        "scores": [
+          2,
+          0
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_9",
+        "range": 2,
+        "row_id": "R3",
+        "scores": [
+          2,
+          0
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_9",
+        "range": 2,
+        "row_id": "R9",
+        "scores": [
+          3,
+          1
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_10",
+        "range": 2,
+        "row_id": "R4",
+        "scores": [
+          0,
+          2
+        ]
+      },
+      {
+        "cluster_id": "V1__cluster_10",
+        "range": 2,
+        "row_id": "R9",
+        "scores": [
+          2,
+          0
+        ]
       }
     ]
   },
-  "met_gates": 11,
-  "partial_gates": 0,
-  "preflight_warnings": [],
+  "met_gates": 10,
+  "partial_gates": 1,
+  "preflight_warnings": [
+    {
+      "message": "Missing local credentials for: gemini",
+      "passed": false,
+      "severity": "warning"
+    }
+  ],
   "run_dir": "research/runs/live_replicate_roster",
   "run_id": "live_replicate_roster",
   "schema_version": "research.method_readiness.v1",
-  "status": "internal_method_ready",
+  "status": "internal_method_ready_with_gaps",
   "total_gates": 11
 }

@@ -176,15 +176,15 @@
 - Responded to the multi-gate Dasha critique by adding primary/secondary path
   extraction. Dasha now asks for `primary_reasoning_path` plus structured
   `secondary_paths`; normalization records the full secondary-path audit profile
-  and uses only accepted or uncertain non-primary paths in the grouping key.
+  and uses Dasha's primary canonical legal fields in the grouping key.
   Regenerated Dasha signatures for the 60 saved Anglemire natural responses
   using the new prompt. The naive full-secondary-profile key produced 49
   clusters, confirming overfragmentation. A negative-language bug then surfaced:
   Dasha treated `unenforceable` as an enforceability signal and `lacks a signed
   writing` as signed-writing compliance. Fixed the bucket rules and reran the
   full source-to-score pipeline. Final bundle: `internal_validation_ready`, 60
-  natural responses, 22 track-aware multi-path Dasha clusters, perturbation
-  validation passed, 44 panel judge calls, 220 final row-level scores, 11
+  natural responses, 23 track-aware multi-path Dasha clusters, perturbation
+  validation passed, 46 panel judge calls, 230 final row-level scores, 11
   adjudicated clusters, 60 projected member scores, 10 model rankings, and 1
   Zak packet. Added regression tests and documented the experiment under
   `experiments/multipath-dasha/`.
@@ -197,3 +197,46 @@
   agent-provided doctrine-general ids without SOF keyword rules. Legacy keyword
   normalization remains only for archived/offline fixtures without canonical
   ids.
+- Regenerated the active Anglemire Dasha layer with clean provenance under the
+  current agent configuration. All 60 signatures were extracted with
+  `claude-sonnet-4-6`, canonical ids were merged with `claude-sonnet-4-6`, and
+  the full source-to-score rerun finished `internal_validation_ready`: 23
+  track-aware clusters, 46 panel judge calls, 11 adjudications, 230 final
+  row-level scores, 60 projected member scores, ten model rankings, and one Zak
+  packet. Regenerated the validation tables, method-readiness report, run-bundle
+  audit, claim ledger, review packet, Dasha cluster summary, and model rankings
+  from that clean-provenance bundle.
+- Added live artifact examples to the paper appendix from the run bundle rather
+  than hand-written summaries. The appendix now shows Frank's generated
+  scenario, gold-answer excerpt, and perturbations; Karthic's complete rubric
+  rows; natural response excerpts with Dasha cluster ids; Dasha cluster
+  membership and reasoning signatures; Judge row-score rationales; and the Zak
+  escalation packet. Added a results-section pointer so readers understand that
+  the practical evidence is inspectable stage by stage, not only through
+  aggregate tables.
+- Reworked the manuscript toward a more conventional academic methods-paper
+  structure using the `ml-paper-writing` guidance. The abstract now states the
+  problem, method, evidence, and bounded claim directly. The introduction now
+  frames the source-grounded legal-reasoning evaluation problem and defines the
+  pipeline as a reproducible artifact-generating protocol. The methods now
+  include a formal problem formulation with source packet, rubric, tracks,
+  responses, clusters, judge scores, and score projection. Renamed report-like
+  sections to academic equivalents: experimental design and validation,
+  experiments and results, qualitative artifact analysis, and validity
+  boundaries. Paper lint, 82 research-pipeline tests, Python compilation, web
+  rendering, claim ledger, review packet, no-call audit, and handoff manifest
+  were refreshed after the rewrite.
+- Added statistical validation diagnostics after the gap audit. The pipeline now
+  writes `research/runs/live_replicate_roster/statistical_validation.json` and
+  `paper/tables/statistical_validation.tex`, covering Wilson intervals,
+  bootstrap intervals, categorical total-variation distance, permutation
+  p-values, judge weighted kappa, judge MAE, unstable-row rates, and projected
+  ranking uncertainty. The paper now reports Dasha member coherence 1.000 with
+  95 percent Wilson CI [0.940, 1.000], material perturbation TVD 1.000 with
+  p=0.0005, invariant perturbation TVD 0.100 with p=1.0000, judge weighted
+  kappa 0.630, judge MAE 0.465, and 18 unstable rows out of 230. The paper also
+  explicitly states that overlapping top-model bootstrap intervals make current
+  rankings inspectable but not statistically decisive. Verification: 83
+  research-pipeline tests passed, Python modules compiled, paper lint passed,
+  frontend lint passed, `/paper` returned HTTP 200 with the statistical table,
+  and `paper/main.pdf` rebuilt successfully with Tectonic.

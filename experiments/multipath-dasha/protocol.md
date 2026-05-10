@@ -29,6 +29,6 @@ that asks for `primary_reasoning_path` and `secondary_paths`. Then recluster
 the responses with the revised Dasha normalization.
 
 The first exploratory clustering pass uses the full secondary profile in the
-cluster key. The tuned pass records the full profile for audit but clusters only
-on accepted or uncertain non-primary secondary paths.
-
+cluster key. The tuned pass records the full profile for audit but clusters on
+Dasha's primary canonical legal fields, so secondary theories remain visible
+without automatically fragmenting centroids.

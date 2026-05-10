@@ -1,16 +1,54 @@
 \section{Methods}
 
+\subsection{Problem Formulation}
+
+Let \(s\) denote the text of a legal source case and let \(M=\{m_1,\ldots,m_n\}\)
+be a roster of response models. The goal is to estimate how the models reason
+about a source-derived legal question while preserving the relation between
+source authority, benchmark construction, answer clusters, and scores. The
+pipeline constructs a sequence of artifacts:
+\[
+s \rightarrow F \rightarrow R \rightarrow T \rightarrow Y \rightarrow C
+\rightarrow S \rightarrow A .
+\]
+Here \(F\) is the Frank packet containing the generated question, gold answer,
+doctrinal gates, and perturbations; \(R=\{r_1,\ldots,r_k\}\) is the Karthic
+rubric; \(T\) is the set of executable question tracks; \(Y\) is the set of raw
+model answers; \(C\) is a partition of \(Y\) into reasoning clusters; \(S\) is
+the row-level judge score matrix over cluster representatives; and \(A\) is the
+set of escalation and audit artifacts.
+
+For each model \(m\), track \(t\), and sample \(j\), the response generator
+produces a natural answer \(y_{m,t,j}\). Dasha maps each answer to a signature
+\(\sigma(y)\) containing canonical doctrine, rule-trigger, outcome,
+exception-or-defense, and primary-reasoning identifiers. Clustering is a
+track-conditioned equivalence relation:
+\[
+y_a \sim y_b \iff t_a=t_b \land \sigma(y_a)=\sigma(y_b).
+\]
+Judge then scores one representative response from each cluster against every
+rubric row. If \(w_i\) is the weight of row \(r_i\) and \(q_{c,i}\in[0,4]\) is
+the final judge score for cluster \(c\), the projected score for any response in
+cluster \(c\) is
+\[
+\mathrm{score}(y)=\sum_i w_i q_{c,i}.
+\]
+Model rankings aggregate projected scores across that model's samples and
+question tracks. This formulation makes the central validity condition explicit:
+score projection is meaningful only when the cluster relation groups legally
+equivalent reasoning paths.
+
 \subsection{Pipeline Overview}
 
 The reference implementation is a command-line research harness with an optional
 inspection interface. Runs are controlled by JSON configuration files that
-specify a source-case path, output directory, model identifiers,
-sample counts, temperatures, quality gates, clustering method, perturbation
-policy, and judge settings. The harness writes every stage artifact as JSON:
-Frank packet, Karthic rubric, model responses, Dasha clusters, judge scores, Zak
-packets, manifest, validation summaries, and paper tables. This design was
-chosen so that the research claim is reproducible from recorded artifacts rather
-than from an interactive UI session.
+specify a source-case path, output directory, model identifiers, sample counts,
+temperatures, quality gates, clustering method, perturbation policy, and judge
+settings. The harness writes every stage artifact as JSON: Frank packet,
+Karthic rubric, model responses, Dasha clusters, judge scores, Zak packets,
+manifest, validation summaries, and paper tables. This design makes the
+research claim reproducible from recorded artifacts rather than from an
+interactive UI session.
 
 For claim-supporting runs, the source-case path must refer to a real, citable
 court-case source and must have a metadata sidecar. The sidecar records case id,
@@ -67,11 +105,14 @@ manifest construction, budget enforcement, provenance recording, and exact
 grouping over canonical fields emitted by Dasha. Response models are sampled
 with nonzero temperatures and repeated samples because variability in natural
 legal answers is part of the object being measured. The reported live run used
-\texttt{gpt-5.2} for Frank, Karthic, and Dasha signature extraction, nonzero
-response temperatures between 0.55 and 0.65 with two samples per model per
-track, and a low-temperature two-model judge panel with an adjudication pass for
-unstable rows. Runtime adapters are treated as execution plumbing; the research
-unit is the named model output and its recorded prompt provenance.
+\texttt{gpt-5.2} for Frank and Karthic, \texttt{claude-sonnet-4-6} for Dasha
+signature extraction and id canonicalization, nonzero response temperatures
+between 0.55 and 0.65 with two samples per model per track, and a
+low-temperature two-model \texttt{claude-sonnet-4-6}/
+\texttt{claude-haiku-4-5-20251001} judge panel with a
+\texttt{claude-sonnet-4-6} adjudication pass for unstable rows. Runtime
+adapters are treated as execution plumbing; the research unit is the named
+model output and its recorded prompt provenance.
 
 \begin{table}[h]
 \centering
@@ -83,8 +124,8 @@ Pipeline role & Model identifier & Function \\
 \midrule
 Frank & \texttt{gpt-5.2} & Convert source case into doctrine gates, neutral question, gold answer, variations, and controller card. \\
 Karthic & \texttt{gpt-5.2} & Convert the locked Frank packet into a source-grounded row-level rubric. \\
-Dasha extractor & \texttt{gpt-5.2} & Read each model response and emit a normalized legal-reasoning signature. \\
-Judge & \texttt{gpt-5.2}; \texttt{claude-sonnet-4-6} & Score each Dasha representative against every Karthic rubric row; adjudicate unstable panel rows with \texttt{gpt-5.2}. \\
+Dasha extractor and canonicalizer & \texttt{claude-sonnet-4-6} & Read each model response, emit a normalized legal-reasoning signature, and merge equivalent canonical ids before clustering. \\
+Judge & \texttt{claude-sonnet-4-6}; \texttt{claude-haiku-4-5-20251001} & Score each Dasha representative against every Karthic rubric row; adjudicate unstable panel rows with \texttt{claude-sonnet-4-6}. \\
 Response models & Ten model identifiers including GPT, Claude, Gemini, DeepSeek, and Llama families & Answer the original and perturbed Frank-generated questions before clustering. \\
 \bottomrule
 \end{tabular}
@@ -329,16 +370,15 @@ an estoppel answer, an arbitrary-and-capricious answer, or a plain-meaning
 answer; it only records and groups the canonical labels that the Dasha agent
 produced. The cluster key is therefore
 \texttt{(doctrine\_id, rule\_trigger\_id, outcome\_id,
-exception\_or\_defense\_id, primary\_reasoning\_id,
-secondary\_cluster\_profile)}.
+exception\_or\_defense\_id, primary\_reasoning\_id)}.
 
 The fifth tuple element is the normalized primary legal-reasoning family, such
 as signed-writing compliance, Statute-of-Frauds bar, association replacement
 control, constructive trust, promissory estoppel, one-year reasoning, plain
-meaning, or contra proferentem. The sixth element is a conservative secondary
-cluster profile. Dasha stores the full secondary-path audit profile in the
-cluster artifact, including rejected and merely mentioned theories, but the
-cluster key uses only accepted or uncertain non-primary secondary paths. This
+meaning, or contra proferentem. Dasha stores the full secondary-path audit
+profile in the cluster artifact, including accepted, rejected, uncertain, and
+merely mentioned theories, but secondary paths do not automatically split the
+cluster unless Dasha changes the primary canonical fields. This
 prevents a common failure mode in legal answers: a response may discuss five
 possible gates, reject four, and still rest on the same controlling path as
 another answer. Rejected paths remain inspectable, but they do not by themselves

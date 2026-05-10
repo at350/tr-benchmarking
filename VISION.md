@@ -194,10 +194,10 @@ and expert review.
 
 A later multi-path Dasha audit regenerated signatures for the saved 60
 Anglemire responses. The naive full-secondary-profile key overfragmented into
-49 clusters; the tuned method records all secondary paths but clusters only on
-material accepted or uncertain non-primary paths. After repairing a negative-
-language normalization bug, the full source-to-score bundle now uses 22
-track-aware multi-path clusters, 44 panel judge calls, 11 adjudications, 220
+49 clusters; the tuned method records all secondary paths but clusters on
+Dasha's primary canonical legal fields. After repairing a negative-language
+normalization bug, the clean-provenance full source-to-score bundle now uses 23
+track-aware multi-path clusters, 46 panel judge calls, 11 adjudications, 230
 final row-level scores, projected scores for all 60 responses, and passed
 perturbation validation.
 

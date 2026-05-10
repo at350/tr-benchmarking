@@ -1,31 +1,29 @@
 \section{Contributions}
 
-This work studies a source-grounded procedure for evaluating legal reasoning in
-LLM answers. Its central premise is that legal benchmark construction should not
-begin with a fixed hand-authored prompt and a generic scoring checklist. Instead,
-the benchmark instance, rubric, response clusters, and model ranking should all
-be derived from the same legal source case under a reproducible protocol.
+The main contribution is a reproducible protocol for converting a legal source
+case into a clustered, rubric-scored evaluation of LLM legal reasoning. The
+protocol differs from static legal benchmarks in three ways.
 
-The paper makes three contributions. First, it formalizes a source-to-benchmark
-pipeline in which a legal source case is converted into a neutral question, a
-source-grounded gold answer, boundary variations, and a case-specific rubric.
-This design is intended to preserve traceability between the legal source and
-the evaluation instrument.
+\textbf{Source-grounded benchmark synthesis.} The benchmark instance is
+generated from a citable source case. The source-derived packet contains the
+question, gold answer, controlling legal gates, boundary perturbations, and
+provenance hashes used downstream.
 
-Second, it introduces reasoning-path clustering as an intermediate evaluation
-unit. Rather than scoring every raw answer independently, the pipeline extracts
-legal reasoning signatures from model outputs and groups answers that appear to
-share the same doctrinal path, outcome theory, and exception or defense posture.
-This allows the evaluation to describe not only whether a model is correct, but
-which legal theory it appears to be using.
+\textbf{Case-specific rubric induction.} The scoring rubric is generated from
+the locked source packet rather than reused from a generic answer-quality
+checklist. Each row must correspond to a legally observable component of the
+case theory and include source support.
 
-Third, it evaluates a centroid-based judging protocol. A rubric-conditioned
-judge scores representative responses for each reasoning cluster, and those
-scores are projected to the remaining cluster members to produce model-level
-rankings. This design separates three questions that are often conflated in
-LLM-evaluation work: how benchmark questions are generated, how legally similar
-answers are grouped, and how answer quality is scored once a reasoning path has
-been identified.
+\textbf{Reasoning-centroid evaluation.} The pipeline clusters natural model
+answers by normalized legal-reasoning signatures before judging. A
+rubric-conditioned judge scores cluster representatives, and centroid scores are
+projected to all members to produce model-level rankings with row-level
+rationales.
+
+These contributions separate three operations that are frequently conflated in
+LLM evaluation: constructing a legal benchmark, identifying families of legal
+reasoning in model outputs, and scoring those families under a source-grounded
+rubric.
 
 \subsection{Statute-of-Frauds Litmus Test}
 

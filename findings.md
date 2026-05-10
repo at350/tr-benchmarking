@@ -13,13 +13,14 @@ court-case PDF: \emph{Anglemire v. Policemen's Benevolent Association of
 Chicago}, 301 Ill. App. 277, 22 N.E.2d 713 (Ill. App. Ct. 1939). Earlier live
 runs used a compact Anglemire-derived source fixture; that fixture is now
 demoted to offline smoke/regression status. The real-case run completed from
-source to ranking: Frank produced a 229-word scenario question with zero quality
-errors, Karthic produced 11 rubric rows, three model identifiers produced nine
-natural answers, Dasha formed five coherent reasoning clusters, repeated judge
-scoring produced 55 row scores, and Zak produced one escalation packet. The
-remaining claim-supporting gap is perturbation validation on the real court
-case, because the completed real-case source-to-score run did not include
-invariant/material question tracks.
+source to ranking: Frank produced a 1751-character scenario question with zero
+quality errors, Karthic produced 10 rubric rows, ten model identifiers produced
+60 natural answers across original, invariant, and material tracks, Dasha formed
+23 track-aware reasoning clusters, and repeated judge
+scoring produced 230 row scores. Zak produced one escalation packet. The
+current claim-supporting run includes perturbation validation on the real court
+case: the invariant surface edit preserved the dominant answer family, while
+the material signed-writing edit changed it.
 
 ## Patterns And Insights
 
@@ -41,6 +42,20 @@ answer. The code should group those identifiers exactly for reproducibility, not
 make the legal classification itself. Remaining SOF-specific keyword code is
 acceptable only for archived/offline fixtures that lack Dasha canonical ids, not
 as the general live method.
+
+The active Anglemire bundle now has clean Dasha provenance under the current
+agent configuration: all 60 reasoning signatures and the id canonicalization
+pass used `claude-sonnet-4-6`. The rerun finished `internal_validation_ready`
+with 23 track-aware clusters, 46 panel judge calls, 230 final row-level scores,
+11 adjudications, projected scores for all 60 responses, ten model rankings,
+and one Zak packet.
+
+The paper now needs to make the live run inspectable, not merely report metrics.
+The artifact appendix is generated from the run bundle and includes examples
+from every stage: Frank's source-derived question/gold/variations, Karthic's
+rubric rows, natural model responses, Dasha clusters, Judge row rationales, and
+Zak escalation. This directly supports the practical claim that the pipeline
+works end to end on a real case.
 
 Dasha cluster validity should be measured at the member level. The run bundle
 now preserves each member's normalized signature key and each cluster's centroid
@@ -241,10 +256,10 @@ still need calibration with repeated judge runs.
   prose-level signature variation into legal-reasoning families while preserving
   separate certificate-as-writing, constructive-trust/equity, SOF-bar, and
   signed-writing-compliance theories. After the multi-path Dasha repair, the
-  completed run now has 22 track-aware clusters, 1.0 member coherence, no mixed-reasoning flags, invariant dominant
+  completed run now has 23 track-aware clusters, 1.0 member coherence, no mixed-reasoning flags, invariant dominant
   answer preservation, and material signed-writing outcome shift.
 - The real Anglemire perturbation run now completes source-to-score. The judge
-  used a two-model panel over 22 Dasha centroids, produced 220 final row-level
+  used a two-model panel over 23 Dasha centroids, produced 230 final row-level
   scores, adjudicated 11 clusters with unstable panel rows, projected final
   centroid scores to all 60 responses, generated rankings for ten model
   identifiers, and produced a Zak disputed-cluster packet. The regenerated
@@ -256,11 +271,11 @@ still need calibration with repeated judge runs.
   `reasoning_path` field can hide important legal structure. The Dasha prompt
   now asks for `primary_reasoning_path` and `secondary_paths`. The full
   secondary-path audit profile is stored for review, while the cluster key uses
-  only accepted or uncertain non-primary paths. An exploratory regeneration of
+  Dasha's primary canonical legal fields. A clean-provenance regeneration of
   Dasha signatures for the 60 saved Anglemire responses completed without JSON
   failures. A naive full-secondary key produced 49 clusters, but the tuned
   track-aware method, after a negative-language normalization repair, produced
-  22 clusters across the original, invariant, and material tracks. Judge has
+  23 clusters across the original, invariant, and material tracks. Judge has
   now been rerun on those multi-path clusters, so the active scored bundle uses
   the multi-path Dasha method.
 - Perturbation validation should not compare raw reasoning prose literally.
@@ -316,6 +331,29 @@ still need calibration with repeated judge runs.
 - Revalidation can enrich paper tables and validation summaries without new
   model calls, but it cannot backfill every field into the original generated
   cluster artifact.
+- The manuscript needed an academic-methods rewrite, not more descriptive
+  project prose. The current structure now presents the work as a formal
+  source-grounded evaluation method: problem formulation, contributions,
+  related work, implementation, experimental design, experiments/results,
+  qualitative artifact analysis, reproducibility, discussion, limitations, and
+  validity boundaries. This makes the paper clearer to a researcher who wants to
+  reproduce the method independently: it defines the artifact chain
+  \(s \rightarrow F \rightarrow R \rightarrow T \rightarrow Y \rightarrow C
+  \rightarrow S \rightarrow A\), the Dasha equivalence relation over
+  track-conditioned reasoning signatures, and the centroid score-projection
+  rule before presenting live-run evidence.
+- The manuscript now has a statistical validation layer rather than only
+  pass/fail stage evidence. The reported Anglemire run shows Dasha
+  member/centroid coherence of 1.000 with a 95 percent Wilson interval
+  [0.940, 1.000]. Perturbation sensitivity is quantified with categorical
+  total-variation distance and permutation tests: the material signed-writing
+  variant shifts the dominant response family (TVD 1.000, p=0.0005), while the
+  invariant surface edit preserves the dominant answer family (TVD 0.100,
+  p=1.0000). Judge stability is now reported with weighted kappa 0.630, MAE
+  0.465, and 18 unstable rows out of 230. The most important interpretive change
+  is that model rankings are no longer presented as statistically separated:
+  the top two bootstrap intervals overlap, so ranking is an auditable protocol
+  output for this case study, not a model-family superiority claim.
 
 ## Open Questions
 
@@ -330,3 +368,6 @@ still need calibration with repeated judge runs.
 - What are the minimum internal thresholds for judge repeat agreement,
   centroid/member feature agreement, and perturbation divergence before the
   manuscript should claim readiness for external review?
+- How many held-out cases, perturbation tracks, and natural samples per model
+  are required before projected model rankings become statistically stable
+  rather than merely inspectable?

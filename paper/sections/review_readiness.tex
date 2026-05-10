@@ -1,41 +1,36 @@
-\section{Technical Review Readiness}
+\section{Validity Boundaries}
 
-This manuscript is ready for technical review in the following sense:
-the pipeline now has a complete fresh live run under the natural response
-protocol, executable validation checks, regenerated paper tables, and a run
-bundle containing Frank, Karthic, Dasha, Judge, Zak, response, manifest, and
-hash artifacts. The paper is not framed as a final external-validity claim. It
-is framed as a methods and evidence paper that identifies exactly what
-has been demonstrated and what remains before academic submission.
+The evidence in this manuscript supports a methods claim, not a final
+population-level claim about legal model quality. The strongest supported claim
+is that the pipeline can run end to end from a real source case, generate all
+major artifacts without manual patching, preserve provenance, expose
+perturbation behavior, cluster observed legal-reasoning signatures, apply a
+row-level rubric judge, project centroid scores, and record escalation state.
+The unsupported claim would be that the method is already externally validated
+across legal domains or that the reported model ranking estimates general model
+quality.
 
 \begin{table}[h]
 \centering
-\caption{Readiness against the stated validation gates.}
+\caption{Evidence boundaries for the reported validation gates.}
 \label{tab:review-readiness}
 \input{tables/review_readiness}
 \end{table}
 
-For a technical review team, the principal review questions are now concrete.
-First, does Frank's source-to-packet artifact preserve the legally controlling
-facts and avoid answer leakage in the generated question? Second, does Karthic's
-rubric capture the relevant gates, defenses, counterarguments, source limits,
-and variation sensitivity without double-counting? Third, do Dasha's 15
-track-aware observed clusters reflect meaningful legal-reasoning differences or
-merely over-split wording differences? Fourth, does the judge apply each rubric
-row in a legally defensible way, and does adjudication resolve unstable panel
-rows without masking disagreement? Fifth, are Zak triggers sufficiently
-sensitive to low-confidence or mixed-cluster cases?
+The remaining validity questions are concrete. Frank must be tested on held-out
+source cases to determine whether it consistently preserves legally controlling
+facts and avoids answer leakage. Karthic must be compared with expert-authored
+rubrics to quantify row coverage, source support, and double-counting. Dasha
+must be evaluated on larger natural-response batches across multiple doctrines
+and compared with alternative clustering strategies such as embedding-based
+clustering or human-coded reasoning labels. Judge must be calibrated against
+expert legal scores to estimate row-level reliability and bias. Zak thresholds
+must be tuned so escalation captures genuine uncertainty without overwhelming
+the review process.
 
-The answers to those questions determine the next research milestone. The
-reported implementation satisfies the internal pipeline-readiness standard: a
-source case can produce all major artifacts and pass the executable internal
-gates in the method-readiness report. The current report marks all 11 internal
-vision gates as met, including source provenance, Frank, Karthic, natural
-response protocol, Dasha clustering, perturbation validation, judge scoring,
-Zak escalation, run-bundle integrity, controlled scale regression, and live-run
-preflight. The implementation therefore supports internal technical review as a
-complete pre-expert-review methods artifact. It still does not establish the
-stronger external publication-readiness standard, which requires held-out
-source cases, expert review, target reliability thresholds across cases,
-qualitative error analysis, and paper tables generated from frozen review
-evidence.
+The current evidence is therefore sufficient for independent technical review
+of the method and implementation. It is not sufficient for a broad empirical
+claim that the pipeline is valid across all legal domains. That broader claim
+requires held-out source packs, expert annotations, reliability thresholds
+specified before evaluation, and statistical analysis over cases rather than a
+single calibration source.

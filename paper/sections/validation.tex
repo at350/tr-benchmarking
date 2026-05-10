@@ -1,20 +1,18 @@
-\section{Internal Validation Protocol}
+\section{Experimental Design and Validation}
 
-The present validation is internal and pre-expert-review. It asks whether each
-automated stage produces plausible, auditable artifacts without manual patching
-and whether the pipeline mechanics work at enough controlled scale to support a
-research claim before external review. In this manuscript, ``good'' means that
-the artifact is source-grounded, legally coherent, aligned with the role
-instructions and examples, shaped correctly for the next stage, and explicit
-about uncertainty. It does not mean that external legal experts have already
-certified the artifact. The generated run bundle includes the
-Frank packet, Karthic rubric, model responses, Dasha clusters, judge scores, Zak
-packets, manifest, and internal validation summary.
+The validation protocol tests whether each automated stage produces a
+source-grounded artifact that is usable by the next stage without manual
+patching. The protocol is internal: it measures reproducibility, schema
+integrity, perturbation behavior, cluster coherence, judge stability, and
+artifact quality before external legal-expert review. A generated run bundle is
+the unit of analysis. It contains the Frank packet, Karthic rubric, response
+artifacts, Dasha clusters, judge scores, Zak packets, manifest, validation
+summary, tables, and prompt-provenance records.
 
 The internal validator checks five stage families, and the paper separately
 reports a stage-level artifact assessment. Frank passes when the packet
 contains a doctrine, source-grounded question, variations, gold answer, and
-ready handoff status. Karthic passes when the rubric has enough rows, canonical
+a complete downstream handoff record. Karthic passes when the rubric has enough rows, canonical
 categories, non-duplicated criteria, and source-support snippets. Dasha has two
 separate gates. The coverage gate passes when unlabeled model answers to the
 same Frank question are all assigned to clusters after response generation, with
@@ -49,19 +47,30 @@ These checks were chosen because they correspond to the pipeline's main failure
 modes: unsupported legal framing, generic rubrics, schema drift, paraphrase
 over-splitting, missing judge rows, and silent escalation failure.
 
-The internal evidence package has three layers. First, unit and regression tests
+The statistical layer adds uncertainty estimates to those executable gates. The
+implementation reports Wilson intervals for binomial rates such as
+member/centroid coherence and unstable judge rows; bootstrap intervals for
+cluster sizes, feature similarity, and projected model scores; permutation tests
+over categorical answer-family distributions for perturbation tracks; pairwise
+mean absolute error and weighted \(\kappa\) for judge-panel agreement; and
+macro-F1, purity, and completeness for the controlled 500-response regression.
+These statistics are reported as diagnostics of the method under the current
+run design. They are not used to claim population-level model superiority from
+one case.
+
+The evidence package has five layers. First, unit and regression tests
 exercise config loading, prompt hashing, Frank packet completeness, Karthic
 rubric coverage, Dasha clustering invariants, judge projection, repeated-judge
 and panel-judge stability aggregation, Zak escalation, model-call clients, and
 statistical metrics. Second, a real live batch
-executes the full LLM-driven path using three response model identifiers with
-three samples each: \texttt{gpt-5.2},
-\texttt{claude-sonnet-4-20250514}, and
-\texttt{meta/meta-llama-3-70b-instruct}. Third, a natural-response Dasha audit
+executes the full LLM-driven path using ten response model identifiers with two
+samples per model over three question tracks, yielding 60 natural answers.
+Third, a natural-response Dasha audit
 checks that the clustered inputs are unlabeled model answers to one Frank
 question, not responses generated from preassigned reasoning categories. It also
 checks whether the batch produced enough observed reasoning divergence to stress
-Dasha and whether each clustered member agrees with its centroid key. Fourth, a deterministic 500-response regression suite tests the
+Dasha and whether each clustered member agrees with its centroid key. Fourth, a
+deterministic 500-response regression suite tests the
 clustering container on eight known Statute-of-Frauds signatures; that suite is
 a scale and bookkeeping check, not the main evidence for Dasha's discovery
 behavior. Fifth, a perturbation smoke test executes an original question,
@@ -72,9 +81,9 @@ The validation is intentionally layered. Unit tests isolate parser and invariant
 logic without paying for model calls. The natural-response batch then exercises
 the live path that matters scientifically: multiple model outputs answer the
 same source-derived legal question before Dasha sees them. The reported run
-passes the configured Dasha divergence gate because it produced three
-observed reasoning clusters against a target of two, but it remains a small
-single-case sample. The deterministic 500-response regression is retained
+passes the configured Dasha divergence gate because it produced 23
+track-aware observed reasoning clusters against a target of two, but it remains
+a bounded single-case sample. The deterministic 500-response regression is retained
 because it catches implementation regressions in clustering, projection, and
 table generation at the target response scale, but it is not used to claim that
 Dasha has discovered reasoning families from unlabeled model text. This
@@ -89,11 +98,11 @@ Using the same 60 saved natural responses, Dasha signatures were regenerated
 with a schema that separates the controlling path from secondary paths. A naive
 cluster key that included every secondary path produced 49 clusters for 60
 responses, which was too fragmented for centroid judging. The retained method
-therefore stores the full secondary-path audit profile but clusters only on
-accepted or uncertain non-primary secondary paths. The tuned track-aware pass
-produced 22 clusters across the original, invariant, and material tracks after
+therefore stores the full secondary-path audit profile but clusters on Dasha's
+primary canonical fields. The tuned track-aware pass
+produced 23 clusters across the original, invariant, and material tracks after
 repairing a normalization bug around negative enforceability language. Judge was
-then rerun on those multi-path clusters, producing 220 final row-level scores,
+then rerun on those multi-path clusters, producing 230 final row-level scores,
 projected scores for all 60 member responses, and updated model rankings.
 
 The internal review layer then asks the legal-methodological questions that

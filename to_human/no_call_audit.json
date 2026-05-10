@@ -3,12 +3,13 @@
   "claim_ledger": {
     "status": "claim_ledger_ready",
     "status_counts": {
-      "supported": 12
+      "partial": 1,
+      "supported": 11
     }
   },
   "handoff_manifest": {
-    "artifact_count": 112,
-    "manifest_hash": "4afc06c42e550ad4",
+    "artifact_count": 114,
+    "manifest_hash": "cb8a6022189b9806",
     "status": "handoff_manifest_ready"
   },
   "live_calls_made": false,
@@ -19,27 +20,34 @@
   "preflight": {
     "blocking_errors": [],
     "budget": {
-      "max_judge_calls": 70,
-      "max_response_calls": 60,
-      "max_total_llm_calls_excluding_frank_karthic": 210
+      "max_judge_calls": 12,
+      "max_response_calls": 30,
+      "max_total_llm_calls_excluding_frank_karthic": 80
     },
     "call_plan": {
-      "base_response_samples_per_track": 20,
+      "base_response_samples_per_track": 10,
       "estimated_min_clusters_for_judging": 3,
-      "judge_invocations_per_cluster": 2,
-      "planned_dasha_signature_calls": 60,
-      "planned_min_judge_calls": 6,
+      "judge_invocations_per_cluster": 3,
+      "planned_dasha_canonicalization_calls": 6,
+      "planned_dasha_signature_calls": 30,
+      "planned_min_judge_calls": 9,
       "planned_question_tracks": 3,
-      "planned_response_calls": 60,
-      "planned_total_llm_calls_excluding_frank_karthic": 126
+      "planned_response_calls": 30,
+      "planned_total_llm_calls_excluding_frank_karthic": 75
     },
     "status": "live_preflight_passed",
-    "warnings": []
+    "warnings": [
+      {
+        "message": "Missing local credentials for: gemini",
+        "passed": false,
+        "severity": "warning"
+      }
+    ]
   },
   "readiness": {
-    "met_gates": 11,
-    "partial_gates": 0,
-    "status": "internal_method_ready",
+    "met_gates": 10,
+    "partial_gates": 1,
+    "status": "internal_method_ready_with_gaps",
     "total_gates": 11
   },
   "review_pack": {
@@ -54,7 +62,7 @@
     "blocking_errors": 0,
     "check_count": 33,
     "counts": {
-      "clusters": 22,
+      "clusters": 23,
       "responses": 60,
       "rubric_rows": 10,
       "zak_packets": 1
@@ -67,5 +75,8 @@
     "status": "secrets_lint_passed"
   },
   "status": "no_call_audit_passed_with_declared_gaps",
-  "warnings_and_gaps": []
+  "warnings_and_gaps": [
+    "preflight warning: Missing local credentials for: gemini",
+    "partial claim: C11 The next live perturbation run is bounded and preflighted before model spending."
+  ]
 }

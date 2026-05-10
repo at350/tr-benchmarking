@@ -1,14 +1,14 @@
-\section{Stage-Level Artifact Assessment}
+\section{Qualitative Artifact Analysis}
 
-The internal validation question is not simply whether the code executed. The
-pipeline is useful only if each generated artifact is strong enough to support
-the next stage. We therefore assess the reported Statute-of-Frauds run as a
-source-to-score case study grounded in a real court case, \emph{Anglemire v.
-Policemen's Benevolent Association of Chicago}. A single source case is passed through Frank,
-Karthic, natural model-response generation, Dasha clustering, rubric-conditioned
-judging, Zak escalation logic, and paper export. The question at each boundary
-is whether the artifact is legally coherent, source-grounded, consistent with
-the instruction examples, and auditable by a research team.
+Executable validation checks do not by themselves establish that a legal
+evaluation artifact is useful. We therefore analyze the reported
+Statute-of-Frauds run as a source-to-score case study grounded in the real court
+case \emph{Anglemire v. Policemen's Benevolent Association of Chicago}. The
+analysis follows the same artifact boundaries used by the implementation:
+Frank, Karthic, natural response generation, Dasha clustering,
+rubric-conditioned judging, Zak escalation, and paper export. At each boundary,
+we ask whether the artifact is legally coherent, source-grounded, consistent
+with the role instructions, and auditable by an independent research team.
 
 \begin{table}[h]
 \centering
@@ -44,7 +44,7 @@ reported run, but the manuscript marks it as a limitation before publication.
 For Dasha, the question is whether unlabeled natural model answers are grouped
 by legal reasoning. The reported run used 60 natural responses across the
 original question, an invariant party-name edit, and a material signed-writing
-edit. It observed 22 track-aware clusters after the multi-path Dasha repair. The dominant original and invariant
+edit. It observed 23 track-aware clusters after the multi-path Dasha repair. The dominant original and invariant
 families rejected the unwritten marriage-consideration promise and treated the
 later bylaw-compliant designation as controlling; minority original clusters
 captured equitable override, constructive-trust, and certificate-as-writing
@@ -60,8 +60,8 @@ auditable, but future validation should repeat extraction, compare alternate
 clusterers, and increase the number of natural model responses.
 
 For Judge, the question is whether the rubric is actually applied row by row to
-the Dasha centroids. The reported run generated 220 final row scores: 10 rubric
-rows across 22 clusters judged by a two-model panel. Eleven clusters with unstable
+the Dasha centroids. The reported run generated 230 final row scores: 10 rubric
+rows across 23 clusters judged by a two-model panel. Eleven clusters with unstable
 panel rows received an adjudication pass before final projection. The judge then
 projected centroid scores to all 60 member responses and produced model
 rankings. This demonstrates the intended
@@ -83,7 +83,7 @@ is not merely an empty no-escalation record. The remaining work is to calibrate
 the live thresholds across held-out cases so escalation is neither too rare nor
 too noisy.
 
-\subsection{Transfer Beyond Statute of Frauds}
+\subsection{Doctrine Transfer}
 
 The pipeline is designed to be doctrine-general, but the evidence in this
 manuscript is intentionally narrower. The doctrine-transfer claim is therefore

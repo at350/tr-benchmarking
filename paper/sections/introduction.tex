@@ -1,37 +1,48 @@
 \section{Introduction}
 
-Legal LLM evaluation often collapses a model's answer into a single correctness
-score. That misses a central feature of legal reasoning: different answers may
-reach the same bottom line through materially different gates, exceptions,
-factual characterizations, or counterarguments. A benchmark that only grades
-individual responses can therefore obscure whether models understand the
-structure of the doctrine or merely produce plausible conclusions.
+Legal evaluation datasets usually expose models to a fixed prompt and then
+compare each answer with a reference answer or aggregate score. That design is
+often too coarse for legal reasoning. Two answers can reach the same bottom line
+through different doctrinal gates; two answers can cite the same doctrine but
+apply different exceptions; and two answers can discuss the same facts while
+resting on different legal theories. A legal benchmark therefore needs to
+measure reasoning paths as well as final outcomes.
 
-This paper proposes a source-grounded pipeline for evaluating legal reasoning
-paths. The pipeline starts from a source case and automatically constructs the
-benchmark artifacts needed to test models: a legal question, gold answer,
-controlled variations, a rubric, response clusters, centroid scores, projected
-member scores, model rankings, and escalation packets. Statute of Frauds is the
-first calibration domain because it supplies clear doctrinal gates and boundary
-facts for testing the method. The system is designed, however, to be
-doctrine-general: the live path asks Frank and Karthic to infer doctrine and
-rubric structure from the source case instead of hard-coding Statute of Frauds
-labels.
+We study source-grounded legal reasoning evaluation. The input is a citable
+legal source case, not a manually authored hypothetical. The output is a
+complete evaluation bundle: a source-derived benchmark question, a gold answer,
+controlled factual perturbations, a case-specific rubric, natural model
+responses, reasoning-path clusters, centroid-level judge scores, projected
+member scores, model rankings, and escalation records. This formulation makes
+benchmark construction, response clustering, judging, and ranking part of one
+reproducible protocol rather than a sequence of informal manual decisions.
 
-The goal of the reported study is pre-expert-review internal validation. The manuscript asks
-whether the pipeline is coherent, reproducible, robust enough to inspect, and
-technically defensible using only automated artifacts and internal review. The
-claim at this stage is deliberately bounded but complete: the pipeline can run
-end to end on a source case, produce auditable artifacts for every stage, cluster
-legal reasoning signatures at controlled scale, apply rubric-based LLM judging,
-project centroid scores, generate model rankings, and surface failures through
-explicit escalation packets.
+The reported implementation uses named LLM modules as artifact generators.
+Frank converts the source case into a benchmark packet. Karthic converts that
+packet into scored rubric rows. Response models answer the generated question
+without a system prompt or forced answer schema. Dasha abstracts each answer
+into a legal-reasoning signature and clusters signatures into centroids. Judge
+scores each centroid against Karthic's rubric, and Zak records cases where
+uncertainty or disagreement prevents silent acceptance of the score. All module
+inputs, prompt hashes, outputs, and validation checks are serialized.
 
-The validation is organized around the questions a research team would ask while
-reviewing the run bundle. Did Frank produce the expected legal framing, neutral
-question, gold answer, and variations? Did Karthic convert that packet into a
-comprehensive rubric rather than a generic checklist? Did the response models
-answer naturally? Did Dasha cluster the resulting answers by legal theory? Did
-the judge apply the rubric faithfully enough to make projected rankings
-auditable? The manuscript treats those stage-level questions as part of the
-method, not as informal commentary outside the paper.
+Statute of Frauds is the calibration domain for this paper because it has
+discrete doctrinal gates, boundary facts, and plausible alternative reasoning
+paths: marriage consideration, one-year performance, signed-writing compliance,
+suretyship, land, goods, executor promises, and equitable exceptions. The
+architecture itself is not Statute-of-Frauds-specific. The live path asks Frank,
+Karthic, and Dasha to infer doctrine, gates, rubric rows, and reasoning
+signatures from the source case and instruction stream. Statute of Frauds is
+therefore used as a litmus test for the general source-to-rubric-to-centroid
+method.
+
+This paper makes a bounded methodological claim. We do not claim that the
+pipeline has established external legal validity across legal domains. We claim
+that the pipeline can be implemented as a reproducible artifact-generating
+method and that, on a real Statute-of-Frauds case study, it produces inspectable
+outputs at every stage: source-grounded Frank artifacts, a case-specific Karthic
+rubric, natural multi-model responses, perturbation-aware Dasha clusters,
+row-level judge scores, projected model rankings, and Zak escalation state.
+The appendices include direct excerpts from the live run bundle so that the
+reader can inspect the practical artifact quality rather than relying only on
+aggregate tables.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 from collections import Counter
+from math import sqrt
 from typing import Sequence
 
 
@@ -70,3 +71,50 @@ def bootstrap_ci(values: Sequence[float], iterations: int = 1000, seed: int = 7,
     low_index = max(0, int((alpha / 2) * iterations) - 1)
     high_index = min(iterations - 1, int((1 - alpha / 2) * iterations) - 1)
     return means[low_index], means[high_index]
+
+
+def wilson_ci(successes: int, total: int, z: float = 1.96) -> tuple[float, float]:
+    """Wilson score interval for a binomial proportion."""
+
+    if total <= 0:
+        return (0.0, 0.0)
+    phat = successes / total
+    denominator = 1 + z**2 / total
+    center = (phat + z**2 / (2 * total)) / denominator
+    margin = z * sqrt((phat * (1 - phat) + z**2 / (4 * total)) / total) / denominator
+    return max(0.0, center - margin), min(1.0, center + margin)
+
+
+def categorical_tvd(left: Sequence[str], right: Sequence[str]) -> float:
+    """Total variation distance between two categorical samples."""
+
+    if not left or not right:
+        return 0.0
+    left_counts = Counter(left)
+    right_counts = Counter(right)
+    labels = set(left_counts) | set(right_counts)
+    return 0.5 * sum(abs(left_counts[label] / len(left) - right_counts[label] / len(right)) for label in labels)
+
+
+def permutation_p_value_tvd(
+    left: Sequence[str],
+    right: Sequence[str],
+    iterations: int = 2000,
+    seed: int = 19,
+) -> tuple[float, float]:
+    """Permutation p-value for a categorical distribution difference using TVD."""
+
+    if not left or not right:
+        return 0.0, 1.0
+    observed = categorical_tvd(left, right)
+    combined = list(left) + list(right)
+    left_n = len(left)
+    rng = random.Random(seed)
+    extreme = 0
+    for _ in range(iterations):
+        shuffled = combined[:]
+        rng.shuffle(shuffled)
+        stat = categorical_tvd(shuffled[:left_n], shuffled[left_n:])
+        if stat >= observed - 1e-12:
+            extreme += 1
+    return observed, (extreme + 1) / (iterations + 1)

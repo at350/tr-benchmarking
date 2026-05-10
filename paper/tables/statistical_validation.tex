@@ -1,0 +1,13 @@
+\begin{tabular}{p{0.21\linewidth}p{0.18\linewidth}p{0.27\linewidth}p{0.24\linewidth}}
+\toprule
+Validation target & Estimate & Uncertainty/statistic & Interpretation \\
+\midrule
+Dasha member coherence & 1.000 & 95 percent Wilson CI [0.940, 1.000] & No centroid/member key mismatches in the saved run; validates bookkeeping, not expert legal truth. \\
+Dasha cluster diversity & 23 clusters; effective count 2.71 & Mean size 2.61; bootstrap CI [1.61, 3.87] & Natural responses did not collapse into a single reasoning family. \\
+Judge panel stability & weighted kappa 0.630; MAE 0.465 & unstable rows 18/230; Wilson CI [0.050, 0.120] & Adjudication is required and recorded; judge scores are not treated as silently final. \\
+Projected ranking uncertainty & gpt-5.2 & mean 3.080; bootstrap CI [2.010, 3.950]; top-two overlap=True & The live ranking is inspectable but not statistically decisive across model families. \\
+Controlled 500-response regression & macro-F1 1.000; purity 1.000 & n=500; clusters=8 & Confirms scale/bookkeeping under known signatures; not natural discovery evidence. \\
+Perturbation: V1 & TVD 1.000 & permutation p=0.0005; passed=True & material edit: base dominant=oral\_promise\_void\_later\_beneficiaries\_prevail; track dominant=writing\_satisfied\_promise\_enforceable \\
+Perturbation: V\_surface\_invariant & TVD 0.100 & permutation p=1.0000; passed=True & invariant edit: base dominant=oral\_promise\_void\_later\_beneficiaries\_prevail; track dominant=oral\_promise\_void\_later\_beneficiaries\_prevail \\
+\bottomrule
+\end{tabular}

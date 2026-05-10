@@ -197,8 +197,8 @@ async function collectRenderMetadata(repoRoot: string) {
   let figureCount = 0;
   let tableCount = 0;
   for (const raw of sectionTexts) {
-    for (const environment of raw.matchAll(/\\begin\{(figure|table)\}(?:\[[^\]]+\])?([\s\S]*?)\\end\{\1\}/g)) {
-      const kind = environment[1];
+    for (const environment of raw.matchAll(/\\begin\{(figure\*?|table\*?)\}(?:\[[^\]]+\])?([\s\S]*?)\\end\{\1\}/g)) {
+      const kind = environment[1].replace("*", "");
       const body = environment[2];
       const label = body.match(/\\label\{([^}]+)\}/)?.[1];
       if (!label) {
@@ -332,13 +332,13 @@ async function renderLatexSection(repoRoot: string, fileName: string, metadata: 
       continue;
     }
 
-    if (trimmed === "\\begin{table}[h]" || trimmed === "\\begin{table}") {
+    if (/^\\begin\{table\*?\}(?:\[[^\]]+\])?$/.test(trimmed)) {
       flushParagraph();
       inTable = true;
       continue;
     }
 
-    if (trimmed === "\\end{table}") {
+    if (/^\\end\{table\*?\}$/.test(trimmed)) {
       inTable = false;
       continue;
     }

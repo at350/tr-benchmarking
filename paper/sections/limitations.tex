@@ -5,7 +5,7 @@ The live validation run is bounded and should be interpreted as an internal
 source-to-ranking validation, not a population-level benchmark of model
 performance. The natural-response Dasha audit confirms that the clustered inputs
 are model answers to Frank-generated question tracks rather than responses
-generated from preassigned labels, and the reported run produced 22 observed
+generated from preassigned labels, and the reported run produced 23 observed
 track-aware reasoning clusters over 60 answers. That is a meaningful internal
 Dasha result, but it is still a single-case batch. It does not establish that
 arbitrary live model outputs will always produce stable or legally correct
@@ -28,6 +28,10 @@ The manuscript validates the path with ten model identifiers over three tracks;
 broader model-family claims require larger rosters, more repeated samples,
 held-out cases, and natural-response batches where multiple models
 independently converge on or diverge from the same legal reasoning paths.
+The bootstrap intervals for the current projected rankings overlap near the top
+of the table, so the present ranking should be read as an output of the
+source-to-centroid scoring protocol rather than as statistically significant
+evidence that one frontier model family outperforms another.
 
 The instruction corpus is deepest for Statute of Frauds. The live agents are now
 given a doctrine-general protocol and must infer doctrine from the source, but

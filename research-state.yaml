@@ -24,7 +24,7 @@ continuity:
     - VISION.md
 
 frozen_or_reported_artifacts:
-  live_case_study_run: research/runs/live_natural_response_batch
+  live_case_study_run: research/runs/live_replicate_roster
   claim_supporting_source_case: cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf
   claim_supporting_source_metadata: cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.metadata.json
   stress_run: research/runs/internal_stress
@@ -33,7 +33,7 @@ frozen_or_reported_artifacts:
   website_manuscript: http://127.0.0.1:3000/paper
 
 current_evidence:
-  unit_tests: 82
+  unit_tests: 83
   live_natural_responses:
     source_case: cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf
     case_id: anglemire_v_policemens_benev_assn_chicago_1939
@@ -47,7 +47,8 @@ current_evidence:
     rubric_rows: 11
     judge_row_scores: 55
     zak_packets: 1
-    status: internal_validation_passed
+    status: superseded_by_live_replicate_roster
+    purpose: legacy smaller live run retained for provenance only
     summary: >
       Completed full source-to-score live run from the real Anglemire court-case
       PDF. Frank generated a 229-word scenario question with zero quality
@@ -65,10 +66,10 @@ current_evidence:
       tracks. Frank produced a 1751-character neutral scenario and three
       variations with zero quality errors. The response stage produced 60
       natural answers; all 60 received Dasha reasoning signatures. After the
-      multi-path Dasha repair, Dasha now produces 22 track-aware clusters with
+      multi-path Dasha repair, Dasha now produces 23 track-aware clusters with
       member coherence 1.0, no mixed reasoning flags, invariant dominant-answer
       preservation, and material signed-writing answer-family shift. Judge used
-      a two-model panel over 22 centroids, made 44 panel calls, produced 220
+      a two-model panel over 23 centroids, made 46 panel calls, produced 230
       final row-level scores, adjudicated 11 unstable clusters, projected scores
       to all 60 responses, generated ten model rankings, and Zak emitted one
       disputed-cluster packet.
@@ -78,6 +79,23 @@ current_evidence:
       - research/runs/live_replicate_roster/dasha_clusters.json
       - research/runs/live_replicate_roster/perturbation_report.json
       - research/runs/live_replicate_roster/dasha_perturbation_audit.json
+  statistical_validation:
+    status: generated_and_reported
+    artifacts:
+      - research/runs/live_replicate_roster/statistical_validation.json
+      - paper/tables/statistical_validation.tex
+    summary: >
+      Added inferential diagnostics for the current Anglemire live run and
+      controlled Dasha stress regression. Dasha member coherence is 1.000 with
+      a 95 percent Wilson interval of [0.940, 1.000]. The material signed-writing
+      perturbation shifts the response-label distribution with TVD 1.000 and
+      permutation p=0.0005, while the invariant surface edit preserves the
+      dominant answer family with TVD 0.100 and p=1.0000. Judge panel stability
+      is quantified as weighted kappa 0.630, MAE 0.465, and 18 unstable rows out
+      of 230 after panel scoring/adjudication. Projected model rankings are
+      emitted, but the top two bootstrap intervals overlap, so the manuscript
+      now treats ranking as an auditable protocol output rather than a
+      statistically decisive model-superiority claim.
   multipath_dasha_refinement:
     status: exploratory_method_refinement_completed
     artifacts:
@@ -90,10 +108,10 @@ current_evidence:
       Regenerated Dasha signatures for the 60 saved Anglemire natural responses
       under the new primary/secondary path schema. A naive key using every
       secondary path produced 49 clusters, showing overfragmentation. The tuned
-      method stores the full secondary-path audit profile but clusters only on
-      accepted or uncertain non-primary paths. After repairing a
+      method stores the full secondary-path audit profile but clusters on
+      Dasha's primary canonical legal fields. After repairing a
       negative-language normalization bug, the full source-to-score rerun
-      produced 22 track-aware clusters: 6 original, 8 surface-invariant, and 8
+      produced 23 track-aware clusters: 7 original, 6 surface-invariant, and 10
       material signed-writing clusters. Judge was rerun on those clusters and
       the active scored bundle now uses the multi-path Dasha method.
   deterministic_stress:
@@ -128,6 +146,34 @@ current_evidence:
       Reproducibility artifact that records config hash, source hash,
       instruction-context hashes, model rosters, judge panel, quality gates, and
       normalization versions without storing secrets or generated outputs.
+  paper_artifact_examples:
+    status: generated_from_live_run_bundle
+    path: paper/sections/artifact_examples.tex
+    includes:
+      - Frank source-derived scenario, gold answer excerpt, and perturbations
+      - Karthic complete rubric rows
+      - Natural model responses with Dasha cluster ids
+      - Dasha cluster membership and reasoning signatures
+      - Judge row-score rationale excerpts
+      - Zak escalation packet
+  manuscript_academic_rewrite:
+    status: completed_and_web_rendered
+    artifacts:
+      - paper/sections/abstract.tex
+      - paper/sections/introduction.tex
+      - paper/sections/contributions.tex
+      - paper/sections/methods.tex
+      - paper/sections/validation.tex
+      - paper/sections/results.tex
+      - paper/sections/stage_assessment.tex
+      - paper/sections/review_readiness.tex
+    summary: >
+      Reworked the paper from a report-like structure into an academic methods
+      manuscript. Added a formal problem formulation, tightened the abstract and
+      introduction, rewrote contributions as methodological claims, renamed
+      internal-readiness sections to experimental design, experiments/results,
+      qualitative artifact analysis, and validity boundaries, and verified the
+      website manuscript renders the new sections.
   paper_static_lint:
     status: passed
     purpose: >
@@ -135,6 +181,13 @@ current_evidence:
       bibliographies, citation keys, stale readiness counts, provider-routing
       names, absolute local paths, JD-review dependencies, and common Statute
       of Frauds typos in environments without latexmk or pdflatex.
+  paper_pdf_build:
+    status: builds_with_tectonic
+    artifact: paper/main.pdf
+    purpose: >
+      The manuscript now compiles locally through the paper Makefile using
+      Tectonic. The build emits typography warnings from dense generated tables,
+      but exits successfully and writes `paper/main.pdf`.
   method_readiness_report:
     status: internal_method_ready
     artifact: experiments/method-readiness/results/method_readiness.json
@@ -218,14 +271,14 @@ current_evidence:
       Consolidated no-call review command that runs paper lint, secret lint,
       live preflight, run-bundle integrity, readiness, review-pack generation,
       and claim-ledger generation without model calls, and records the current
-      handoff-manifest status. Current result has zero blocking errors and no
-      declared gaps or warnings, though the status string remains the conservative
-      `no_call_audit_passed_with_declared_gaps` value.
+      handoff-manifest status. Current result has zero blocking errors and two
+      declared caveats: one local Gemini credential preflight warning and one
+      partial forward-looking claim about the next bounded perturbation run.
   handoff_manifest:
     status: handoff_manifest_ready
     artifacts:
       - to_human/handoff_manifest.json
-    artifact_count: 106
+    artifact_count: 114
     purpose: >
       Checksum manifest for the current researcher-facing handoff set: paper
       sources, figures, fixtures, experiment reports, human-review artifacts,
@@ -255,14 +308,14 @@ hypotheses:
       judge calls, ablations, and later expert comparison.
   H4:
     title: Multi-path Dasha signatures preserve legal-answer structure without destroying centroid compression.
-    status: exploratory_supported_by_saved_live_response_regeneration
+    status: supported_for_anglemire_internal_validation
     prediction: >
       Capturing primary and secondary legal paths should expose multi-gate
-      reasoning, while clustering only on material accepted or uncertain
-      non-primary paths should avoid one-cluster-per-answer fragmentation.
+      reasoning, while clustering on Dasha's primary canonical legal fields
+      should avoid one-cluster-per-answer fragmentation.
   H5:
     title: Agent-emitted canonical ids make Dasha doctrine-general.
-    status: supported_by_unit_regression_pending_live_rerun
+    status: supported_by_unit_regression_and_live_anglemire_rerun
     prediction: >
       If Dasha emits doctrine_id, rule_trigger_id, outcome_id,
       exception_or_defense_id, and primary_reasoning_id from the Frank packet
@@ -270,13 +323,10 @@ hypotheses:
       deterministic SOF legal classification in the live method.
 
 open_gaps:
-  - Regenerate the live Anglemire Dasha signatures with agent canonical ids and
-    rerun Judge before claiming the active scored bundle uses the v5 contextual
-    id method rather than the legacy v4 fallback.
   - Add live held-out non-SOF source cases to test doctrine transfer beyond offline fixtures.
   - Calibrate live Zak escalation and adjudication thresholds across held-out cases.
   - Expand the live roster or sample count if the next manuscript claim moves from internal method validation to model-performance benchmarking.
-  - Compile the LaTeX paper in an environment with latexmk or pdflatex; current environment only supports static paper linting.
+  - Improve generated table typography if the paper moves from internal review to formal submission formatting.
 
 next_actions:
   - Review the completed Anglemire live roster bundle for legal face validity and paper narrative consistency.
@@ -289,3 +339,4 @@ next_actions:
   - Use `python3 -m research.validation no-call-audit` as the single pre-review check before sharing the branch.
   - Use held-out non-SOF and additional SOF source cases for the next empirical expansion.
   - Keep literature notes current and only cite verified sources.
+  - Recompute statistical validation after every new claim-supporting live run and keep ranking uncertainty separate from pipeline-validity evidence.

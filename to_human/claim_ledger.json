@@ -10,8 +10,8 @@
       ],
       "claim": "The pipeline can run from a source case to Frank, Karthic, natural model responses, Dasha clusters, Judge scores, Zak state, and model rankings for the current SOF case.",
       "evidence": [
-        "readiness=internal_method_ready",
-        "gates=11/11",
+        "readiness=internal_method_ready_with_gaps",
+        "gates=10/11",
         "run_source=cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf",
         "protocol_source=cases/MarriageSoF_Anglemire v Policemens Benev Assn of Chicago.pdf",
         "case_id=anglemire_v_policemens_benev_assn_chicago_1939",
@@ -73,14 +73,14 @@
       "claim": "Dasha clustered the current natural-response batch into coherent legal-reasoning groups.",
       "evidence": [
         "responses=60",
-        "clusters=15",
+        "clusters=23",
         "min_observed_clusters=3",
         "cluster_purity=1.0",
         "member_coherence=1.0",
-        "mean_centroid_text_similarity=0.54",
+        "mean_centroid_text_similarity=0.723",
         "non_latin_signal_flags=0",
         "natural_audit=natural_response_audit_passed",
-        "observed_clusters=15"
+        "observed_clusters=23"
       ],
       "id": "C5",
       "limitation": "Run larger natural batches across more model families and held-out questions.",
@@ -97,7 +97,7 @@
         "checks=33",
         "blocking_errors=0",
         "responses=60",
-        "clusters=15"
+        "clusters=23"
       ],
       "id": "C6",
       "limitation": "Regenerate bundle audit after any claim-supporting run or artifact rewrite.",
@@ -128,7 +128,7 @@
       "evidence": [
         "judge_model=claude-sonnet-4-6,claude-haiku-4-5-20251001",
         "judge_panel=2",
-        "row_scores=150",
+        "row_scores=230",
         "agreement_score=0.0",
         "stability=stable_after_adjudication",
         "judge_repeats=2",
@@ -174,14 +174,14 @@
       "claim": "The next live perturbation run is bounded and preflighted before model spending.",
       "evidence": [
         "preflight_status=live_preflight_passed",
-        "warnings=0",
+        "warnings=1",
         "blocking_errors=0",
-        "planned_total_calls=126",
-        "total_call_cap=210"
+        "planned_total_calls=75",
+        "total_call_cap=80"
       ],
       "id": "C11",
       "limitation": "Resolve credential warnings before claim-supporting paid live runs.",
-      "status": "supported"
+      "status": "partial"
     },
     {
       "artifacts": [
@@ -190,7 +190,7 @@
       "claim": "The shareable repo artifacts currently pass secret scanning.",
       "evidence": [
         "secrets_status=secrets_lint_passed",
-        "scanned_files=287"
+        "scanned_files=293"
       ],
       "id": "C12",
       "limitation": "Secret lint is a pattern scan, not a substitute for institutional secret-scanning tools.",
@@ -206,6 +206,7 @@
   ],
   "status": "claim_ledger_ready",
   "status_counts": {
-    "supported": 12
+    "partial": 1,
+    "supported": 11
   }
 }
