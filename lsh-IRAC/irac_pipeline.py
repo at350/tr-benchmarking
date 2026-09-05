@@ -42,6 +42,7 @@ class IRACEvaluationPipeline:
         self.min_samples = min_samples
         self.random_state = random_state
         self.topic_rng = random.Random(topic_sample_seed)  # makes the topic-label sample reproducible
+        self._warned_no_api_key = False
         self.lsh_index = None
         self.embeddings = {}  # id -> np.array
         self.responses = {}   # id -> parsed record
@@ -95,7 +96,9 @@ class IRACEvaluationPipeline:
 
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            print("Warning: OPENAI_API_KEY not found. Skipping topic extraction.")
+            if not self._warned_no_api_key:
+                print("Warning: OPENAI_API_KEY not found. Skipping topic extraction for every cluster.")
+                self._warned_no_api_key = True
             return []
         client = OpenAI(api_key=api_key)
 
