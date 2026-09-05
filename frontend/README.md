@@ -34,7 +34,7 @@ npm run build
 |---|---|
 | `/` | Home and links |
 | `/demos` | Scripted walkthroughs of the workflow |
-| `/database-view` | SuperGPQA law subset and PRBench browser (`/api/dataset`) |
+| `/database-view` | SuperGPQA law subset browser (`/api/dataset`; add `?dataset=prbench` for PRBench) |
 | `/outlines` | Contract and tort law outline PDFs |
 | `/lsh-runs` | Every saved clustering run, with cluster maps and members |
 | `/legal-workflow` | The four-stage packet → rubric → judge → review workflow, stage by stage |

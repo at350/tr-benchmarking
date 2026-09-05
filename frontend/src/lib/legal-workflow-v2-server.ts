@@ -467,7 +467,7 @@ export async function draftFrankPacketFromTemplate(input: {
     const files = await Promise.all(templatePacket.sourceArtifacts.map(async (artifact) => ({
         role: artifact.role,
         fileName: artifact.fileName,
-        bytes: new Uint8Array(await fs.readFile(artifact.storedPath)),
+        bytes: new Uint8Array(await fs.readFile(resolveArtifactPath(artifact.storedPath))),
     })));
 
     return await draftFrankPacket({
@@ -3577,8 +3577,9 @@ async function saveUploadedArtifacts(ownerId: string, files: UploadFileInput[]) 
             id: artifactId,
             role: file.role,
             fileName: safeName,
-            storedPath,
-            extractedTextPath,
+            // stored relative to the repository root so committed packets work on any machine
+            storedPath: path.relative(resolveRepoRoot(), storedPath),
+            extractedTextPath: path.relative(resolveRepoRoot(), extractedTextPath),
             extractedText,
             uploadedAt: new Date().toISOString(),
         });
@@ -6073,10 +6074,27 @@ function getRepoRoot() {
     return path.basename(process.cwd()) === 'frontend' ? path.resolve(process.cwd(), '..') : process.cwd();
 }
 
+/** Repository root, whether the server was started from `frontend/` or the root. */
+function resolveRepoRoot() {
+    return path.basename(process.cwd()) === 'frontend' ? path.resolve(process.cwd(), '..') : process.cwd();
+}
+
+/**
+ * Turn a stored artifact path into an absolute path on this machine. New records hold
+ * repo-relative paths; older ones hold absolute paths from the author's machine, which
+ * are re-rooted at the local `legal-workflow-data/` directory.
+ */
+function resolveArtifactPath(storedPath: string) {
+    if (!path.isAbsolute(storedPath)) {
+        return path.join(resolveRepoRoot(), storedPath);
+    }
+    const marker = `${path.sep}legal-workflow-data${path.sep}`;
+    const index = storedPath.indexOf(marker);
+    return index === -1 ? storedPath : path.join(resolveRepoRoot(), storedPath.slice(index + 1));
+}
+
 async function ensureDirectory(directoryKey: keyof typeof DATA_DIRECTORIES | string) {
-    const root = path.basename(process.cwd()) === 'frontend'
-        ? path.resolve(process.cwd(), '../legal-workflow-data')
-        : path.resolve(process.cwd(), 'legal-workflow-data');
+    const root = path.join(resolveRepoRoot(), 'legal-workflow-data');
     const directory = path.join(root, directoryKey in DATA_DIRECTORIES ? DATA_DIRECTORIES[directoryKey as keyof typeof DATA_DIRECTORIES] : directoryKey);
     await fs.mkdir(directory, { recursive: true });
     return directory;

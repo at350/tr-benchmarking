@@ -87,12 +87,12 @@ The frontend's `/legal-workflow` page runs a four-stage workflow whose state is 
 | Judge | **Dasha** | Model answers are clustered (via `lsh/cluster_legal_workflow.py`), and a judge panel scores each cluster's centroid against the rubric, so hundreds of answers cost a handful of judge calls. |
 | Review | **Zak** | Only when the judges cannot reach a strict majority: a scoped packet for a human expert and a structured decision record. |
 
-`legal-workflow-data/` ships with 24 packets, 14 rubric packs, 10 judged runs, and 3 review records so the pages have content on a fresh clone.
+`legal-workflow-data/` ships with 23 packets, 12 rubric packs, 10 judged runs, and 3 review records so the pages have content on a fresh clone.
 
 ## Models and data
 
 - **Models queried by the research pipelines:** `gpt-4o`, `gpt-4-turbo`, `gpt-5-nano`, `gpt-5.2` (OpenAI API); `google/gemini-3-flash`, `google/gemini-3-pro`, `meta/llama-4-maverick-instruct`, `deepseek-ai/deepseek-v3.1`, `anthropic/claude-4.5-sonnet`, `anthropic/claude-3.5-haiku` (Replicate); `xai/grok-4` if `ENABLE_GROK4=true`. The frontend's judge and drafting features offer current OpenAI, Anthropic, and Gemini models directly.
-- **Datasets** (`datasets/`): the law subset of [SuperGPQA](https://github.com/SuperGPQA/SuperGPQA) (656 multiple-choice questions) and 500 multi-turn tasks from PRBench, both used as question sources and browsable at `/database-view`. Three real appellate opinions (`cases/`) and two law-school outlines (`outlines/`) ground the workflow.
+- **Datasets** (`datasets/`): the law subset of [SuperGPQA](https://github.com/SuperGPQA/SuperGPQA) (656 multiple-choice questions) and 500 multi-turn tasks from PRBench, used as question sources; SuperGPQA is browsable at `/database-view` and both are served by `/api/dataset`. Three real appellate opinions (`cases/`) and two law-school outlines (`outlines/`) ground the workflow.
 - **Saved runs:** 14 free-form and 15 IRAC clustering runs, including the poisoned-data runs.
 
 ## Tests and checks
