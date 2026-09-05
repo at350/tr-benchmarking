@@ -89,6 +89,9 @@ def run(args) -> int:
 
     os.makedirs(args.output_dir, exist_ok=True)
     data = read_json(args.data)
+    if not isinstance(data, list) or not data or not all(
+            isinstance(record, dict) and isinstance(record.get("response"), str) for record in data):
+        raise SystemExit(f"{args.data} does not look like a free-form responses file: every 'response' should be text.")
     scatter(data, "all-MiniLM-L6-v2", "Before: generic sentence embeddings\n(answers group by topic)",
             os.path.join(args.output_dir, "viz_before_topical.png"))
     scatter(data, "hkunlp/instructor-large", "After: instruction-tuned embeddings\n(answers group by conclusion)",

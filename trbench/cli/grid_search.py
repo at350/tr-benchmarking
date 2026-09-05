@@ -40,6 +40,9 @@ def run(args) -> int:
     from trbench.text import encode_responses
 
     data = read_json(args.data)
+    if not isinstance(data, list) or not data or not all(
+            isinstance(record, dict) and isinstance(record.get("response"), str) for record in data):
+        raise SystemExit(f"{args.data} does not look like a free-form responses file: every 'response' should be text.")
     ids = [d["id"] for d in data]
     verdicts = {d["id"]: verdict_hint(d["response"]) for d in data}
     print(f"Encoding {len(ids)} answers with {args.model}...")
