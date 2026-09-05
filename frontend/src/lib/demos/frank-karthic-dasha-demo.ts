@@ -720,17 +720,6 @@ export const modelBatchRows: ModelBatchRow[] = modelKeys.map((modelKey) => {
 
 export const totalResponses = judgedClusters.reduce((sum, cluster) => sum + cluster.size, 0);
 
-export const topMetrics = [
-    { label: 'Question', value: 'Anglemire', detail: 'Marriage-consideration Statute of Frauds benchmark.' },
-    { label: 'Responses', value: String(totalResponses), detail: 'Twelve models with twenty outputs each.' },
-    { label: 'Clusters', value: String(judgedClusters.length), detail: 'Representative response families extracted for centroid judging.' },
-    {
-        label: 'Leader',
-        value: modelLeaderboard[0]?.modelKey.split('::')[1] ?? 'N/A',
-        detail: `${modelLeaderboard[0]?.averageScore.toFixed(1) ?? '0.0'} average final score after Dasha propagation.`,
-    },
-];
-
 export const batchSummary = {
     embeddingInstruction: 'Represent the legal conclusion and reasoning of this text:',
     clusteringMethod: 'Instruction-tuned embeddings -> UMAP -> HDBSCAN',

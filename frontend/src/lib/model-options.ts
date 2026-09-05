@@ -47,14 +47,6 @@ export const REASONING_OPTIONS: Array<{ value: ReasoningEffort; label: string }>
     { value: 'xhigh', label: 'X-High' },
 ];
 
-export function getModelOptions(provider: ModelProvider) {
-    return MODEL_OPTIONS_BY_PROVIDER[provider];
-}
-
-export function getDefaultModelForProvider(provider: ModelProvider) {
-    return MODEL_OPTIONS_BY_PROVIDER[provider][0]?.value || '';
-}
-
 export function supportsReasoningEffortControl(provider: ModelProvider, model: string) {
     if (provider === 'openai') {
         return model.startsWith('gpt-5');

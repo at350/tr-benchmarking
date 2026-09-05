@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 
 import { validateUploads } from '@/lib/uploads';
 
@@ -96,8 +96,12 @@ export async function POST(req: Request) {
 
         // The evaluation can take many minutes, so it runs after this response is sent.
         // Progress and results are written to the run's JSON file, which the UI polls.
-        void executeDashaRun(item.id).catch((error) => {
-            console.error(`Dasha run ${item.id} failed.`, error);
+        after(async () => {
+            try {
+                await executeDashaRun(item.id);
+            } catch (error) {
+                console.error(`Dasha run ${item.id} failed.`, error);
+            }
         });
 
         return NextResponse.json({ item });

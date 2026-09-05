@@ -1,18 +1,11 @@
 import type {
     DashaClusterRecord,
-    DashaComparisonSummary,
     DashaModelSummary,
     DashaResponseRecord,
-    DashaRunV2,
     DashaSelectedModel,
     ModelProvider,
-    KarthicRubricPackV2,
-    QuestionVariancePackage,
-    RubricModuleId,
     RubricRowResult,
 } from '@/lib/legal-workflow-v2-types';
-
-const MODULE_ORDER: RubricModuleId[] = ['module0', 'module1', 'module2', 'module3', 'module4'];
 
 export function buildDashaModelSummaries(input: {
     selectedModels: DashaSelectedModel[];
@@ -98,111 +91,6 @@ export function buildDashaModelSummaries(input: {
         });
 }
 
-export function buildDashaComparisonSummary(input: {
-    baselineRun: Pick<DashaRunV2, 'selectedModels' | 'weightedSummary' | 'moduleSummaries' | 'modelSummaries'>;
-    variantRun: Pick<DashaRunV2, 'selectedModels' | 'weightedSummary' | 'moduleSummaries' | 'modelSummaries'>;
-}): DashaComparisonSummary {
-    const baselineModules = new Map(input.baselineRun.moduleSummaries.map((item) => [item.moduleId, item] as const));
-    const variantModules = new Map(input.variantRun.moduleSummaries.map((item) => [item.moduleId, item] as const));
-    const moduleIds = new Set<RubricModuleId>([
-        ...input.baselineRun.moduleSummaries.map((item) => item.moduleId),
-        ...input.variantRun.moduleSummaries.map((item) => item.moduleId),
-    ]);
-
-    const moduleDeltas = Array.from(moduleIds)
-        .map((moduleId) => {
-            const baseline = baselineModules.get(moduleId) ?? null;
-            const variant = variantModules.get(moduleId) ?? null;
-            return {
-                moduleId,
-                label: baseline?.label ?? variant?.label ?? moduleId,
-                baselineScore: baseline?.averageScore ?? null,
-                variantScore: variant?.averageScore ?? null,
-                scoreDelta: subtractNullable(variant?.averageScore ?? null, baseline?.averageScore ?? null),
-            };
-        })
-        .sort((left, right) => {
-            const leftIndex = MODULE_ORDER.indexOf(left.moduleId);
-            const rightIndex = MODULE_ORDER.indexOf(right.moduleId);
-            if (leftIndex !== rightIndex) {
-                return leftIndex - rightIndex;
-            }
-            return left.moduleId.localeCompare(right.moduleId);
-        });
-
-    const baselineModels = new Map(input.baselineRun.modelSummaries.map((item) => [item.modelKey, item] as const));
-    const variantModels = new Map(input.variantRun.modelSummaries.map((item) => [item.modelKey, item] as const));
-    const modelKeys = new Set<string>([
-        ...input.baselineRun.selectedModels.map((item) => buildModelKey(item.provider, item.model)),
-        ...input.variantRun.selectedModels.map((item) => buildModelKey(item.provider, item.model)),
-        ...baselineModels.keys(),
-        ...variantModels.keys(),
-    ]);
-
-    const modelDeltas = Array.from(modelKeys)
-        .map((modelKey) => {
-            const baseline = baselineModels.get(modelKey) ?? null;
-            const variant = variantModels.get(modelKey) ?? null;
-            const fallback = baseline
-                ? { provider: baseline.provider, model: baseline.model }
-                : variant
-                    ? { provider: variant.provider, model: variant.model }
-                    : parseModelKey(modelKey);
-            return {
-                modelKey,
-                provider: fallback.provider,
-                model: fallback.model,
-                baselineScore: baseline?.propagatedWeightedScore ?? null,
-                variantScore: variant?.propagatedWeightedScore ?? null,
-                scoreDelta: subtractNullable(
-                    variant?.propagatedWeightedScore ?? null,
-                    baseline?.propagatedWeightedScore ?? null,
-                ),
-                baselineDominantClusterId: baseline?.dominantClusterId ?? null,
-                variantDominantClusterId: variant?.dominantClusterId ?? null,
-                baselineValidCount: baseline?.validCount ?? 0,
-                variantValidCount: variant?.validCount ?? 0,
-            };
-        })
-        .sort((left, right) => {
-            const leftDelta = typeof left.scoreDelta === 'number' ? left.scoreDelta : Number.POSITIVE_INFINITY;
-            const rightDelta = typeof right.scoreDelta === 'number' ? right.scoreDelta : Number.POSITIVE_INFINITY;
-            if (leftDelta !== rightDelta) {
-                return leftDelta - rightDelta;
-            }
-            return left.modelKey.localeCompare(right.modelKey);
-        });
-
-    return {
-        baselineWeightedScore: input.baselineRun.weightedSummary.weightedScore,
-        variantWeightedScore: input.variantRun.weightedSummary.weightedScore,
-        weightedScoreDelta: subtractNullable(
-            input.variantRun.weightedSummary.weightedScore,
-            input.baselineRun.weightedSummary.weightedScore,
-        ),
-        moduleDeltas,
-        modelDeltas,
-    };
-}
-
-export function validateLaneAComparisonCandidate(input: {
-    rubricPack: Pick<KarthicRubricPackV2, 'questionSource'>;
-    questionVariancePackage: Pick<QuestionVariancePackage, 'lane' | 'status' | 'variationStatus'> | null;
-}) {
-    if (input.rubricPack.questionSource !== 'canonical') {
-        throw new Error('Lane A comparison requires an approved canonical rubric pack.');
-    }
-    if (!input.questionVariancePackage) {
-        throw new Error('Selected QuestionVariance package is not available on the rubric pack Frank packet.');
-    }
-    if (input.questionVariancePackage.lane !== 'lane_a') {
-        throw new Error('Lane A comparison only supports QuestionVariance packages from lane_a.');
-    }
-    if (input.questionVariancePackage.status !== 'ready' || input.questionVariancePackage.variationStatus !== 'safe') {
-        throw new Error('Lane A comparison requires a safe, ready QuestionVariance package.');
-    }
-}
-
 function buildClusterWeightedScoreMap(rowResults: RubricRowResult[]) {
     const byCluster = new Map<string, { weightedTotal: number; weightTotal: number }>();
 
@@ -240,12 +128,6 @@ function parseModelKey(modelKey: string) {
 
 function isValidResponse(response: DashaResponseRecord) {
     return !response.error && Boolean(response.responseText.trim());
-}
-
-function subtractNullable(left: number | null, right: number | null) {
-    return typeof left === 'number' && typeof right === 'number'
-        ? roundToTwo(left - right)
-        : null;
 }
 
 function roundToTwo(value: number) {

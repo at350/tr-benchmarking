@@ -8,7 +8,6 @@ reviews to browse before any API key is configured.
 | Folder | Written by | Contents |
 |---|---|---|
 | `frank-v2-packets/` | Intake stage (Frank) | Locked benchmark packets: routing, extraction sheet, gold answer, reverse-engineered question |
-| `karthic-v2-pre-cluster-runs/` | Rubric stage | Optional model-answer clusters used while drafting a rubric |
 | `karthic-v2-rubric-packs/` | Rubric stage (Karthic) | Approved modular rubrics with weights, anchors, and failure labels |
 | `dasha-v2-runs/` | Judge stage (Dasha) | Model answers, clusters, per-row and per-module scores from the judge panel |
 | `zak-v1-reviews/` | Review stage (Zak) | Expert-escalation packets and decision records |

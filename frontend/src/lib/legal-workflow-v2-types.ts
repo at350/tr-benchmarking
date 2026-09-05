@@ -35,7 +35,6 @@ export type BenchmarkPosture =
     | 'narrow_source_grounded_benchmark_only'
     | 'generalizable_only_with_supporting_authority'
     | 'portable_benchmark_under_stated_assumptions';
-export type ReverseEngineeringSuitability = 'strong' | 'moderate' | 'weak';
 export type VariationProvisionId = 'marriage' | 'suretyship' | 'one_year' | 'land' | 'ucc_2201' | 'executor';
 export type VariationRouteStatus = 'stable_route' | 'multiple_plausible_routes' | 'needs_classification_first' | 'not_primarily_sof';
 export type VariationLane = 'lane_a' | 'lane_b';
@@ -324,7 +323,6 @@ export type KarthicRubricRow = {
     goldenTarget: RubricRowGoldenTarget;
 };
 
-export type KarthicPreClusterRunStatus = Extract<WorkflowStatus, 'draft' | 'completed' | 'failed'>;
 
 export type KarthicRefinementAction = 'added' | 'rewritten' | 'dropped' | 'kept';
 
@@ -379,25 +377,6 @@ export type KarthicScoringPolicy = {
     penalties: KarthicPenaltyRule[];
     caps: KarthicCapRule[];
     notes: string[];
-};
-
-export type KarthicPreClusterRunV2 = {
-    schemaVersion: 2;
-    id: string;
-    frankPacketId: string;
-    questionText: string;
-    status: KarthicPreClusterRunStatus;
-    selectedModels: DashaSelectedModel[];
-    requestedResponseCount: number;
-    validResponseCount: number;
-    responses: DashaResponseRecord[];
-    clusters: DashaClusterRecord[];
-    clusterFailureModes: string[];
-    clusteringMethod: string;
-    clusteringNotes: string | null;
-    errorMessage?: string;
-    createdAt: string;
-    completedAt: string | null;
 };
 
 export type KarthicRubricPackV2 = {
@@ -702,56 +681,6 @@ export type DashaRunV2 = {
     errorMessage?: string;
     cancelRequestedAt: string | null;
     cancelledAt: string | null;
-    createdAt: string;
-    completedAt: string | null;
-};
-
-export type DashaComparisonModuleDelta = {
-    moduleId: RubricModuleId;
-    label: string;
-    baselineScore: number | null;
-    variantScore: number | null;
-    scoreDelta: number | null;
-};
-
-export type DashaComparisonModelDelta = {
-    modelKey: string;
-    provider: ModelProvider;
-    model: string;
-    baselineScore: number | null;
-    variantScore: number | null;
-    scoreDelta: number | null;
-    baselineDominantClusterId: string | null;
-    variantDominantClusterId: string | null;
-    baselineValidCount: number;
-    variantValidCount: number;
-};
-
-export type DashaComparisonSummary = {
-    baselineWeightedScore: number | null;
-    variantWeightedScore: number | null;
-    weightedScoreDelta: number | null;
-    moduleDeltas: DashaComparisonModuleDelta[];
-    modelDeltas: DashaComparisonModelDelta[];
-};
-
-export type DashaComparisonV2 = {
-    schemaVersion: 2;
-    id: string;
-    status: Extract<WorkflowStatus, 'draft' | 'completed' | 'failed'>;
-    frankPacketId: string;
-    rubricPackId: string;
-    questionVariancePackageId: string;
-    variationLabel: string;
-    variationType: string;
-    baselineQuestionText: string;
-    variantQuestionText: string;
-    baselineRunId: string;
-    variantRunId: string;
-    selectedModels: DashaSelectedModel[];
-    requestedResponseCount: number;
-    summary: DashaComparisonSummary | null;
-    errorMessage?: string;
     createdAt: string;
     completedAt: string | null;
 };

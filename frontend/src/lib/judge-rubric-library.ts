@@ -136,41 +136,6 @@ export function writeJudgeRubricLibraryToStorage(
     }
 }
 
-export function parseJudgeRubricLibraryImport(raw: string) {
-    try {
-        const parsed = JSON.parse(raw) as unknown;
-        const list = Array.isArray(parsed)
-            ? parsed
-            : (isRecord(parsed) && Array.isArray(parsed.rubrics) ? parsed.rubrics : null);
-
-        if (!list) {
-            return {
-                rubrics: [] as JudgeRubricTemplate[],
-                error: 'Invalid import format. Expected an array or { "rubrics": [...] }.',
-            };
-        }
-
-        const rubrics = list
-            .map((item) => normalizeJudgeRubricTemplate(item))
-            .filter((item): item is JudgeRubricTemplate => item !== null)
-            .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-
-        if (rubrics.length === 0) {
-            return {
-                rubrics,
-                error: 'No valid judge rubric templates found in import file.',
-            };
-        }
-
-        return { rubrics, error: null as string | null };
-    } catch {
-        return {
-            rubrics: [] as JudgeRubricTemplate[],
-            error: 'Invalid JSON file.',
-        };
-    }
-}
-
 export function mergeJudgeRubricLibraries(existing: JudgeRubricTemplate[], incoming: JudgeRubricTemplate[]) {
     const byId = new Map<string, JudgeRubricTemplate>();
     for (const rubric of existing) {
@@ -183,10 +148,6 @@ export function mergeJudgeRubricLibraries(existing: JudgeRubricTemplate[], incom
         }
     }
     return Array.from(byId.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-}
-
-export function judgeRubricLibraryToJson(rubrics: JudgeRubricTemplate[]) {
-    return JSON.stringify({ rubrics }, null, 2);
 }
 
 export function isBuiltinJudgeRubricTemplateId(

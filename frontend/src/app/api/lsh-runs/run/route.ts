@@ -5,34 +5,12 @@ import os from "os";
 import path from "path";
 import fs from "fs/promises";
 
+import { resolvePythonExecutable, resolveRepoRoot } from "@/lib/python-bridge";
+
 const execFileAsync = promisify(execFile);
 
 /** A full benchmark queries every model 20 times; give up after this long. */
 const BENCHMARK_TIMEOUT_MS = 15 * 60 * 1000;
-
-/** Repository root, whether the server was started from `frontend/` or the root. */
-function resolveRepoRoot() {
-  return path.basename(process.cwd()) === "frontend"
-    ? path.resolve(process.cwd(), "..")
-    : process.cwd();
-}
-
-/** Prefer a project virtual environment; fall back to whatever `python3` is on PATH. */
-async function resolvePythonExecutable(root: string) {
-  const candidates = [
-    path.join(root, "lsh", ".venv", "bin", "python3"),
-    path.join(root, ".venv", "bin", "python3"),
-  ];
-  for (const candidate of candidates) {
-    try {
-      await fs.access(candidate);
-      return candidate;
-    } catch {
-      // try the next candidate
-    }
-  }
-  return "python3";
-}
 
 export async function POST(req: Request) {
   let tempFilePath: string | null = null;
@@ -46,7 +24,7 @@ export async function POST(req: Request) {
 
     const root = resolveRepoRoot();
     const scriptPath = path.join(root, "lsh-IRAC", "run_irac_benchmark.py");
-    const pythonExecutable = await resolvePythonExecutable(root);
+    const pythonExecutable = await resolvePythonExecutable({ fallbackToPath: true });
 
     // The benchmark script takes the question as a file path.
     const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "tr-benchmark-"));

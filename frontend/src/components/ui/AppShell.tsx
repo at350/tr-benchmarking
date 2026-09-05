@@ -8,6 +8,7 @@ const NAV_ITEMS = [
     { href: '/', label: 'Home' },
     { href: '/demos', label: 'Demos' },
     { href: '/database-view', label: 'Dataset' },
+    { href: '/outlines', label: 'Outlines' },
     { href: '/legal-workflow', label: 'Frank-Karthic-Dasha SoF' },
     { href: '/legal-autoeval-pipeline', label: 'Legal Auto-Eval Pipeline' },
     { href: '/lsh-runs', label: 'LSH-RUHS' },

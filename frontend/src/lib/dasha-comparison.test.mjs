@@ -1,11 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-    buildDashaComparisonSummary,
-    buildDashaModelSummaries,
-    validateLaneAComparisonCandidate,
-} from './dasha-comparison.ts';
+import { buildDashaModelSummaries } from './dasha-comparison.ts';
 
 test('buildDashaModelSummaries propagates cluster scores back to each model', () => {
     const summaries = buildDashaModelSummaries({
@@ -146,87 +142,4 @@ test('buildDashaModelSummaries propagates cluster scores back to each model', ()
     assert.equal(anthropicSummary.errorCount, 1);
     assert.equal(anthropicSummary.propagatedWeightedScore, 90);
     assert.equal(anthropicSummary.dominantClusterId, 'cluster_1');
-});
-
-test('buildDashaComparisonSummary computes overall, module, and model deltas', () => {
-    const summary = buildDashaComparisonSummary({
-        baselineRun: {
-            selectedModels: [{ provider: 'openai', model: 'gpt-5.4' }],
-            weightedSummary: { applicableWeightTotal: 100, weightedScore: 82, notApplicableRowKeys: [] },
-            moduleSummaries: [
-                { moduleId: 'module1', label: 'Module 1', averageScore: 88, applicableRowCount: 2, winningRowKeys: ['A'] },
-                { moduleId: 'module2', label: 'Module 2', averageScore: 76, applicableRowCount: 2, winningRowKeys: ['B'] },
-            ],
-            modelSummaries: [
-                {
-                    modelKey: 'openai::gpt-5.4',
-                    provider: 'openai',
-                    model: 'gpt-5.4',
-                    validCount: 5,
-                    errorCount: 0,
-                    totalResponses: 5,
-                    propagatedWeightedScore: 84,
-                    dominantClusterId: 'cluster_1',
-                    dominantClusterShare: 0.6,
-                    clusterContributions: [],
-                },
-            ],
-        },
-        variantRun: {
-            selectedModels: [{ provider: 'openai', model: 'gpt-5.4' }],
-            weightedSummary: { applicableWeightTotal: 100, weightedScore: 74, notApplicableRowKeys: [] },
-            moduleSummaries: [
-                { moduleId: 'module1', label: 'Module 1', averageScore: 79, applicableRowCount: 2, winningRowKeys: ['A'] },
-                { moduleId: 'module2', label: 'Module 2', averageScore: 69, applicableRowCount: 2, winningRowKeys: ['B'] },
-            ],
-            modelSummaries: [
-                {
-                    modelKey: 'openai::gpt-5.4',
-                    provider: 'openai',
-                    model: 'gpt-5.4',
-                    validCount: 5,
-                    errorCount: 0,
-                    totalResponses: 5,
-                    propagatedWeightedScore: 71,
-                    dominantClusterId: 'cluster_4',
-                    dominantClusterShare: 0.8,
-                    clusterContributions: [],
-                },
-            ],
-        },
-    });
-
-    assert.equal(summary.baselineWeightedScore, 82);
-    assert.equal(summary.variantWeightedScore, 74);
-    assert.equal(summary.weightedScoreDelta, -8);
-    assert.deepEqual(summary.moduleDeltas.map((item) => item.scoreDelta), [-9, -7]);
-    assert.equal(summary.modelDeltas[0]?.scoreDelta, -13);
-    assert.equal(summary.modelDeltas[0]?.baselineDominantClusterId, 'cluster_1');
-    assert.equal(summary.modelDeltas[0]?.variantDominantClusterId, 'cluster_4');
-});
-
-test('validateLaneAComparisonCandidate rejects non-canonical rubrics and unsafe packages', () => {
-    assert.throws(
-        () => validateLaneAComparisonCandidate({
-            rubricPack: { questionSource: 'question_variance_active_package' },
-            questionVariancePackage: { lane: 'lane_a', status: 'ready', variationStatus: 'safe' },
-        }),
-        /approved canonical rubric pack/,
-    );
-
-    assert.throws(
-        () => validateLaneAComparisonCandidate({
-            rubricPack: { questionSource: 'canonical' },
-            questionVariancePackage: { lane: 'lane_b', status: 'ready', variationStatus: 'safe' },
-        }),
-        /lane_a/,
-    );
-
-    assert.throws(
-        () => validateLaneAComparisonCandidate({
-            rubricPack: { questionSource: 'canonical' },
-            questionVariancePackage: { lane: 'lane_a', status: 'needs_targeted_revision', variationStatus: 'ambiguity_test' },
-        }),
-        /safe, ready/,
-    );
 });

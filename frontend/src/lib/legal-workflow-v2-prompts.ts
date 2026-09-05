@@ -5,7 +5,6 @@ import { FRANK_V2_BENCHMARK_HEADINGS, FRANK_V2_PACK_LABELS, RUBRIC_MODULE_LABELS
 import type {
     FrankPacketV2,
     FrankSofPackId,
-    KarthicPreClusterRunV2,
     KarthicScoringPolicy,
     KarthicRubricRow,
     QuestionVariancePackage,
@@ -386,7 +385,6 @@ export async function buildKarthicRowsPrompt(input: {
     trackLabel: string;
     scoringPolicy: KarthicScoringPolicy;
     selectedVariationPackage?: QuestionVariancePackage | null;
-    clusterContext?: string;
 }) {
     const karthicInstructions = await getKarthicInstructionBundle({
         includeCaseCitationProtocol: input.scoringPolicy.caseCitationVerificationMode === 'on',
@@ -424,7 +422,7 @@ export async function buildKarthicRowsPrompt(input: {
         `Scoring policy:\n${JSON.stringify(input.scoringPolicy)}`,
         '',
         `Likely failure modes:\n${JSON.stringify(input.packet.likelyFailureModes)}`,
-        input.clusterContext ? `\nSample response clusters:\n${input.clusterContext}` : '',
+        '',
         '',
         'Draft one rubric row object for each of these row keys in order:',
         RUBRIC_ROW_SPECS.map((row) => `${row.key} (${RUBRIC_MODULE_LABELS[row.moduleId]}): ${row.title}`).join('\n'),
@@ -443,7 +441,6 @@ export async function buildKarthicSeedRowsPrompt(input: {
     trackLabel: string;
     scoringPolicy: KarthicScoringPolicy;
     selectedVariationPackage?: QuestionVariancePackage | null;
-    preClusterRun?: KarthicPreClusterRunV2 | null;
 }) {
     return await buildKarthicRowsPrompt({
         packet: input.packet,
@@ -454,16 +451,6 @@ export async function buildKarthicSeedRowsPrompt(input: {
         trackLabel: input.trackLabel,
         scoringPolicy: input.scoringPolicy,
         selectedVariationPackage: input.selectedVariationPackage,
-        clusterContext: input.preClusterRun ? [
-            input.preClusterRun.clusters.map((cluster) => [
-                `${cluster.id} (${cluster.size} responses)`,
-                `Representative: ${cluster.representativeText}`,
-                `Models: ${cluster.modelBreakdown.map((entry) => `${entry.modelKey} x${entry.count}`).join(', ') || 'Unknown'}`,
-            ].join('\n')).join('\n\n'),
-            input.preClusterRun.clusterFailureModes.length > 0
-                ? `Cluster failure modes:\n${input.preClusterRun.clusterFailureModes.join('\n')}`
-                : '',
-        ].filter(Boolean).join('\n\n') : '',
     });
 }
 
@@ -475,7 +462,6 @@ export async function buildKarthicRefineRowsPrompt(input: {
     trackLabel: string;
     scoringPolicy: KarthicScoringPolicy;
     selectedVariationPackage?: QuestionVariancePackage | null;
-    preClusterRun?: KarthicPreClusterRunV2 | null;
     currentRows: KarthicRubricRow[];
 }) {
     const karthicInstructions = await getKarthicInstructionBundle({
@@ -513,44 +499,15 @@ export async function buildKarthicRefineRowsPrompt(input: {
         '',
         `Current rubric rows:\n${JSON.stringify(input.currentRows, null, 2)}`,
         '',
-        input.preClusterRun
-            ? `Cluster representatives:\n${input.preClusterRun.clusters.map((cluster) => JSON.stringify({
-                id: cluster.id,
-                size: cluster.size,
-                representativeText: cluster.representativeText,
-                modelBreakdown: cluster.modelBreakdown,
-            }, null, 2)).join('\n\n')}`
-            : 'Cluster representatives: not used in this Karthic prefill pass.',
+        'Cluster representatives: not used in this Karthic prefill pass.',
         '',
-        input.preClusterRun
-            ? `Cluster failure modes:\n${input.preClusterRun.clusterFailureModes.join('\n') || 'None recorded.'}`
-            : 'Cluster failure modes: not used in this Karthic prefill pass.',
+        'Cluster failure modes: not used in this Karthic prefill pass.',
         '',
         'Refine the rubric using RRD-lite rules.',
         'Keep or rewrite a row only if it sharpens a too-broad prefill row, captures an important failure mode, or improves doctrinal discrimination without adding clutter.',
         'If no cluster data is present, refine from the Frank packet, controller card, selected variation package, and scoring-policy boundaries only.',
         'Preserve the fixed row keys and module assignments. Do not invent extra rows beyond the existing row-key framework.',
         'Return JSON only with shape {"rows":[...],"refinementLog":[...],"comparisonMethodNote":"..."} where refinementLog items contain iteration, action, rowKey, rationale, and sourceClusterIds.',
-    ].join('\n');
-}
-
-export function buildDashaClusterFailureModesPrompt(input: {
-    benchmarkAnswer: string;
-    likelyFailureModes: string;
-    clusterContext: string;
-}) {
-    return [
-        'You are summarizing pre-Karthic cluster failure modes.',
-        'Compare each cluster representative against the benchmark answer and the stored likely failure modes.',
-        'Return JSON only with shape {"clusterFailureModes":["string"]}.',
-        '',
-        `Benchmark answer:\n${input.benchmarkAnswer}`,
-        '',
-        `Stored likely failure modes:\n${input.likelyFailureModes}`,
-        '',
-        `Cluster representatives:\n${input.clusterContext}`,
-        '',
-        'Each output item should be concise and tie a cluster to a likely error pattern or missing benchmark feature.',
     ].join('\n');
 }
 
@@ -715,16 +672,4 @@ export function buildDashaClusterAuditPrompt(input: {
         '- Trigger only penalty or cap codes that appear in the scoring policy and are truly justified.',
         '- Under the simplified Dasha rule, ambiguous case verification alone does not trigger Zak review.',
     ].join('\n');
-}
-
-export function buildDynamicJudgeRubricBlock(rows: KarthicRubricRow[]) {
-    return rows.map((row) => {
-        return [
-            `${row.key} ${row.title} (${row.weight})`,
-            `Module: ${RUBRIC_MODULE_LABELS[row.moduleId]}`,
-            `Description: ${row.description}`,
-            `NA guidance: ${row.naGuidance}`,
-            `Golden target summary: ${row.goldenTarget.summary}`,
-        ].join('\n');
-    }).join('\n\n');
 }
