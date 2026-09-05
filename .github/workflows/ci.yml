@@ -26,15 +26,16 @@ jobs:
       - run: npm run build
 
   python:
-    name: Python (compile, rubric-automation tests)
+    name: Python (compile, tests)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      # The clustering stack (torch, sentence-transformers) is too heavy for CI;
-      # byte-compile everything and run the dependency-free rubric-automation tests.
+      # The embedding model (torch, sentence-transformers) is too heavy for CI. The
+      # clustering-bridge tests run with LSH_MOCK_EMBEDDINGS, so only the clustering
+      # stack is installed here; the rubric-automation tests need nothing beyond pytest.
       - run: python -m compileall -q lsh lsh-IRAC rubric-automation scripts run_experiment.py
-      - run: pip install pytest
+      - run: pip install pytest numpy scikit-learn umap-learn networkx python-louvain
       - run: python -m pytest

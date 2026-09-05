@@ -30,7 +30,7 @@ Exports go to `outputs/<input-stem>/` (gitignored):
 | `--max-iterations N` | 4 | RRD iteration cap |
 | `--disable-misalignment` | | Skip the misalignment filter |
 | `--include-style-rubrics` | | Keep style-only criteria |
-| `--provider` | `mock` | `mock`, `openai` (`pip install openai`, `OPENAI_API_KEY`), or `anthropic` (`pip install anthropic`, `ANTHROPIC_API_KEY`) |
+| `--provider` | `mock` | `mock`; `openai` (`pip install openai`; `OPENAI_API_KEY`, optional `OPENAI_BASE_URL`); `anthropic` (no extra package; `ANTHROPIC_API_KEY` or `CLAUDE_API_KEY`, optional `ANTHROPIC_BASE_URL`) |
 | `--model` | per provider | `gpt-4.1-mini` for OpenAI, `claude-sonnet-4-6` for Anthropic |
 | `--verbose` | | Print iteration progress |
 

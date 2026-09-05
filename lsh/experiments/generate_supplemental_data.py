@@ -11,8 +11,10 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))  # repo root
 
 # Load environment variables
-load_dotenv(dotenv_path="../frontend/.env")
-load_dotenv() 
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+load_dotenv(dotenv_path=os.path.join(_ROOT, "lsh", ".env"))
+load_dotenv(dotenv_path=os.path.join(_ROOT, ".env"))
+load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")

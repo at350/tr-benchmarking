@@ -31,7 +31,7 @@ agrees with them.
 ```bash
 git clone https://github.com/at350/tr-benchmarking && cd tr-benchmarking
 
-# 1. Browse 29 saved clustering runs and the workflow demo data in the portal
+# 1. Browse 29 saved clustering runs and the workflow demo data in the portal (Node 22.6+)
 cd frontend && npm ci && npm run dev        # http://localhost:3000/lsh-runs
 cd ..
 
@@ -44,6 +44,9 @@ cd rubric-automation && python rrd_legal.py --demo --weighting doctrinal --verbo
 ```
 
 ## Running the pipelines
+
+Python 3.10 or newer (CI runs 3.12). The frontend's clustering and benchmark buttons
+look for this same `.venv` at the repository root.
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
@@ -60,7 +63,7 @@ Everything runs from the repository root. Steps marked **$** call paid model API
 | **$** Adversarial check: inject poisoned answers into a saved dataset and re-cluster | `python lsh-IRAC/inject_poison_and_cluster.py --input lsh-IRAC/data/responses_20260223_233818.json` |
 | Re-cluster the saved free-form answers (downloads the embedding model, no API) | `python run_experiment.py` |
 | **$** Free-form benchmark end to end | `bash run_benchmark.sh` |
-| Figures from a saved run | `python lsh/visualize_pipeline.py` |
+| Figures: re-embeds the saved answers (model download, no API calls) and charts the latest run | `python lsh/visualize_pipeline.py` |
 | Frontend with judges and drafting enabled | `cp frontend/.env.example frontend/.env.local`, add keys, `npm run dev` |
 
 Outputs land in `lsh/results/` and `lsh-IRAC/results/` as `run_<timestamp>.json`; the
@@ -98,7 +101,7 @@ The frontend's `/legal-workflow` page runs a four-stage workflow whose state is 
 ## Tests and checks
 
 ```bash
-pytest                                   # rubric pipeline tests + clustering-bridge smoke tests (mock embeddings)
+pytest                                   # rubric pipeline tests + clustering-bridge smoke tests (mock embeddings; skipped if umap-learn is absent)
 cd frontend && npm run lint && npx tsc --noEmit && npm run test:dasha-comparison && npm run build
 ```
 
@@ -127,7 +130,7 @@ This is a research prototype from a university project on technology for the law
 Things a reader should know before relying on it:
 
 - Full benchmark runs cost money and time (roughly 200 model calls plus one GPT-4o call per cluster); the saved runs exist so the analysis can be explored without that.
-- Cluster doctrine labels come from a model, so they can differ between runs on identical input even though the clusters themselves are deterministic (fixed UMAP seed).
+- Cluster doctrine labels come from a model, so they can differ between runs on identical input. The clusters themselves use a fixed UMAP seed and are stable for a given set of package versions; `requirements.txt` sets lower bounds only, so exact reproduction of a saved run needs the same umap-learn, numba, and scikit-learn versions.
 - Model identifiers are pinned in source; as providers retire models the generation scripts will need updating.
 - The frontend stores state as files on disk and is meant to run locally for one user at a time.
 

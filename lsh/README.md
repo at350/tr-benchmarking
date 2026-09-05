@@ -20,7 +20,8 @@ cp .env.example .env   # OPENAI_API_KEY, REPLICATE_API_TOKEN
 ## Pipeline
 
 ```bash
-# 1. Collect responses (each script appends to lsh/data/responses.json; all spend API credits)
+# 1. Collect responses into lsh/data/responses.json (all three spend API credits; run in this order:
+#    generate_data.py creates/overwrites the file, the other two append to it)
 python lsh/generate_data.py             # OpenAI models
 python lsh/generate_replicate_data.py   # Claude, Llama, Mixtral via Replicate
 python lsh/generate_gemini_data.py      # Gemini via Replicate
@@ -32,7 +33,7 @@ python run_experiment.py
 python lsh/inspect_run.py lsh/results/run_20260217_153621.json summary
 python lsh/inspect_run.py lsh/results/run_20260217_153621.json verdicts   # flags clusters that disagree on the outcome
 
-# 4. Figures -> lsh/presentation_assets/
+# 4. Figures -> lsh/presentation_assets/ (re-embeds lsh/data/responses.json with the instructor model, no API calls)
 python lsh/visualize_pipeline.py
 ```
 

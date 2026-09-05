@@ -27,8 +27,6 @@ legal-workflow-data/tmp*.json
 # Generated documents (scripts/generate_live_demo_pdf.py)
 output/
 
-# Scratch question files written by the frontend lsh-runs route
-lsh-IRAC/data/questions/temp_frontend_question_*.txt
 
 # rubric-automation exports (regenerate with: python rrd_legal.py --demo)
 rubric-automation/outputs/
