@@ -1,684 +1,140 @@
 # TR-Benchmarking
 
-**A research framework for evaluating the *structure, consistency, and robustness* of legal reasoning in large language models — not just whether they get the answer right.**
+[![CI](https://github.com/at350/tr-benchmarking/actions/workflows/ci.yml/badge.svg)](https://github.com/at350/tr-benchmarking/actions/workflows/ci.yml)
 
----
+**Evaluates *how* large language models reason about legal questions, not just whether they land on the right answer.**
 
-## Table of Contents
+Ask ten models the same bar-exam-style question twenty times each and you get two
+hundred answers. Most benchmarks grade each one against a key. This project instead
+embeds every answer, clusters the embeddings, and shows the distinct lines of
+reasoning the models actually took, which of them are wrong, how stable each model
+is across samples, and whether a scoring rubric derived from a real court opinion
+agrees with them.
 
-1. [Overview](#overview)
-2. [What’s in this repo](#whats-in-this-repo)
-3. [End-to-end pipeline (Frank → Karthic → Dasha → Zak)](#end-to-end-pipeline-frank--karthic--dasha--zak)
-4. [Research pipelines (LSH / LSH-IRAC)](#research-pipelines-lsh--lsh-irac)
-5. [Rubric Automation (RRD)](#rubric-automation-rrd)
-6. [Frontend — Benchmarking Portal](#frontend--benchmarking-portal)
-7. [Models Evaluated](#models-evaluated)
-8. [Datasets](#datasets)
-9. [Repository Structure](#repository-structure)
-10. [Setup & Installation](#setup--installation)
-11. [Running](#running)
-12. [Outputs & artifact storage](#outputs--artifact-storage)
-13. [Roadmap](#roadmap)
-14. [Why This Matters](#why-this-matters)
+<p align="center">
+  <img src="lsh/presentation_assets/viz_before_topical.png" width="45%" alt="UMAP of generic embeddings: enforceable and unenforceable answers mixed together">
+  <img src="lsh/presentation_assets/viz_after_instruction.png" width="45%" alt="UMAP of instruction-tuned embeddings: answers separate by legal conclusion">
+</p>
+<p align="center"><sub>Same 300 answers. Left: generic sentence embeddings group by topic. Right: instruction-tuned embeddings ("represent the legal conclusion and reasoning") separate them by conclusion, so clusters become reasoning strategies.</sub></p>
 
----
+## What is in the repository
 
-## Overview
+| Part | What it does | Stack |
+|---|---|---|
+| **`lsh/`, `lsh-IRAC/`** | Collect answers from OpenAI and Replicate-hosted models, embed them with `hkunlp/instructor-large`, reduce with UMAP, cluster with HDBSCAN, pick representatives. `lsh-IRAC` forces every answer into Issue / Rule / Application / Conclusion JSON first, then labels each cluster's doctrines with GPT-4o. Includes an adversarial test that injects nonsense answers and checks they are isolated. | Python, sentence-transformers, umap-learn, scikit-learn |
+| **`rubric-automation/`** | Recursive Rubric Decomposition: turns a question plus a gold answer into a weighted, atomic scoring rubric, audits its coverage, and scores sample answers. Standard library only; runs offline against a mock model and has tests. | Python |
+| **`frontend/`** | A portal to browse every saved clustering run, run judges over clusters, and drive the four-stage source → question → rubric → judged-centroids → expert-review workflow. Reads and writes the JSON under `legal-workflow-data/`. | Next.js 16, React 19, TypeScript |
+| **`instructions/`** | The prompt canon for the four workflow roles (Frank, Karthic, Dasha, Zak, the persona names given to the source-intake, rubric-building, judging, and expert-review roles). Loaded by the frontend at runtime. | Markdown / text |
 
-TR-Benchmarking is a multi-stage research pipeline for **reasoning-level evaluation** of large language models (LLMs) in legal domains. It goes beyond checking whether a model picks the right answer — it evaluates whether the model reasoned correctly to get there.
+## Five-minute tour (no API keys)
 
-This repo contains **two complementary layers**:
+```bash
+git clone https://github.com/at350/tr-benchmarking && cd tr-benchmarking
 
-- **Source-grounded benchmark + rubric + evaluation workflow** (the “Legal Auto-Eval Pipeline”): start from a real legal source, produce a locked benchmark packet, convert that packet into a modular rubric, evaluate clustered centroids with rubric-aware judges, and escalate only disputed cases to SME review.
-- **Embedding + clustering research pipelines** (LSH / LSH-IRAC): generate model responses, embed them, cluster them, and analyze the reasoning strategy landscape across models and runs.
+# 1. Browse 29 saved clustering runs and the workflow demo data in the portal
+cd frontend && npm ci && npm run dev        # http://localhost:3000/lsh-runs
+cd ..
 
-Across both layers, the system is designed to:
+# 2. Summarise a saved run from the command line (Python 3.10+, no dependencies)
+python lsh/inspect_run.py lsh-IRAC/results/run_20260303_163604.json summary
+python lsh/inspect_run.py lsh/results/run_20260217_153621.json verdicts    # flags clusters that disagree on the outcome
 
-- Forces LLMs to produce **structured legal reasoning** using the IRAC framework (Issue, Rule, Application, Conclusion)
-- Embeds those reasoning traces into a high-dimensional vector space using instruction-tuned models
-- Clusters the embeddings to discover **distinct reasoning strategies** across model families
-- Identifies **outliers, hallucinations, and unstable reasoning paths**
-- Validates cluster quality using **adversarial data poisoning tests**
-- Generates **automated rubrics** for scoring answers against expert benchmarks
-- Provides a **web-based research interface** for exploring all pipeline outputs
-
-This is a research prototype demonstrating a new approach to LLM evaluation in high-stakes domains.
-
----
-
-## What’s in this repo
-
-There are three “big” capabilities here, each with its own entrypoints and artifacts:
-
-- **End-to-end source-grounded evaluation workflow** (Frank → Karthic → Dasha → Zak)
-  - Canonical instruction sets live in `instructions/`
-  - Saved run artifacts live in `legal-workflow-data/`
-  - The interactive UI lives in `frontend/` (`/legal-autoeval-pipeline` and `/legal-workflow`)
-- **Embedding + clustering research pipelines**
-  - Baseline: `lsh/` and `run_experiment.py`
-  - Structured IRAC: `lsh-IRAC/`
-- **Rubric automation (RRD)**: `rubric-automation/` (standalone pipeline and demos)
-
-If you only want one starting point, use the **frontend** to inspect the full workflow artifacts and how they connect.
-
----
-
-## End-to-end pipeline (Frank → Karthic → Dasha → Zak)
-
-This is the source-grounded pipeline described in `PaperTR.pdf`. The key design choice is that **legal structure is moved upstream** and carried forward via a single handoff artifact: the **locked benchmark packet**.
-
-### Stage I — Frank (source intake → routing → locked packet)
-
-- **Goal**: take a real legal source and produce a **locked benchmark packet** that fixes the legal framing (question, posture, controller, trigger facts, gate order, expected counterargument, variation lane, etc.).
-- **Canonical instruction sets**: `instructions/frank/` plus `instructions/question-variance/`
-- **Saved artifacts**: `legal-workflow-data/frank-v2-packets/`
-
-### Stage II — Karthic (locked packet → modular weighted rubric)
-
-- **Goal**: convert Frank’s packet into a **modular rubric** (Modules 0–4) with weights, scoring anchors, failure-label mapping, and (if enabled) a dual-rubric “original vs variation” pair.
-- **Canonical instruction sets**: `instructions/karthic/`
-- **Saved artifacts**: `legal-workflow-data/karthic-v2-rubric-packs/` (and optional pre-cluster runs in `legal-workflow-data/karthic-v2-pre-cluster-runs/`)
-
-### Stage III — Dasha (cluster → centroid-level rubric-aware evaluation)
-
-- **Goal**: evaluate **centroids/archetypes** rather than every raw answer by default (scalability), using a rubric-aware judge model or judge panel; apply row scoring first, then overlays/caps; optionally verify case citations; escalate only under a strict rule.
-- **Canonical instruction sets**: `instructions/dasha/`
-- **Saved artifacts**: `legal-workflow-data/dasha-v2-runs/`
-- **How centroids are computed in this repo**: the UI can invoke `lsh/cluster_legal_workflow.py`, which clusters response texts using the same embedding + clustering primitives used elsewhere in the repo.
-
-### Stage IV — Zak (targeted SME escalation backstop)
-
-- **Goal**: produce a printable, scoped SME packet and structured decision record **only when the judge panel cannot reach a strict majority on the best centroid**.
-- **Canonical instruction sets**: `instructions/zak/`
-- **Saved artifacts**: `legal-workflow-data/zak-v1-reviews/`
-
-### Where the UI shows these stages
-
-- **Grouped workflow UI**: `/legal-autoeval-pipeline` (and `/legal-workflow`)
-- **Stages shown in the UI**: Source → Routing/Intake → Extraction/Mapping → Benchmark Answer → Reverse-Engineered Question → Seed Rubric → Refine Rubric → Approve Rubric → Dasha (cluster/judge/results) → Zak review
-
----
-
-## Research pipelines (LSH / LSH-IRAC)
-
-These pipelines are used to generate, embed, and cluster model responses so you can analyze *reasoning strategies* (cluster structure, outliers/noise, topic signals, robustness tests).
-
-### LSH — Baseline clustering module
-
-**Location:** `lsh/`
-
-The foundational module. Implements the core data generation, embedding, and clustering workflow for a set of legal responses.
-
-**How it works:**
-
-1. **Data Generation** — Queries multiple LLMs (OpenAI, Replicate, Gemini) with an identical legal question. Each model produces a free-form text response.
-2. **Instruction-Tuned Embedding** — Each response is embedded using [`hkunlp/instructor-large`](https://huggingface.co/hkunlp/instructor-large) with the instruction: *"Represent the legal conclusion and reasoning of this text."* This ensures the embedding captures the *reasoning outcome* rather than superficial stylistic features.
-3. **Dimensionality Reduction** — UMAP reduces the high-dimensional embedding space to a lower-dimensional manifold.
-4. **Density Clustering** — HDBSCAN identifies dense clusters of semantically similar responses. Outliers are labeled as `noise` (cluster ID `-1`).
-5. **Representative Selection** — Each cluster's centroid (closest member to the geometric mean) is selected as the canonical representative of that reasoning strategy.
-
-**Key files:**
-
-| File | Purpose |
-|---|---|
-| `pipeline.py` | Main `LSHEvaluationPipeline` class orchestrating the workflow |
-| `density_clustering.py` | UMAP + HDBSCAN implementation |
-| `lsh_index.py` | Baseline Random Hyperplane LSH index |
-| `clustering.py` | Graph clustering via Louvain method |
-| `utils.py` | Embedding model loading and text preprocessing |
-| `generate_data.py` | OpenAI response generation |
-| `generate_replicate_data.py` | Replicate (Claude, Llama) response generation |
-| `generate_gemini_data.py` | Gemini response generation via Replicate |
-| `visualize_pipeline.py` | UMAP and cluster distribution visualizations |
-
----
-
-### LSH-IRAC — Structured reasoning pipeline
-
-**Location:** `lsh-IRAC/`
-
-The primary research contribution. An evolved version of the baseline that enforces **structured IRAC output** from every model, enabling far more precise semantic clustering.
-
-#### Why IRAC?
-
-Free-form text responses embed stylistic variation alongside reasoning variation. By constraining every response to the IRAC schema, we strip conversational formatting away and force models to expose their reasoning structure directly.
-
-```json
-{
-  "issue": "A concise statement of the core legal question.",
-  "rule": "The relevant legal doctrine or rules governing the issue.",
-  "application": "How the rule directly applies to the specific facts.",
-  "conclusion": "A direct, definitive answer to the legal question."
-}
+# 3. Build a rubric from a gold answer, offline
+cd rubric-automation && python rrd_legal.py --demo --weighting doctrinal --verbose && cd ..
 ```
 
-Each dimension of this schema can be analyzed independently:
+## Running the pipelines
 
-- **Issue** — Did the model identify the correct legal question?
-- **Rule** — Did it apply the correct doctrine, or did it hallucinate?
-- **Application** — Did it correctly map facts to rules?
-- **Conclusion** — What was the model's final verdict?
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install torch --index-url https://download.pytorch.org/whl/cpu   # optional: CPU-only PyTorch
+pip install -r requirements.txt
+cp .env.example .env                                                  # OPENAI_API_KEY, REPLICATE_API_TOKEN
+```
 
-Clustering on these structured embeddings allows granular analysis of *where* and *how* different models diverge in their legal thinking.
+Everything runs from the repository root. Steps marked **$** call paid model APIs.
 
-#### Key Components
-
-**`run_irac_benchmark.py`** — The main benchmarking orchestrator.
-- Simultaneously queries all configured OpenAI and Replicate models
-- Injects a rigorous system prompt requiring strict `{issue, rule, application, conclusion}` JSON output
-- Sets temperature to 0.7 (1.0 for experimental models) to encourage diversity without hallucinating structure
-- Runs asynchronously with semaphore-limited concurrency for Replicate models
-- Supports resuming interrupted runs via `--resume`
-
-**`irac_utils.py`** — Robust parsing and normalization.
-- Handles messy LLM output: JSON in markdown blocks, missing code fences, trailing boilerplate
-- Falls back to regex-assisted bracket matching when native JSON parsing fails
-- Strips persistent artifacts such as "As an AI language model..."
-- Flattens parsed IRAC dicts into consistent, embeddable plain text
-
-**`irac_pipeline.py`** — The IRACEvaluationPipeline class.
-- Encodes all IRAC-formatted responses with Instructor embeddings using the prefix: *"Represent the legal reasoning components (Issue, Rule, Application, Conclusion) of this text:"*
-- Runs UMAP + HDBSCAN clustering
-- **Topic Extraction** — For each valid cluster, calls GPT-4o to zero-shot identify the 2–4 core legal doctrines relied upon by cluster members
-- **Topic Confidence Scoring** — Embeds those topic labels and computes softmax-normalized cosine similarity against all member embeddings, yielding per-cluster doctrine confidence percentages
-
-**`inject_poison_and_cluster.py`** — Adversarial robustness validation.
-- Synthetically injects "poisoned" responses with logically incoherent content (e.g., referencing space alien law or applying criminal statutes to civil transactions)
-- Injects 5 copies of each poison type (meeting the HDBSCAN `min_cluster_size` threshold)
-- Validates that HDBSCAN correctly isolates poisoned responses into their own distinct clusters, separate from genuine legal reasoning
-
----
-
-### Rubric Automation (RRD)
-
-**Location:** `rubric-automation/`
-
-A production-style implementation of **Recursive Rubric Decomposition (RRD)** — an automated pipeline for generating, refining, and scoring evaluation rubrics for legal answers.
-
-**What it does:**
-
-Given a legal question, a gold-standard answer, and a set of model responses, the RRD pipeline:
-
-1. **Extracts** the legal structure of the gold answer (key doctrines, sub-issues, relevant rules)
-2. **Generates** an initial rubric: a scored list of criteria a correct answer should satisfy
-3. **Decomposes** broad criteria into atomic, independently gradeable sub-criteria
-4. **Filters** redundant or misaligned rubric items
-5. **Weights** criteria by doctrinal importance
-6. **Audits** coverage to ensure the rubric spans all legal issues present in the gold answer
-7. **Scores** each model response against the final rubric, producing a matrix of scores
-
-**Weighting strategies:**
-
-| Strategy | Description |
+| Goal | Command |
 |---|---|
-| `uniform` | Equal weight for all rubric items |
-| `llm` | LLM-assigned importance scores |
-| `whitened` | Statistically whitened scores to reduce inter-item correlation |
-| `doctrinal` | Weights based on the centrality of each doctrine to the issue |
+| **$** Structured IRAC benchmark: 10 models × 20 answers, parse, embed, cluster, label doctrines | `python lsh-IRAC/run_irac_benchmark.py --question lsh-IRAC/data/questions/question_iied.txt` (add `--resume <responses.json>` to continue an interrupted run) |
+| **$** Adversarial check: inject poisoned answers into a saved dataset and re-cluster | `python lsh-IRAC/inject_poison_and_cluster.py --input lsh-IRAC/data/responses_20260223_233818.json` |
+| Re-cluster the saved free-form answers (downloads the embedding model, no API) | `python run_experiment.py` |
+| **$** Free-form benchmark end to end | `bash run_benchmark.sh` |
+| Figures from a saved run | `python lsh/visualize_pipeline.py` |
+| Frontend with judges and drafting enabled | `cp frontend/.env.example frontend/.env.local`, add keys, `npm run dev` |
 
-**Outputs:**
+Outputs land in `lsh/results/` and `lsh-IRAC/results/` as `run_<timestamp>.json`; the
+portal picks them up live. Each run stores the clusters, a representative per cluster,
+the 3 most central and 3 most peripheral members, and (IRAC) per-cluster doctrine labels
+with confidence scores. See `lsh/README.md` and `lsh-IRAC/README.md` for the details.
 
-| File | Contents |
-|---|---|
-| `final_rubrics.json` | Approved, weighted rubric items |
-| `rubric_matrix.csv` | Per-response scores against each rubric item |
-| `coverage_audit.json` | Audit of which legal issues are covered by the rubric |
-| `pipeline_log.json` | Full trace of all pipeline steps |
+## How the clustering works
 
----
+1. **Generate.** The same question goes to each model 20 times at temperature 0.7 (`lsh-IRAC/run_irac_benchmark.py`). In the IRAC variant the system prompt demands a strict `{issue, rule, application, conclusion}` JSON object; malformed answers are repaired where possible and otherwise dropped and counted.
+2. **Embed.** Answers are encoded with `hkunlp/instructor-large` under an instruction that names what should matter ("the legal reasoning components ... of this text"). This is the step that makes clusters track conclusions instead of vocabulary (figure above).
+3. **Cluster.** UMAP (cosine, 10 dimensions, fixed seed) then HDBSCAN (`min_cluster_size=5`, `min_samples=2`). Points HDBSCAN cannot place are reported as noise rather than forced into a cluster.
+4. **Explain.** For each cluster: the medoid, the members nearest and farthest from the centre, the per-model breakdown, and in the IRAC pipeline the doctrines the cluster relies on with softmax-normalised similarity scores.
+5. **Stress-test.** `inject_poison_and_cluster.py` adds five copies each of three deliberately wrong answers (alien law, the wrong doctrine, criminal law applied to a contract) and checks each lands in its own cluster rather than merging with real reasoning.
 
-### Legal Auto-Eval Pipeline
+## The source-grounded evaluation workflow
 
-**Location:** `legal-workflow-data/`, `instructions/`, `frontend/src/app/legal-autoeval-pipeline/`
+The frontend's `/legal-workflow` page runs a four-stage workflow whose state is plain JSON in `legal-workflow-data/`:
 
-The end-to-end evaluation workflow (Frank → Karthic → Dasha → Zak) used in live demonstrations. It chains together source ingestion, question generation, rubric creation, centroid clustering, rubric-aware scoring, and (if needed) SME escalation into a single interface.
+| Stage | Role | Produces |
+|---|---|---|
+| Intake | **Frank** | A *locked benchmark packet* from a real source (three Statute of Frauds opinions are in `cases/`): routing to a doctrine pack, extraction sheet, gold answer, and a reverse-engineered question every model will be asked. |
+| Rubric | **Karthic** | A modular weighted rubric (Modules 0–4) with scoring anchors and failure labels; optionally an original-vs-variation pair. |
+| Judge | **Dasha** | Model answers are clustered (via `lsh/cluster_legal_workflow.py`), and a judge panel scores each cluster's centroid against the rubric, so hundreds of answers cost a handful of judge calls. |
+| Review | **Zak** | Only when the judges cannot reach a strict majority: a scoped packet for a human expert and a structured decision record. |
 
-**Workflow stages:**
+`legal-workflow-data/` ships with 24 packets, 14 rubric packs, 10 judged runs, and 3 review records so the pages have content on a fresh clone.
 
-1. **Source Upload / Packet Selection** — Upload a legal case document (PDF) or select a pre-prepared "Frank packet" (named after one pipeline stage)
-2. **Routing / Intake** — Quality gate: classifies the legal problem type and checks whether the source is structured enough to build on
-3. **Extraction / Mapping** — Structures the source into: a source extraction sheet, a gold packet mapping, a locked controller card, and a list of likely failure modes
-4. **Benchmark Answer** — Establishes a model "gold" answer representing what an expert response should contain
-5. **Reverse-Engineered Question** — Works backward from the benchmark answer to produce a fair, unambiguous test question all models will answer
-6. **Seed Rubric** — Generates the first draft scoring rubric from the source, benchmark answer, and test question
-7. **Refine Rubric** — Sharpens the seed rubric, removing overlap and tightening wording
-8. **Approve Rubric** — Freezes the scoring standard (criteria, scoring policy, penalties, caps)
-9. **Dasha Pipeline** — Clusters and evaluates centroids against the frozen rubric
-10. **Zak Review** — Only if the judge panel cannot reach a strict majority on the best centroid
+## Models and data
 
-**Case studies implemented:**
+- **Models queried by the research pipelines:** `gpt-4o`, `gpt-4-turbo`, `gpt-5-nano`, `gpt-5.2` (OpenAI API); `google/gemini-3-flash`, `google/gemini-3-pro`, `meta/llama-4-maverick-instruct`, `deepseek-ai/deepseek-v3.1`, `anthropic/claude-4.5-sonnet`, `anthropic/claude-3.5-haiku` (Replicate); `xai/grok-4` if `ENABLE_GROK4=true`. The frontend's judge and drafting features offer current OpenAI, Anthropic, and Gemini models directly.
+- **Datasets** (`datasets/`): the law subset of [SuperGPQA](https://github.com/SuperGPQA/SuperGPQA) (656 multiple-choice questions) and 500 multi-turn tasks from PRBench, both used as question sources and browsable at `/database-view`. Three real appellate opinions (`cases/`) and two law-school outlines (`outlines/`) ground the workflow.
+- **Saved runs:** 14 free-form and 15 IRAC clustering runs, including the poisoned-data runs.
 
-- *Westside Wrecker Service, Inc. v. Skafi* — Statute of Frauds / one-year rule
-- *Anglemire v. Policemen's Benevolent Association of Chicago* — Marriage Statute of Frauds
-- *Demeritt v. Bickford* — Surety contracts
+## Tests and checks
 
----
+```bash
+pytest                                   # rubric pipeline tests + clustering-bridge smoke tests (mock embeddings)
+cd frontend && npm run lint && npx tsc --noEmit && npm run test:dasha-comparison && npm run build
+```
 
-### Frontend — Benchmarking Portal
+CI (`.github/workflows/ci.yml`) runs the frontend checks and the Python tests on every push and pull request.
 
-**Location:** `frontend/`
-
-A Next.js research interface for exploring all pipeline outputs interactively. Built with TypeScript and the App Router.
-
-**Pages:**
-
-| Route | Description |
-|---|---|
-| `/` | Home dashboard — links to all tools |
-| `/demos` | Workflow overview and demo scripts |
-| `/database-view` | Dataset explorer — browse SuperGPQA and other benchmark datasets |
-| `/outlines` | Legal outline library (contract law, tort law) for reference |
-| `/lsh-runs` | **LSH-RUHS Atlas** — browse and inspect historical clustering runs |
-| `/legal-workflow` | **Frank-Karthic-Dasha SoF Pipeline** — full stage-separated workflow view |
-| `/legal-autoeval-pipeline` | **Legal Auto-Eval Pipeline** — interactive demo interface |
-
-**Key components:**
-
-- **`DashaResultsExplorer`** — The primary results visualization. Displays cluster maps, topic confidence signals, centroid representatives, and edge members for any benchmark run
-- **`DashaComparisonResults`** — Side-by-side comparison of model outputs across clusters
-
-**Tech stack:**
-
-- Next.js 14+ (App Router, TypeScript)
-- Tailwind CSS
-- Lucide Icons
-- API routes for serving benchmark run data
-
----
-
-## Models Evaluated
-
-The benchmark currently supports the following model families:
-
-**OpenAI (via OpenAI API)**
-- `gpt-4o`
-- `gpt-4-turbo`
-- `gpt-5-nano`
-- `gpt-5.2`
-
-**Google (via Replicate)**
-- `google/gemini-3-flash`
-- `google/gemini-3-pro`
-
-**Meta (via Replicate)**
-- `meta/llama-4-maverick-instruct`
-
-**Anthropic (via Replicate)**
-- `anthropic/claude-4.5-sonnet`
-- `anthropic/claude-3.5-haiku`
-
-**DeepSeek (via Replicate)**
-- `deepseek-ai/deepseek-v3.1`
-
-**xAI (opt-in via environment variable)**
-- `xai/grok-4`
-
-Each model is queried **20 times per run** to capture reasoning variance across temperature-driven sampling.
-
----
-
-## Datasets
-
-### SuperGPQA — Law Subset
-
-**Location:** `datasets/supergpqa/SuperGPQA Law Data.csv`
-
-[SuperGPQA](https://github.com/SuperGPQA/SuperGPQA) is a large-scale graduate-level professional benchmark covering 285 disciplines. The law subset provides expert-level legal questions used as benchmark inputs.
-
-### PRBench
-
-**Location:** `datasets/prbench/`
-
-An additional dataset used for extended benchmark runs.
-
-### Real Case Documents
-
-**Location:** `cases/`
-
-Actual legal case documents (PDFs) used as source material for the Legal Auto-Eval Pipeline:
-
-- *Westside Wrecker Service, Inc. v. Skafi* — One-year Statute of Frauds
-- *Anglemire v. Policemen's Benevolent Association of Chicago* — Marriage Statute of Frauds
-- *Demeritt v. Bickford* — Surety contracts
-
-### Legal Outlines
-
-**Location:** `outlines/`, `rubrics/`
-
-- `contract_law_outline.pdf` — Detailed contract law outline used as grounding material
-- `tort_law_outline.pdf` — Detailed tort law outline
-
----
-
-## Repository Structure
+## Repository layout
 
 ```
 tr-benchmarking/
-├── lsh/                         # Baseline clustering pipeline
-│   ├── pipeline.py              # LSHEvaluationPipeline
-│   ├── density_clustering.py    # UMAP + HDBSCAN
-│   ├── lsh_index.py             # Random Hyperplane LSH
-│   ├── clustering.py            # Louvain graph clustering
-│   ├── utils.py                 # Embedding utilities
-│   ├── generate_data.py         # OpenAI data generation
-│   ├── generate_replicate_data.py
-│   ├── generate_gemini_data.py
-│   ├── run_robust_benchmark.py  # Full robustness run
-│   ├── visualize_pipeline.py    # UMAP + chart generation
-│   ├── data/                    # responses.json
-│   ├── results/                 # Clustering run outputs
-│   └── requirements.txt
-│
-├── lsh-IRAC/                    # Structured reasoning pipeline (primary module)
-│   ├── run_irac_benchmark.py    # Main benchmark orchestrator
-│   ├── irac_pipeline.py         # IRACEvaluationPipeline
-│   ├── irac_utils.py            # Parsing and normalization
-│   ├── inject_poison_and_cluster.py  # Adversarial robustness tests
-│   ├── data/                    # Parsed IRAC responses
-│   └── results/                 # Clustering run outputs
-│
-├── rubric-automation/           # Recursive Rubric Decomposition
-│   ├── rrd_legal.py             # CLI entry point
-│   ├── rrd_legal_pkg/           # Pipeline modules
-│   │   ├── models.py            # Data models
-│   │   ├── prompts.py           # LLM prompt templates
-│   │   ├── llm.py               # LLM client interface
-│   │   ├── pipeline.py          # RRD orchestration
-│   │   ├── evaluation.py        # Rubric scoring
-│   │   ├── filters.py           # Redundancy filtering
-│   │   └── weighting.py         # Criterion weighting strategies
-│   ├── examples/                # Demo inputs
-│   └── outputs/                 # Pipeline outputs
-│
-├── frontend/                    # Next.js research portal
-│   ├── src/app/                 # App Router pages
-│   │   ├── page.tsx             # Home dashboard
-│   │   ├── demos/               # Workflow demos
-│   │   ├── database-view/       # Dataset explorer
-│   │   ├── outlines/            # Legal outline viewer
-│   │   ├── lsh-runs/            # LSH-RUHS atlas
-│   │   ├── legal-workflow/      # Frank-Karthic-Dasha pipeline
-│   │   └── legal-autoeval-pipeline/  # Auto-eval interface
-│   └── src/components/
-│       ├── DashaResultsExplorer.tsx   # Main cluster visualization
-│       └── DashaComparisonResults.tsx # Side-by-side comparison
-│
-├── cases/                       # Real legal case PDFs
-├── datasets/                    # SuperGPQA and PRBench data
-├── outlines/                    # Law school outlines (PDF)
-├── rubrics/                     # Scoring rubrics (PDF)
-├── prompt-libraries/            # Prompt templates (generation & judge)
-├── instructions/                # Pipeline documentation and demo scripts
-├── legal-workflow-data/         # Frank/Karthic/Dasha pipeline artifacts
-│
-├── run_experiment.py            # Run the baseline LSH pipeline end-to-end
-└── run_benchmark.sh             # Shell script: setup venv and run benchmark
+├── lsh/                      embedding + clustering engine; generators; inspect_run.py; experiments/ (historical scripts)
+├── lsh-IRAC/                 structured-output benchmark, poison test, saved data/ and results/
+├── rubric-automation/        RRD package, examples/, tests/
+├── frontend/                 Next.js portal (src/app pages + API routes, src/lib server logic)
+├── instructions/             prompt canon for Frank / Karthic / Dasha / Zak, plus a live-demo script
+├── legal-workflow-data/      JSON written by the portal: packets, rubric packs, runs, reviews, uploaded artifacts
+├── datasets/  cases/  outlines/  prompt-libraries/
+├── scripts/generate_live_demo_pdf.py   renders the demo script to PDF (needs reportlab)
+├── run_experiment.py  run_benchmark.sh   entry points for the free-form pipeline
+├── requirements.txt  pyproject.toml  .env.example
+└── .github/workflows/ci.yml
 ```
 
----
-
-## Setup & Installation
-
-### Prerequisites
-
-- Python 3.10+
-- Node.js 18+ (for the frontend)
-- API keys for OpenAI and Replicate
-
-### Python Environment
-
-```bash
-# Clone the repository
-git clone https://github.com/at350/tr-benchmarking
-cd tr-benchmarking
-
-# Create and activate a virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Install Python dependencies
-pip install -r lsh/requirements.txt
-```
-
-Note: the frontend’s Legal Auto-Eval workflow may invoke the repo clustering stack via `lsh/cluster_legal_workflow.py`. For that to work, you need the same Python dependencies available (the `lsh/requirements.txt` set is the intended baseline).
-
-**Python dependencies:**
-
-| Package | Purpose |
-|---|---|
-| `numpy` | Numerical operations and embedding arithmetic |
-| `scikit-learn` | Preprocessing and utility ML functions |
-| `sentence-transformers` | `hkunlp/instructor-large` embedding model |
-| `umap-learn` | Dimensionality reduction |
-| `networkx` | Graph construction for LSH similarity graph |
-| `python-louvain` | Louvain community detection |
-| `openai` | OpenAI API client |
-| `httpx` | Async HTTP client for Replicate API |
-| `python-dotenv` | Environment variable loading |
-| `tqdm` | Progress bars for async generation |
-
-### API Keys
-
-Create a `.env` file in the `lsh/` directory (or the project root):
-
-```bash
-OPENAI_API_KEY=your_openai_key_here
-REPLICATE_API_TOKEN=your_replicate_token_here
-ANTHROPIC_API_KEY=your_anthropic_key_here  # optional
-ENABLE_GROK4=false                          # set to true to include grok-4
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The portal runs at `http://localhost:3000`.
-
----
-
-## Running
-
-### Option 1: Explore the full pipeline in the UI (recommended for end-to-end understanding)
-
-```bash
-cd frontend
-npm run dev
-```
-
-Open:
-- `http://localhost:3000/legal-autoeval-pipeline` (grouped Frank/Karthic/Dasha/Zak workflow)
-- `http://localhost:3000/legal-workflow` (same workflow UI, different framing)
-
-This UI reads/writes saved artifacts under `legal-workflow-data/` (see [Outputs & artifact storage](#outputs--artifact-storage)).
-
-### Option 2: Full IRAC benchmark (research pipeline)
-
-```bash
-# Activate the virtual environment
-source lsh/.venv/bin/activate
-
-# Run the benchmark on a question file
-python lsh-IRAC/run_irac_benchmark.py --question lsh-IRAC/data/questions/question_iied.txt
-```
-
-This will:
-1. Query all configured models 20 times each
-2. Parse and validate IRAC JSON from every response
-3. Embed all responses with `hkunlp/instructor-large`
-4. Run UMAP + HDBSCAN clustering
-5. Extract topic signals and compute confidence scores per cluster
-6. Save results to `lsh-IRAC/results/run_{timestamp}.json`
-
-**Resume an interrupted run:**
-
-```bash
-python lsh-IRAC/run_irac_benchmark.py \
-  --question lsh-IRAC/data/questions/question_iied.txt \
-  --resume lsh-IRAC/data/responses_20260224_001715.json
-```
-
-### Option 3: Baseline LSH pipeline
-
-```bash
-# Generate responses (OpenAI)
-python lsh/generate_data.py
-
-# Generate responses (Replicate)
-python lsh/generate_replicate_data.py
-
-# Run clustering
-python run_experiment.py
-```
-
-### Option 4: Shell script (robustness benchmark)
-
-```bash
-bash run_benchmark.sh
-```
-
-### Option 5: Adversarial robustness test
-
-```bash
-python lsh-IRAC/inject_poison_and_cluster.py
-```
-
-### Option 6: Rubric automation demo
-
-```bash
-cd rubric-automation
-python rrd_legal.py --demo --weighting doctrinal --verbose
-```
-
----
-
-## Outputs & artifact storage
-
-This repo produces two main families of outputs:
-
-### A) Research clustering outputs
-
-- **LSH baseline**: typically under `lsh/results/`
-- **LSH-IRAC**: typically under `lsh-IRAC/results/` (e.g. `run_{timestamp}.json`)
-
-### B) End-to-end workflow artifacts (Frank/Karthic/Dasha/Zak)
-
-The frontend reads/writes JSON artifacts in `legal-workflow-data/`:
-
-- `legal-workflow-data/frank-v2-packets/`: locked benchmark packets
-- `legal-workflow-data/karthic-v2-pre-cluster-runs/`: optional pre-cluster artifacts for rubric drafting
-- `legal-workflow-data/karthic-v2-rubric-packs/`: approved rubric packs (including dual-rubric variants)
-- `legal-workflow-data/dasha-v2-runs/`: centroid clustering + judge-panel scoring runs
-- `legal-workflow-data/zak-v1-reviews/`: escalation packets + decision records
-- `legal-workflow-data/artifacts-v2/`: text artifacts and exports referenced by the UI
-
----
-
-## Output format (example: IRAC clustering run)
-
-### Clustering Run (`results/run_{timestamp}.json`)
-
-```json
-{
-  "metadata": {
-    "timestamp": "20260224_153621",
-    "method": "density_umap_hdbscan",
-    "umap_dims": 10,
-    "min_cluster_size": 5,
-    "question": "...",
-    "schema": "IRAC",
-    "total_items": 200,
-    "num_clusters": 7
-  },
-  "clusters": {
-    "0": {
-      "representative": {
-        "id": "gpt-4o_3",
-        "model": "gpt-4o",
-        "issue": "...",
-        "rule": "...",
-        "application": "...",
-        "conclusion": "..."
-      },
-      "members": [...],
-      "centroid_members": [...],
-      "edge_members": [...],
-      "topic_signals": {
-        "Statute of Frauds": 82.4,
-        "One-Year Rule": 14.1,
-        "Part Performance": 3.5
-      }
-    },
-    "-1": {
-      "representative": { "id": "N/A", "model": "NOISE" },
-      "members": [...]
-    }
-  }
-}
-```
-
-**Key fields:**
-
-| Field | Description |
-|---|---|
-| `representative` | The cluster's centroid member — most semantically central response |
-| `members` | All responses assigned to this cluster |
-| `centroid_members` | 3 members closest to the cluster's geometric center |
-| `edge_members` | 3 random members from the outer third of the cluster (most divergent) |
-| `topic_signals` | LLM-identified legal doctrines with softmax confidence percentages |
-| `-1` | The noise cluster: responses HDBSCAN could not assign to any dense group |
-
----
-
-## Roadmap
-
-### Near-Term
-- [ ] Larger benchmark datasets with expanded legal domains (employment, IP, administrative law)
-- [ ] Automated IRAC quality scoring using LLM-as-a-judge evaluation against rubric criteria
-- [ ] Cross-run stability analysis: track how cluster composition changes across model versions
-- [ ] Standardized, reproducible benchmark runners with pinned model versions
-
-### Medium-Term
-- [ ] Model comparison dashboards: per-model cluster distribution, failure rate, and doctrine accuracy
-- [ ] Automated reporting: export cluster analysis to structured PDF/HTML reports
-- [ ] Ground-truth alignment: score cluster representatives against expert-verified answers
-- [ ] Extended adversarial testing: doctrine substitution, fact inversion, jurisdiction swapping
-
-### Long-Term
-- [ ] Public benchmark leaderboard for legal reasoning quality
-- [ ] Support for non-English legal systems and jurisdictions
-- [ ] Fine-grained IRAC sub-component evaluation (issue identification accuracy, rule hallucination rate, etc.)
-- [ ] Integration with legal citation verification tools
-
----
-
-## Why This Matters
-
-LLMs are increasingly being deployed in legal workflows — for contract review, case research, compliance checking, and legal question answering. Most evaluation of these systems relies on answer-accuracy benchmarks that cannot detect a critical class of failures:
-
-> **A model that consistently produces the right answer through the wrong reasoning is not a safe legal tool.**
-
-In law, the reasoning matters as much as the conclusion. A model that gets to "unenforceable" via the wrong statute, or that applies the Parol Evidence Rule in a case governed by the Statute of Frauds, is making doctrinal errors that could produce catastrophic results when the facts change slightly.
-
-TR-Benchmarking provides the tooling to:
-
-1. **See** the reasoning strategies models actually use
-2. **Compare** those strategies across model families
-3. **Identify** which doctrines models hallucinate or misapply
-4. **Measure** reasoning consistency across repeated runs
-5. **Validate** that evaluation systems can isolate flawed reasoning under adversarial conditions
-
-This work is intended to support researchers, legal AI developers, and AI safety teams building reliable systems for high-stakes domains.
-
----
+## Status and limitations
+
+This is a research prototype from a university project on technology for the law.
+Things a reader should know before relying on it:
+
+- Full benchmark runs cost money and time (roughly 200 model calls plus one GPT-4o call per cluster); the saved runs exist so the analysis can be explored without that.
+- Cluster doctrine labels come from a model, so they can differ between runs on identical input even though the clusters themselves are deterministic (fixed UMAP seed).
+- Model identifiers are pinned in source; as providers retire models the generation scripts will need updating.
+- The frontend stores state as files on disk and is meant to run locally for one user at a time.
 
 ## References
 
-- SuperGPQA Benchmark: [`https://github.com/SuperGPQA/SuperGPQA`](https://github.com/SuperGPQA/SuperGPQA)
-- HDBSCAN: Campello et al., *Density-Based Clustering Based on Hierarchical Density Estimates*, 2013
-- UMAP: McInnes et al., *UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction*, 2018
-- Instructor Embeddings: Su et al., *One Embedder, Any Task: Instruction-Finetuned Text Embeddings*, 2022
-- Louvain Community Detection: Blondel et al., *Fast unfolding of communities in large networks*, 2008
+- Su et al., *One Embedder, Any Task: Instruction-Finetuned Text Embeddings* (2022) — instructor embeddings
+- McInnes et al., *UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction* (2018)
+- Campello et al., *Density-Based Clustering Based on Hierarchical Density Estimates* (2013) — HDBSCAN
+- Blondel et al., *Fast unfolding of communities in large networks* (2008) — Louvain baseline
+- [SuperGPQA](https://github.com/SuperGPQA/SuperGPQA)
