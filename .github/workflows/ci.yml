@@ -33,9 +33,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      # The embedding model (torch, sentence-transformers) is too heavy for CI. The
-      # clustering-bridge tests run with LSH_MOCK_EMBEDDINGS, so only the clustering
-      # stack is installed here; the rubric-automation tests need nothing beyond pytest.
-      - run: python -m compileall -q lsh lsh-IRAC rubric-automation scripts run_experiment.py
-      - run: pip install pytest numpy scikit-learn umap-learn networkx python-louvain
+      # The embedding model (torch, sentence-transformers) is too heavy for CI, so the
+      # package is installed without dependencies and the light ones are added by hand.
+      # The clustering-bridge tests run with LSH_MOCK_EMBEDDINGS.
+      - run: python -m compileall -q trbench rubric-automation scripts experiments
+      - run: pip install -e . --no-deps
+      - run: pip install pytest numpy scikit-learn umap-learn networkx python-louvain httpx python-dotenv openai tqdm
+      - run: trbench --help
       - run: python -m pytest
