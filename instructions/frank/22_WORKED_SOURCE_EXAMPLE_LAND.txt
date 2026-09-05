@@ -39,8 +39,8 @@ Bottom-line outcome:
 [Inference from source] The better source-grounded answer path is that the buyer likely cannot enforce the alleged land-sale agreement unless the seller's writing is sufficient to identify the land and essential bargain or the buyer can satisfy a recognized substitute. On the stated illustration, the thin writing and preparatory expenditures are probably not enough.
 
 Controlling doctrine:
-[Supported by source] The controlling doctrine is the land-contract Statute of Frauds category: a contract falls within the Statute of Frauds if it contemplates a transfer of an interest in land other than a lease or an easement of less than one year's duration.
-[Supported by source] The uploaded doctrine source also states that a real-estate contract may sometimes be enforceable without a signed writing under the traditional part-performance exception, but that route ordinarily requires possession plus either part payment or improvements.
+[Supported by source] The controlling doctrine is the land-contract category of the Statute of Frauds: under Restatement (Second) of Contracts § 125, a promise to transfer or to buy an interest in land needs a signed writing, with most states excepting only short-term leases, usually of a year or less.
+[Supported by source] The uploaded doctrine source also recognises the part-performance exception (Restatement (Second) of Contracts § 129): a land contract may be specifically enforced without a writing when the buyer, relying on it, has acted in a way that points unmistakably to the contract, classically by taking possession and either paying part of the price or making improvements.
 [Inference from source] That makes the decisive issue not mere credibility, but whether there is sufficient writing or conduct strong enough to substitute for it.
 
 Transaction / formation characterization:
@@ -56,7 +56,7 @@ Writing requirement and trigger:
 Compliance / substitute / exception analysis:
 [Inference from source] Nothing in the illustration indicates a full formal contract, deed, or more complete memorandum clearly describing the parcel and essential terms.
 [Inference from source] The buyer's deposit, survey expense, and title-work expense are meaningful reliance facts, but under the uploaded doctrine source they do not fit the traditional part-performance route unless paired with possession or similarly strong conduct referable to the alleged land contract.
-[Supported by source] The uploaded doctrine source explains that the traditional part-performance exception ordinarily requires clear possession plus either part payment or improvements, and that the exception weakens if the conduct is reasonably explicable on some basis other than the alleged sale.
+[Supported by source] The uploaded doctrine source ties part performance to conduct that can be explained only by the alleged sale: taking possession together with part payment or improvements is the classic showing, and acts that make sense on some other footing carry little weight.
 [Background generalization] Broader promissory-estoppel or free-floating equity theories should not be treated as automatic substitutes here unless supporting authority is added, because the uploaded doctrine source develops the part-performance path more clearly than any general estoppel override.
 
 Other defenses or competing doctrines:

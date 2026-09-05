@@ -39,16 +39,16 @@ Bottom-line outcome:
 [Inference from source] The better source-grounded answer path is that the creditor cannot enforce the executor's personal promise unless it is set forth in a signed writing. On the stated illustration, the promise falls within the executor-administrator Statute of Frauds category.
 
 Controlling doctrine:
-[Supported by source] The controlling doctrine is the executor-administrator Statute of Frauds category: a contract falls within the Statute of Frauds if the executor or administrator of a deceased person's estate promises to answer personally for a duty of the deceased person, usually a debt.
+[Supported by source] The controlling doctrine is the executor-administrator category of the Statute of Frauds (Restatement (Second) of Contracts § 111): when the personal representative of an estate promises to pay a debt or other duty of the decedent from the representative's own funds, that promise needs a signed writing.
 [Inference from source] The decisive issue is not merely that estate debt exists, but that the representative allegedly undertook personal liability rather than acting only in representative capacity.
 
 Transaction / formation characterization:
-[Supported by source] The illustration is structured as a new bargain between the creditor and the wife as executor: in exchange for the creditor's promise to forgo $1,000 of the husband's $5,000 debt, she promised to pay the remaining $4,000 personally.
+[Supported by source] The illustration is structured as a new bargain between the creditor and the widow acting as executor: the creditor agrees to write off part of the decedent's debt, and in return she promises to pay the rest from her own funds.
 [Inference from source] That means consideration is not the main difficulty. The central characterization issue is capacity—whether the promise is personal or merely a statement about paying a valid claim from estate assets. On the stated illustration, it is framed as personal.
 
 Writing requirement and trigger:
 [Supported by source] The promise fits the executor-administrator category because the wife, acting as executor, promised to answer personally for the husband's existing debt.
-[Supported by source] The uploaded doctrine source states that this type of contract falls within the Statute of Frauds and requires a signed writing to be enforceable.
+[Supported by source] The uploaded doctrine source places such a personal undertaking within the Statute of Frauds, so it is enforceable only if evidenced by a signed writing.
 [Inference from source] The category is narrower than a generic estate-payment dispute. What triggers it is the personal undertaking by the representative, not ordinary administration of estate obligations.
 [Inference from source] If the facts instead showed only a promise to pay from estate assets in representative capacity, the same trigger would be much weaker or absent.
 
@@ -63,7 +63,7 @@ Other defenses or competing doctrines:
 [Inference from source] This section should stay brief so the capacity trigger and writing requirement remain the visible controller.
 
 Strongest counterargument:
-[Supported by source] The strongest counterargument is that the promise was a fresh bargain: the creditor agreed to forgo $1,000, and the executor personally agreed to pay the reduced balance.
+[Supported by source] The strongest counterargument is that the promise was a fresh bargain: the creditor agreed to write off part of the debt, and the executor personally agreed to pay the reduced balance.
 [Inference from source] That argument explains why there is a real contract-like exchange, but it still does not overcome the source's writing requirement for an executor's personal promise to answer estate debt.
 [Inference from source] The main uncertainty is factual characterization. If a fuller record showed that the representative was promising only to pay from estate assets, not from personal funds, the Pack 30 trigger could weaken materially.
 [Inference from source] A second uncertainty is source posture: this example is built from a doctrine summary rather than a full opinion text, so it is best used as a narrow Pack 30 source-grounded illustration rather than as a broad, jurisdiction-specific authority packet.

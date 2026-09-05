@@ -16,7 +16,7 @@ No. 01–10–00668–CV
 |
 Nov. 17, 2011.
 Attorneys and Law Firms
-*156 Jennifer B. Hogan, Matthew E. Coveler,
+Jennifer B. Hogan, Matthew E. Coveler,
 Richard P. Hogan Jr., Hogan & Hogan, L.L.P., William
 L. Bowers Jr., Hamel Bowers & Clark, C. Leland
 Hamel, Houston, TX, for Appellant.
@@ -55,7 +55,7 @@ the verdict because the jury's partnership finding
 was supported by legally sufficient evidence of the
 statutory partnership factors and the statute of frauds
 does not apply to the jury's partnership finding; “[i]f
-the jury's *157 partnership finding is reinstated
+the jury's partnership finding is reinstated
 on appeal, this case should [be] remand[ed] for an
 accounting of Mr. Cannon's partnership damages”; and
 respond to Westside's challenges to the damages and
@@ -72,8 +72,6 @@ segments, which would be assigned to specific tow
 truck operators for removal of disabled vehicles. Tow
 truck operators were permitted to submit bids for the
 job, and the winning bidders were awarded five-year
-
--- 8 of 24 --
 
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 contracts to provide exclusive towing services for the
@@ -124,7 +122,7 @@ described it: “[I]t seemed like everything that anybody
 wrote up, one or two people in the group didn't agree
 with it.... I mean, we just never got anything that
 anybody could agree [to] in writing.”
-*158 But the parties continued to work together in
+But the parties continued to work together in
 connection with the SAFEClear contracts. Westside,
 Corporate Auto, Cannon, and Skafi agreed on a
 rotation system that gave them equal time servicing
@@ -163,8 +161,6 @@ Westside complained that, once the city implemented
 the “free tow” system, the other towers' drivers stopped
 coming to work on time during their rotations and
 
--- 9 of 24 --
-
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 wandered outside of their segment area in search of
 higher paying tows. According to Westside, the poor
@@ -189,7 +185,7 @@ segments. Westside later terminated Cannon from its
 SAFEClear segments. According to Cannon and Skafi,
 Westside did not terminate them for performance
 reasons. Rather, after the city eliminated the fees it
-originally charged *159 for the SAFEClear contracts,
+originally charged for the SAFEClear contracts,
 Westside no longer needed them to contribute to the
 SAFEClear expenses and eliminated their subcontracts
 to maximize its own profits.
@@ -251,11 +247,9 @@ to Cannon as a result of Westside's breach of these
 duties.4 The jury also found that Westside failed to
 comply with its fiduciary duty to Skafi and Cannon.5
 But it found that Skafi suffered no damages as a
-result *160 of this breach, and the charge did not
+result of this breach, and the charge did not
 include a question on breach of fiduciary damages to
 Cannon. Predicated on findings that Westside breached
-
--- 10 of 24 --
 
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 its duties of loyalty, care, or as a fiduciary, the jury
@@ -315,7 +309,7 @@ When a party attacks the legal sufficiency of the
 evidence to support an adverse jury finding on an
 issue for which it did not have the burden of proof
 at trial, it must show that no evidence supports the
-jury's adverse finding. *161 Exxon Corp. v.
+jury's adverse finding. Exxon Corp. v.
 Emerald Oil & Gas Co., L.C., 348 S.W.3d 194, 215
 (Tex.2011). Evidence is legally sufficient to support a
 jury finding if it “would enable reasonable and fair-
@@ -337,8 +331,6 @@ pet. denied) (holding that whether contract falls within
 statute of frauds is question of law, which we review
 de novo).
 Westside's Appeal
-
--- 11 of 24 --
 
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 A. The trial court erred in awarding Skafi and
@@ -393,7 +385,7 @@ question four. Skafi and Cannon further contend that
 the damages questions subsume a liability finding
 because they ask what sum “if any” would compensate
 Skafi and Cannon. Finally, they assert that Westside
-failed to object *162 to the submission of questions
+failed to object to the submission of questions
 twenty-five and twenty-six without predication on a
 finding in question four that Westside breached its
 agreement.
@@ -424,8 +416,6 @@ pay for towing and storage, which is set forth in the
 instructions to question four. Skafi and Cannon do not
 argue an alternative basis for recovering the towing and
 storage damages.9
-
--- 12 of 24 --
 
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 Thus, if the statute of frauds bars enforcement of
@@ -458,7 +448,7 @@ of frauds.
 The problems with Skafi and Cannon's position are
 two-fold. First, the jury found that the parties could
 not terminate their agreement at-will. Although Skafi
-*163 and Cannon now point to Westside's contention
+and Cannon now point to Westside's contention
 at trial that it could terminate the agreement at-
 will, Skafi and Cannon took the position at trial
 that Westside could not terminate their agreement at-
@@ -512,8 +502,6 @@ Lake City Water Authority, the Court observed that
 (or successive performances) and which are indefinite
 in duration can be terminated at the will of either
 
--- 13 of 24 --
-
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 party.” Id. The issue in Clear Lake City Water
 Authority was not a statute of frauds issue but, rather,
@@ -527,7 +515,7 @@ improper restriction on the water authority's exercise
 of its governmental powers. Id. at 391. Such a
 contract would be void ab initio. Id. The Court
 then concluded that, because the parties could not have
-intended *164 their contract to be void, the parties
+intended their contract to be void, the parties
 must have intended their contract to be terminable at
 will. Id. at 392.
 [4] [5] [6] Here, however, there is no contention
@@ -582,7 +570,7 @@ the parties' agreement from the statute of frauds. See
 Gilliam, 340 S.W.2d at 29; SBC Operations, 75 S.W.3d
 at 466; Collins, 871 S.W.2d at 934; Mann, 854
 S.W.2d at 668; Guffey, 376 S.W.2d at 5. Enforcement
-of *165 the parties' oral agreements regarding storage
+of the parties' oral agreements regarding storage
 and “free tows” is barred by the statute of frauds.
 Because there is no enforceable contractual obligation
 for Westside to pay Skafi and Cannon for storage and
@@ -600,8 +588,6 @@ court's award of attorney's fees on the ground that Skafi
 and Cannon are not prevailing parties. A party can
 recover attorney's fees under section 38.001(8) only
 if he or she is the “prevailing party” and recovers
-
--- 14 of 24 --
 
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 actual damages on a breach of contract claim. See
@@ -640,7 +626,7 @@ A. Evidence of a partnership
 The parties agree that the former Texas Revised
 Partnership Act governs this partnership dispute. See
 Act of May 31, 1993, 73d Leg., R.S., ch. 917, § 1,
-1993 Tex. Gen. *166 Laws 3887, 3890 (Revised
+1993 Tex. Gen. Laws 3887, 3890 (Revised
 Statutes art. 6132b–2.02(a) to 2.03(a), expired Jan. 1,
 2010) (TRPA).15 Under TRPA, five factors may be
 considered to determine whether a partnership was
@@ -681,8 +667,6 @@ indicate that a person is a partner in a business,
 including the right to a share of profits as compensation
 to an employee or independent contractor or the
 
--- 15 of 24 --
-
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 right to a share of gross returns or revenues. TRPA
 art. 6123b–2.03(b)(1)(B), (b)(3); Carpenter v. Phelps,
@@ -707,7 +691,7 @@ for the profits from their individual SAFEClear
 operations. There is no evidence that the four
 companies pooled their profits and then divided them
 among themselves or were entitled to an accounting
-*167 regarding each other's profits.16 The parties'
+regarding each other's profits.16 The parties'
 profits varied because of difference in their individual
 expenses and individual revenues from the services
 they provided on the SAFEClear segments.
@@ -770,13 +754,11 @@ ourselves, no.” King and Cannon both testified that
 the parties' revenues and profits were determined by
 the work they performed individually and not by any
 
--- 16 of 24 --
-
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 pooling of revenues or profits. Skafi's damage model is
 also consistent with each party retaining the revenues
 earned from its individual performance of services
-rather *168 than any sharing of revenues. In short, the
+rather than any sharing of revenues. In short, the
 parties shared in an opportunity but not in profits.
 The first factor suggests the absence of a partnership.
 2. Expression of intent to be partners
@@ -846,13 +828,11 @@ responsibility for SAFEClear services because he
 and King, alone, were responsible to the city. He
 further explained his answer by stating that the
 parties “operated as four different companies.” Finally,
-Owens, like King, *169 testified that he did not
+Owens, like King, testified that he did not
 understand the foursome to have formed a partnership.
 Owens's draft partnership agreement does not
 constitute evidence of an expression of intent to be
 partners for two reasons. First, King rejected the
-
--- 17 of 24 --
 
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 agreement, announcing that Westside did not want to
@@ -943,8 +923,6 @@ with Motel 6). This is because the term “partner” is
 regularly used in common vernacular and may be used
 in a variety of ways. Ingram, 288 S.W.3d at 900.
 
--- 18 of 24 --
-
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 We must look to the words used, the context in which
 the statement was made, and the identity of the speaker
@@ -983,7 +961,7 @@ of intent to be partners. See Ingram, 288 S.W.3d at
 that there was no evidence of expression of intent
 when one party identified the other as a “partner” to
 customers but there was no evidence as to why that
-*171 showed an expectation that the term carried
+showed an expectation that the term carried
 legal significance); DeNucci v. Moretti, No. 03–98–
 00114–CV, 1999 WL 250141, at *6 (Tex.App.-Austin
 Apr. 29, 1999), dism'd after settlement, No. 03–98–
@@ -1032,8 +1010,6 @@ any right to make executive decisions that extended
 beyond the operation of their own individual company.
 See Ingram, 288 S.W.3d at 901–02; Hoss, 338
 
--- 19 of 24 --
-
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 S.W.3d at 645–46 (holding that exercise of control
 over some subordinate employees was no evidence of
@@ -1061,7 +1037,7 @@ Even reading this testimony as supporting a contention
 that the parties attempted to run group meetings
 democratically, there is no evidence that the group
 ever made any executive decision about the operation
-*172 of the four towing companies in such a
+of the four towing companies in such a
 manner. See Ingram, 288 at 901–02. Here again,
 the evidence indicates that parties attempted to work
 together as separate business entities seeking to
@@ -1119,8 +1095,6 @@ WL 5395674, at *7 (Tex.App.-Houston [1st Dist.] Dec.
 failed to satisfy partial performance as exception
 to statute of frauds bar against alleged ten-year
 
--- 20 of 24 --
-
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 partnership agreement because evidence of companies
 working together on twenty-three prior events was
@@ -1136,7 +1110,7 @@ not discussed with respect to contribution, of which
 the Texas Supreme Court concluded there was no
 evidence. See Ingram, 288 S.W.3d at 899, 902–03.
 The payments made by Skafi's and Cannon's towing
-companies were not made to *173 an alleged
+companies were not made to an alleged
 partnership entity; they were made to Westside
 and Corporate Auto. The checks expressly noted,
 however, that they were issued “as partner in City
@@ -1208,13 +1182,11 @@ eight (partnership), nine (duty of loyalty), ten (duty of
 care), eleven (Skafi's breach of duty of care and loyalty
 damages), twelve (fiduciary duty), thirteen (Skafi's
 
--- 21 of 24 --
-
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 breach of fiduciary duty damages), fourteen and fifteen
 (mitigation of Skafi's damages).
 Because we conclude that there is not legally sufficient
-evidence to support the *174 jury's determination that
+evidence to support the jury's determination that
 Westside created a partnership with Skafi and Cannon,
 we do not reach Skafi and Cannon's contention that a
 partnership can be formed by conduct in the absence of
@@ -1256,8 +1228,6 @@ between Westside and Skafi or Cannon. We reverse
 the trial court's judgment with respect to Westside and
 enter judgment that Skafi and Cannon take nothing on
 their claims against Westside.
-All Citations
-361 S.W.3d 153
 Footnotes
 1 Paragraph seven of the trial court's judgment grants a take-nothing judgment on Skafi and Cannon's claims
 against Richard King. This portion of the judgment has not been attacked on appeal and is affirmed.
@@ -1270,8 +1240,6 @@ Thus, Westside and Corporate Auto received reimbursements from the city for the 
 respective SAFEClear segments. They could then reimburse Cannon and the Skafis for their “free tows.”
 4 This may be a result of the trial court's mid-trial ruling excluding Cannon's lost profits damage model. Neither
 party challenges that ruling on appeal.
-
--- 22 of 24 --
 
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 5 The jury charge required the jury to find a breach of the duties of loyalty and care, placing the burden of
@@ -1316,8 +1284,6 @@ the reasonableness of the attorney's fees and the failure to segregate.
 partnerships, “regardless of their formation date.” Ingram v. Deere, 288 S.W.3d 886, 905 n. 4 (Tex.2009).
 Both TRPA and the TBOC identify the same five factors for determining whether parties have formed a
 
--- 23 of 24 --
-
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
 partnership. Compare Tex. Bus. Orgs.Code Ann. § 152.052(a) (West Supp. 2011), with TRPA art. 6132b–
 2.03. Because the parties argue under TRPA, and the factors are the same under TBOC, we will discuss
@@ -1338,6 +1304,4 @@ all four parties that Westside would not form a partnership with any other party
 for breach of contract. See Tony Gullo Motors I, L.P. v. Chapa, 212 S.W.3d 299, 304 (Tex.2006).
 19 Because of our holding on this issue, we need not reach Skafi and Cannon's fifth issue, requesting remand
 in the event the partnership finding were reinstated.
-Government Works.
 
--- 24 of 24 --
