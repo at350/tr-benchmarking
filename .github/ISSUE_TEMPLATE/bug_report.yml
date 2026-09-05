@@ -1,0 +1,24 @@
+name: Bug report
+description: Something did not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What did you run?
+      description: The exact command (with --dry-run where it applies) or the page you opened.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What happened?
+      description: Output or error, trimmed to the relevant part.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Python and Node versions
+      placeholder: "python 3.12.3, node 22.14.0"
+  - type: input
+    attributes:
+      label: trbench version
+      placeholder: "output of `trbench --version`"

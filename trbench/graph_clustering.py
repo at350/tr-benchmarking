@@ -7,9 +7,8 @@ from collections import defaultdict
 
 try:
     import community.community_louvain as community_louvain
-except ImportError:
+except ImportError:  # python-louvain is a declared dependency; cluster_graph reports the fallback if it is missing
     community_louvain = None
-    print("Warning: python-louvain not installed. Clustering will be limited to connected components.", file=sys.stderr)
 
 def build_similarity_graph(
     candidates: Set[Tuple[str, str]],
@@ -55,7 +54,7 @@ def cluster_graph(G: nx.Graph, resolution: float = 1.0) -> Dict[str, int]:
         return partition
     else:
         # Fallback: Connected Components
-        print("Using Connected Components clustering (fallback)", file=sys.stderr)
+        print("Warning: python-louvain not installed; using connected components instead of Louvain.", file=sys.stderr)
         partition = {}
         for i, component in enumerate(nx.connected_components(G)):
             for node in component:

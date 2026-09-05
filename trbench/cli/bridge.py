@@ -48,7 +48,8 @@ def build_clusters(payload: dict) -> dict:
         return {"clusters": []}
     if len(items) == 1:
         only = items[0]
-        return {"clusters": [{"id": "cluster_1", "representativeResponseId": only["id"], "memberResponseIds": [only["id"]]}]}
+        return {"clusters": [{"id": "cluster_1", "representativeResponseId": only["id"], "memberResponseIds": [only["id"]]}],
+                "method": "single_response", "notes": "Only one response; nothing to cluster."}
 
     def graph_fallback(note_method, note_text):
         texts = [clean_text(item["response"]) for item in items]
@@ -59,10 +60,13 @@ def build_clusters(payload: dict) -> dict:
         partition, representatives = build_embedding_graph_partition(embeddings_by_id, ids)
         return partition, representatives, note_method, note_text
 
-    if len(items) < 4:
+    # UMAP's spectral initialisation needs more points than the target dimension (+1); below that the
+    # density pipeline cannot run, so small samples go straight to graph clustering over pairwise similarity.
+    min_density_sample = LSHEvaluationPipeline().umap_dims + 2
+    if len(items) < min_density_sample:
         partition, representatives, method, notes = graph_fallback(
             "embedding_graph_small_sample",
-            "Used embedding-similarity graph clustering because the density settings are unstable below 4 responses.")
+            f"Used embedding-similarity graph clustering because the density pipeline needs at least {min_density_sample} responses.")
     else:
         try:
             with redirect_stdout(sys.stderr):
@@ -73,9 +77,10 @@ def build_clusters(payload: dict) -> dict:
             method = "density_umap_hdbscan"
             notes = "Clustered with the same density pipeline used for saved runs: instructor embeddings, UMAP reduction, and HDBSCAN."
         except Exception as exc:  # fall back rather than fail the frontend request
+            print(f"Density clustering failed: {exc}", file=sys.stderr)
             partition, representatives, method, notes = graph_fallback(
                 "embedding_graph_fallback",
-                f"Fell back to embedding-similarity graph clustering after density clustering failed: {exc}")
+                f"Fell back to embedding-similarity graph clustering after density clustering failed ({type(exc).__name__}).")
 
     grouped = defaultdict(list)
     for doc_id, cluster_id in partition.items():

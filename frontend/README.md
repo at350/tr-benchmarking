@@ -3,7 +3,7 @@
 A Next.js 16 / React 19 / TypeScript app for running and inspecting the legal
 reasoning benchmarks in this repository. It reads and writes JSON under
 `../legal-workflow-data/`, reads clustering runs from `../runs/free-form/results/` and
-`../runs/irac/results/`, serves the PDFs in `../outlines/`, and shells out to the
+`../runs/irac/results/`, serves any PDFs placed in `../outlines/`, and shells out to the
 `trbench` package (`trbench bridge` for clustering, `trbench irac-benchmark` for full runs).
 
 ## Run
@@ -40,8 +40,8 @@ npm run build
 |---|---|
 | `/` | Home and links |
 | `/demos` | Scripted walkthroughs of the workflow |
-| `/database-view` | SuperGPQA law subset browser (`/api/dataset`; add `?dataset=prbench` for PRBench) |
-| `/outlines` | Contract and tort law outline PDFs |
+| `/database-view` | SuperGPQA law subset browser (`/api/dataset`) |
+| `/outlines` | Outline PDFs you place in `outlines/` (none ship with the repo) |
 | `/lsh-runs` | Every saved clustering run under `runs/`, with cluster maps and members |
 | `/legal-workflow` | The four-stage packet → rubric → judge → review workflow, stage by stage |
 | `/legal-autoeval-pipeline` | The same workflow grouped for a live demo |

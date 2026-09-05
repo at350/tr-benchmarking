@@ -33,3 +33,6 @@ output/
 # rubric-automation exports (regenerate with: python rrd_legal.py --demo)
 rubric-automation/outputs/
 
+
+# Bring your own outline PDFs; they are not redistributed
+outlines/*.pdf

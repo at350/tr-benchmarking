@@ -1,7 +1,4 @@
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 1
 361 S.W.3d 153
 Court of Appeals of Texas, Houston (1st Dist.).
 WESTSIDE WRECKER
@@ -14,648 +11,6 @@ d/b/a D.C. Wrecker, Appellees.
 No. 01–10–00668–CV
 |
 Nov. 17, 2011.
-Synopsis
-Background: Subcontractor towing company
-principals brought action against contractor towing
-company, alleging breach of contract and unjust
-enrichment in relation to business arrangement
-regarding government towing contract. After jury trial,
-the 269th District Court, Harris County, Dan Hinde,
-J., entered judgment in part in favor of subcontractors.
-Contractor appealed.
-Holdings: The Court of Appeals, Harvey Brown, J.,
-held that:
-[1] oral agreement between contractor and
-subcontractors could not have been fully performed
-within one year, and thus enforcement of parties'
-agreement was barred by statute of frauds, and
-[2] evidence was not legally sufficient to support
-verdict that towing company contractor created a
-partnership with towing company subcontractors, as
-would support subcontractors' breach of fiduciary duty
-claim.
-Affirmed in part, reversed in part, and rendered.
-Procedural Posture(s): On Appeal.
-West Headnotes (18)
-[1] Appeal and Error Legal
-sufficiency or "no evidence" in general
-30 Appeal and Error
-30XVI Review
-30XVI(D) Scope and Extent of Review
-30XVI(D)10 Sufficiency of Evidence
-30k3489 Review for Factual or Legal
-Sufficiency; "No Evidence" Review
-30k3492 Legal sufficiency or "no
-evidence" in general
-(Formerly 30k1001(3))
-When a party attacks the legal sufficiency
-of the evidence to support an adverse jury
-finding on an issue for which it did not
-have the burden of proof at trial, it must
-show that no evidence supports the jury's
-adverse finding.
-[2] Damages Verdict and Findings
-115 Damages
-115X Proceedings for Assessment
-115k219 Verdict and Findings
-115k219.1 In general
-A liability finding is essential to the award
-of damages unless liability is established
-as a matter of law or uncontested.
-1 Case that cites this headnote
-[3] Frauds, Statute of Possibility of
-discharge or other termination without
-performance
-185 Frauds, Statute of
-185V Agreements Not to Be Performed
-Within One Year or During Lifetime
-185k51 Possibility of discharge or other
-termination without performance
-Was enforcement of oral
-agreement barred by statute
-of frauds? Yes
-
--- 1 of 24 --
-
-Carvalho, Ana 3/27/2026
-For Educational Use Only
-Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 2
-Material Facts
-• Even though
-agreement could
-have been terminated
-through termination of
-government program
-under which towing
-contract was issued,
-agreement was
-intended to run for
-five-year term of
-government contract
-• Agreement would
-not have been void
-ab initio if it had not
-been terminable at
-will, and jury found
-that contractor did not
-have right to terminate
-agreement at will
-Causes of Action
-Contract Enforcement
-Oral agreement between contractor
-towing company and subcontractor
-towing companies regarding storage and
-free tows, made in response to contractor's
-successful bid on government towing
-contract, could not have been fully
-performed within one year, and thus
-enforcement of parties' agreement was
-barred by statute of frauds, even though
-agreement could have been terminated
-through termination of government
-program under which towing contract was
-issued; agreement was intended to run
-for five-year term of government contract,
-agreement would not have been void ab
-initio if it had not been terminable at will,
-and jury found that contractor did not
-have right to terminate agreement at will.
-V.T.C.A., Bus. & C. § 26.01(a), (b)(6).
-1 Case that cites this headnote
-More cases on this issue
-[4] Frauds, Statute of Possibility of
-discharge or other termination without
-performance
-185 Frauds, Statute of
-185V Agreements Not to Be Performed
-Within One Year or During Lifetime
-185k51 Possibility of discharge or other
-termination without performance
-A contract for performance that is
-intended to span a period of more
-than one year falls within the statute
-of frauds even if the contract may be
-terminated within one year upon the
-happening of some event other than
-completed performance. V.T.C.A., Bus.
-& C. § 26.01(a), (b)(6).
-4 Cases that cite this headnote
-[5] Frauds, Statute of Possibility of
-Performance
-185 Frauds, Statute of
-185V Agreements Not to Be Performed
-Within One Year or During Lifetime
-185k48 Possibility of Performance
-185k49 In general
-Contracts in which the contemplated
-performance may or may not span a period
-of more than one year fall outside the
-statute of frauds. V.T.C.A., Bus. & C. §
-26.01(a), (b)(6).
-3 Cases that cite this headnote
-[6] Frauds, Statute of Possibility of
-Performance
-Frauds, Statute of Possibility of
-discharge or other termination without
-performance
-185 Frauds, Statute of
-185V Agreements Not to Be Performed
-Within One Year or During Lifetime
-185k48 Possibility of Performance
-185k49 In general
-185 Frauds, Statute of
-
--- 2 of 24 --
-
-Carvalho, Ana 3/27/2026
-For Educational Use Only
-Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 3
-185V Agreements Not to Be Performed
-Within One Year or During Lifetime
-185k51 Possibility of discharge or other
-termination without performance
-Termination of a contract may occur in
-the absence of completed performance,
-but such a termination does not alter the
-applicability of the statute of frauds to the
-contract. V.T.C.A., Bus. & C. § 26.01(a),
-(b)(6).
-2 Cases that cite this headnote
-[7] Costs, Fees, and
-Sanctions Contracts
-102 Costs, Fees, and Sanctions
-102III Awards of Costs and Fees
-102III(A) In General; Grounds and
-Factors Considered
-102III(A)2 Particular Subjects of
-Litigation
-102k563 Contracts
-102k564 In general
-(Formerly 102k194.32)
-Was prevailing party status
-established as required for
-attorney fees award? No
-Material Facts
-• Court of Appeals held
-that enforcement of
-agreement between
-subcontractors and
-contractor was barred
-by statute of frauds
-Causes of Action
-Contract Enforcement
-Towing subcontractors were not the
-prevailing party on breach of contract
-claim and thus could not recover
-attorney's fees from towing contractor,
-where Court of Appeals held that
-enforcement of agreement between
-subcontractors and contractor was barred
-by statute of frauds. V.T.C.A., Civil
-Practice & Remedies Code § 38.001(8).
-More cases on this issue
-[8] Partnership Sharing Profits and
-Losses
-Partnership Sharing control or
-management of business
-Partnership Control and
-Management of Partnership Business
-289 Partnership
-289I The Relation in General
-289I(B) Creation and Requisites in
-General
-289k422 Community of Interest
-289k426 Sharing Profits and Losses
-289k426(1) In general
-(Formerly 289k5)
-289 Partnership
-289I The Relation in General
-289I(B) Creation and Requisites in
-General
-289k422 Community of Interest
-289k429 Sharing control or management
-of business
-(Formerly 289k5)
-289 Partnership
-289IV Mutual Rights, Duties, and
-Liabilities of Partners
-289IV(B) Nature of Obligation Among
-Partners
-289k563 Control and Management of
-Partnership Business
-289k564 In general
-(Formerly 289k79)
-Shared rights to profits and to control
-the business are generally considered
-the most important factors under the
-former Texas Revised Partnership Act
-(TRPA) in establishing the existence
-of a partnership. Vernon's Ann.Texas
-Civ.St. art. 6132b–2.03(a) (Expired).
-4 Cases that cite this headnote
-[9] Partnership Sharing Profits and
-Losses
-289 Partnership
-
--- 3 of 24 --
-
-Carvalho, Ana 3/27/2026
-For Educational Use Only
-Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 4
-289I The Relation in General
-289I(B) Creation and Requisites in
-General
-289k422 Community of Interest
-289k426 Sharing Profits and Losses
-289k426(1) In general
-(Formerly 289k5)
-Did implied partnership
-exist? No
-Material Facts
-• Parties did not share
-all expenses for
-operations, with each
-company bearing
-its own expenses
-for purchase of
-equipment, installing
-navigation systems
-on trucks, and driver
-payment
-• Evidence indicated
-that each party
-retained own
-individual revenues
-from own work
-Towing company contractor and towing
-company subcontractors did not share
-profits from contractor's government
-towing contract, as would support
-finding that contractor and subcontractors
-were a partnership under former Texas
-Revised Partnership Act (TRPA), despite
-subcontractors' assertion that the parties'
-equal sharing of certain expenses and
-rotation system between companies
-intended to keep revenues fair essentially
-amounted to sharing profits; parties
-did not share all of the expenses for
-government contract-related operations,
-with each company bearing its own
-expenses for purchase of equipment,
-installing navigation systems on tow
-trucks, and driver payment, and evidence
-indicated that each party retained
-own individual revenues from own
-work. Vernon's Ann.Texas Civ.St. art.
-6132b–2.03(a) (Expired).
-More cases on this issue
-[10] Partnership Intent
-289 Partnership
-289I The Relation in General
-289I(C) Partnership Agreement
-289k447 Form, Requisites, and Validity
-of Agreement
-289k453 Intent
-(Formerly 289k17)
-When considering whether parties
-expressed an intent to be partners, courts
-look at the parties' speech, writings, and
-conduct.
-3 Cases that cite this headnote
-[11] Partnership Intent
-Partnership Weight and Sufficiency
-289 Partnership
-289I The Relation in General
-289I(C) Partnership Agreement
-289k447 Form, Requisites, and Validity
-of Agreement
-289k453 Intent
-(Formerly 289k17)
-289 Partnership
-289I The Relation in General
-289I(F) Evidence and Determination
-289k500 Weight and Sufficiency
-289k501 In general
-(Formerly 289k52)
-Evidence of expressions of parties' intent
-to be partners could include, for example,
-the parties' statements that they are
-partners, one party holding the other
-party out as a partner on the business's
-letterhead or name plate, or in a signed
-partnership agreement; this inquiry is
-separate and apart from the other factors
-in analysis of whether a partnership exists
-and should only include evidence not
-specifically probative of the other factors.
-
--- 4 of 24 --
-
-Carvalho, Ana 3/27/2026
-For Educational Use Only
-Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 5
-6 Cases that cite this headnote
-[12] Partnership Intent
-289 Partnership
-289I The Relation in General
-289I(C) Partnership Agreement
-289k447 Form, Requisites, and Validity
-of Agreement
-289k453 Intent
-(Formerly 289k17)
-Was implied partnership
-formed? No
-Material Facts
-• Despite
-subcontractors'
-printed statement on
-checks referring to
-partnership, there
-was no evidence
-that contractor
-acknowledged,
-or even noticed,
-statement on checks
-• Contractor principal
-told other principals
-that he had no
-intention of being
-partners with anyone
-• Contractor principal
-rejected draft
-partnership agreement
-between contractor
-and one other
-subcontractor
-• Businesses did not
-change their name to
-reference each other,
-did not share bank
-accounts, and did not
-file partnership return
-for alleged partnership
-• Each business
-maintained only
-separate insurance for
-their own business
-Causes of Action
-Breach of Duty > Fiduciary
-Duty
-Towing company contractor did not
-express an intent to be partner of
-subcontractor towing companies, as
-would support subcontractors' claim that
-partnership between parties existed so
-as to support breach of fiduciary duty
-claim against contractor arising out
-of failed agreement between parties
-regarding performance of a government
-towing contract, despite subcontractors'
-printed statement on checks referring
-to partnership; there was no evidence
-that contractor acknowledged, or even
-noticed, statement on checks, contractor
-principal told other principals that he
-had no intention of being partners with
-anyone, contractor principal rejected draft
-partnership agreement between contractor
-and one other subcontractor, none of
-the businesses changed their name to
-reference each other, none shared a
-bank account, none filed a partnership
-return for alleged partnership, and
-each maintained only separate insurance
-for their own business. Vernon's
-Ann.Texas Civ.St. art. 6132b–2.03(a)
-(Expired).
-More cases on this issue
-[13] Partnership Admissibility
-289 Partnership
-289I The Relation in General
-289I(F) Evidence and Determination
-289k493 Admissibility
-289k494 In general
-(Formerly 289k46)
-A lay witness's conclusion as to whether
-or not a partnership has been formed is not
-competent evidence of the formation of a
-partnership.
-
--- 5 of 24 --
-
-Carvalho, Ana 3/27/2026
-For Educational Use Only
-Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 6
-2 Cases that cite this headnote
-[14] Partnership Control and
-Management of Partnership Business
-289 Partnership
-289IV Mutual Rights, Duties, and
-Liabilities of Partners
-289IV(B) Nature of Obligation Among
-Partners
-289k563 Control and Management of
-Partnership Business
-289k564 In general
-(Formerly 289k79)
-Sharing of control, like sharing of profits,
-is typically given particular importance
-in the analysis of whether a partnership
-exists.
-[15] Partnership Control and
-Management of Partnership Business
-289 Partnership
-289IV Mutual Rights, Duties, and
-Liabilities of Partners
-289IV(B) Nature of Obligation Among
-Partners
-289k563 Control and Management of
-Partnership Business
-289k564 In general
-(Formerly 289k79)
-Was implied partnership
-formed? No
-Material Facts
-• There was no evidence
-that any parties had
-any right to make
-executive decisions
-that extended beyond
-operation of their own
-individual company
-Causes of Action
-Breach of Duty > Fiduciary
-Duty
-Towing company contractor did not share
-control of business with subcontractor
-towing companies, as would support
-subcontractors' claim that partnership
-between parties existed so as to support
-breach of fiduciary duty claim against
-contractor arising out of failed agreement
-between parties regarding performance
-of a government towing contract; there
-was no evidence that any of parties had
-any right to make executive decisions
-that extended beyond operation of their
-own individual company. Vernon's
-Ann.Texas Civ.St. art. 6132b–2.03(a)
-(Expired).
-3 Cases that cite this headnote
-More cases on this issue
-[16] Partnership Sharing expenses
-289 Partnership
-289I The Relation in General
-289I(B) Creation and Requisites in
-General
-289k422 Community of Interest
-289k428 Sharing expenses
-(Formerly 289k5)
-Was implied partnership
-found? No
-Material Facts
-• Sharing specific
-expenses was not
-evidence of sharing
-losses or liabilities
-• Subcontractor
-principal testified that
-parties did not have
-type of agreement
-whereby subcontractor
-might share liability
-for contractor's drivers
-Causes of Action
-Breach of Duty > Fiduciary
-Duty
-Towing company contractor did not share
-losses or liability with subcontractor
-towing companies, as would support
-
--- 6 of 24 --
-
-Carvalho, Ana 3/27/2026
-For Educational Use Only
-Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 7
-subcontractors' claim that partnership
-between parties existed so as to support
-breach of fiduciary duty claim against
-contractor arising out of failed agreement
-between parties regarding performance
-of a government towing contract,
-even though parties shared certain
-expenses; sharing specific expenses was
-not evidence of sharing losses or
-liabilities, and subcontractor principal
-testified that parties did not have type
-of agreement whereby subcontractor
-might share liability for contractor's
-drivers. Vernon's Ann.Texas Civ.St.
-art. 6132b–2.03(a) (Expired).
-2 Cases that cite this headnote
-More cases on this issue
-[17] Partnership Consideration
-289 Partnership
-289I The Relation in General
-289I(C) Partnership Agreement
-289k447 Form, Requisites, and Validity
-of Agreement
-289k455 Consideration
-(Formerly 289k19)
-Was implied partnership
-formed? Yes
-Material Facts
-• Towing company
-subcontractors
-contributed to alleged
-partnership with
-towing company
-contractor by
-issuing payments of
-government contract
-fees purportedly
-made on behalf of
-partnership
-Causes of Action
-Breach of Duty > Fiduciary
-Duty
-Fact that towing company subcontractors
-contributed to alleged partnership with
-towing company contractor by issuing
-payments of government contract fees
-purportedly made on behalf of partnership
-constituted some evidence of existence
-of a partnership between subcontractors
-and contractor, as would support
-subcontractors' claim of breach of
-fiduciary duty against contractor arising
-out of failed agreement between parties
-regarding performance of government
-towing contract. Vernon's Ann.Texas
-Civ.St. art. 6132b–2.03(a) (Expired).
-More cases on this issue
-[18] Partnership As between partners
-289 Partnership
-289I The Relation in General
-289I(F) Evidence and Determination
-289k500 Weight and Sufficiency
-289k502 As between partners
-(Formerly 289k53)
-Was partnership formed? No
-Material Facts
-• Parties did not share
-profits, losses, or
-liabilities
-• Each party maintained
-exclusive control
-over his or her own
-business operations
-• There was no evidence
-that contractor
-principal or any
-other representative
-of contractor ever
-expressed intent to be
-partners
-Causes of Action
-Breach of Duty > Fiduciary
-Duty
-Evidence was not legally sufficient
-to support jury verdict that towing
-
--- 7 of 24 --
-
-Carvalho, Ana 3/27/2026
-For Educational Use Only
-Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 8
-company contractor created a partnership
-with towing company subcontractors, as
-would support subcontractors' breach of
-fiduciary duty claim against contractor
-arising out of failed agreement between
-parties regarding performance of a
-government towing contract, even
-though there was some evidence
-that subcontractor principals contributed
-money to alleged partnership, where
-parties did not share profits, losses,
-or liabilities, each party maintained
-exclusive control over his or her own
-business operations, and there was no
-evidence that contractor principal or
-any other representative of contractor
-ever expressed intent to be partners.
-Vernon's Ann.Texas Civ.St. art.
-6132b–2.03(a) (Expired).
-More cases on this issue
 Attorneys and Law Firms
 *156 Jennifer B. Hogan, Matthew E. Coveler,
 Richard P. Hogan Jr., Hogan & Hogan, L.L.P., William
@@ -716,10 +71,7 @@ job, and the winning bidders were awarded five-year
 
 -- 8 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 9
 contracts to provide exclusive towing services for the
 highways in their coverage area.
 The four tow truck companies and their principals
@@ -809,10 +161,7 @@ coming to work on time during their rotations and
 
 -- 9 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 10
 wandered outside of their segment area in search of
 higher paying tows. According to Westside, the poor
 performance of the other towing companies' drivers
@@ -904,10 +253,7 @@ Cannon. Predicated on findings that Westside breached
 
 -- 10 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 11
 its duties of loyalty, care, or as a fiduciary, the jury
 found that the harm to Skafi and Cannon resulted from
 malice or fraud and awarded exemplary damages to
@@ -990,10 +336,7 @@ Westside's Appeal
 
 -- 11 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 12
 A. The trial court erred in awarding Skafi and
 Cannon damages for unpaid towing and storage
 fees
@@ -1080,10 +423,7 @@ storage damages.9
 
 -- 12 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 13
 Thus, if the statute of frauds bars enforcement of
 Westside's alleged agreement to pay Skafi and Cannon
 for storage and free tows, the jury's findings on all
@@ -1170,10 +510,7 @@ in duration can be terminated at the will of either
 
 -- 13 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 14
 party.” Id. The issue in Clear Lake City Water
 Authority was not a statute of frauds issue but, rather,
 whether the water authority could lawfully terminate
@@ -1262,10 +599,7 @@ if he or she is the “prevailing party” and recovers
 
 -- 14 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 15
 actual damages on a breach of contract claim. See
 Tex. Civ. Prac. & Rem.Code Ann. § 38.001(8) (West
 2008) (allowing a party who prevails on a breach of
@@ -1345,10 +679,7 @@ to an employee or independent contractor or the
 
 -- 15 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 16
 right to a share of gross returns or revenues. TRPA
 art. 6123b–2.03(b)(1)(B), (b)(3); Carpenter v. Phelps,
 ––– S.W.3d. ––––, –––– – ––––, 2011 WL 1233312
@@ -1437,10 +768,7 @@ the work they performed individually and not by any
 
 -- 16 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 17
 pooling of revenues or profits. Skafi's damage model is
 also consistent with each party retaining the revenues
 earned from its individual performance of services
@@ -1522,10 +850,7 @@ partners for two reasons. First, King rejected the
 
 -- 17 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 18
 agreement, announcing that Westside did not want to
 be partners with anyone. Second, the draft partnership
 agreement would have created a partnership only
@@ -1616,10 +941,7 @@ in a variety of ways. Ingram, 288 S.W.3d at 900.
 
 -- 18 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 19
 We must look to the words used, the context in which
 the statement was made, and the identity of the speaker
 to determine if such a statement constitutes legally
@@ -1708,10 +1030,7 @@ See Ingram, 288 S.W.3d at 901–02; Hoss, 338
 
 -- 19 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 20
 S.W.3d at 645–46 (holding that exercise of control
 over some subordinate employees was no evidence of
 right of control over business operations); Big Easy
@@ -1798,10 +1117,7 @@ to statute of frauds bar against alleged ten-year
 
 -- 20 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 21
 partnership agreement because evidence of companies
 working together on twenty-three prior events was
 equally consistent with companies merely working
@@ -1890,10 +1206,7 @@ damages), twelve (fiduciary duty), thirteen (Skafi's
 
 -- 21 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 22
 breach of fiduciary duty damages), fourteen and fifteen
 (mitigation of Skafi's damages).
 Because we conclude that there is not legally sufficient
@@ -1956,10 +1269,7 @@ party challenges that ruling on appeal.
 
 -- 22 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 23
 5 The jury charge required the jury to find a breach of the duties of loyalty and care, placing the burden of
 proof on the plaintiffs for these questions. But the jury charge required the jury to find compliance with the
 fiduciary duty, placing the burden of proof on the defendant for this question.
@@ -2004,10 +1314,7 @@ Both TRPA and the TBOC identify the same five factors for determining whether pa
 
 -- 23 of 24 --
 
-Carvalho, Ana 3/27/2026
-For Educational Use Only
 Westside Wrecker Service, Inc. v. Skafi, 361 S.W.3d 153 (2011)
-© 2026 Thomson Reuters. No claim to original U.S. Government Works. 24
 partnership. Compare Tex. Bus. Orgs.Code Ann. § 152.052(a) (West Supp. 2011), with TRPA art. 6132b–
 2.03. Because the parties argue under TRPA, and the factors are the same under TBOC, we will discuss
 the parties' arguments with respect to TRPA and include citations to the relevant provision of the TBOC.
@@ -2027,7 +1334,6 @@ all four parties that Westside would not form a partnership with any other party
 for breach of contract. See Tony Gullo Motors I, L.P. v. Chapa, 212 S.W.3d 299, 304 (Tex.2006).
 19 Because of our holding on this issue, we need not reach Skafi and Cannon's fifth issue, requesting remand
 in the event the partnership finding were reinstated.
-End of Document © 2026 Thomson Reuters. No claim to original U.S.
 Government Works.
 
 -- 24 of 24 --

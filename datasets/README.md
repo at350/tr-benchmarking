@@ -3,9 +3,7 @@
 | File | Rows | Used by | Notes |
 |---|---|---|---|
 | `supergpqa/SuperGPQA Law Data.csv` | 656 | `/api/dataset` (default) and the `/database-view` page | Law-discipline subset of [SuperGPQA](https://github.com/SuperGPQA/SuperGPQA), a graduate-level multiple-choice benchmark. Columns: `uuid, question, options, answer, answer_letter, discipline, field, subfield, difficulty` plus derived `num_options` and `law_system`. |
-| `prbench/legal-data.csv` | 500 | `/api/dataset?dataset=prbench` | Multi-turn legal tasks with an expert rubric and scratchpad per task (`task, turns, field, topic, expert, scratchpad, rubric, prompt_i, response_i`). Not surfaced in the UI yet. |
 
-A harder PRBench split (`legal-data-hard.csv`, 6 MB) was tracked until September 2026 but read by nothing; it remains in git history if needed.
+A 500-task PRBench legal split (`prbench/legal-data.csv`, 11 MB) and its harder companion were tracked until September 2026. They were removed because their redistribution terms were not documented and no page used them; `/api/dataset?dataset=prbench` still serves the file if you place it at that path yourself. Both remain in git history.
 
-Both datasets are redistributed here for research use only; see the upstream
-projects for their licence terms and cite them if you publish results.
+The SuperGPQA subset is redistributed for research use; see the upstream project for its licence and cite it if you publish results.

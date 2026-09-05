@@ -31,8 +31,17 @@ def load_clusters(path: Path) -> dict:
     return data["clusters"]
 
 
+NOISE_KEYS = {"-1", "noise"}
+
+
+def describe_totals(clusters: dict) -> str:
+    real = [k for k in clusters if k not in NOISE_KEYS]
+    noise = sum(len(clusters[k].get("members", [])) for k in clusters if k in NOISE_KEYS)
+    return f"Total clusters: {len(real)} (plus {noise} unclustered answers)" if noise else f"Total clusters: {len(real)}"
+
+
 def cmd_summary(clusters: dict, args: argparse.Namespace) -> None:
-    print(f"Total clusters: {len(clusters)}\n")
+    print(describe_totals(clusters) + "\n")
     for cluster_id, cluster in clusters.items():
         members = cluster.get("members", [])
         counts = Counter(m.get("model", "?") for m in members)
@@ -47,7 +56,7 @@ def cmd_summary(clusters: dict, args: argparse.Namespace) -> None:
 
 
 def cmd_small(clusters: dict, args: argparse.Namespace) -> None:
-    print(f"Total clusters: {len(clusters)}")
+    print(describe_totals(clusters))
     for cluster_id, cluster in clusters.items():
         members = cluster.get("members", [])
         if len(members) <= args.max_size:
@@ -59,7 +68,7 @@ def cmd_small(clusters: dict, args: argparse.Namespace) -> None:
 
 def cmd_verdicts(clusters: dict, args: argparse.Namespace) -> None:
     for cluster_id, cluster in clusters.items():
-        if cluster_id in ("noise", "-1"):
+        if cluster_id in NOISE_KEYS:
             continue
         members = cluster.get("members", [])
         verdicts = [verdict_hint(member_text(m)) for m in members]
@@ -75,7 +84,7 @@ def cmd_verdicts(clusters: dict, args: argparse.Namespace) -> None:
 
 
 def cmd_excerpts(clusters: dict, args: argparse.Namespace) -> None:
-    lines = [f"Total clusters: {len(clusters)}"]
+    lines = [describe_totals(clusters)]
     for cluster_id, cluster in clusters.items():
         rep = cluster.get("representative", {})
         lines.append(f"\n=== Cluster {cluster_id} (size {len(cluster.get('members', []))}) ===")

@@ -31,7 +31,7 @@ class IRACEvaluationPipeline(LSHEvaluationPipeline):
         self._warned_no_api_key = False
 
     def encode_irac_responses(self, texts: List[str], model_name: str = 'hkunlp/instructor-large', instruction: str = None) -> np.ndarray:
-        """Encode formatted IRAC texts; thin wrapper over lsh.utils.encode_responses."""
+        """Encode formatted IRAC texts; thin wrapper over trbench.text.encode_responses."""
         return encode_responses(texts, model_name=model_name, instruction=instruction)
 
     def ingest_data(self, data: List[Dict[str, Any]]):

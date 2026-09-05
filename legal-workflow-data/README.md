@@ -11,7 +11,7 @@ reviews to browse before any API key is configured.
 | `karthic-v2-rubric-packs/` | Rubric stage (Karthic) | Approved modular rubrics with weights, anchors, and failure labels |
 | `dasha-v2-runs/` | Judge stage (Dasha) | Model answers, clusters, per-row and per-module scores from the judge panel |
 | `zak-v1-reviews/` | Review stage (Zak) | Expert-escalation packets and decision records |
-| `artifacts-v2/` | Intake stage | Uploaded source documents (PDF) and their extracted text, one folder per packet |
+| `artifacts-v2/` | Intake stage | Uploaded source documents and their extracted text, one folder per packet. The shipped fixtures hold the opinion text only (see `cases/README.md`); your own uploads may be PDF, text, or Markdown |
 
 Paths inside packets (`storedPath`, `extractedTextPath`) are relative to the
 repository root. `tmp/` is scratch and is gitignored. Commit new

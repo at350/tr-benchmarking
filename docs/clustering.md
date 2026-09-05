@@ -14,10 +14,13 @@ Answers no dense group claims are reported as noise rather than forced into a cl
 
 ## Steps
 
-1. **Collect.** `trbench generate` (free-form) or `trbench irac-benchmark` (structured) samples
-   each model `--per-model` times at temperature 0.7 (`gpt-5-nano` at 1.0). The IRAC
-   variant demands a strict `{issue, rule, application, conclusion}` JSON object; answers
-   that cannot be parsed even after repair are counted as failures, not silently dropped.
+1. **Collect.** `trbench irac-benchmark` (structured) and `trbench robust-benchmark`
+   (free-form) sample each model `--per-model` times at temperature 0.7 (`gpt-5-nano` at 1.0).
+   `trbench generate` collects a `--count` of free-form answers spread over a model list,
+   cycling the temperature 0.7 to 1.1 across samples (1.0 for models named "mini") and
+   appending to a responses file. The IRAC variant demands a strict
+   `{issue, rule, application, conclusion}` JSON object; answers that cannot be parsed even
+   after repair are counted as failures, not silently dropped.
 2. **Embed** (`trbench.text.encode_responses`). Answers are encoded with
    `hkunlp/instructor-large` under an instruction that names what should matter:
    *"Represent the legal conclusion and reasoning of this text"* for free-form answers,
@@ -36,12 +39,22 @@ Answers no dense group claims are reported as noise rather than forced into a cl
 6. **Stress-test** (`trbench poison`). Five copies each of three deliberately wrong answers
    (alien law, the wrong doctrine, criminal law applied to a contract) are added to a saved
    dataset; the command reports which cluster each poison landed in. A well-separated poison
-   forms its own cluster instead of merging with real reasoning.
+   forms its own cluster instead of merging with real reasoning. The three poisons were written
+   for the bounced-check farmland question behind the saved IRAC runs; on another question they
+   are off-topic answers rather than doctrinally wrong ones, so write your own in
+   `trbench/irac/poisons.py` before drawing conclusions about a new question.
 
-The baseline that gave the original `lsh/` folder its name, random-hyperplane
+The baseline that gave the original LSH module its name, random-hyperplane
 locality-sensitive hashing to propose candidate pairs followed by Louvain community
 detection, is kept in `trbench.lsh_index` and `trbench.graph_clustering` and runs with
-`trbench cluster --method lsh`. Every saved run used the density method.
+`trbench cluster --method lsh`.
+
+Provenance of the saved runs: the first five free-form runs (10 February 2026,
+`run_20260210_154919` to `run_20260210_161805`) used that LSH + Louvain baseline; the later
+free-form runs used UMAP to 5 dimensions; every IRAC run used 10 dimensions, which is the
+current default for both pipelines.
+
+<p align="center"><img src="figures/viz_cluster_distribution.png" width="70%" alt="Cluster sizes coloured by keyword verdict for the latest free-form run"></p>
 
 ## Files under `runs/`
 
@@ -62,7 +75,7 @@ runs/
 Ids are `<model>_<index>` and must be unique (duplicates are reported and the last one wins).
 
 **Run file**: written by `trbench.results.build_results_document`, read by `trbench inspect` and
-the portal's `/lsh-runs` page.
+the portal's `/lsh-runs` page. This is what the current code writes (illustrative values):
 
 ```json
 {
@@ -84,8 +97,11 @@ the portal's `/lsh-runs` page.
 ```
 
 Clusters are ordered largest first; `"-1"` is the noise cluster. Free-form members have a
-`text` field instead of the four IRAC fields. Older saved runs predate `params`,
-`centroid_members`, and `edge_members`; readers treat those as optional.
+`text` field instead of the four IRAC fields. The saved runs were written by earlier versions
+of the code: none has `params` or `duplicate_ids_dropped`, only the three most recent IRAC
+runs have `centroid_members` and `edge_members`, four free-form runs key the noise cluster
+`"noise"` instead of `"-1"`, and `failures` may use full Replicate ids. Readers (the portal,
+`trbench inspect`) treat all of these as optional.
 
 ## Reproducibility
 
@@ -94,6 +110,8 @@ Clusters are ordered largest first; `"-1"` is the noise cluster. Free-form membe
   `numba`, and `scikit-learn` releases can move points slightly. Record `pip freeze` with
   any run you publish.
 - Topic labels come from a model call and are not deterministic even with the seeded sample.
+- The embedding model is about 1.3 GB and is downloaded on first use; embedding 300 answers
+  takes a few minutes on a laptop CPU.
 - `LSH_MOCK_EMBEDDINGS=1` replaces the encoder with seeded random vectors so the commands
   and tests can run without downloading a model. Cluster counts under mock embeddings are
   meaningless as science but useful as a regression check (the test-suite relies on this).

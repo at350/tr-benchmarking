@@ -17,7 +17,7 @@ and whether a scoring rubric derived from a real court opinion agrees with them.
   <img src="docs/figures/viz_before_topical.png" width="45%" alt="UMAP of generic embeddings: enforceable and unenforceable answers mixed together">
   <img src="docs/figures/viz_after_instruction.png" width="45%" alt="UMAP of instruction-tuned embeddings: answers separate by legal conclusion">
 </p>
-<p align="center"><sub>Same 318 answers to one Statute of Frauds question. Left: generic sentence embeddings group by topic. Right: instruction-tuned embeddings ("represent the legal conclusion and reasoning") separate them by conclusion. Colours are an automated keyword verdict, not human labels.</sub></p>
+<p align="center"><sub>Same 318 answers (314 unique ids) to one Statute of Frauds question. Left: generic sentence embeddings group by topic. Right: instruction-tuned embeddings ("represent the legal conclusion and reasoning") separate them by conclusion. Colours are an automated keyword verdict, not human labels.</sub></p>
 
 ## What is in the repository
 
@@ -50,8 +50,9 @@ environment or a `.env` file (`cp .env.example .env`).
 trbench inspect runs/irac/results/run_20260303_163604.json summary
 trbench inspect runs/free-form/results/run_20260217_153621.json verdicts
 
-# Re-cluster the 318 saved free-form answers (downloads the embedding model, no API calls)
-trbench cluster
+# Re-cluster the saved free-form answers into a scratch folder (downloads the 1.3 GB embedding
+# model on first use, a few minutes on a CPU, no API calls); drop --results-dir to add the run to runs/
+trbench cluster --results-dir /tmp/trbench-runs
 
 # Build a rubric from a gold answer, offline
 cd rubric-automation && python rrd_legal.py --demo --weighting doctrinal --verbose && cd ..
@@ -78,7 +79,13 @@ trbench poison --input runs/irac/responses/responses_<timestamp>.json
 
 Restrict the models with `--openai-models` / `--replicate-models` (comma-separated), resume an
 interrupted run with `--resume`, and point `--output-dir` elsewhere to keep experiments apart.
-The portal picks up anything written under `runs/*/results/` live.
+A full run is about 200 model calls and takes tens of minutes, most of it waiting on the
+providers; without any key the benchmark commands print the plan and exit without writing.
+The portal lists every `run_<timestamp>.json` under `runs/free-form/results/` and
+`runs/irac/results/` and refreshes when one appears; runs written to another `--output-dir`
+are not shown. The three built-in poisons were written for the saved farmland question, so on
+your own question they are off-topic rather than doctrinally wrong answers (see
+[docs/clustering.md](docs/clustering.md)).
 
 ## Commands
 
@@ -108,13 +115,29 @@ swaps the embedding model for random vectors so the pipeline can be exercised wi
 
 Details, file formats, and reproducibility notes: [docs/clustering.md](docs/clustering.md).
 
+## Results at a glance
+
+Latest saved IRAC run per question (`trbench inspect <run> summary` reproduces these numbers). "Noise" is the count of answers HDBSCAN left unclustered.
+
+| Question (abridged) | Run | Answers | Models | Clusters | Noise | Largest cluster |
+|---|---|---|---|---|---|---|
+| Father's oral promise to pay son's loans if he marries (Statute of Frauds, marriage) | `irac/results/run_20260303_163604` | 176 | 9 | 13 | 0 | 41 |
+| Farmland deed, bounced $10,000 check, parol evidence objection | `irac/results/run_20260223_233818` | 180 | 9 | 13 | 0 | 25 |
+| Same question with 15 poisoned answers injected | `irac/results/run_20260303_155256_poisoned` | 195 | 12 | 15 | 0 | 25 |
+| Merchant's signed firm offer, later revocation (UCC 2-205) | `irac/results/run_20260224_005948` | 180 | 9 | 10 | 0 | 40 |
+| Missing dog, posted reward, finder unaware of it | `irac/results/run_20260224_153911` | 180 | 9 | 15 | 8 | 20 |
+| "If you will mow my lawn..." neighbour promise (consideration) | `irac/results/run_20260224_154905` | 179 | 9 | 13 | 1 | 21 |
+| Couple shopping, injury in a department store (IIED) | `irac/results/run_20260224_003329` | 179 | 9 | 12 | 0 | 40 |
+
+Free-form baseline on the marriage question: `free-form/results/run_20260217_153621`, 318 answers from 9 models, 13 clusters, none unclustered, largest cluster 83. The two figures at the top of this page come from that run.
+
 ## The source-grounded evaluation workflow
 
 The portal's `/legal-workflow` page runs a four-stage workflow whose state is plain JSON in `legal-workflow-data/`:
 
 | Stage | Role | Produces |
 |---|---|---|
-| Intake | **Frank** | A *locked benchmark packet* from a real source (three Statute of Frauds opinions are in `cases/`): routing to a doctrine pack, extraction sheet, gold answer, and a reverse-engineered question every model will be asked. |
+| Intake | **Frank** | A *locked benchmark packet* from a real source (the text of three Statute of Frauds opinions is in `cases/`): routing to a doctrine pack, extraction sheet, gold answer, and a reverse-engineered question every model will be asked. |
 | Rubric | **Karthic** | A modular weighted rubric (Modules 0–4) with scoring anchors and failure labels; optionally an original-vs-variation pair. |
 | Judge | **Dasha** | Model answers are clustered (through `trbench bridge`), and a judge panel scores each cluster's centroid against the rubric, so hundreds of answers cost a handful of judge calls. |
 | Review | **Zak** | Only when the judges cannot reach a strict majority: a scoped packet for a human expert and a structured decision record. |
@@ -123,8 +146,8 @@ The portal's `/legal-workflow` page runs a four-stage workflow whose state is pl
 
 ## Models and data
 
-- **Models queried by the IRAC pipeline:** `gpt-4o`, `gpt-4-turbo`, `gpt-5-nano`, `gpt-5.2` (OpenAI API); `google/gemini-3-flash`, `google/gemini-3-pro`, `meta/llama-4-maverick-instruct`, `deepseek-ai/deepseek-v3.1`, `anthropic/claude-4.5-sonnet`, `anthropic/claude-3.5-haiku` (Replicate); `xai/grok-4` if `ENABLE_GROK4=true`. The free-form runs also sampled `gpt-3.5-turbo`, `gpt-5-mini`, `claude-3.5-sonnet`, `llama-3-70b`, and `mixtral-8x7b`. The portal's judge and drafting features offer current OpenAI, Anthropic, and Gemini models directly.
-- **Datasets** (`datasets/`): the law subset of [SuperGPQA](https://github.com/SuperGPQA/SuperGPQA) (656 multiple-choice questions) and 500 multi-turn tasks from PRBench, used as question sources; SuperGPQA is browsable at `/database-view` and both are served by `/api/dataset`. Three real appellate opinions (`cases/`) and two law-school outlines (`outlines/`) ground the workflow. Attribution and terms: [datasets/README.md](datasets/README.md).
+- **Models queried by the IRAC pipeline:** `gpt-4o`, `gpt-4-turbo`, `gpt-5-nano`, `gpt-5.2` (OpenAI API); `google/gemini-3-flash`, `google/gemini-3-pro`, `meta/llama-4-maverick-instruct`, `deepseek-ai/deepseek-v3.1`, `anthropic/claude-4.5-sonnet`, `anthropic/claude-3.5-haiku` (Replicate); `xai/grok-4` if `ENABLE_GROK4=true`. The free-form runs also sampled `gpt-3.5-turbo`, `gpt-5-mini`, `claude-3.5-sonnet`, and `llama-3-70b`. The portal's judge and drafting features offer current OpenAI, Anthropic, and Gemini models directly.
+- **Data** (`datasets/`, `cases/`, `outlines/`): the law subset of [SuperGPQA](https://github.com/SuperGPQA/SuperGPQA) (656 multiple-choice questions), browsable at `/database-view`; the public-domain text of three appellate opinions that the workflow demo is built on; and an `outlines/` folder for your own law-school outline PDFs (none are redistributed). Attribution and terms: [datasets/README.md](datasets/README.md), [cases/README.md](cases/README.md).
 - **Saved runs:** 14 free-form and 15 IRAC clustering runs under `runs/`, including the poisoned-data runs.
 
 ## Tests and checks
@@ -146,7 +169,7 @@ tr-benchmarking/
 ├── frontend/                 Next.js portal (src/app pages and API routes, src/lib server logic)
 ├── instructions/             prompt canon for Frank / Karthic / Dasha / Zak, plus the live-demo script
 ├── legal-workflow-data/      JSON written by the portal: packets, rubric packs, runs, reviews, uploaded artifacts
-├── datasets/  cases/  outlines/  prompt-libraries/
+├── datasets/  cases/  outlines/  prompt-libraries/   SuperGPQA subset, opinion texts, your own outline PDFs, historical prompts
 ├── docs/                     figures/ and clustering.md
 ├── experiments/              earlier benchmark scripts kept for provenance
 ├── tests/                    pytest suite for the package
@@ -177,9 +200,9 @@ The September 2026 commits are a cleanup, hardening, and packaging pass over the
 
 ## License and citation
 
-Code is released under the [MIT License](LICENSE). The datasets and court opinions under
-`datasets/` and `cases/` are redistributed for research use; see [datasets/README.md](datasets/README.md)
-for their terms. If you use this work, please cite it with the metadata in
+Code is released under the [MIT License](LICENSE). The SuperGPQA subset under `datasets/` is
+redistributed for research use under its upstream terms ([datasets/README.md](datasets/README.md));
+the opinions under `cases/` are public records ([cases/README.md](cases/README.md)). If you use this work, please cite it with the metadata in
 [CITATION.cff](CITATION.cff) (GitHub shows a "Cite this repository" button).
 
 ## References

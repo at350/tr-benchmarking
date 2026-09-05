@@ -11,7 +11,7 @@ type SsePayload = Record<string, string | number | boolean | null>;
 export async function GET() {
     const resultsDirectories = resolveResultsDirectories();
     if (resultsDirectories.length === 0) {
-        return new Response('LSH results directory not found.', { status: 404 });
+        return new Response('Run results directory not found.', { status: 404 });
     }
 
     const encoder = new TextEncoder();
@@ -48,8 +48,8 @@ export async function GET() {
                     }));
                 }
             } catch (error) {
-                safeSend('error', { message: 'Failed to watch LSH results directory.' });
-                console.error('Failed to watch LSH results directory for SSE updates.', error);
+                safeSend('error', { message: 'Failed to watch the run results directories.' });
+                console.error('Failed to watch the run results directories for live updates.', error);
             }
         },
         cancel() {

@@ -9,7 +9,7 @@ export async function GET() {
     try {
         const resultsDirectory = getLshResultsDirectory();
         if (!resultsDirectory) {
-            return NextResponse.json({ error: 'LSH results directory not found.' }, { status: 404 });
+            return NextResponse.json({ error: 'Run results directory not found.' }, { status: 404 });
         }
 
         const runs = listLshRunSummaries();

@@ -105,20 +105,23 @@ async def collect(args, question: str, existing_ids) -> List[dict]:
     replicate_models = [m for m in args.replicate_models.split(",") if m.strip()]
     if env_flag("ENABLE_GROK4"):
         replicate_models.append("xai/grok-4")
+    print(f"OpenAI models ({'key found' if openai_key else 'OPENAI_API_KEY not set, skipped'}): {', '.join(openai_models) or '-'}")
+    print(f"Replicate models ({'token found' if replicate_token else 'REPLICATE_API_TOKEN not set, skipped'}): {', '.join(replicate_models) or '-'}")
     if not openai_key:
-        print("Warning: OPENAI_API_KEY not set; OpenAI models and per-cluster doctrine labels are skipped.")
         openai_models = []
+        print("Note: without OPENAI_API_KEY the per-cluster doctrine labels are also skipped.")
     if not replicate_token:
-        print("Warning: REPLICATE_API_TOKEN not set; Replicate-hosted models are skipped.")
         replicate_models = []
 
     plan = [(m, i) for m in openai_models for i in range(args.per_model) if f"{m}_{i}" not in existing_ids]
     replicate_plan = [(m, i) for m in replicate_models for i in range(args.per_model)
                       if f"{short_model_name(m)}_{i}" not in existing_ids]
-    print(f"Planned requests: {len(plan)} OpenAI, {len(replicate_plan)} Replicate "
-          f"({len(openai_models) + len(replicate_models)} models x {args.per_model}, minus {len(existing_ids)} resumed).")
-    if args.dry_run or not (plan or replicate_plan):
+    print(f"Planned requests: {len(plan)} OpenAI + {len(replicate_plan)} Replicate "
+          f"({args.per_model} per model, {len(existing_ids)} already collected). Each request is one model call.")
+    if args.dry_run:
         return []
+    if not (plan or replicate_plan):
+        raise SystemExit("Nothing to do: no model has a usable key and nothing is being resumed. Set OPENAI_API_KEY and/or REPLICATE_API_TOKEN (see .env.example).")
 
     from openai import AsyncOpenAI
     from tqdm.asyncio import tqdm

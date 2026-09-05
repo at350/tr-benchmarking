@@ -29,7 +29,7 @@ DEFAULT_QUESTION = (
     "recited in their written instrument. The man objects to the woman's proposed testimony. Will the trial "
     "court judge be correct in sustaining the man's objection?"
 )
-OPENAI_MODELS = ["gpt-4o", "gpt-4-turbo", "gpt-5-nano", "gpt-5.2", "gpt-5-pro"]
+OPENAI_MODELS = ["gpt-4o", "gpt-4-turbo", "gpt-5-nano", "gpt-5.2"]  # gpt-5-pro never returned an answer in the saved runs
 REPLICATE_MODELS = ["google/gemini-3-flash", "google/gemini-3-pro", "meta/llama-4-maverick-instruct",
                     "anthropic/claude-4.5-sonnet", "anthropic/claude-3.5-haiku"]
 
@@ -67,16 +67,20 @@ async def fetch_replicate(semaphore, token, model, question, index):
 async def collect(args, question) -> List[dict]:
     load_env()
     openai_key, replicate_token = os.getenv("OPENAI_API_KEY"), os.getenv("REPLICATE_API_TOKEN")
-    openai_models = [m for m in args.openai_models.split(",") if m.strip()] if openai_key else []
-    replicate_models = [m for m in args.replicate_models.split(",") if m.strip()] if replicate_token else []
+    openai_models = [m for m in args.openai_models.split(",") if m.strip()]
+    replicate_models = [m for m in args.replicate_models.split(",") if m.strip()]
+    print(f"OpenAI models ({'key found' if openai_key else 'OPENAI_API_KEY not set, skipped'}): {', '.join(openai_models) or '-'}")
+    print(f"Replicate models ({'token found' if replicate_token else 'REPLICATE_API_TOKEN not set, skipped'}): {', '.join(replicate_models) or '-'}")
     if not openai_key:
-        print("Warning: OPENAI_API_KEY not set; OpenAI models are skipped.")
+        openai_models = []
     if not replicate_token:
-        print("Warning: REPLICATE_API_TOKEN not set; Replicate-hosted models are skipped.")
+        replicate_models = []
     total = (len(openai_models) + len(replicate_models)) * args.per_model
-    print(f"Planned requests: {total} ({len(openai_models)} OpenAI + {len(replicate_models)} Replicate models x {args.per_model}).")
-    if args.dry_run or total == 0:
+    print(f"Planned requests: {total} ({len(openai_models) + len(replicate_models)} models x {args.per_model}). Each request is one model call.")
+    if args.dry_run:
         return []
+    if total == 0:
+        raise SystemExit("Nothing to do: no model has a usable key. Set OPENAI_API_KEY and/or REPLICATE_API_TOKEN (see .env.example).")
 
     from openai import AsyncOpenAI
     from tqdm.asyncio import tqdm

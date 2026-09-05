@@ -10,11 +10,6 @@ from typing import List, Optional
 
 import numpy as np
 
-try:
-    from sentence_transformers import SentenceTransformer
-except ImportError:  # surfaced as a clear error in get_embedding_model
-    SentenceTransformer = None
-
 DEFAULT_EMBEDDING_MODEL = "hkunlp/instructor-large"
 EMBEDDING_DIM = 768
 
@@ -42,11 +37,13 @@ def clean_text(text: Optional[str]) -> str:
 def get_embedding_model(model_name: str = DEFAULT_EMBEDDING_MODEL):
     """Load (once) and return the sentence-transformers model. Raises if it cannot be loaded."""
     global _EMBEDDING_MODEL, _EMBEDDING_NAME
-    if SentenceTransformer is None:
+    try:
+        from sentence_transformers import SentenceTransformer  # imported here: it loads torch, which takes seconds
+    except ImportError as exc:
         raise RuntimeError(
             "sentence-transformers is not installed. Run `pip install -e .` "
             "(or set LSH_MOCK_EMBEDDINGS=1 for a test run with random vectors)."
-        )
+        ) from exc
     if _EMBEDDING_MODEL is None or _EMBEDDING_NAME != model_name:
         _log(f"Loading embedding model: {model_name}...")
         try:
