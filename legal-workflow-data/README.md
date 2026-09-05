@@ -15,5 +15,5 @@ reviews to browse before any API key is configured.
 | `artifacts-v2/` | Intake stage | Uploaded source documents (PDF) and their extracted text, one folder per packet |
 
 Paths inside packets (`storedPath`, `extractedTextPath`) are relative to the
-repository root. `tmp/` and `*.log` are scratch and are gitignored. Commit new
+repository root. `tmp/` is scratch and is gitignored. Commit new
 records here only if they are meant to ship as examples.

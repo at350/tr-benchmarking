@@ -132,6 +132,8 @@ const DATA_DIRECTORIES = {
     artifacts: 'artifacts-v2',
 } as const;
 
+const VALID_ARTIFACT_ROLES = new Set<ArtifactRole>(['anchor_case', 'supporting_authority', 'issue_statement', 'supplemental']);
+
 const DEFAULT_OPENAI_JSON_MODEL = 'gpt-4.1-mini';
 const DEFAULT_OPENAI_TEXT_MODEL = 'gpt-5.4-mini';
 const DEFAULT_ANTHROPIC_JUDGE_MODEL = 'claude-opus-4-6';
@@ -908,7 +910,7 @@ export async function saveFrankPacket(input: Partial<FrankPacketV2> & { id?: str
     const now = new Date().toISOString();
     const packet: FrankPacketV2 = withDerivedControllerCard({
         schemaVersion: 2,
-        id: existing?.id ?? normalizeNonEmptyString(input.id, `frank_v2_${Date.now()}_${randomUUID().slice(0, 8)}`),
+        id: existing?.id ?? normalizeRecordId(input.id, `frank_v2_${Date.now()}_${randomUUID().slice(0, 8)}`),
         status: input.status === 'approved' ? 'approved' : existing?.status ?? 'draft',
         phase: normalizePhase(input.phase, existing?.phase ?? 'source'),
         legalDomain: 'Statute of Frauds',
@@ -1473,7 +1475,7 @@ export async function saveKarthicRubricPack(input: Partial<KarthicRubricPackV2> 
     };
     const pack = withActiveRubricTrackAliases({
         schemaVersion: 2,
-        id: existing?.id ?? normalizeNonEmptyString(input.id, `karthic_v2_${Date.now()}_${randomUUID().slice(0, 8)}`),
+        id: existing?.id ?? normalizeRecordId(input.id, `karthic_v2_${Date.now()}_${randomUUID().slice(0, 8)}`),
         frankPacketId: frankPacket.id,
         preClusterRunId: normalizeNullableString(input.preClusterRunId) ?? existing?.preClusterRunId ?? null,
         selectedPack: frankPacket.selectedPack as FrankSofPackId,
@@ -3562,7 +3564,7 @@ function summarizeModelBreakdown(members: DashaResponseRecord[]) {
 }
 
 async function saveUploadedArtifacts(ownerId: string, files: UploadFileInput[]) {
-    const artifactDirectory = path.join(await ensureDirectory(DATA_DIRECTORIES.artifacts), ownerId);
+    const artifactDirectory = await resolveOwnedArtifactDirectory(ownerId);
     await fs.mkdir(artifactDirectory, { recursive: true });
     const artifacts: ArtifactRecord[] = [];
     for (const file of files) {
@@ -3588,8 +3590,17 @@ async function saveUploadedArtifacts(ownerId: string, files: UploadFileInput[]) 
 }
 
 async function deleteUploadedArtifacts(ownerId: string) {
-    const artifactsRoot = await ensureDirectory(DATA_DIRECTORIES.artifacts);
-    await fs.rm(path.join(artifactsRoot, ownerId), { recursive: true, force: true });
+    await fs.rm(await resolveOwnedArtifactDirectory(ownerId), { recursive: true, force: true });
+}
+
+/** The per-record artifact folder, guaranteed to sit inside the artifact store (ids come from clients). */
+async function resolveOwnedArtifactDirectory(ownerId: string) {
+    const artifactsRoot = path.resolve(await ensureDirectory(DATA_DIRECTORIES.artifacts));
+    const directory = path.resolve(artifactsRoot, sanitizeFileName(ownerId));
+    if (directory === artifactsRoot || !directory.startsWith(artifactsRoot + path.sep)) {
+        throw new Error('Invalid record id.');
+    }
+    return directory;
 }
 
 async function extractTextFromUploadedFile(bytes: Uint8Array, fileName: string) {
@@ -5273,8 +5284,64 @@ function normalizeFailureModes(value: unknown): FrankLikelyFailureModes | null {
     };
 }
 
+const ARTIFACT_STORE_PREFIX = `legal-workflow-data/${DATA_DIRECTORIES.artifacts}/`;
+
+/** True for a repo-relative artifact path with no traversal, e.g. legal-workflow-data/artifacts-v2/<record>/<file>. */
+function isSafeArtifactPath(value: unknown): value is string {
+    if (typeof value !== 'string' || value.length === 0 || value.length > 1024) {
+        return false;
+    }
+    const normalized = value.split('\\').join('/');
+    if (path.posix.isAbsolute(normalized) || /^[A-Za-z]:/.test(normalized)) {
+        return false;
+    }
+    if (normalized.split('/').some((segment) => segment === '..' || segment === '')) {
+        return false;
+    }
+    return normalized.startsWith(ARTIFACT_STORE_PREFIX);
+}
+
+/**
+ * Keep only well-formed artifact records. Paths are re-checked at read time by
+ * resolveArtifactPath, so a record that slips through here still cannot escape the store.
+ */
 function normalizeArtifacts(value: unknown): ArtifactRecord[] {
-    return Array.isArray(value) ? value as ArtifactRecord[] : [];
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    const records: ArtifactRecord[] = [];
+    for (const item of value) {
+        if (!item || typeof item !== 'object') {
+            continue;
+        }
+        const record = item as Record<string, unknown>;
+        const storedPath = legacyArtifactPathToRelative(record.storedPath);
+        const extractedTextPath = legacyArtifactPathToRelative(record.extractedTextPath);
+        if (typeof record.id !== 'string' || typeof record.fileName !== 'string'
+            || !isSafeArtifactPath(storedPath) || !isSafeArtifactPath(extractedTextPath)) {
+            continue;
+        }
+        records.push({
+            id: sanitizeFileName(record.id),
+            role: VALID_ARTIFACT_ROLES.has(record.role as ArtifactRole) ? record.role as ArtifactRole : 'supplemental',
+            fileName: sanitizeFileName(record.fileName),
+            storedPath,
+            extractedTextPath,
+            extractedText: typeof record.extractedText === 'string' ? record.extractedText : '',
+            uploadedAt: typeof record.uploadedAt === 'string' ? record.uploadedAt : new Date().toISOString(),
+        });
+    }
+    return records;
+}
+
+/** Records saved by older versions hold absolute paths from the author's machine; keep only the in-store tail. */
+function legacyArtifactPathToRelative(value: unknown): unknown {
+    if (typeof value !== 'string') {
+        return value;
+    }
+    const marker = '/legal-workflow-data/';
+    const index = value.indexOf(marker);
+    return path.isAbsolute(value) && index !== -1 ? value.slice(index + 1) : value;
 }
 
 function normalizeStrength(value: unknown) {
@@ -6020,6 +6087,19 @@ function parseJsonObjectResponse(value: string) {
     return null;
 }
 
+/** Model identifiers are interpolated into provider URLs; allow only plain tokens. */
+export function assertModelId(model: string) {
+    if (!/^[A-Za-z0-9._:-]{1,128}$/.test(model)) {
+        throw new Error(`Invalid model id: ${model}`);
+    }
+    return model;
+}
+
+/** Accept a client-supplied record id only if it is a plain token; otherwise mint a fresh one. */
+function normalizeRecordId(value: unknown, fallback: string) {
+    return typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value) ? value : fallback;
+}
+
 function sanitizeFileName(value: string) {
     return value
         .replace(/[^a-zA-Z0-9._-]+/g, '_')
@@ -6085,12 +6165,16 @@ function resolveRepoRoot() {
  * are re-rooted at the local `legal-workflow-data/` directory.
  */
 function resolveArtifactPath(storedPath: string) {
-    if (!path.isAbsolute(storedPath)) {
-        return path.join(resolveRepoRoot(), storedPath);
+    const relative = legacyArtifactPathToRelative(storedPath);
+    if (!isSafeArtifactPath(relative)) {
+        throw new Error('Artifact path is outside the artifact store.');
     }
-    const marker = `${path.sep}legal-workflow-data${path.sep}`;
-    const index = storedPath.indexOf(marker);
-    return index === -1 ? storedPath : path.join(resolveRepoRoot(), storedPath.slice(index + 1));
+    const storeRoot = path.resolve(resolveRepoRoot(), 'legal-workflow-data', DATA_DIRECTORIES.artifacts);
+    const resolved = path.resolve(resolveRepoRoot(), relative);
+    if (!resolved.startsWith(storeRoot + path.sep)) {
+        throw new Error('Artifact path is outside the artifact store.');
+    }
+    return resolved;
 }
 
 async function ensureDirectory(directoryKey: keyof typeof DATA_DIRECTORIES | string) {
@@ -6383,7 +6467,7 @@ async function generateGeminiResponse(input: {
     if (input.systemPrompt.trim()) {
         contents.unshift({ role: 'user', parts: [{ text: `System: ${input.systemPrompt}` }] });
     }
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${input.model}:generateContent`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(assertModelId(input.model))}:generateContent`, {
         method: 'POST',
         signal: input.signal,
         headers: {

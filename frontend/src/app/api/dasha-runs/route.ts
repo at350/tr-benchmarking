@@ -1,10 +1,8 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { spawn } from 'child_process';
-
 import { NextResponse } from 'next/server';
 
-import { listDashaRuns, runDashaEvaluation } from '@/lib/legal-workflow-v2-server';
+import { validateUploads } from '@/lib/uploads';
+
+import { executeDashaRun, listDashaRuns, runDashaEvaluation } from '@/lib/legal-workflow-v2-server';
 import type { ArtifactRole, DashaJudgeModelSelection, DashaRunMode, DashaSelectedModel, KarthicRubricTrackId, ReasoningEffort } from '@/lib/legal-workflow-v2-types';
 
 export const dynamic = 'force-dynamic';
@@ -66,6 +64,11 @@ export async function POST(req: Request) {
             }
         }
 
+        const uploadProblem = validateUploads(files);
+        if (uploadProblem) {
+            return NextResponse.json({ error: uploadProblem.error }, { status: uploadProblem.status });
+        }
+
         const normalizedFiles = await Promise.all(files.map(async (entry, index) => {
             if (!(entry instanceof File)) {
                 throw new Error('Invalid file upload.');
@@ -91,38 +94,16 @@ export async function POST(req: Request) {
             judgeReasoningEffort: judgeReasoningEffort || undefined,
         });
 
-        // The run executes in a detached Node process that calls back into this server
-        // (POST /api/dasha-runs/<id>/execute) so the HTTP request can return immediately.
-        // Its output goes to a log file next to the run data rather than being discarded.
-        const workerScript = path.join(process.cwd(), 'scripts', 'dasha-run-worker.mjs');
-        const log = await openWorkerLog();
-        const logFd = log ? log.fd : 'ignore';
-        const child = spawn(process.execPath, [workerScript, new URL(req.url).origin, item.id], {
-            cwd: process.cwd(),
-            detached: true,
-            env: process.env,
-            stdio: ['ignore', logFd, logFd],
+        // The evaluation can take many minutes, so it runs after this response is sent.
+        // Progress and results are written to the run's JSON file, which the UI polls.
+        void executeDashaRun(item.id).catch((error) => {
+            console.error(`Dasha run ${item.id} failed.`, error);
         });
-        child.unref();
-        // the child holds its own copy of the descriptor
-        await log?.close().catch(() => undefined);
 
         return NextResponse.json({ item });
     } catch (error) {
         console.error('Failed to run Dasha evaluation.', error);
         const message = error instanceof Error ? error.message : 'Failed to run Dasha evaluation.';
         return NextResponse.json({ error: message }, { status: 500 });
-    }
-}
-
-/** Append handle for legal-workflow-data/dasha-worker.log, or null if it cannot be opened. */
-async function openWorkerLog(): Promise<fs.FileHandle | null> {
-    const root = path.basename(process.cwd()) === 'frontend' ? path.resolve(process.cwd(), '..') : process.cwd();
-    try {
-        const directory = path.join(root, 'legal-workflow-data');
-        await fs.mkdir(directory, { recursive: true });
-        return await fs.open(path.join(directory, 'dasha-worker.log'), 'a');
-    } catch {
-        return null;
     }
 }

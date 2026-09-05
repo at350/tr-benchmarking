@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { assertModelId } from '@/lib/legal-workflow-v2-server';
 import OpenAI from 'openai';
 
 import { buildLshJudgeOutputInstructions } from '@/lib/lsh-judge-output-format';
@@ -791,7 +792,7 @@ async function generateGeminiResponse({ model, systemPrompt, messages, temperatu
         generationConfig.thinkingConfig = { thinkingLevel };
     }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(assertModelId(model))}:generateContent`, {
         method: 'POST',
         headers: {
             'content-type': 'application/json',

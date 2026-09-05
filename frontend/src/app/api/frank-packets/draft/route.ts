@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+import { validateUploads } from '@/lib/uploads';
+
 import { draftFrankPacket, draftFrankPacketFromTemplate } from '@/lib/legal-workflow-v2-server';
 import type { ArtifactRole, ReasoningEffort } from '@/lib/legal-workflow-v2-types';
 
@@ -28,6 +30,11 @@ export async function POST(req: Request) {
                 reasoningEffort: reasoningEffort || undefined,
             });
             return NextResponse.json({ item });
+        }
+
+        const uploadProblem = validateUploads(files);
+        if (uploadProblem) {
+            return NextResponse.json({ error: uploadProblem.error }, { status: uploadProblem.status });
         }
 
         const normalizedFiles = await Promise.all(files.map(async (entry, index) => {

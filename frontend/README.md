@@ -58,7 +58,6 @@ src/lib/            server-side logic
   legal-workflow-v2-prompts.ts  loads prompt text from ../instructions/
   lsh-runs.ts / outlines.ts     readers for clustering runs and outline PDFs
   dasha-comparison.ts           comparison math (unit tested)
-scripts/            background workers spawned by API routes
 ```
 
 File and run identifiers coming from URLs are validated against fixed patterns

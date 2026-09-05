@@ -132,7 +132,7 @@ Things a reader should know before relying on it:
 - Full benchmark runs cost money and time (roughly 200 model calls plus one GPT-4o call per cluster); the saved runs exist so the analysis can be explored without that.
 - Cluster doctrine labels come from a model, so they can differ between runs on identical input. The clusters themselves use a fixed UMAP seed and are stable for a given set of package versions; `requirements.txt` sets lower bounds only, so exact reproduction of a saved run needs the same umap-learn, numba, and scikit-learn versions.
 - Model identifiers are pinned in source; as providers retire models the generation scripts will need updating.
-- The frontend stores state as files on disk and is meant to run locally for one user at a time.
+- The frontend stores state as files on disk and is meant to run locally for one user at a time. Its API routes have no authentication, and several of them spend provider credits or start long model runs, so keep it on localhost and do not point `ALLOWED_DEV_ORIGINS` at an untrusted network. Record ids and stored file paths from clients are validated and confined to `legal-workflow-data/`; uploads are limited to PDF, text, and Markdown files of at most 25 MB.
 
 ## References
 

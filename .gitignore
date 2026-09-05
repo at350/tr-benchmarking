@@ -31,5 +31,3 @@ output/
 # rubric-automation exports (regenerate with: python rrd_legal.py --demo)
 rubric-automation/outputs/
 
-# Worker log written by the frontend
-legal-workflow-data/*.log
