@@ -12,9 +12,7 @@ Attribution License v1.0; [datasets/README.md](../datasets/README.md) has the no
 
 | Question (abridged) | SuperGPQA `uuid` | Question file | Runs |
 |---|---|---|---|
-| Father's oral promise to pay the son's loans if he marries (Statute of Frauds, marriage provision) | `b4239f357e884644884ea0de712876ab` | `irac/questions/question_sofmarriage.txt` | `run_20260224_010918`, `run_20260303_160150`, `run_20260303_163604` |
-| Father's oral promise to pay the son's loans if he marries (Statute of Frauds, marriage provision) | `b4239f357e884644884ea0de712876ab` | `irac/questions/question_sofmarriage.txt` | `run_20260301_101100` |
-| Father's oral promise to pay the son's loans if he marries (Statute of Frauds, marriage provision) | `b4239f357e884644884ea0de712876ab` | `irac/questions/question_sofmarriage.txt` | `run_20260303_163035` |
+| Father's oral promise to pay the son's loans if he marries (Statute of Frauds, marriage provision) | `b4239f357e884644884ea0de712876ab` | `irac/questions/question_sofmarriage.txt` | `run_20260224_010918`, `run_20260303_160150`, `run_20260303_163604`, `run_20260301_101100`, `run_20260303_163035` |
 | Farmland deed, bounced $10,000 check, parol evidence objection | `ce38c58aedb74a91a48456c0f8e1db69` | `irac/questions/question_farmland.txt` | `run_20260223_223143`, `run_20260223_233818`, `run_20260224_000751_poisoned`, `run_20260303_155256_poisoned` |
 | Merchant's signed firm offer, later revocation (UCC 2-205) | `76808b7766eb4f65ba3f444b593fb332` | `irac/questions/question_q2.txt` | `run_20260224_005948` |
 | Missing dog, posted reward, finder unaware of it | `1f5bb1ab224a4685ac5ef72f94942ac6` | `irac/questions/question_dog.txt` | `run_20260224_153911` |
