@@ -11,7 +11,7 @@ const NAV_ITEMS = [
     { href: '/outlines', label: 'Outlines' },
     { href: '/legal-workflow', label: 'Frank-Karthic-Dasha SoF' },
     { href: '/legal-autoeval-pipeline', label: 'Legal Auto-Eval Pipeline' },
-    { href: '/lsh-runs', label: 'LSH-RUHS' },
+    { href: '/lsh-runs', label: 'Clustering runs' },
 ];
 
 type AppShellProps = {

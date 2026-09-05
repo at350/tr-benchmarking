@@ -2210,7 +2210,7 @@ export default function LshRunsPage() {
 
     return (
         <AppShell
-            eyebrow="LSH-RUHS"
+            eyebrow="Clustering runs"
             title="Interactive Cluster Separation Map"
             subtitle="Filter by model and cluster size, inspect cluster members, and compare saved grading snapshots."
             maxWidthClassName="max-w-none"
@@ -2260,7 +2260,7 @@ export default function LshRunsPage() {
                         ) : runsError ? (
                             <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{runsError}</p>
                         ) : runs.length === 0 ? (
-                            <p className="mt-3 text-sm text-slate-500">No run files found in `lsh/results`.</p>
+                            <p className="mt-3 text-sm text-slate-500">No run files found under `runs/`.</p>
                         ) : (
                             <label className="mt-3 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                                 Active run

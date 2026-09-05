@@ -3159,14 +3159,13 @@ async function clusterResponsesWithDensityPipeline(responses: DashaResponseRecor
     const root = resolveRepoRoot();
     const tempDirectory = path.join(root, 'legal-workflow-data', 'tmp');
     const inputPath = path.join(tempDirectory, `frank_v2_cluster_input_${Date.now()}_${randomUUID().slice(0, 8)}.json`);
-    const scriptPath = path.join(root, 'lsh', 'cluster_legal_workflow.py');
     await fs.mkdir(tempDirectory, { recursive: true });
     await fs.writeFile(inputPath, JSON.stringify({
         responses: responses.map((response) => ({ id: response.id, response: response.responseText })),
     }, null, 2), 'utf8');
 
     try {
-        const { stdout } = await execFileAsync(pythonExecutable, [scriptPath, '--input', inputPath], {
+        const { stdout } = await execFileAsync(pythonExecutable, ['-m', 'trbench.cli', 'bridge', '--input', inputPath], {
             cwd: root,
             maxBuffer: 1024 * 1024 * 8,
         });

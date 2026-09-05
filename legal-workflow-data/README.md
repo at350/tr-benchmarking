@@ -2,7 +2,7 @@
 
 Runtime state for the frontend's four-stage workflow, stored as plain JSON so
 runs can be inspected and diffed. The folders here are also the demo fixtures:
-a fresh clone has 23 packets, 12 rubric packs, 10 judged runs, and 3 expert
+a fresh clone has 22 packets, 12 rubric packs, 10 judged runs, and 3 expert
 reviews to browse before any API key is configured.
 
 | Folder | Written by | Contents |

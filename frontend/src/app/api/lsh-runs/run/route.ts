@@ -23,7 +23,6 @@ export async function POST(req: Request) {
     }
 
     const root = resolveRepoRoot();
-    const scriptPath = path.join(root, "lsh-IRAC", "run_irac_benchmark.py");
     const pythonExecutable = await resolvePythonExecutable({ fallbackToPath: true });
 
     // The benchmark script takes the question as a file path.
@@ -34,7 +33,7 @@ export async function POST(req: Request) {
     // execFile passes arguments directly (no shell), so the path is never interpolated into a command string.
     const { stdout } = await execFileAsync(
       pythonExecutable,
-      [scriptPath, "--question", tempFilePath],
+      ["-m", "trbench.cli", "irac-benchmark", "--question", tempFilePath],
       {
         cwd: root,
         maxBuffer: 1024 * 1024 * 10, // model runs produce a lot of output

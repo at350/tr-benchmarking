@@ -8,7 +8,7 @@ export default function HomePage() {
         <AppShell
             eyebrow="Benchmark Workspace"
             title="Legal AI Benchmarking Portal"
-            subtitle="Choose a tool: inspect datasets, browse legal outlines, analyze LSH-RUHS clusters, or work through the full FKD and Frank-only Legal Auto-Eval pipelines."
+            subtitle="Choose a tool: inspect datasets, browse legal outlines, explore clustering runs, or work through the full FKD and Frank-only Legal Auto-Eval pipelines."
             maxWidthClassName="max-w-none"
         >
             <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
@@ -47,12 +47,12 @@ export default function HomePage() {
 
                 <PanelCard
                     href="/lsh-runs"
-                    title="LSH-RUHS"
+                    title="Clustering runs"
                     icon={<Orbit className="h-5 w-5" />}
                     badge="Analyze"
                 >
                     <div className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-700)]">
-                        Open LSH-RUHS atlas <ArrowRight className="h-3.5 w-3.5" />
+                        Open clustering runs <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>
 

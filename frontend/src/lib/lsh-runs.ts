@@ -112,10 +112,10 @@ export type LshClusterJudgePayload = {
 export function resolveResultsDirectories() {
     // Return all existing result directories
     const candidates = [
-        path.resolve(process.cwd(), '../lsh/results'),
-        path.resolve(process.cwd(), 'lsh/results'),
-        path.resolve(process.cwd(), '../lsh-IRAC/results'),
-        path.resolve(process.cwd(), 'lsh-IRAC/results'),
+        path.resolve(process.cwd(), '../runs/free-form/results'),
+        path.resolve(process.cwd(), 'runs/free-form/results'),
+        path.resolve(process.cwd(), '../runs/irac/results'),
+        path.resolve(process.cwd(), 'runs/irac/results'),
     ];
 
     return candidates.filter(candidate => fs.existsSync(candidate));

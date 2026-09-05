@@ -9,17 +9,17 @@ export function resolveRepoRoot() {
 }
 
 /**
- * Python interpreter for the repo's helper scripts. Prefers a project virtual environment
- * (`lsh/.venv`, then `.venv`). When neither exists, returns `python3` from PATH if
- * `fallbackToPath` is set, otherwise `null` so the caller can skip the Python step.
+ * Python interpreter with the `trbench` package installed. Uses the repository's `.venv`
+ * when present; otherwise returns `python3` from PATH if `fallbackToPath` is set, or `null`
+ * so the caller can skip the Python step.
  */
 export async function resolvePythonExecutable(options: { fallbackToPath: true }): Promise<string>;
 export async function resolvePythonExecutable(options?: { fallbackToPath?: boolean }): Promise<string | null>;
 export async function resolvePythonExecutable(options?: { fallbackToPath?: boolean }): Promise<string | null> {
     const root = resolveRepoRoot();
     const candidates = [
-        path.join(root, 'lsh', '.venv', 'bin', 'python3'),
         path.join(root, '.venv', 'bin', 'python3'),
+        path.join(root, '.venv', 'Scripts', 'python.exe'),
     ];
     for (const candidate of candidates) {
         try {
