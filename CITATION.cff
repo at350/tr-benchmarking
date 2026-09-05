@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software or the saved runs in your research, please cite it."
+title: "TR-Benchmarking: clustering how language models reason about legal questions"
+type: software
+version: 0.1.0
+date-released: 2026-09-05
+license: MIT
+repository-code: "https://github.com/at350/tr-benchmarking"
+authors:
+  - family-names: Tai
+    given-names: Alan
+  - name: "DavidL0417"
+  - family-names: Hanlon
+    given-names: Clark
+keywords:
+  - legal reasoning
+  - large language models
+  - evaluation
+  - clustering
+  - instruction-tuned embeddings
+  - IRAC
+abstract: >-
+  A research toolkit that samples many answers to one legal question from several
+  language models, embeds them with an instruction-tuned encoder, clusters the
+  embeddings with UMAP and HDBSCAN, and reports the distinct lines of reasoning the
+  models took, including an adversarial test with deliberately wrong answers and a
+  source-grounded rubric workflow with a browsable portal.
