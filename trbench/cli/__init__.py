@@ -42,7 +42,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
-    return int(args.run(args) or 0)
+    try:
+        return int(args.run(args) or 0)
+    except BrokenPipeError:
+        # e.g. `trbench inspect ... | head`: the reader closed the pipe; exit quietly.
+        try:
+            sys.stdout.close()
+        finally:
+            return 0
 
 
 if __name__ == "__main__":  # pragma: no cover
