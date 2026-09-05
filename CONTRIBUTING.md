@@ -33,7 +33,7 @@ commands run without a download; the bridge tests use it.
 | `runs/` | Collected model answers (`responses/`) and clustering runs (`results/`) for the free-form and IRAC pipelines. |
 | `rubric-automation/` | The rubric-decomposition package, standard library only, with its own tests. |
 | `frontend/` | The Next.js portal. |
-| `instructions/` | Prompt files the portal loads by exact name; renaming one means updating the registry in `frontend/src/lib/legal-workflow-v2-prompts.ts`. |
+| `instructions/` | Prompt files the portal loads by exact name; renaming one means updating the registry in `frontend/src/lib/legal-workflow-v2-prompts.ts` (or `frontend/src/lib/question-variance-prompts.ts` for the `question-variance/` files). `instructions/README.md` lists every runtime-loaded file. |
 | `legal-workflow-data/` | JSON written by the portal; doubles as demo fixtures. |
 | `docs/` | Figures and longer-form documentation. |
 

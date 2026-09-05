@@ -17,13 +17,13 @@ and whether a scoring rubric derived from a real court opinion agrees with them.
   <img src="docs/figures/viz_before_topical.png" width="45%" alt="UMAP of generic embeddings: enforceable and unenforceable answers mixed together">
   <img src="docs/figures/viz_after_instruction.png" width="45%" alt="UMAP of instruction-tuned embeddings: answers separate by legal conclusion">
 </p>
-<p align="center"><sub>Same 318 answers (314 unique ids) to one Statute of Frauds question. Left: generic sentence embeddings group by topic. Right: instruction-tuned embeddings ("represent the legal conclusion and reasoning") separate them by conclusion. Colours are an automated keyword verdict, not human labels.</sub></p>
+<p align="center"><sub>The same 314 answers (318 collected; four duplicate ids were merged) to one Statute of Frauds question. Left: generic sentence embeddings group by topic. Right: instruction-tuned embeddings ("represent the legal conclusion and reasoning") separate them by conclusion. Colours are an automated keyword verdict, not human labels.</sub></p>
 
 ## What is in the repository
 
 | Part | What it does |
 |---|---|
-| **`trbench/`** (Python package, `pip install -e .`) | Collect answers from OpenAI and Replicate-hosted models, embed them with `hkunlp/instructor-large`, reduce with UMAP, cluster with HDBSCAN, and write a run file with representatives, central and peripheral members, and (for IRAC answers) GPT-4o doctrine labels. One command, `trbench`, with a subcommand per task, including an adversarial test that injects nonsense answers and checks they are isolated. |
+| **`trbench/`** (Python package, `pip install -e .`) | Collect answers from OpenAI and Replicate-hosted models, embed them with `hkunlp/instructor-large`, reduce the embeddings with UMAP (a dimensionality-reduction method), cluster them with HDBSCAN (a density-based clustering algorithm), and write a run file with representatives, central and peripheral members, and, for answers written in IRAC form (issue, rule, application, conclusion), GPT-4o doctrine labels. One command, `trbench`, with a subcommand per task, including an adversarial test that injects nonsense answers and checks they are isolated. |
 | **`runs/`** | 29 saved clustering runs and the model answers behind them, for the free-form and IRAC pipelines. |
 | **`rubric-automation/`** | Recursive Rubric Decomposition: turns a question plus a gold answer into a weighted, atomic scoring rubric, audits its coverage, and scores sample answers. Standard library only, runs offline against a mock model, tested. |
 | **`frontend/`** (Next.js 16, React 19) | A portal to browse every saved run, run judges over clusters, and drive the four-stage source → question → rubric → judged-centroids → expert-review workflow. Reads and writes the JSON under `legal-workflow-data/`. |
@@ -35,7 +35,7 @@ and whether a scoring rubric derived from a real court opinion agrees with them.
 git clone https://github.com/at350/tr-benchmarking && cd tr-benchmarking
 python3 -m venv .venv && source .venv/bin/activate
 pip install torch --index-url https://download.pytorch.org/whl/cpu   # optional: CPU-only PyTorch, much smaller
-pip install -e ".[all]"          # or plain `pip install -e .` without the figure and PDF extras
+pip install -e ".[all]"          # extras: viz (figures), pdf (demo PDF), dev (pytest); plain `pip install -e .` has none
 trbench --help
 ```
 
@@ -77,13 +77,15 @@ trbench inspect runs/irac/results/run_<timestamp>.json summary
 trbench poison --input runs/irac/responses/responses_<timestamp>.json
 ```
 
-Restrict the models with `--openai-models` / `--replicate-models` (comma-separated), resume an
-interrupted run with `--resume`, and point `--output-dir` elsewhere to keep experiments apart.
+Restrict the models with `--openai-models` / `--replicate-models` (comma-separated), top up a
+finished run whose models failed or were skipped with `--resume runs/irac/responses/responses_<timestamp>.json`
+(a run stopped part-way writes nothing), and point `--output-dir` elsewhere to keep experiments apart.
 A full run is about 200 model calls and takes tens of minutes, most of it waiting on the
 providers; without any key the benchmark commands print the plan and exit without writing.
 The portal lists every `run_<timestamp>.json` under `runs/free-form/results/` and
 `runs/irac/results/` and refreshes when one appears; runs written to another `--output-dir`
-are not shown. The three built-in poisons were written for the saved farmland question, so on
+are not shown. The three built-in poisons were written for the saved farmland question
+(`runs/irac/questions/question_farmland.txt`), so on
 your own question they are off-topic rather than doctrinally wrong answers (see
 [docs/clustering.md](docs/clustering.md)).
 
@@ -91,7 +93,7 @@ your own question they are off-topic rather than doctrinally wrong answers (see
 
 | Command | What it does | Calls paid APIs |
 |---|---|---|
-| `trbench cluster` | Embed and cluster a saved free-form responses file (`--method lsh` for the LSH + Louvain baseline) | no |
+| `trbench cluster` | Embed and cluster a saved free-form responses file (`--method lsh` for the locality-sensitive-hashing + Louvain baseline) | no |
 | `trbench inspect <run> {summary,small,verdicts,excerpts}` | Summarise a run file | no |
 | `trbench generate --provider {openai,replicate}` | Collect free-form answers to a question, appending to a responses file | yes |
 | `trbench robust-benchmark` | Free-form answers from every model for one question, then cluster | yes |
@@ -117,7 +119,7 @@ Details, file formats, and reproducibility notes: [docs/clustering.md](docs/clus
 
 ## Results at a glance
 
-Latest saved IRAC run per question (`trbench inspect <run> summary` reproduces these numbers). "Noise" is the count of answers HDBSCAN left unclustered.
+Latest saved IRAC run per question. The first line of `trbench inspect <run> summary` prints these numbers. "Noise" is the count of answers HDBSCAN left unclustered. All six questions are items from the law subset of SuperGPQA; [runs/README.md](runs/README.md) lists the item ids and the licence.
 
 | Question (abridged) | Run | Answers | Models | Clusters | Noise | Largest cluster |
 |---|---|---|---|---|---|---|
@@ -129,7 +131,7 @@ Latest saved IRAC run per question (`trbench inspect <run> summary` reproduces t
 | "If you will mow my lawn..." neighbour promise (consideration) | `irac/results/run_20260224_154905` | 179 | 9 | 13 | 1 | 21 |
 | Couple shopping, injury in a department store (IIED) | `irac/results/run_20260224_003329` | 179 | 9 | 12 | 0 | 40 |
 
-Free-form baseline on the marriage question: `free-form/results/run_20260217_153621`, 318 answers from 9 models, 13 clusters, none unclustered, largest cluster 83. The two figures at the top of this page come from that run.
+Free-form baseline on the marriage question: `free-form/results/run_20260217_153621`, 314 answers (318 collected, four duplicate `llama-3-70b` ids merged at ingest) from 9 models, 13 clusters, none unclustered, largest cluster 83. The two figures at the top of this page come from that run.
 
 ## The source-grounded evaluation workflow
 
@@ -147,12 +149,13 @@ The portal's `/legal-workflow` page runs a four-stage workflow whose state is pl
 ## Models and data
 
 - **Models queried by the IRAC pipeline:** `gpt-4o`, `gpt-4-turbo`, `gpt-5-nano`, `gpt-5.2` (OpenAI API); `google/gemini-3-flash`, `google/gemini-3-pro`, `meta/llama-4-maverick-instruct`, `deepseek-ai/deepseek-v3.1`, `anthropic/claude-4.5-sonnet`, `anthropic/claude-3.5-haiku` (Replicate); `xai/grok-4` if `ENABLE_GROK4=true`. The free-form runs also sampled `gpt-3.5-turbo`, `gpt-5-mini`, `claude-3.5-sonnet`, and `llama-3-70b`. The portal's judge and drafting features offer current OpenAI, Anthropic, and Gemini models directly.
-- **Data** (`datasets/`, `cases/`, `outlines/`): the law subset of [SuperGPQA](https://github.com/SuperGPQA/SuperGPQA) (656 multiple-choice questions), browsable at `/database-view`; the public-domain text of three appellate opinions that the workflow demo is built on; and an `outlines/` folder for your own law-school outline PDFs (none are redistributed). Attribution and terms: [datasets/README.md](datasets/README.md), [cases/README.md](cases/README.md).
+- **Data** (`datasets/`, `cases/`, `outlines/`): the law subset of [SuperGPQA](https://github.com/SuperGPQA/SuperGPQA) (656 multiple-choice questions, Open Data Commons Attribution licence), browsable at `/database-view` and the source of the six benchmark questions; the public-domain text of three appellate opinions that the workflow demo is built on; and an `outlines/` folder for your own law-school outline PDFs (none are redistributed). Attribution and terms: [datasets/README.md](datasets/README.md), [cases/README.md](cases/README.md).
 - **Saved runs:** 14 free-form and 15 IRAC clustering runs under `runs/`, including the poisoned-data runs.
 
 ## Tests and checks
 
 ```bash
+pip install -e ".[dev]"                  # pytest (already included in .[all])
 pytest                                   # parsing, provider client, run-file builder, clustering bridge (mock embeddings), rubric pipeline
 cd frontend && npm run lint && npx tsc --noEmit && npm run test:dasha-comparison && npm run build
 ```
@@ -184,7 +187,7 @@ This is a research prototype from a university project on technology for the law
 Things a reader should know before relying on it:
 
 - Full benchmark runs cost money and time (roughly 200 model calls plus one GPT-4o call per cluster); the saved runs exist so the analysis can be explored without that. Use `--dry-run` to see the plan first.
-- Cluster doctrine labels come from a model, so they can differ between runs on identical input. The clusters themselves use a fixed UMAP seed and are stable for a given set of package versions; exact reproduction of a saved run needs the same umap-learn, numba, and scikit-learn versions.
+- Cluster doctrine labels come from a model, so they can differ between runs on identical input. The clusters themselves use a fixed UMAP seed and are stable for a given set of package versions; exact reproduction of a saved run needs the same umap-learn, numba, and scikit-learn versions. Run files written by this version record those versions under `metadata.versions`; the saved runs predate this, and the environment that produced them was not recorded.
 - Clusters often line up with model family as much as with reasoning (in `run_20260303_163604`, one cluster is 20 of 20 `gpt-5.2` answers), so part of what is being clustered is a model's house style. Reading the representatives, not just the counts, is part of the method.
 - Model identifiers are pinned in the command defaults; as providers retire models, pass your own lists.
 - The portal stores state as files on disk and is meant to run locally for one user at a time. Its API routes have no authentication, and several of them spend provider credits or start long model runs, so keep it on localhost and do not point `ALLOWED_DEV_ORIGINS` at an untrusted network. Record ids and stored file paths from clients are validated and confined to `legal-workflow-data/`; uploads are limited to PDF, text, and Markdown files of at most 25 MB.
@@ -201,7 +204,7 @@ The September 2026 commits are a cleanup, hardening, and packaging pass over the
 ## License and citation
 
 Code is released under the [MIT License](LICENSE). The SuperGPQA subset under `datasets/` is
-redistributed for research use under its upstream terms ([datasets/README.md](datasets/README.md));
+redistributed under the Open Data Commons Attribution License v1.0, with attribution to its authors ([datasets/README.md](datasets/README.md));
 the opinions under `cases/` are public records ([cases/README.md](cases/README.md)). If you use this work, please cite it with the metadata in
 [CITATION.cff](CITATION.cff) (GitHub shows a "Cite this repository" button).
 

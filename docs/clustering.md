@@ -17,7 +17,8 @@ Answers no dense group claims are reported as noise rather than forced into a cl
 1. **Collect.** `trbench irac-benchmark` (structured) and `trbench robust-benchmark`
    (free-form) sample each model `--per-model` times at temperature 0.7 (`gpt-5-nano` at 1.0).
    `trbench generate` collects a `--count` of free-form answers spread over a model list,
-   cycling the temperature 0.7 to 1.1 across samples (1.0 for models named "mini") and
+   cycling the temperature 0.7 to 1.1 across OpenAI samples (1.0 for OpenAI models with "mini"
+   in the name; Replicate samples all use 0.7) and
    appending to a responses file. The IRAC variant demands a strict
    `{issue, rule, application, conclusion}` JSON object; answers that cannot be parsed even
    after repair are counted as failures, not silently dropped.
@@ -64,7 +65,7 @@ runs/
 │   ├── responses/   responses.json (318 answers to the marriage-provision question) and other collections
 │   └── results/     run_<timestamp>.json
 └── irac/
-    ├── questions/   the question files used for the saved IRAC runs
+    ├── questions/   one file per question behind the saved IRAC runs (see runs/README.md)
     ├── responses/   responses_<timestamp>.json, responses_poisoned_<timestamp>.json
     └── results/     run_<timestamp>.json, run_<timestamp>_poisoned.json
 ```
@@ -83,7 +84,8 @@ the portal's `/lsh-runs` page. This is what the current code writes (illustrativ
     "timestamp": "20260303_163604", "question": "...", "schema": "IRAC",
     "method": "density_umap_hdbscan",
     "params": {"umap_dims": 10, "n_neighbors": 5, "min_dist": 0.1, "min_cluster_size": 5, "min_samples": 2, "random_state": 42},
-    "total_items": 200, "duplicate_ids_dropped": 0, "num_clusters": 7, "failures": {"gemini-3-pro": 3}
+    "total_items": 200, "duplicate_ids_dropped": 0, "num_clusters": 7, "failures": {"gemini-3-pro": 3},
+    "versions": {"python": "3.11.15", "umap-learn": "0.5.12", "numba": "0.67.0", "scikit-learn": "1.9.0"}
   },
   "clusters": {
     "0": {
@@ -107,8 +109,10 @@ runs have `centroid_members` and `edge_members`, four free-form runs key the noi
 
 - Embeddings are deterministic for a given model file; UMAP and HDBSCAN use fixed seeds.
   Clusters are therefore stable for a given set of package versions, but `umap-learn`,
-  `numba`, and `scikit-learn` releases can move points slightly. Record `pip freeze` with
-  any run you publish.
+  `numba`, and `scikit-learn` releases can move points slightly. Run files written by the
+  current code record the installed versions under `metadata.versions`; the saved runs predate
+  this and the environment that produced them was not recorded, so expect small differences
+  when re-clustering them.
 - Topic labels come from a model call and are not deterministic even with the seeded sample.
 - The embedding model is about 1.3 GB and is downloaded on first use; embedding 300 answers
   takes a few minutes on a laptop CPU.
