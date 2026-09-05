@@ -1,13 +1,25 @@
+"""Smoke-check that Replicate-hosted models accept a request with the current token.
+
+Usage (from the repository root, with REPLICATE_API_TOKEN in .env or the environment):
+    python lsh-IRAC/replicate_smoke_check.py anthropic/claude-3.5-haiku deepseek-ai/deepseek-v3
+
+This is a manual connectivity check, not a pytest test, and it spends API credits.
+"""
+import argparse
 import asyncio
 import os
+import sys
+
 import httpx
 from dotenv import load_dotenv
 
-load_dotenv("lsh/.env")
-load_dotenv(".env")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(ROOT, "lsh", ".env"))
+load_dotenv(os.path.join(ROOT, ".env"))
+load_dotenv()
 TOKEN = os.getenv("REPLICATE_API_TOKEN")
 
-async def test_model(model_name):
+async def check_model(model_name):
     headers = {"Authorization": f"Token {TOKEN}", "Content-Type": "application/json"}
     owner, name = model_name.split("/")[:2]
     url = f"https://api.replicate.com/v1/models/{owner}/{name}/predictions"
@@ -41,8 +53,15 @@ async def test_model(model_name):
                      print(f"Output: {pred.get('output')}")
                 break
 
-async def main():
-    await test_model("anthropic/claude-3.5-haiku")
-    await test_model("deepseek-ai/deepseek-v3")
+async def main(models):
+    for model in models:
+        await check_model(model)
 
-asyncio.run(main())
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("models", nargs="*", default=["anthropic/claude-3.5-haiku", "deepseek-ai/deepseek-v3"])
+    args = parser.parse_args()
+    if not TOKEN:
+        sys.exit("REPLICATE_API_TOKEN is not set.")
+    asyncio.run(main(args.models))

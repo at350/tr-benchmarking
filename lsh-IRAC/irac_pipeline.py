@@ -1,9 +1,17 @@
-import numpy as np
-from typing import List, Dict, Any
+import json
+import os
+import random
+import sys
 from collections import defaultdict
+from typing import Any, Dict, List
 
-# Reuse existing utilities from the lsh module 
-from lsh.utils import get_embedding_model
+import numpy as np
+from dotenv import load_dotenv
+from openai import OpenAI
+
+# Reuse the embedding and clustering primitives from the lsh module.
+# Callers must have the repository root on sys.path (the entry scripts do this).
+from lsh.utils import encode_responses
 from lsh.lsh_index import LSHIndex
 from lsh.clustering import build_similarity_graph, cluster_graph, get_cluster_representatives
 from lsh.density_clustering import run_density_clustering
@@ -11,48 +19,36 @@ from lsh.density_clustering import run_density_clustering
 from irac_utils import format_irac_for_embedding
 
 class IRACEvaluationPipeline:
-    def __init__(self, 
-                 num_bits=128, 
-                 num_bands=32, 
-                 sim_threshold=0.7, 
-                 min_cluster_size=1,
-                 resolution=1.0):
+    def __init__(self,
+                 num_bits=128,
+                 num_bands=32,
+                 sim_threshold=0.7,
+                 resolution=1.0,
+                 umap_dims=10,
+                 n_neighbors=5,
+                 min_dist=0.1,
+                 min_cluster_size=5,
+                 min_samples=2,
+                 random_state=42,
+                 topic_sample_seed=42):
         self.num_bits = num_bits
         self.num_bands = num_bands
         self.sim_threshold = sim_threshold
-        self.min_cluster_size = min_cluster_size
         self.resolution = resolution
+        self.umap_dims = umap_dims
+        self.n_neighbors = n_neighbors
+        self.min_dist = min_dist
+        self.min_cluster_size = min_cluster_size
+        self.min_samples = min_samples
+        self.random_state = random_state
+        self.topic_rng = random.Random(topic_sample_seed)  # makes the topic-label sample reproducible
         self.lsh_index = None
-        self.embeddings = {} # id -> np.array
-        self.responses = {}  # id -> text/metadata
-        # Density parameters
-        self.use_density = False
+        self.embeddings = {}  # id -> np.array
+        self.responses = {}   # id -> parsed record
 
     def encode_irac_responses(self, texts: List[str], model_name: str = 'hkunlp/instructor-large', instruction: str = None) -> np.ndarray:
-        """
-        Encodes a list of formatted IRAC texts into dense vectors.
-        """
-        model = get_embedding_model(model_name)
-        if model:
-            if "instructor" in model_name.lower() and instruction:
-                try:
-                    # hkunlp instructor logic requires pairs
-                    inputs = [[instruction, text] for text in texts]
-                    embeddings = model.encode(inputs)
-                except Exception as e:
-                    # Fallback if standard sentence-transformers wrapper is used instead of Instructor package
-                    inputs = [f"{instruction} {text}" for text in texts]
-                    embeddings = model.encode(inputs)
-            else:
-                if instruction:
-                     inputs = [f"{instruction} {text}" for text in texts]
-                     embeddings = model.encode(inputs)
-                else:
-                     embeddings = model.encode(texts)
-            return embeddings
-        else:
-            print("Using random embeddings (mock mode)")
-            return np.random.randn(len(texts), 768)
+        """Encode formatted IRAC texts; thin wrapper over lsh.utils.encode_responses."""
+        return encode_responses(texts, model_name=model_name, instruction=instruction)
 
     def ingest_data(self, data: List[Dict[str, Any]]):
         """
@@ -88,62 +84,24 @@ class IRACEvaluationPipeline:
             
         print(f"Encoded {len(texts)} IRAC structured responses.")
 
-    def run_clustering(self, method="lsh") -> Dict[str, Any]:
-        """
-        Runs the clustering pipeline using density (UMAP + HDBSCAN) or standard LSH.
-        """
-        if method == "density":
-            print("Running Density-Based Clustering (UMAP + HDBSCAN)...")
-            partition = run_density_clustering(
-                self.embeddings,
-                n_neighbors=5,
-                min_dist=0.1,
-                min_cluster_size=5,
-                min_samples=2,
-                n_components=10, 
-                random_state=42
-            )
-            num_clusters = len(set(partition.values())) - (1 if -1 in partition.values() else 0)
-        else:
-            if not self.lsh_index:
-                self.build_index()
-                
-            print("Retrieving candidates...")
-            candidates = self.lsh_index.get_candidates()
-            
-            print("Building similarity graph...")
-            G = build_similarity_graph(candidates, self.embeddings, self.sim_threshold)
-            
-            print(f"Clustering (resolution={self.resolution})...")
-            partition = cluster_graph(G, resolution=self.resolution)
-            num_clusters = len(set(partition.values())) if partition else 0
-            
-        print(f"Found {num_clusters} clusters.")
-        
     def extract_cluster_topics(self, cluster_texts: List[str], num_topics: int = 3) -> List[str]:
         """
         Uses an LLM to zero-shot extract the core legal doctrines/principles from a cluster of responses.
         """
-        import os
-        from openai import OpenAI
-        import json
-        from dotenv import load_dotenv
-
         root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        env_path = os.path.join(root_dir, "lsh", ".env")
-        load_dotenv(dotenv_path=env_path)
+        load_dotenv(dotenv_path=os.path.join(root_dir, "lsh", ".env"))
         load_dotenv(dotenv_path=os.path.join(root_dir, ".env"))
         load_dotenv()
-        
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        if not client.api_key:
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
             print("Warning: OPENAI_API_KEY not found. Skipping topic extraction.")
             return []
-            
-        # Sample up to 20 responses to avoid massive context windows
+        client = OpenAI(api_key=api_key)
+
+        # Sample up to 20 responses to keep the prompt small
         sample_size = min(len(cluster_texts), 20)
-        import random
-        sampled_texts = random.sample(cluster_texts, sample_size)
+        sampled_texts = self.topic_rng.sample(cluster_texts, sample_size)
         
         combined_text = "\n\n---\n\n".join(sampled_texts)
         
@@ -213,7 +171,7 @@ Responses:
         similarities = np.dot(member_embs, topic_embeddings_norm.T)
         
         # We want the aggregate cluster confidence for each topic.
-        # Options: average similarity, or median. Let's use average similarity across the cluster.
+        # Average similarity across the cluster.
         avg_similarities = np.mean(similarities, axis=0) # Shape: (num_topics,)
         
         # To convert to percentages that sum to 100%, we use Softmax with a temperature to sharpen distinguishing features
@@ -237,13 +195,16 @@ Responses:
             print("Running Density-Based Clustering (UMAP + HDBSCAN)...")
             partition = run_density_clustering(
                 self.embeddings,
-                n_neighbors=5,
-                min_dist=0.1,
-                min_cluster_size=5,
-                min_samples=2,
-                n_components=10, 
-                random_state=42
+                n_neighbors=self.n_neighbors,
+                min_dist=self.min_dist,
+                min_cluster_size=self.min_cluster_size,
+                min_samples=self.min_samples,
+                n_components=self.umap_dims,
+                random_state=self.random_state,
             )
+            params = {"method": "density_umap_hdbscan", "umap_dims": self.umap_dims, "n_neighbors": self.n_neighbors,
+                      "min_dist": self.min_dist, "min_cluster_size": self.min_cluster_size,
+                      "min_samples": self.min_samples, "random_state": self.random_state}
             num_clusters = len(set(partition.values())) - (1 if -1 in partition.values() else 0)
         else:
             if not self.lsh_index:
@@ -258,6 +219,8 @@ Responses:
             print(f"Clustering (resolution={self.resolution})...")
             partition = cluster_graph(G, resolution=self.resolution)
             num_clusters = len(set(partition.values())) if partition else 0
+            params = {"method": "lsh_louvain", "num_bits": self.num_bits, "num_bands": self.num_bands,
+                      "sim_threshold": self.sim_threshold, "resolution": self.resolution}
             
         print(f"Found {num_clusters} clusters.")
         
@@ -272,7 +235,7 @@ Responses:
             else:
                 clusters[cluster_id].append(doc_id)
                 
-        # --- NEW: Extract and compute SOTA Topic Confidences ---
+        # Per-cluster doctrine labels (GPT-4o) with embedding-based confidence scores
         print("Extracting semantic topic confidences for valid clusters...")
         cluster_topics = {}
         for cluster_id, member_ids in clusters.items():
@@ -301,7 +264,8 @@ Responses:
             "clusters": clusters,
             "representatives": representatives,
             "partition": partition,
-            "topic_signals": cluster_topics # Append the topic signals
+            "params": params,
+            "topic_signals": cluster_topics,
         }
     
     def build_index(self):

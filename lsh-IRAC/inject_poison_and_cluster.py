@@ -1,17 +1,33 @@
+"""Adversarial robustness check: add synthetic "poisoned" IRAC answers to a saved dataset
+and confirm that density clustering isolates them in their own clusters.
+
+Usage (from the repository root; needs the lsh Python environment, and OPENAI_API_KEY for topic labels):
+    python lsh-IRAC/inject_poison_and_cluster.py [--input lsh-IRAC/data/responses_<timestamp>.json]
+
+Each poison is copied 5 times (HDBSCAN min_cluster_size) so a well-separated poison forms
+its own cluster instead of being labelled noise.
+"""
+import argparse
 import json
 import os
 import sys
 from datetime import datetime
 
-# Add parent directory to path so lsh modules can be found
+# Add repository root to path so lsh modules can be found
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from irac_pipeline import IRACEvaluationPipeline
-question = "A woman owned a 10-acre tract of rural farmland in fee simple absolute. The woman agreed to sell the farmland to a man, and each signed a writing stating that the farmland was beitig sold: \". . . for $10,000, receipt of which is acknowledged. \" In actuality, the man had not yet paid the woman the $10,000. At the date set for closing, the woman transferred a deed to the farmland to the man, who gave the woman a check for $10,000. Howevei, a few days after the woman deposited the check, she received notice from her bank that the check had not cleared, due to insufficient funds in the account. The woman then brought suit against the man. At trial, the woman seeks to testify that the man did not in fact pay her the $10,000 as recited in their written instrument. The man objects to the woman's proposed testimony. Will the trial court judge be correct in sustaining the man's objection?"
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_INPUT = os.path.join(BASE_DIR, "data", "responses_20260223_233818.json")
+POISON_COPIES = 5
+
+# Question the default dataset was generated from; replaced by the dataset's own prompt when present.
+DEFAULT_QUESTION = "A woman owned a 10-acre tract of rural farmland in fee simple absolute. The woman agreed to sell the farmland to a man, and each signed a writing stating that the farmland was beitig sold: \". . . for $10,000, receipt of which is acknowledged. \" In actuality, the man had not yet paid the woman the $10,000. At the date set for closing, the woman transferred a deed to the farmland to the man, who gave the woman a check for $10,000. Howevei, a few days after the woman deposited the check, she received notice from her bank that the check had not cleared, due to insufficient funds in the account. The woman then brought suit against the man. At trial, the woman seeks to testify that the man did not in fact pay her the $10,000 as recited in their written instrument. The man objects to the woman's proposed testimony. Will the trial court judge be correct in sustaining the man's objection?"
 
 poison_1_nonsensical = {
     "model": "poison-nonsense",
-    "prompt": question,
+    "prompt": DEFAULT_QUESTION,
     "response": {
         "issue": "Whether the space aliens correctly abducted the cow from the farmland before the $10,000 check was printed.",
         "rule": "The intergalactic treaty of 1994 states that all cows are property of the mothership and cannot be sold for Earth dollars.",
@@ -24,7 +40,7 @@ poison_1_nonsensical = {
 
 poison_2_wrong_standard = {
     "model": "poison-wrong-standard",
-    "prompt": question,
+    "prompt": DEFAULT_QUESTION,
     "response": {
         "issue": "Whether the trial court judge should sustain the man's objection to the woman's testimony about the non-payment under the rule against perpetuities.",
         "rule": "The rule against perpetuities prevents property interests from vesting too far into the future, specifically stating that no interest is good unless it must vest, if at all, not later than twenty-one years after some life in being at the creation of the interest.",
@@ -37,7 +53,7 @@ poison_2_wrong_standard = {
 
 poison_3_criminal_law = {
     "model": "poison-criminal-law",
-    "prompt": question,
+    "prompt": DEFAULT_QUESTION,
     "response": {
         "issue": "Whether the man is guilty of first-degree murder for giving the woman a bounced check for the farmland.",
         "rule": "First-degree murder requires the unlawful killing of a human being with malice aforethought, deliberation, and premeditation.",
@@ -49,35 +65,30 @@ poison_3_criminal_law = {
 }
 
 def main():
-    original_file = os.path.join(os.path.dirname(__file__), "data/responses_20260223_233818.json")
-    print(f"Loading {original_file}...")
-    with open(original_file, "r") as f:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--input", default=DEFAULT_INPUT, help="responses_<timestamp>.json to poison")
+    args = parser.parse_args()
+
+    print(f"Loading {args.input}...")
+    with open(args.input, "r") as f:
         data = json.load(f)
-    
-    # We add 5 identical copies of each poisoned data type, but with different IDs.
-    # Since HDBSCAN 'min_cluster_size' is 5, less than 5 will be marked as Noise (-1).
-    # Since the user specifically wants to see if "it should appear in its own cluster",
-    # we provide exactly 5 copies so it meets the cluster size threshold if they are perfectly identical.
-    # If we only provided 1, it would just be noise (-1).
-    
+    question = (data[0].get("prompt") if data else None) or DEFAULT_QUESTION
+
+    # POISON_COPIES identical copies of each poison (distinct ids) so each meets min_cluster_size.
     poisons = []
-    
-    for i in range(5):
-        p1 = poison_1_nonsensical.copy()
-        p1["id"] = f"poison-nonsense_{i}"
-        
-        p2 = poison_2_wrong_standard.copy()
-        p2["id"] = f"poison-wrong-standard_{i}"
-        
-        p3 = poison_3_criminal_law.copy()
-        p3["id"] = f"poison-criminal-law_{i}"
-        
-        poisons.extend([p1, p2, p3])
+    for i in range(POISON_COPIES):
+        for template, label in ((poison_1_nonsensical, "poison-nonsense"),
+                                (poison_2_wrong_standard, "poison-wrong-standard"),
+                                (poison_3_criminal_law, "poison-criminal-law")):
+            poison = dict(template)
+            poison["prompt"] = question
+            poison["id"] = f"{label}_{i}"
+            poisons.append(poison)
         
     data.extend(poisons)
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_file = os.path.join(os.path.dirname(__file__), f"data/responses_poisoned_{timestamp}.json")
+    out_file = os.path.join(BASE_DIR, "data", f"responses_poisoned_{timestamp}.json")
     
     with open(out_file, "w") as f:
         json.dump(data, f, indent=2)
@@ -100,8 +111,8 @@ def main():
         "metadata": {
             "timestamp": f"{timestamp}_poisoned",
             "method": "density_umap_hdbscan",
-            "umap_dims": 10,
-            "min_cluster_size": 5,
+            "umap_dims": results["params"]["umap_dims"],
+            "min_cluster_size": results["params"]["min_cluster_size"],
             "question": question,
             "schema": "IRAC",
             "total_items": len(data),

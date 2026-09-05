@@ -31,9 +31,14 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
 if not REPLICATE_API_TOKEN:
-    print("Warning: REPLICATE_API_TOKEN not found.")
+    print("Warning: REPLICATE_API_TOKEN not found; Replicate-hosted models will be skipped.")
+if not OPENAI_API_KEY:
+    print("Warning: OPENAI_API_KEY not found; OpenAI models and per-cluster topic labels will be skipped.")
 
-openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
+# Give up on a single Replicate prediction after this long (seconds).
+REPLICATE_POLL_TIMEOUT = 600
 
 # --- Configuration ---
 NUM_RESPONSES_PER_MODEL = 20
@@ -183,28 +188,25 @@ async def fetch_replicate(model, question, index):
                 max_retries = 5
                 for attempt in range(max_retries):
                     resp = await client.post(url, json=input_data, headers=headers)
-                    if resp.status_code == 429:
-                        await asyncio.sleep(2 ** attempt + 2)
-                        continue
-                        
-                    if resp.status_code != 201:
-                        if attempt == max_retries - 1:
-                            return {"error": f"Status {resp.status_code}: {resp.text}", "model": model, "id": f"{model.split('/')[-1]}_{index}"}
-                        else:
-                            await asyncio.sleep(2 ** attempt + 2)
-                            continue
-                    break
+                    if resp.status_code == 201:
+                        break
+                    # 429 and transient errors: back off and retry
+                    await asyncio.sleep(2 ** attempt + 2)
+                else:
+                    # every attempt failed (rate limited or otherwise); report the last status
+                    return {"error": f"Status {resp.status_code}: {resp.text}", "model": model, "id": f"{model.split('/')[-1]}_{index}"}
                     
                 prediction = resp.json()
                 get_url = prediction["urls"]["get"]
+                deadline = time.monotonic() + REPLICATE_POLL_TIMEOUT
                 
                 while True:
+                    if time.monotonic() > deadline:
+                        return {"error": f"Prediction timed out after {REPLICATE_POLL_TIMEOUT}s", "model": model, "id": f"{model.split('/')[-1]}_{index}"}
                     await asyncio.sleep(3)
                     resp = await client.get(get_url, headers=headers)
-                    if resp.status_code == 429:
-                        continue
                     if resp.status_code != 200:
-                        continue
+                        continue  # 429 or transient error: poll again
                     
                     pred = resp.json()
                     status = pred["status"]
@@ -274,7 +276,7 @@ async def main(args):
     tasks = []
     
     # OpenAI
-    for model in OPENAI_MODELS:
+    for model in (OPENAI_MODELS if openai_client else []):
         for i in range(NUM_RESPONSES_PER_MODEL):
             item_id = f"{model}_{i}"
             if item_id in existing_ids:
@@ -282,7 +284,7 @@ async def main(args):
             tasks.append(fetch_openai(model, test_question, i))
 
     # Replicate
-    for model in REPLICATE_MODELS:
+    for model in (REPLICATE_MODELS if REPLICATE_API_TOKEN else []):
         cleaned_model = model.split("/")[-1]
         for i in range(NUM_RESPONSES_PER_MODEL):
             item_id = f"{cleaned_model}_{i}"
@@ -350,8 +352,8 @@ async def main(args):
             "metadata": {
                 "timestamp": TIMESTAMP,
                 "method": "density_umap_hdbscan",
-                "umap_dims": 10,
-                "min_cluster_size": 5,
+                "umap_dims": results["params"]["umap_dims"],
+                "min_cluster_size": results["params"]["min_cluster_size"],
                 "question": test_question,
                 "schema": "IRAC",
                 "total_items": len(valid_data),
@@ -368,7 +370,7 @@ async def main(args):
         id_to_model = {d['id']: d['model'] for d in valid_data}
 
         def get_centroid_members(cluster_id, member_ids):
-            """Return representative plus 2 other members closest to cluster geometric center."""
+            """Return the 3 members closest to the cluster's geometric centroid."""
             if cluster_id == "noise" or len(member_ids) == 0:
                 return []
             members_with_emb = [m for m in member_ids if m in embeddings]

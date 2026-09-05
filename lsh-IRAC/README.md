@@ -27,29 +27,32 @@ The benchmarking pipeline evaluates the diverse legal reasoning of Large Languag
 ### 3. Representation & Clustering (`irac_pipeline.py`)
 - **Instruct Embedding:** Converts the formatted IRAC plain text into a dense vector space continuously using the `hkunlp/instructor-large` model. The embeddings are contextually informed using the strict prefix: `"Represent the legal reasoning components (Issue, Rule, Application, Conclusion) of this text:"`.
 - **Density-Based Clustering (UMAP + HDBSCAN):** First, UMAP reduces the high-dimensional representation to 10 latent dimensions. Subsequently, HDBSCAN (`min_cluster_size=5`, `min_samples=2`) distinguishes dense, similar semantic groupings (distinct lines of legal reasoning) from sparse noise (outliers, ID `-1`).
-- **Cluster Representatives:** From valid, non-noise clusters, the pipeline mathematically resolves the most central “centroid” response to serve as a singular representation for a specific reasoning argument.
+- **Cluster Representatives:** From valid, non-noise clusters, the pipeline mathematically resolves the most central “centroid” response to serve as a singular representation for a specific reasoning argument, plus the 3 most central (`centroid_members`) and 3 most peripheral (`edge_members`) members.
+- **Topic Signals:** For each cluster, GPT-4o labels up to 4 doctrines the members rely on; each label is embedded and scored by softmax-normalised cosine similarity against the members (`topic_signals`). Labels are model-generated, so they can differ between runs on identical input.
 
 ### 4. Adversarial Robustness Testing (`inject_poison_and_cluster.py`)
+Run with `python lsh-IRAC/inject_poison_and_cluster.py [--input lsh-IRAC/data/responses_<ts>.json]` from the repository root; it writes a `*_poisoned` data/results pair.
 - **Validation against Data Poisoning:** Synthetically injects "poisoned" responses carrying logically incongruent themes (such as space alien interventions or criminal statutes applied to civil transactions).
 - **Evaluating Separation:** Multiple identical copies of a given poison are synthesized (designed to hit the `min_cluster_size=5` threshold). This mathematically benchmarks the stability of the HDBSCAN algorithm, validating its ability to definitively isolate flawed logic into individual, easily identifiable clusters separately from genuine reasoning.
 
 ## Setup
 
-This module relies on the environment and dependencies of the parent `lsh` folder.
+This module imports the embedding and clustering code from `lsh/` and uses the same environment.
 
-1. Ensure you have installed the requirements in the parent directory.
-2. Your API keys must be in `lsh/.env` or the project root `.env`:
-   - `OPENAI_API_KEY` – for GPT models
-   - `REPLICATE_API_TOKEN` – for Gemini, Llama, etc. via Replicate
-   - `ANTHROPIC_API_KEY` or `CLAUDE_API_KEY` – for Claude models via Anthropic API (optional; Claude can also run via Replicate)
+1. From the repository root: `python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`
+2. Your API keys must be in `lsh/.env` or the project root `.env` (see `.env.example`):
+   - `OPENAI_API_KEY` – for the GPT models, and for the per-cluster topic labels (a GPT-4o call per cluster)
+   - `REPLICATE_API_TOKEN` – for Claude, Gemini, Llama, and DeepSeek via Replicate
+
+   If a key is missing, the models behind it are skipped with a warning.
 
 ## Running the Benchmark
 
 Execute the main script from the root of the repository. You must provide a text file containing the legal question using the `--question` argument:
 
 ```bash
-# Assuming you are in the tr-benchmarking directory
-source lsh/.venv/bin/activate
+# From the repository root
+source .venv/bin/activate
 python lsh-IRAC/run_irac_benchmark.py --question lsh-IRAC/data/questions/question_iied.txt
 ```
 
@@ -58,12 +61,20 @@ You can optionally resume a previous run (e.g., if you hit an API rate limit and
 python lsh-IRAC/run_irac_benchmark.py --question lsh-IRAC/data/questions/question_iied.txt --resume lsh-IRAC/data/responses_20260224_001715.json
 ```
 
+To check that your Replicate token works before a long run:
+
+```bash
+python lsh-IRAC/replicate_smoke_check.py anthropic/claude-3.5-haiku
+```
+
 ## Output
 
 The pipeline will generate two artifacts upon completion:
 
 1.  **Raw Data**: `lsh-IRAC/data/responses_{timestamp}.json` contains all the successfully parsed JSON responses from every model.
 2.  **Clustered Results**: `lsh-IRAC/results/run_{timestamp}.json` contains the final HDBSCAN cluster mappings, assigning a representative "centroid" to each distinct line of legal reasoning, while separating outliers into a `noise` cluster (denoted by cluster ID `-1`).
+
+Inspect a run with `python lsh/inspect_run.py lsh-IRAC/results/run_<timestamp>.json summary`.
 
 ## Why IRAC?
 
