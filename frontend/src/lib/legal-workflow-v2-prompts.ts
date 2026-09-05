@@ -1,7 +1,5 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 
 import { FRANK_V2_BENCHMARK_HEADINGS, FRANK_V2_PACK_LABELS, RUBRIC_MODULE_LABELS, RUBRIC_ROW_SPECS } from '@/lib/legal-workflow-v2-constants';
 import type {
@@ -46,7 +44,7 @@ const CORE_ASSET_FILES = {
 const KARTHIC_INSTRUCTION_FILES: Record<KarthicInstructionKey, string> = {
     buildSpec: '08_Karthic_Rubric_Build_Spec_v1.md',
     overlays: '09_Cross_Pack_Scoring_Overlays_Caps_Penalties_v1.md',
-    prefill: '50_Karthic_PreFill_Instructions.rtf',
+    prefill: '50_Karthic_PreFill_Instructions.md',
     caseCitation: '58_Case_Citation_Verification_Protocol_v2.md',
 };
 
@@ -90,7 +88,6 @@ const PACK_ASSET_FILES: Record<FrankSofPackId, Pick<AssetRegistryEntry, 'doctrin
 };
 
 const assetCache = new Map<string, string>();
-const execFileAsync = promisify(execFile);
 
 function resolveInstructionsRoot() {
     const cwd = process.cwd();
@@ -107,7 +104,6 @@ async function readInstructionFile(options: {
     cacheKey: string;
     directory: 'frank' | 'question-variance' | 'karthic' | 'dasha' | 'zak';
     fileName: string;
-    richText?: boolean;
     label: string;
 }) {
     const cached = assetCache.get(options.cacheKey);
@@ -117,9 +113,7 @@ async function readInstructionFile(options: {
 
     const filePath = path.join(resolveInstructionDirectory(options.directory), options.fileName);
     try {
-        const content = options.richText
-            ? (await execFileAsync('textutil', ['-convert', 'txt', '-stdout', filePath])).stdout
-            : await fs.readFile(filePath, 'utf8');
+        const content = await fs.readFile(filePath, 'utf8');
         assetCache.set(options.cacheKey, content);
         return content;
     } catch {
@@ -151,7 +145,6 @@ async function readKarthicInstruction(fileName: string) {
         cacheKey: `karthic:${fileName}`,
         directory: fileName === '58_Case_Citation_Verification_Protocol_v2.md' ? 'dasha' : 'karthic',
         fileName,
-        richText: fileName.toLowerCase().endsWith('.rtf'),
         label: 'Karthic instruction',
     });
 }

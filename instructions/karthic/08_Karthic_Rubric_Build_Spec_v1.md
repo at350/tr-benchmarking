@@ -3,14 +3,14 @@
 Shared non-substantive guardrails live in CORE_GUARDRAILS.md. This file adds rubric-build-specific rules only.
 
 STATUS: ACTIVE HUMAN-READABLE CANON
-Thin executor prompt: 50_Karthic_PreFill_Instructions.rtf
+Thin executor prompt: 50_Karthic_PreFill_Instructions.md
 If 50 is shorter or less specific than this file, this file controls.
 
 ## Purpose
 This file is the first reusable bridge between the benchmark packet and any case-specific rubric. It tells Karthic how to turn a prefilled benchmark packet into a modular, weighted, legally grounded rubric that can be used for centroid review, LLM-as-a-judge scoring, and SME validation.
 
 Use this file with:
-- `Karthic_PreFill_Instructions.rtf`
+- `50_Karthic_PreFill_Instructions.md`
 - `07_SHARED_MODULE_SKELETON.txt`
 - `03_CORE_OUTPUT_SHAPE_AND_PROMPT_STRUCTURE.txt`
 - the selected doctrine pack

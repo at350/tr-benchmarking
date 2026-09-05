@@ -3128,27 +3128,6 @@ function buildModuleSummaries(results: RubricRowResult[]): ModuleSummary[] {
         });
 }
 
-function summarizeRowResults(results: RubricRowResult[]): WeightedSummary {
-    let weightedTotal = 0;
-    let applicableWeightTotal = 0;
-    const notApplicableRowKeys: RubricRowKey[] = [];
-
-    for (const result of results) {
-        if (result.applicabilityStatus !== 'applicable' || typeof result.winningScore !== 'number') {
-            notApplicableRowKeys.push(result.rowKey);
-            continue;
-        }
-        applicableWeightTotal += result.weight;
-        weightedTotal += result.weight * result.winningScore;
-    }
-
-    return {
-        applicableWeightTotal,
-        weightedScore: applicableWeightTotal > 0 ? roundToTwo(weightedTotal / applicableWeightTotal) : null,
-        notApplicableRowKeys,
-    };
-}
-
 function chooseWinningCentroid(evaluations: RubricRowCentroidEvaluation[], clusters: DashaClusterRecord[]) {
     const clusterById = new Map(clusters.map((cluster) => [cluster.id, cluster]));
     const applicable = evaluations.filter((evaluation) => evaluation.applicabilityStatus === 'applicable' && typeof evaluation.score === 'number');
@@ -4394,30 +4373,6 @@ function withActiveRubricTrackAliases(pack: KarthicRubricPackV2): KarthicRubricP
     };
 }
 
-function setPackTrackRows(
-    pack: KarthicRubricPackV2,
-    trackId: KarthicRubricTrackId,
-    input: Partial<Pick<KarthicRubricTrack, 'rows' | 'seedRows'>>,
-) {
-    const target = getRubricTrack(pack, trackId);
-    if (!target) {
-        return pack;
-    }
-    const nextTrack: KarthicRubricTrack = {
-        ...target,
-        rows: input.rows ? normalizeRubricRows(input.rows) : target.rows,
-        seedRows: input.seedRows ? normalizeRubricRows(input.seedRows) : target.seedRows,
-    };
-    const nextPack: KarthicRubricPackV2 = {
-        ...pack,
-        tracks: {
-            ...pack.tracks,
-            [trackId]: nextTrack,
-        },
-    };
-    return withActiveRubricTrackAliases(nextPack);
-}
-
 function createKarthicRubricTracks(
     packet: FrankPacketV2,
     input?: {
@@ -5466,10 +5421,6 @@ function normalizeRubricRowKey(value: unknown): RubricRowKey | null {
     return typeof value === 'string' && ROW_KEYS.has(value as RubricRowKey) ? value as RubricRowKey : null;
 }
 
-function normalizeOpenAiJsonModel(model?: string) {
-    return model?.trim() || DEFAULT_OPENAI_JSON_MODEL;
-}
-
 function normalizeOpenAiTextModel(model?: string) {
     return model?.trim() || DEFAULT_OPENAI_TEXT_MODEL;
 }
@@ -6239,14 +6190,6 @@ async function getRequiredKarthicPack(id: string) {
         throw new Error('Rubric pack not found.');
     }
     return pack;
-}
-
-async function getRequiredKarthicPreClusterRun(id: string) {
-    const run = await getKarthicPreClusterRun(id);
-    if (!run) {
-        throw new Error('Pre-Karthic cluster run not found.');
-    }
-    return run;
 }
 
 async function getRequiredDashaRun(id: string) {

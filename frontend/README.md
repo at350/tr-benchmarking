@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Benchmarking Portal (frontend)
 
-## Getting Started
+A Next.js 16 / React 19 / TypeScript app for running and inspecting the legal
+reasoning benchmarks in this repository. It reads and writes JSON under
+`../legal-workflow-data/`, reads clustering runs from `../lsh/results/` and
+`../lsh-IRAC/results/`, serves the PDFs in `../outlines/`, and shells out to
+`../lsh/cluster_legal_workflow.py` (clustering) and `../lsh-IRAC/run_irac_benchmark.py`
+(full benchmark runs).
 
-First, run the development server:
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci
+cp .env.example .env.local   # add keys only if you want to run judges/drafting
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Browsing saved runs, datasets, and outlines needs no API key. The judge, drafting,
+and clustering features need `OPENAI_API_KEY` (and optionally `GEMINI_API_KEY`,
+`ANTHROPIC_API_KEY`) plus a Python environment set up per the root README.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Checks
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint
+npx tsc --noEmit
+npm run test:dasha-comparison   # node:test unit tests for the comparison math
+npm run build
+```
 
-## Learn More
+## Pages
 
-To learn more about Next.js, take a look at the following resources:
+| Route | What it shows |
+|---|---|
+| `/` | Home and links |
+| `/demos` | Scripted walkthroughs of the workflow |
+| `/database-view` | SuperGPQA law subset and PRBench browser (`/api/dataset`) |
+| `/outlines` | Contract and tort law outline PDFs |
+| `/lsh-runs` | Every saved clustering run, with cluster maps and members |
+| `/legal-workflow` | The four-stage packet → rubric → judge → review workflow, stage by stage |
+| `/legal-autoeval-pipeline` | The same workflow grouped for a live demo |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Layout
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/app/            pages and API routes (App Router)
+src/app/api/        JSON endpoints; one folder per artifact type
+src/components/     DashaResultsExplorer and ui/ primitives
+src/lib/            server-side logic
+  legal-workflow-v2-server.ts   file-backed workflow state (packets, rubric packs, runs, reviews) and LLM calls
+  legal-workflow-v2-prompts.ts  loads prompt text from ../instructions/
+  lsh-runs.ts / outlines.ts     readers for clustering runs and outline PDFs
+  dasha-comparison.ts           comparison math (unit tested)
+scripts/            background workers spawned by API routes
+```
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+File and run identifiers coming from URLs are validated against fixed patterns
+(`sanitizeFileName`, `isValidRunFileName`, `isValidOutlineFileName`) before they
+touch the filesystem, and Python is invoked with `execFile` (no shell).

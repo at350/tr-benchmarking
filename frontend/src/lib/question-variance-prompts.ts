@@ -5,28 +5,11 @@ import path from 'path';
 
 import { FRANK_V2_PACK_LABELS } from '@/lib/legal-workflow-v2-constants';
 import { getFrankV2AssetBundle } from '@/lib/legal-workflow-v2-prompts';
-import {
-    QUESTION_VARIANCE_CONFUSION_LABELS,
-    QUESTION_VARIANCE_FINAL_STATUS_LABELS,
-    QUESTION_VARIANCE_LABELS,
-    QUESTION_VARIANCE_LANE_LABELS,
-    QUESTION_VARIANCE_PACKAGE_STATUS_LABELS,
-    QUESTION_VARIANCE_RESULT_TYPE_LABELS,
-    QUESTION_VARIANCE_REUSE_LABELS,
-    QUESTION_VARIANCE_ROUTE_STATUS_LABELS,
-} from '@/lib/question-variance-constants';
 import type {
-    ConfusionPattern,
     FrankPacketV2,
     FrankSofPackId,
     QuestionVarianceMenuOption,
-    VariationExpectedResultType,
-    VariationLane,
-    VariationPackageStatus,
     VariationProvisionId,
-    VariationReuseLevel,
-    VariationRouteStatus,
-    VariationStatus,
 } from '@/lib/legal-workflow-v2-types';
 
 const QUESTION_VARIANCE_CORE_FILES = {

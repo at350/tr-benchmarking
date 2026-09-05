@@ -8,7 +8,7 @@ Companion to:
 - `01_CORE_WORKFLOW_TEMPLATE.txt`
 - `08_Karthic_Rubric_Build_Spec_v1.md`
 - `09_Cross_Pack_Scoring_Overlays_Caps_Penalties_v1.md`
-- `50_Karthic_PreFill_Instructions.rtf`
+- `50_Karthic_PreFill_Instructions.md`
 
 ## Purpose
 This file adds one procedural rule to the current framework:
@@ -214,7 +214,7 @@ Use this file as a new companion file rather than trying to bury the whole proto
 Then make small integration edits to:
 - `01_CORE_WORKFLOW_TEMPLATE.txt`
 - `08_Karthic_Rubric_Build_Spec_v1.md`
-- `50_Karthic_PreFill_Instructions.rtf`
+- `50_Karthic_PreFill_Instructions.md`
 - and, when created, any Dasha evaluation instructions file.
 
 That approach keeps the current Karthic logic intact while adding the missing dual-track comparison layer cleanly.

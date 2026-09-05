@@ -1,6 +1,6 @@
 import fs from 'fs';
 
-import { getLshResultsDirectory, isValidRunFileName } from '@/lib/lsh-runs';
+import { isValidRunFileName, resolveResultsDirectories } from '@/lib/lsh-runs';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -9,13 +9,13 @@ export const runtime = 'nodejs';
 type SsePayload = Record<string, string | number | boolean | null>;
 
 export async function GET() {
-    const resultsDirectory = getLshResultsDirectory();
-    if (!resultsDirectory) {
+    const resultsDirectories = resolveResultsDirectories();
+    if (resultsDirectories.length === 0) {
         return new Response('LSH results directory not found.', { status: 404 });
     }
 
     const encoder = new TextEncoder();
-    let watcher: fs.FSWatcher | null = null;
+    const watchers: fs.FSWatcher[] = [];
     let keepAliveTimer: NodeJS.Timeout | null = null;
 
     const stream = new ReadableStream<Uint8Array>({
@@ -35,16 +35,18 @@ export async function GET() {
             }, 20000);
 
             try {
-                watcher = fs.watch(resultsDirectory, (_eventType, fileName) => {
-                    const candidate = (fileName || '').toString();
-                    if (!candidate || !isValidRunFileName(candidate)) {
-                        return;
-                    }
-                    safeSend('runs_updated', {
-                        fileName: candidate,
-                        at: new Date().toISOString(),
-                    });
-                });
+                for (const directory of resultsDirectories) {
+                    watchers.push(fs.watch(directory, (_eventType, fileName) => {
+                        const candidate = (fileName || '').toString();
+                        if (!candidate || !isValidRunFileName(candidate)) {
+                            return;
+                        }
+                        safeSend('runs_updated', {
+                            fileName: candidate,
+                            at: new Date().toISOString(),
+                        });
+                    }));
+                }
             } catch (error) {
                 safeSend('error', { message: 'Failed to watch LSH results directory.' });
                 console.error('Failed to watch LSH results directory for SSE updates.', error);
@@ -55,9 +57,8 @@ export async function GET() {
                 clearInterval(keepAliveTimer);
                 keepAliveTimer = null;
             }
-            if (watcher) {
+            for (const watcher of watchers.splice(0)) {
                 watcher.close();
-                watcher = null;
             }
         },
     });

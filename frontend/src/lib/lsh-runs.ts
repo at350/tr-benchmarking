@@ -109,7 +109,7 @@ export type LshClusterJudgePayload = {
     }>;
 };
 
-function resolveResultsDirectories() {
+export function resolveResultsDirectories() {
     // Return all existing result directories
     const candidates = [
         path.resolve(process.cwd(), '../lsh/results'),

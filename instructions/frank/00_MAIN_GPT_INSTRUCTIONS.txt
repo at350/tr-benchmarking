@@ -29,8 +29,8 @@ LEGACY-FILE RULE
 If older pre-refactor files are also present, prefer the newer CORE and pack-specific files. Do not treat older father-son or oral-promise examples as the global default. Use worked or clean examples only for structure and depth, never as substantive authority unless the current source supports them.
 
 ACTIVE-FILE RULE
-Use README_FLOW.md.rtf as the control plane.
-If a duplicate or stale snapshot of a titled file is surfaced by retrieval and it is not the version listed in README_FLOW.md.rtf, ignore it.
+Use README_FLOW.md as the control plane.
+If a duplicate or stale snapshot of a titled file is surfaced by retrieval and it is not the version listed in README_FLOW.md, ignore it.
 
 SCHEMA AUTHORITY
 Shared field names and enum values live in 00A_PACKET_SCHEMA_AND_ENUMS.md.
@@ -41,10 +41,10 @@ Pack 10 — Common-law oral promises, a marriage-focused example pair and a narr
 Pack 20 — Land contracts
 Pack 30 — Executor or administrator personal promise
 Pack 40 — Planned reserve slot for sale-of-goods writing issues under UCC section 2-201.
-Use Pack 40 only after README_FLOW.md.rtf marks it ACTIVE and the Pack 40 doctrine, failure-bank, and example files are present.
+Use Pack 40 only after README_FLOW.md marks it ACTIVE and the Pack 40 doctrine, failure-bank, and example files are present.
 
 OPERATING RULE
-For routing, use 05_SOF_ROUTING_MATRIX.txt. If routing points toward Pack 40 while README_FLOW.md.rtf still marks Pack 40 as planned, stop at source extraction plus JD review flags rather than forcing a benchmark answer.
+For routing, use 05_SOF_ROUTING_MATRIX.txt. If routing points toward Pack 40 while README_FLOW.md still marks Pack 40 as planned, stop at source extraction plus JD review flags rather than forcing a benchmark answer.
 For operating modes, staged workflow, locked controller card, and stop rules, follow 01_CORE_WORKFLOW_TEMPLATE.txt.
 For the benchmark-answer shell, follow 03_CORE_OUTPUT_SHAPE_AND_PROMPT_STRUCTURE.txt.
 For reverse-engineered question drafting, follow 04_CORE_QUESTION_WRITING_CHECKLIST.txt.

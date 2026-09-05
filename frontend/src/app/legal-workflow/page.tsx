@@ -490,7 +490,6 @@ export function LegalWorkflowPageClient({
     const [runRenameDraft, setRunRenameDraft] = useState('');
     const [isStatusDockCollapsed, setIsStatusDockCollapsed] = useState(false);
     const [visibleStage, setVisibleStage] = useState<WorkflowStageId>('source');
-    const [isStageGuideOpen, setIsStageGuideOpen] = useState(true);
 
     const [frankPackets, setFrankPackets] = useState<FrankPacketV2[]>([]);
     const [selectedFrankId, setSelectedFrankId] = useState('');
@@ -2097,8 +2096,6 @@ export function LegalWorkflowPageClient({
         hasJudgedRun,
         selectedRun,
         selectedZakReview,
-        selectedRun?.status,
-        selectedRun?.workflowStage,
     ]);
 
     const blockViews = useMemo<WorkflowBlockView[]>(() => {
@@ -2130,8 +2127,6 @@ export function LegalWorkflowPageClient({
 
     const currentStageIndex = stageViews.findIndex((stage) => stage.id === visibleStage);
     const currentStage = stageViews[currentStageIndex] ?? stageViews[0];
-    const previousStage = currentStageIndex > 0 ? stageViews[currentStageIndex - 1] : null;
-    const nextStage = currentStageIndex >= 0 && currentStageIndex < stageViews.length - 1 ? stageViews[currentStageIndex + 1] : null;
     const currentBlockIndex = blockViews.findIndex((block) => block.active);
     const currentBlock = blockViews[currentBlockIndex] ?? blockViews[0];
     const currentBlockStepIndex = currentBlock?.stages.findIndex((stage) => stage.id === visibleStage) ?? -1;
@@ -2300,7 +2295,6 @@ export function LegalWorkflowPageClient({
         hasRoutingIntake,
         hasSeedRubric,
         hasJudgedRun,
-        selectedRun,
         isFrankOnlyMode,
         visibleStage,
     ]);
@@ -3469,22 +3463,6 @@ function buildBlockProgressLabel(
     return `Step ${Math.max(currentBlockStepIndex + 1, 1)} of ${blockStageCount}`;
 }
 
-type RunManagerItemKind = 'frank' | 'rubric';
-
-function buildRunManagerItemId(kind: RunManagerItemKind, id: string) {
-    return `${kind}:${id}`;
-}
-
-function parseRunManagerItemId(value: string): { kind: RunManagerItemKind; id: string } | null {
-    if (value.startsWith('frank:')) {
-        return { kind: 'frank', id: value.slice('frank:'.length) };
-    }
-    if (value.startsWith('rubric:')) {
-        return { kind: 'rubric', id: value.slice('rubric:'.length) };
-    }
-    return null;
-}
-
 function getBlockIcon(blockId: WorkflowBlockId) {
     switch (blockId) {
         case 'frank':
@@ -3767,22 +3745,6 @@ function buildStageBlockCardClassName(block: WorkflowBlockView) {
     return 'rounded-2xl border border-slate-200 bg-white p-4 text-left text-slate-900 shadow-[0_8px_20px_rgba(15,23,42,0.08)]';
 }
 
-function buildSubstepTabClassName(stage: WorkflowStageView, isCurrent: boolean) {
-    if (isCurrent) {
-        return 'rounded-full border border-[var(--accent-300)] bg-[var(--accent-50)] px-3 py-1.5 text-left text-[var(--accent-900)] shadow-[0_6px_16px_rgba(31,116,184,0.14)]';
-    }
-    if (!stage.unlocked) {
-        return 'rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-left text-slate-400';
-    }
-    if (stage.complete) {
-        return 'rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-left text-emerald-900';
-    }
-    if (stage.blocked) {
-        return 'rounded-full border border-amber-200 bg-white px-3 py-1.5 text-left text-amber-900';
-    }
-    return 'rounded-full border border-slate-200 bg-white px-3 py-1.5 text-left text-slate-700';
-}
-
 function StageBlockCard({
     block,
     icon,
@@ -3905,46 +3867,6 @@ function getSavedPromptPreview(
 ): StagePromptPreview | null {
     const match = [...(prompts ?? [])].reverse().find((item) => item.kind === kind && item.prompt.trim());
     return match ? { title: match.title, prompt: match.prompt } : null;
-}
-
-function StageGuideOverlay({
-    stageId,
-    promptPreview,
-    isOpen,
-    onToggle,
-}: {
-    stageId: WorkflowStageId;
-    promptPreview: StagePromptPreview | null;
-    isOpen: boolean;
-    onToggle: () => void;
-}) {
-    return (
-        <div className="flex justify-end">
-            <div className="w-full xl:max-w-[340px]">
-                <button
-                    type="button"
-                    onClick={onToggle}
-                    className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-left shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur"
-                    aria-expanded={isOpen}
-                    aria-controls="stage-guide-overlay-panel"
-                >
-                    <div>
-                        <p className="mt-1 text-sm font-semibold text-slate-900">
-                            {WORKFLOW_STAGES.find((stage) => stage.id === stageId)?.title ?? 'Workflow Stage'}
-                        </p>
-                    </div>
-                    <span className="rounded-full border border-slate-200 bg-slate-50 p-1 text-slate-600">
-                        {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                    </span>
-                </button>
-                {isOpen ? (
-                    <div id="stage-guide-overlay-panel" className="mt-3">
-                        <StageGuideCard stageId={stageId} promptPreview={promptPreview} />
-                    </div>
-                ) : null}
-            </div>
-        </div>
-    );
 }
 
 function StageGuideCard({ stageId, promptPreview }: { stageId: WorkflowStageId; promptPreview: StagePromptPreview | null }) {
@@ -4625,10 +4547,6 @@ function buildRunManagerDashaStat(runs: DashaRunV2[]) {
         return `Dasha ${clustered}/${runs.length} clustered`;
     }
     return `Dasha ${runs.length} saved`;
-}
-
-function Panel({ children }: { children: ReactNode }) {
-    return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.08)]">{children}</section>;
 }
 
 function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {

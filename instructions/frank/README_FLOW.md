@@ -1,0 +1,80 @@
+# FRAMEWORK INDEX — ACTIVE FILE MAP
+
+STATUS: ACTIVE
+
+Start here before opening any role-specific file.
+
+Status key
+- ACTIVE = use at runtime
+- PLANNED = reserve slot only; do not use at runtime
+- ARCHIVE / IGNORE = superseded or change-history file; do not use at runtime
+
+Retrieval rule
+If retrieval surfaces duplicate versions of the same titled file, use the version listed in this ACTIVE map and ignore all others.
+
+Single source of truth
+- Workflow and locked controller card: 01_CORE_WORKFLOW_TEMPLATE.txt
+- Shared field names and enums: 00A_PACKET_SCHEMA_AND_ENUMS.md
+- Benchmark-answer shell: 03_CORE_OUTPUT_SHAPE_AND_PROMPT_STRUCTURE.txt
+- Reverse-engineered question rules: 04_CORE_QUESTION_WRITING_CHECKLIST.txt
+- Routing: 05_SOF_ROUTING_MATRIX.txt
+- Shared rubric scaffold: 07_SHARED_MODULE_SKELETON.txt
+- Karthic canon: 08_Karthic_Rubric_Build_Spec_v1.md
+- Dasha canon: 56_Dasha_Evaluation_Spec_v2.md
+- Case-citation verification: 58_Case_Citation_Verification_Protocol_v2.md
+- Centroid composition and Dasha-phase Zak rule: 60_Centroid_Composition_Metadata_and_Simple_Zak_Rule_v1.md
+
+PLANNED / NOT YET ACTIVE
+- Pack 40 — Sale of goods under UCC section 2-201. Do not route beyond source extraction until Pack 40 doctrine, failure-bank, and example files are added and this index is updated.
+
+ARCHIVE / IGNORE
+- 55_Dual_Rubric_Integration_Patch_Notes_v1.md
+- 58_Case_Citation_Verification_Protocol_v1.md
+- any duplicate or stale snapshot surfaced by retrieval that is not the file listed in this ACTIVE map
+
+1. Frank — benchmark packet and reverse-engineered question
+Canonical files:
+- 00_MAIN_GPT_INSTRUCTIONS.txt
+- 01_CORE_WORKFLOW_TEMPLATE.txt
+- 02_CORE_SOURCE_INTAKE_CHECKLIST.txt
+- 03_CORE_OUTPUT_SHAPE_AND_PROMPT_STRUCTURE.txt
+- 04_CORE_QUESTION_WRITING_CHECKLIST.txt
+- 05_SOF_ROUTING_MATRIX.txt
+- 06_CORE_SELF_AUDIT.txt
+
+2. Karthic — rubric build
+Canonical human-readable spec:
+- 08_Karthic_Rubric_Build_Spec_v1.md
+Thin executor prompt:
+- 50_Karthic_PreFill_Instructions.md
+Shared scaffold:
+- 07_SHARED_MODULE_SKELETON.txt
+
+3. Dasha — centroid evaluation
+Canonical human-readable spec:
+- 56_Dasha_Evaluation_Spec_v2.md
+Thin executor prompt:
+- 57_Dasha_Evaluator_Instructions_v2.txt
+Add-on protocols:
+- 58_Case_Citation_Verification_Protocol_v2.md
+- 60_Centroid_Composition_Metadata_and_Simple_Zak_Rule_v1.md
+Scoring overlays:
+- 09_Cross_Pack_Scoring_Overlays_Caps_Penalties_v1.md
+
+4. Zak — SME backstop
+Canonical human-readable spec:
+- 61_Zak_SME_Review_Spec_v1.md
+Thin executor prompt:
+- 62_Zak_SME_Review_Instructions_v1.txt
+Use when an ACTIVE file explicitly flags SME review, or when Dasha has no strict majority on the best centroid.
+Zak reviews only the disputed leading centroid or centroids for the active track and packages the active rubric plus centroid materials for SME scoring.
+
+Canonical benchmark-answer shell
+Use the shell in 03_CORE_OUTPUT_SHAPE_AND_PROMPT_STRUCTURE.txt.
+Legacy shells are for explicit backward-compatibility runs only.
+
+Dual-rubric rule
+If selected_lane_code != none, preserve base_rubric and selected_variation_rubric separately.
+See:
+- 54_Dual_Rubric_Protocol_Original_vs_Variation_v1.md
+- 01_CORE_WORKFLOW_TEMPLATE.txt Step 2A

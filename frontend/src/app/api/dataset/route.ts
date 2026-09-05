@@ -1,10 +1,10 @@
-
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { parse } from 'csv-parse/sync';
 
 type DatasetMode = 'supergpqa' | 'prbench';
+type CsvRow = Record<string, string>;
 
 export async function GET(req: Request) {
     try {
@@ -27,9 +27,9 @@ export async function GET(req: Request) {
                 columns: true,
                 skip_empty_lines: true,
                 relax_quotes: true,
-            });
+            }) as CsvRow[];
 
-            const normalizedData = records.map((record: any, index: number) => {
+            const normalizedData = records.map((record, index) => {
                 const turns = parseInt(record.turns, 10) || 0;
                 const prompts: string[] = [];
                 const responses: string[] = [];
@@ -55,15 +55,8 @@ export async function GET(req: Request) {
         }
 
         const csvPath = resolveDatasetPath([
-            path.join(process.cwd(), 'datasets/supergpqa/SuperGPQA Law Data feb ten.csv'),
-            path.join(process.cwd(), '../datasets/supergpqa/SuperGPQA Law Data feb ten.csv'),
-            path.join(process.cwd(), 'datasets/supergpqa/SuperGPQA Law Data_with_num_options_and_law_system.csv'),
-            path.join(process.cwd(), '../datasets/supergpqa/SuperGPQA Law Data_with_num_options_and_law_system.csv'),
-            path.join(process.cwd(), 'datasets/supergpqa/SuperGPQA Law Data_with_num_options.csv'),
-            path.join(process.cwd(), '../datasets/supergpqa/SuperGPQA Law Data_with_num_options.csv'),
             path.join(process.cwd(), '../datasets/supergpqa/SuperGPQA Law Data.csv'),
-            path.join(process.cwd(), '../datasets/supergpqa/SuperGPQA Law Data.csv'),
-            path.join(process.cwd(), 'datasets/SuperGPQA Law Data.csv')
+            path.join(process.cwd(), 'datasets/supergpqa/SuperGPQA Law Data.csv'),
         ]);
 
         if (!csvPath) {
@@ -75,44 +68,18 @@ export async function GET(req: Request) {
         const records = parse(fileContent, {
             columns: true,
             skip_empty_lines: true,
-            relax_quotes: true, // Handle potential quote issues
-        });
+            relax_quotes: true,
+        }) as CsvRow[];
 
-        // Normalize data
-        const normalizedData = records.map((record: any) => {
-            let choices: string[] = [];
+        // The `options` column is a Python list literal such as "['A', 'B']",
+        // so it is parsed by hand rather than with JSON.parse.
+        const normalizedData = records.map((record) => {
+            let choices: string[];
             try {
-                // The options column looks like python list string: "['A', 'B']"
-                // We can try to parse it. 
-                // Often these strings use single quotes which JSON.parse doesn't like.
-                // Let's replace single quotes with double quotes or use a safer evaluation
-                const cleaned = record.options.replace(/'/g, '"'); // simplistic, might break if content has quotes
-                // Better approach: use a regex or string manipulation if it's consistently simple
-                // Or just treat it as a string to show in UI if parsing fails.
-
-                // Let's try a slightly more robust parse or manual split if standard JSON fails
-                // Python list representation: ['item 1', 'item 2']
-                // We can interpret this.
-
-                // Let's try to parse "['...']"
-                // Remove brackets
-                const content = record.options.slice(1, -1);
-                // Split by "', '"
-                // This is brittle but fast for a demo.
-                // Regex for splitting: /', '/ or /', "/ etc.
-
-                // Actually, let's just return the raw string if parsing is too hard, but 
-                // for the UI we want array.
-
-                // Hacky parse for demo speed:
-                // 1. Swap outer quotes.
-                // 2. JSON parse?
-
-                // Let's use a function that tries to fix it up
                 choices = parsePythonList(record.options);
             } catch (e) {
                 console.error('Failed to parse options for id:', record.uuid, e);
-                choices = [record.options]; // Fallback
+                choices = [record.options];
             }
 
             return {

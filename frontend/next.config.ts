@@ -6,11 +6,8 @@ const envAllowedDevOrigins =
     .filter(Boolean) ?? [];
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: [
-    "10.105.12.231",
-    "*.use.devtunnels.ms",
-    ...envAllowedDevOrigins,
-  ],
+  // Extra hosts allowed to reach the dev server (comma-separated), e.g. a LAN IP or tunnel domain.
+  allowedDevOrigins: envAllowedDevOrigins,
 };
 
 export default nextConfig;

@@ -1,3 +1,4 @@
+import fs from 'fs/promises';
 import path from 'path';
 import { spawn } from 'child_process';
 
@@ -90,19 +91,38 @@ export async function POST(req: Request) {
             judgeReasoningEffort: judgeReasoningEffort || undefined,
         });
 
+        // The run executes in a detached Node process that calls back into this server
+        // (POST /api/dasha-runs/<id>/execute) so the HTTP request can return immediately.
+        // Its output goes to a log file next to the run data rather than being discarded.
         const workerScript = path.join(process.cwd(), 'scripts', 'dasha-run-worker.mjs');
+        const log = await openWorkerLog();
+        const logFd = log ? log.fd : 'ignore';
         const child = spawn(process.execPath, [workerScript, new URL(req.url).origin, item.id], {
             cwd: process.cwd(),
             detached: true,
             env: process.env,
-            stdio: 'ignore',
+            stdio: ['ignore', logFd, logFd],
         });
         child.unref();
+        // the child holds its own copy of the descriptor
+        await log?.close().catch(() => undefined);
 
         return NextResponse.json({ item });
     } catch (error) {
         console.error('Failed to run Dasha evaluation.', error);
         const message = error instanceof Error ? error.message : 'Failed to run Dasha evaluation.';
         return NextResponse.json({ error: message }, { status: 500 });
+    }
+}
+
+/** Append handle for legal-workflow-data/dasha-worker.log, or null if it cannot be opened. */
+async function openWorkerLog(): Promise<fs.FileHandle | null> {
+    const root = path.basename(process.cwd()) === 'frontend' ? path.resolve(process.cwd(), '..') : process.cwd();
+    try {
+        const directory = path.join(root, 'legal-workflow-data');
+        await fs.mkdir(directory, { recursive: true });
+        return await fs.open(path.join(directory, 'dasha-worker.log'), 'a');
+    } catch {
+        return null;
     }
 }

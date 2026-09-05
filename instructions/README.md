@@ -12,4 +12,4 @@ Subdirectories:
 Consolidation rules:
 - The app should load instructions only from this tree.
 - ZIP bundles, duplicate snapshots, and superseded legacy instruction folders should not be used at runtime.
-- `README_FLOW.md.rtf` inside `frank/` is the active file map for the Frank-side instruction family.
+- `README_FLOW.md` inside `frank/` is the active file map for the Frank-side instruction family.
