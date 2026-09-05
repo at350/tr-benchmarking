@@ -1,44 +1,51 @@
-import asyncio
+"""Embed and cluster the collected free-form answers, then save a run file the portal can read.
+
+Usage (from the repository root):
+    python run_experiment.py                      # UMAP + HDBSCAN (the method used for the saved runs)
+    python run_experiment.py --method lsh         # random-hyperplane LSH + Louvain baseline, for comparison
+    python run_experiment.py --data lsh/data/robust_responses_final.json --results-dir lsh/results
+"""
+import argparse
 import json
 import os
-import random
 import time
-import numpy as np
+
 from lsh.pipeline import LSHEvaluationPipeline
 
-EDGE_SAMPLE_SEED = 42
-EDGE_SAMPLE_COUNT = 3
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--data", default="lsh/data/responses.json", help="responses JSON to cluster")
+    parser.add_argument("--results-dir", default="lsh/results", help="where to write run_<timestamp>.json")
+    parser.add_argument("--method", choices=["density", "lsh"], default="density",
+                        help="density = UMAP + HDBSCAN (default); lsh = LSH candidate pairs + Louvain baseline")
+    return parser.parse_args()
 
-DATA_FILE = "lsh/data/responses.json"
-RESULTS_DIR = "lsh/results"
 
 def main():
-    if not os.path.exists(DATA_FILE):
-        print(f"Data file {DATA_FILE} not found. Running generation...")
-        print("Please run 'python3 lsh/generate_data.py' first.")
-        return
+    args = parse_args()
+    if not os.path.exists(args.data):
+        raise SystemExit(f"Data file {args.data} not found. Run 'python lsh/generate_data.py' first.")
 
-    with open(DATA_FILE, "r") as f:
+    with open(args.data, "r") as f:
         data = json.load(f)
         
     print(f"Loaded {len(data)} items.")
     
-    # Initialize pipeline
     pipeline = LSHEvaluationPipeline()  # density defaults: UMAP to 10 dims, HDBSCAN min_cluster_size=5
-    
     pipeline.ingest_data(data)
-    # Run density-based clustering (UMAP+HDBSCAN)
-    results = pipeline.run_clustering(method="density")
+    results = pipeline.run_clustering(method=args.method)
     
-    print("\nXXX RESULTS XXX")
+    print("\n=== RESULTS ===")
     print(f"Total Clusters: {results['num_clusters']}")
     
     # Prepare full results object
+    params = results["params"]
     full_output = {
         "metadata": {
-            "method": results["params"]["method"],
-            "umap_dims": results["params"]["umap_dims"],
-            "min_cluster_size": results["params"]["min_cluster_size"],
+            "method": params["method"],
+            "params": params,
+            "umap_dims": params.get("umap_dims"),
+            "min_cluster_size": params.get("min_cluster_size"),
             "total_items": len(pipeline.embeddings),
             "duplicate_ids_dropped": len(pipeline.duplicate_ids),
             "num_clusters": results['num_clusters']
@@ -48,38 +55,6 @@ def main():
 
     clusters = results['clusters']
     reps = results['representatives']
-    embeddings = pipeline.embeddings
-
-    def get_centroid_members(cluster_id, member_ids):
-        """Return the 3 members closest to the cluster's geometric centroid."""
-        if cluster_id == "noise" or len(member_ids) == 0:
-            return []
-        members_with_emb = [m for m in member_ids if m in embeddings]
-        if not members_with_emb:
-            return []
-        # Geometric centroid = mean of all member embeddings
-        embs = np.array([embeddings[m] for m in members_with_emb])
-        center = np.mean(embs, axis=0)
-        distances = [(m, float(np.linalg.norm(embeddings[m] - center))) for m in members_with_emb]
-        distances.sort(key=lambda x: x[1])
-        return [m for m, _ in distances[:3]]
-
-    def get_edge_members(cluster_id, member_ids):
-        """Sample 3 random members from the outer third (farthest from center)."""
-        if cluster_id == "noise" or len(member_ids) < 2:
-            return []
-        members_with_emb = [m for m in member_ids if m in embeddings]
-        if len(members_with_emb) < 2:
-            return []
-        embs = np.array([embeddings[m] for m in members_with_emb])
-        center = np.mean(embs, axis=0)
-        distances = [(m, float(np.linalg.norm(embeddings[m] - center))) for m in members_with_emb]
-        distances.sort(key=lambda x: x[1], reverse=True)
-        outer_third_count = max(1, len(distances) // 3)
-        outer_member_ids = [m for m, _ in distances[:outer_third_count]]
-        rng = random.Random(EDGE_SAMPLE_SEED)
-        sample = rng.sample(outer_member_ids, min(EDGE_SAMPLE_COUNT, len(outer_member_ids)))
-        return sample
 
     # Sort clusters by size
     sorted_clusters = sorted(clusters.items(), key=lambda x: len(x[1]), reverse=True)
@@ -116,13 +91,13 @@ def main():
                 "text": id_to_text.get(member_id, "")
             })
 
-        centroid_ids = get_centroid_members(cluster_id, members)
+        centroid_ids = pipeline.centroid_members(cluster_id, members)
         cluster_data["centroid_members"] = [
             {"id": cid, "model": id_to_model.get(cid, "unknown"), "text": id_to_text.get(cid, "")}
             for cid in centroid_ids
         ]
 
-        edge_ids = get_edge_members(cluster_id, members)
+        edge_ids = pipeline.edge_members(cluster_id, members)
         cluster_data["edge_members"] = [
             {"id": eid, "model": id_to_model.get(eid, "unknown"), "text": id_to_text.get(eid, "")}
             for eid in edge_ids
@@ -138,9 +113,9 @@ def main():
             print(text_preview[:200] + "..." if len(text_preview) > 200 else text_preview)
 
     # Save to file
-    os.makedirs(RESULTS_DIR, exist_ok=True)
+    os.makedirs(args.results_dir, exist_ok=True)
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    output_filename = os.path.join(RESULTS_DIR, f"run_{timestamp}.json")
+    output_filename = os.path.join(args.results_dir, f"run_{timestamp}.json")
     
     with open(output_filename, "w") as f:
         json.dump(full_output, f, indent=2)

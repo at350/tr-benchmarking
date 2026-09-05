@@ -1,5 +1,10 @@
 # lsh — embedding and clustering of model responses
 
+The folder keeps its historical name: locality-sensitive hashing was the first
+clustering approach and survives only as a baseline (`lsh_index.py`, run with
+`python run_experiment.py --method lsh`). The pipeline that produced every saved
+run is UMAP + HDBSCAN.
+
 Generates many answers to one legal question from several models, embeds them
 with an instruction-tuned encoder, and clusters the embeddings to find the
 distinct lines of reasoning the models take. Outliers land in a `noise`
@@ -26,7 +31,7 @@ python lsh/generate_data.py             # OpenAI models
 python lsh/generate_replicate_data.py   # Claude, Llama, Mixtral via Replicate
 python lsh/generate_gemini_data.py      # Gemini via Replicate
 
-# 2. Embed + cluster -> lsh/results/run_<timestamp>.json
+# 2. Embed + cluster -> lsh/results/run_<timestamp>.json  (add --method lsh for the LSH + Louvain baseline)
 python run_experiment.py
 
 # 3. Look at a run
@@ -48,7 +53,8 @@ clustering in one go for a fixed robustness question.
 2. **Dimensionality reduction + clustering** (`density_clustering.py`): UMAP to a
    low-dimensional manifold, then HDBSCAN; points HDBSCAN cannot place are noise.
 3. **Representatives** (`pipeline.py`): the member closest to each cluster's mean
-   embedding, plus the three most central and three most peripheral members.
+   embedding, plus the three most central (`centroid_members`) and a seeded sample of
+   three from the outer third (`edge_members`).
 4. Baseline alternatives kept for comparison: random-hyperplane LSH
    (`lsh_index.py`) and Louvain graph clustering (`clustering.py`).
 

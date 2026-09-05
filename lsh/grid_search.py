@@ -107,7 +107,7 @@ def grid_search():
                     best_score = score
                     best_params = {'n_neighbors': n, 'min_dist': d, 'min_cluster_size': mcs}
                     
-    print("\nXXX BEST PARAMS XXX")
+    print("\n=== BEST PARAMS ===")
     print(best_params)
     print(f"Score: {best_score}")
 

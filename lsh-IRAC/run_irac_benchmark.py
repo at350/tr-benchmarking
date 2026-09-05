@@ -1,17 +1,13 @@
 import os
 import json
-import random
 import asyncio
 import httpx
 import time
 import sys
 import argparse
 
-import numpy as np
 from dotenv import load_dotenv
 
-EDGE_SAMPLE_SEED = 42
-EDGE_SAMPLE_COUNT = 3
 from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm
 
@@ -365,40 +361,8 @@ async def main(args):
         
         clusters = results['clusters']
         reps = results['representatives']
-        embeddings = pipeline.embeddings
         id_to_irac = {d['id']: d['response'] for d in valid_data}
         id_to_model = {d['id']: d['model'] for d in valid_data}
-
-        def get_centroid_members(cluster_id, member_ids):
-            """Return the 3 members closest to the cluster's geometric centroid."""
-            if cluster_id == "noise" or len(member_ids) == 0:
-                return []
-            members_with_emb = [m for m in member_ids if m in embeddings]
-            if not members_with_emb:
-                return []
-            # Geometric centroid = mean of all member embeddings
-            embs = np.array([embeddings[m] for m in members_with_emb])
-            center = np.mean(embs, axis=0)
-            distances = [(m, float(np.linalg.norm(embeddings[m] - center))) for m in members_with_emb]
-            distances.sort(key=lambda x: x[1])
-            return [m for m, _ in distances[:3]]
-
-        def get_edge_members(cluster_id, member_ids):
-            """Sample 3 random members from the outer third (farthest from center)."""
-            if cluster_id == "noise" or len(member_ids) < 2:
-                return []
-            members_with_emb = [m for m in member_ids if m in embeddings]
-            if len(members_with_emb) < 2:
-                return []
-            embs = np.array([embeddings[m] for m in members_with_emb])
-            center = np.mean(embs, axis=0)
-            distances = [(m, float(np.linalg.norm(embeddings[m] - center))) for m in members_with_emb]
-            distances.sort(key=lambda x: x[1], reverse=True)
-            outer_third_count = max(1, len(distances) // 3)
-            outer_member_ids = [m for m, _ in distances[:outer_third_count]]
-            rng = random.Random(EDGE_SAMPLE_SEED)
-            sample = rng.sample(outer_member_ids, min(EDGE_SAMPLE_COUNT, len(outer_member_ids)))
-            return sample
 
         def make_member_obj(member_id):
             return {
@@ -438,10 +402,10 @@ async def main(args):
             for member_id in members:
                 cluster_data["members"].append(make_member_obj(member_id))
 
-            centroid_ids = get_centroid_members(cluster_id, members)
+            centroid_ids = pipeline.centroid_members(cluster_id, members)
             cluster_data["centroid_members"] = [make_member_obj(cid) for cid in centroid_ids]
 
-            edge_ids = get_edge_members(cluster_id, members)
+            edge_ids = pipeline.edge_members(cluster_id, members)
             cluster_data["edge_members"] = [make_member_obj(eid) for eid in edge_ids]
 
             full_output["clusters"][cluster_key] = cluster_data

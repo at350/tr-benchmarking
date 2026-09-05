@@ -1,3 +1,4 @@
+import random
 import sys
 
 import numpy as np
@@ -77,7 +78,7 @@ class LSHEvaluationPipeline:
             
         print(f"Encoded {len(texts)} responses.", file=sys.stderr)
 
-    def run_clustering(self, method="lsh") -> Dict[str, Any]:
+    def run_clustering(self, method="density") -> Dict[str, Any]:
         """
         Runs the clustering pipeline.
         
@@ -152,6 +153,29 @@ class LSHEvaluationPipeline:
             "params": params,
         }
     
+    def centroid_members(self, cluster_id, member_ids, count: int = 3):
+        """The `count` members closest to the cluster's geometric centroid (mean embedding)."""
+        if cluster_id == "noise" or not member_ids:
+            return []
+        members = [m for m in member_ids if m in self.embeddings]
+        if not members:
+            return []
+        center = np.mean(np.array([self.embeddings[m] for m in members]), axis=0)
+        by_distance = sorted(members, key=lambda m: float(np.linalg.norm(self.embeddings[m] - center)))
+        return by_distance[:count]
+
+    def edge_members(self, cluster_id, member_ids, count: int = 3, seed: int = 42):
+        """A seeded sample of `count` members from the outer third of the cluster (farthest from the centroid)."""
+        if cluster_id == "noise" or len(member_ids) < 2:
+            return []
+        members = [m for m in member_ids if m in self.embeddings]
+        if len(members) < 2:
+            return []
+        center = np.mean(np.array([self.embeddings[m] for m in members]), axis=0)
+        by_distance = sorted(members, key=lambda m: float(np.linalg.norm(self.embeddings[m] - center)), reverse=True)
+        outer = by_distance[:max(1, len(by_distance) // 3)]
+        return random.Random(seed).sample(outer, min(count, len(outer)))
+
     def build_index(self):
         """
         Builds the LSH index from stored embeddings.

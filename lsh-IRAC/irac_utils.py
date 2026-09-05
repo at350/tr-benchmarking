@@ -2,22 +2,8 @@ import json
 import re
 from typing import Dict, Any, Optional
 
-def clean_text(text: str) -> str:
-    """
-    Normalizes text by removing extra whitespace, aggressive punctuation,
-    and common LLM boilerplate.
-    """
-    if not text:
-        return ""
-    text = str(text).strip()
-    
-    # Remove "As an AI..." boilerplate (simple heuristic)
-    text = re.sub(r"^(As an AI|I am an AI)[^.]*\.", "", text, flags=re.IGNORECASE)
-    
-    # Normalize whitespace
-    text = re.sub(r"\s+", " ", text)
-    
-    return text.strip()
+# Shared with lsh/; callers put the repository root on sys.path.
+from lsh.utils import clean_text
 
 def extract_json(text: str) -> Optional[Dict[str, Any]]:
     """
@@ -37,18 +23,18 @@ def extract_json(text: str) -> Optional[Dict[str, Any]]:
         except json.JSONDecodeError:
             pass # Fall back to raw search
             
-    # Try to find the first { and the last }
-    start_idx = text.find('{')
-    end_idx = text.rfind('}')
-    
-    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-        json_str = text[start_idx:end_idx+1]
+    # Otherwise scan for the first balanced JSON object in the text. Trying each '{' in
+    # turn copes with stray braces or a broken code fence before the real object.
+    decoder = json.JSONDecoder()
+    for start in (i for i, ch in enumerate(text) if ch == '{'):
         try:
-            return json.loads(json_str)
+            candidate, _ = decoder.raw_decode(text[start:])
         except json.JSONDecodeError:
-            pass # Return None if completely failed
-            
+            continue
+        if isinstance(candidate, dict):
+            return candidate
     return None
+
 
 def format_irac_for_embedding(irac_dict: Dict[str, Any]) -> str:
     """
