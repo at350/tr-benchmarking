@@ -15,11 +15,10 @@ export async function GET() {
         const runs = listLshRunSummaries();
         return NextResponse.json({
             runs,
-            resultsDirectory,
             lastUpdatedAt: new Date().toISOString(),
         });
     } catch (error) {
-        console.error('Failed to load LSH runs.', error);
-        return NextResponse.json({ error: 'Failed to load LSH runs.' }, { status: 500 });
+        console.error('Failed to load clustering runs.', error);
+        return NextResponse.json({ error: 'Failed to load clustering runs.' }, { status: 500 });
     }
 }

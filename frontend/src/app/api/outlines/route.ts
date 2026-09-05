@@ -14,7 +14,6 @@ export async function GET() {
 
         return NextResponse.json({
             outlines: listOutlines(),
-            outlinesDirectory,
             lastUpdatedAt: new Date().toISOString(),
         });
     } catch (error) {

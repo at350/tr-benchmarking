@@ -12,7 +12,17 @@ const execFileAsync = promisify(execFile);
 /** A full benchmark queries every model 20 times; give up after this long. */
 const BENCHMARK_TIMEOUT_MS = 15 * 60 * 1000;
 
+/** One benchmark at a time: a second click or a reloaded tab must not start a duplicate paid run. */
+let benchmarkInProgress = false;
+
 export async function POST(req: Request) {
+  if (benchmarkInProgress) {
+    return NextResponse.json(
+      { error: "A benchmark is already running. Wait for it to finish; its run file will appear in the list." },
+      { status: 409 },
+    );
+  }
+  benchmarkInProgress = true;
   let tempFilePath: string | null = null;
   try {
     const body = await req.json();
@@ -51,6 +61,7 @@ export async function POST(req: Request) {
       : error instanceof Error ? error.message : "Unknown error occurred.";
     return NextResponse.json({ error: message, success: false }, { status: timedOut ? 504 : 500 });
   } finally {
+    benchmarkInProgress = false;
     if (tempFilePath) {
       await fs.rm(path.dirname(tempFilePath), { recursive: true, force: true }).catch(() => undefined);
     }

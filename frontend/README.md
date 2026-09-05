@@ -18,12 +18,13 @@ Requires Node 22.6 or newer (CI uses 22). Browsing saved runs, datasets, and out
 needs no API key. The judge and drafting features need `OPENAI_API_KEY` (and optionally
 `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`) in `frontend/.env.local`.
 
-Two features shell out to Python and look for `<repo>/.venv/bin/python3` with the
-`trbench` package installed: clustering inside the Dasha stage, which falls back to a
-text-overlap heuristic when no interpreter is found, and the Run-benchmark button on
-`/lsh-runs`, which also needs `OPENAI_API_KEY` and `REPLICATE_API_TOKEN` in the root
-`.env`. Create the environment with `python3 -m venv .venv && .venv/bin/pip install -e .`
-from the repository root.
+Two features shell out to Python with the `trbench` package installed: clustering inside the
+Dasha stage, which falls back to a text-overlap heuristic when no interpreter is found, and the
+Run-benchmark button on `/lsh-runs`, which also needs `OPENAI_API_KEY` and `REPLICATE_API_TOKEN`
+in the root `.env` and runs one benchmark at a time. The interpreter is `TRBENCH_PYTHON` from
+`frontend/.env.local` when set, otherwise `<repo>/.venv/bin/python3`, otherwise `python3` on PATH
+(benchmark button only). Create the default environment with
+`python3 -m venv .venv && .venv/bin/pip install -e .` from the repository root.
 
 ## Checks
 

@@ -2219,7 +2219,7 @@ export default function LshRunsPage() {
                 <header className="rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--accent-700)]">LSH Run Atlas</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--accent-700)]">Clustering Run Atlas</p>
                             <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Interactive Cluster Separation Map</h1>
                             <p className="mt-2 text-sm text-slate-600">
                                 Filter by model and cluster size, then click a cluster to inspect details without overlapping labels.
@@ -2996,14 +2996,14 @@ export default function LshRunsPage() {
                                     <div className="sm:flex sm:items-start">
                                         <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
                                             <h3 className="text-lg font-semibold leading-6 text-slate-900">
-                                                Run LSH-IRAC Benchmark
+                                                Run IRAC Benchmark
                                             </h3>
                                             <div className="mt-2 text-sm text-slate-500 space-y-3">
                                                 <p>
-                                                    Enter a legal question below. The backend will fetch ~100+ responses from multiple models and cluster them using LSH + UMAP + HDBSCAN.
+                                                    Enter a legal question below. The server runs the IRAC benchmark: every configured model answers it 20 times in issue / rule / application / conclusion form (about 200 requests, which spend API credits), then the answers are embedded and clustered with UMAP + HDBSCAN.
                                                 </p>
                                                 <div className="my-2 rounded-md bg-[var(--accent-50)] p-3 text-[var(--accent-800)] text-xs text-left">
-                                                    <strong>Note:</strong> This process will take a few minutes as it waits for all models to respond. Please do not close this window.
+                                                    <strong>Note:</strong> This takes tens of minutes while the models respond. The run continues on the server if you close this window, and its run file appears in the list when it finishes. Only one benchmark runs at a time.
                                                 </div>
                                                 <textarea
                                                     rows={4}

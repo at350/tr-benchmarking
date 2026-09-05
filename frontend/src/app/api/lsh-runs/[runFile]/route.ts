@@ -29,11 +29,10 @@ export async function GET(
 
         return NextResponse.json({
             run,
-            resultsDirectory,
             lastUpdatedAt: new Date().toISOString(),
         });
     } catch (error) {
-        console.error('Failed to load LSH run details.', error);
-        return NextResponse.json({ error: 'Failed to load LSH run details.' }, { status: 500 });
+        console.error('Failed to load run details.', error);
+        return NextResponse.json({ error: 'Failed to load run details.' }, { status: 500 });
     }
 }

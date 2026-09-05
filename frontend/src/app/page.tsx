@@ -8,7 +8,7 @@ export default function HomePage() {
         <AppShell
             eyebrow="Benchmark Workspace"
             title="Legal AI Benchmarking Portal"
-            subtitle="Choose a tool: inspect datasets, browse legal outlines, explore clustering runs, or work through the full FKD and Frank-only Legal Auto-Eval pipelines."
+            subtitle="Choose a tool: inspect datasets, browse legal outlines, explore clustering runs, or work through the Legal Auto-Eval pipelines."
             maxWidthClassName="max-w-none"
         >
             <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
@@ -74,7 +74,7 @@ export default function HomePage() {
                     badge="Pipeline"
                 >
                     <div className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-700)]">
-                        Open Frank-only workflow <ArrowRight className="h-3.5 w-3.5" />
+                        Open grouped workflow <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </PanelCard>
             </section>

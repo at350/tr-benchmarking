@@ -9,13 +9,18 @@ export function resolveRepoRoot() {
 }
 
 /**
- * Python interpreter with the `trbench` package installed. Uses the repository's `.venv`
- * when present; otherwise returns `python3` from PATH if `fallbackToPath` is set, or `null`
- * so the caller can skip the Python step.
+ * Python interpreter with the `trbench` package installed. Checked in order: the TRBENCH_PYTHON
+ * environment variable (for conda, uv, pyenv or system installs), the repository's `.venv`, and
+ * then `python3` from PATH when `fallbackToPath` is set; otherwise `null` so the caller can skip
+ * the Python step.
  */
 export async function resolvePythonExecutable(options: { fallbackToPath: true }): Promise<string>;
 export async function resolvePythonExecutable(options?: { fallbackToPath?: boolean }): Promise<string | null>;
 export async function resolvePythonExecutable(options?: { fallbackToPath?: boolean }): Promise<string | null> {
+    const configured = process.env.TRBENCH_PYTHON?.trim();
+    if (configured) {
+        return configured;
+    }
     const root = resolveRepoRoot();
     const candidates = [
         path.join(root, '.venv', 'bin', 'python3'),
