@@ -298,7 +298,7 @@ const LSH_BUILTIN_JUDGE_RUBRICS: JudgeRubricTemplate[] = [
         createdAt: LSH_BUILTIN_RUBRIC_TIMESTAMP,
         updatedAt: LSH_BUILTIN_RUBRIC_TIMESTAMP,
         content: [
-            'Use the selected Contract Law Outline as the substantive expectations for what a strong answer should spot and analyze.',
+            'Use the selected outline as the substantive expectations for what a strong answer should spot and analyze.',
             '',
             'Operationalize it this way:',
             '- Evaluate the model answer as free-form response text; do not expect the answer itself to be JSON or IRAC-labeled.',
@@ -319,7 +319,7 @@ const LSH_BUILTIN_JUDGE_RUBRICS: JudgeRubricTemplate[] = [
         createdAt: LSH_BUILTIN_RUBRIC_TIMESTAMP,
         updatedAt: LSH_BUILTIN_RUBRIC_TIMESTAMP,
         content: [
-            'Use the selected Tort Law Outline as the substantive expectations for what a strong answer should spot and analyze.',
+            'Use the selected outline as the substantive expectations for what a strong answer should spot and analyze.',
             '',
             'Operationalize it this way:',
             '- Evaluate the model answer as free-form response text; do not expect the answer itself to be JSON or IRAC-labeled.',
@@ -335,11 +335,6 @@ const LSH_BUILTIN_JUDGE_RUBRICS: JudgeRubricTemplate[] = [
         ].join('\n'),
     },
 ];
-const LSH_OUTLINE_TO_RUBRIC_ID: Record<string, string> = {
-    'contract_law_outline.pdf': 'lsh_builtin_contract_outline_rubric_v1',
-    'tort_law_outline.pdf': 'lsh_builtin_tort_outline_rubric_v1',
-};
-
 const JUDGE_MODEL_OPTIONS: Record<JudgeProvider, Array<{ value: string; label: string }>> = {
     openai: [
         { value: 'gpt-5.2-chat-latest', label: 'GPT-5.2 Chat Latest' },
@@ -603,37 +598,6 @@ export default function LshRunsPage() {
             setSelectedJudgeRubricTemplateId('');
         }
     }, [judgeRubricLibrary, selectedJudgeRubricTemplateId]);
-
-    useEffect(() => {
-        const autoRubricId = getAutoJudgeRubricIdForOutlineSelection(selectedJudgeOutlineIds);
-        if (!autoRubricId) {
-            return;
-        }
-
-        const autoRubric = judgeRubricLibrary.find((rubric) => rubric.id === autoRubricId);
-        if (!autoRubric) {
-            return;
-        }
-
-        const shouldUpdateSelection = selectedJudgeRubricTemplateId !== autoRubric.id;
-        const shouldUpdateName = judgeRubricNameDraft !== autoRubric.name;
-        const shouldUpdateInstructions = judgeInstructions !== autoRubric.content;
-
-        if (!shouldUpdateSelection && !shouldUpdateName && !shouldUpdateInstructions) {
-            return;
-        }
-
-        setSelectedJudgeRubricTemplateId(autoRubric.id);
-        setJudgeRubricNameDraft(autoRubric.name);
-        setJudgeInstructions(autoRubric.content);
-        setJudgeRubricStatus(`Auto-loaded "${autoRubric.name}" from the selected outline.`);
-    }, [
-        judgeInstructions,
-        judgeRubricLibrary,
-        judgeRubricNameDraft,
-        selectedJudgeOutlineIds,
-        selectedJudgeRubricTemplateId,
-    ]);
 
     useEffect(() => {
         const stream = new EventSource('/api/lsh-runs/stream');
@@ -3404,13 +3368,6 @@ function normalizeReasoningEffort(value: unknown): JudgeReasoningEffort {
         return 'high';
     }
     return 'auto';
-}
-
-function getAutoJudgeRubricIdForOutlineSelection(selectedOutlineIds: string[]) {
-    if (selectedOutlineIds.length !== 1) {
-        return null;
-    }
-    return LSH_OUTLINE_TO_RUBRIC_ID[selectedOutlineIds[0]] || null;
 }
 
 type LshJudgeUiState = {
