@@ -1,3 +1,11 @@
+"""Render instructions/LEGAL_AUTOEVAL_LIVE_DEMO_BLUEPRINT.md to a printable PDF.
+
+Usage (from the repository root):
+    pip install reportlab
+    python scripts/generate_live_demo_pdf.py
+
+Output: output/pdf/Legal Auto-Eval Live Demo Blueprint.pdf (the output/ folder is gitignored).
+"""
 from __future__ import annotations
 
 import re
@@ -20,10 +28,9 @@ from reportlab.platypus import (
 )
 
 
-REPO_ROOT = Path("/Users/david/Desktop/Courses/COMP_SCI 397_497_Technologies_for_the_Law/Code/tr-benchmarking")
+REPO_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_MD = REPO_ROOT / "instructions" / "LEGAL_AUTOEVAL_LIVE_DEMO_BLUEPRINT.md"
 OUTPUT_PDF = REPO_ROOT / "output" / "pdf" / "Legal Auto-Eval Live Demo Blueprint.pdf"
-COURSE_PDF = Path("/Users/david/Desktop/Courses/COMP_SCI 397_497_Technologies_for_the_Law/Legal Auto-Eval Live Demo Blueprint.pdf")
 
 
 @dataclass
@@ -358,10 +365,10 @@ def main() -> None:
         topMargin=0.45 * inch,
         bottomMargin=0.42 * inch,
         title="Legal Auto-Eval Live Demo Blueprint",
-        author="OpenAI Codex",
+        author="TR-Benchmarking",
     )
     doc.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
-    COURSE_PDF.write_bytes(OUTPUT_PDF.read_bytes())
+    print(f"Wrote {OUTPUT_PDF.relative_to(REPO_ROOT)}")
 
 
 if __name__ == "__main__":

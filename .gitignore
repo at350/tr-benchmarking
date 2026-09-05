@@ -1,8 +1,37 @@
-# macOS Finder metadata
-*.DS_Store
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Node / Next.js (frontend has its own .gitignore for build output)
+node_modules/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS
 .DS_Store
-.ds_store
-datasets/.DS_Store
-.DS_Store
-datasets/.DS_Store
-.DS_Store
+.idea/
+.vscode/
+.codex/
+
+# Runtime scratch written by the frontend and scripts
+legal-workflow-data/tmp/
+legal-workflow-data/tmp*.json
+
+# Generated documents (scripts/generate_live_demo_pdf.py)
+output/
+
+# Scratch question files written by the frontend lsh-runs route
+lsh-IRAC/data/questions/temp_frontend_question_*.txt
+
+# rubric-automation exports (regenerate with: python rrd_legal.py --demo)
+rubric-automation/outputs/
+
+# Worker log written by the frontend
+legal-workflow-data/*.log
