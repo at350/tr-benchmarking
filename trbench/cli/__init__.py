@@ -5,10 +5,12 @@ Heavy imports (torch, umap, matplotlib) happen inside ``run`` so ``trbench --hel
 """
 import argparse
 import importlib
+import json
 import sys
 from typing import List, Optional
 
 from trbench import __version__
+from trbench.env import load_env
 
 # (subcommand, module, one-line help)
 COMMANDS = [
@@ -42,8 +44,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
+    load_env()  # every command honours a .env file (keys, LSH_MOCK_EMBEDDINGS, ...)
     try:
         return int(args.run(args) or 0)
+    except FileNotFoundError as exc:
+        print(f"error: {exc.filename or exc} not found", file=sys.stderr)
+        return 2
+    except json.JSONDecodeError as exc:
+        print(f"error: an input file is not valid JSON ({exc})", file=sys.stderr)
+        return 2
+    except KeyboardInterrupt:
+        print("Interrupted.", file=sys.stderr)
+        return 130
     except BrokenPipeError:
         # e.g. `trbench inspect ... | head`: the reader closed the pipe; exit quietly.
         try:

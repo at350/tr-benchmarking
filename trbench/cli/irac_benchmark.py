@@ -47,7 +47,8 @@ IRAC_KEYS = ("issue", "rule", "application", "conclusion")
 def add_parser(subparsers, name, help_text):
     parser = subparsers.add_parser(name, help=help_text, description=__doc__)
     parser.add_argument("--question", required=True, help="text file containing the question")
-    parser.add_argument("--resume", help="an existing responses_<timestamp>.json to continue from")
+    parser.add_argument("--resume", help="an existing responses_<timestamp>.json to top up: model/index ids already in it "
+                                         "are not requested again (a run stopped part-way writes no file)")
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR, help="root holding responses/ and results/ (default: %(default)s)")
     parser.add_argument("--per-model", type=int, default=DEFAULT_PER_MODEL, help="answers per model (default: %(default)s)")
     parser.add_argument("--openai-models", default=",".join(OPENAI_MODELS), help="comma-separated (default: %(default)s)")
@@ -108,20 +109,26 @@ async def collect(args, question: str, existing_ids) -> List[dict]:
     print(f"OpenAI models ({'key found' if openai_key else 'OPENAI_API_KEY not set, skipped'}): {', '.join(openai_models) or '-'}")
     print(f"Replicate models ({'token found' if replicate_token else 'REPLICATE_API_TOKEN not set, skipped'}): {', '.join(replicate_models) or '-'}")
     if not openai_key:
-        openai_models = []
         print("Note: without OPENAI_API_KEY the per-cluster doctrine labels are also skipped.")
-    if not replicate_token:
-        replicate_models = []
 
-    plan = [(m, i) for m in openai_models for i in range(args.per_model) if f"{m}_{i}" not in existing_ids]
-    replicate_plan = [(m, i) for m in replicate_models for i in range(args.per_model)
+    # The plan covers every listed model so --dry-run shows the full cost before any key is
+    # configured; only the models whose key is present are actually requested.
+    openai_plan = [(m, i) for m in openai_models for i in range(args.per_model) if f"{m}_{i}" not in existing_ids]
+    replicate_full = [(m, i) for m in replicate_models for i in range(args.per_model)
                       if f"{short_model_name(m)}_{i}" not in existing_ids]
-    print(f"Planned requests: {len(plan)} OpenAI + {len(replicate_plan)} Replicate "
+    print(f"Planned requests: {len(openai_plan)} OpenAI + {len(replicate_full)} Replicate "
           f"({args.per_model} per model, {len(existing_ids)} already collected). Each request is one model call.")
+    plan = openai_plan if openai_key else []
+    replicate_plan = replicate_full if replicate_token else []
+    if len(plan) + len(replicate_plan) < len(openai_plan) + len(replicate_full):
+        print(f"Runnable with the keys present now: {len(plan)} OpenAI + {len(replicate_plan)} Replicate.")
     if args.dry_run:
         return []
     if not (plan or replicate_plan):
-        raise SystemExit("Nothing to do: no model has a usable key and nothing is being resumed. Set OPENAI_API_KEY and/or REPLICATE_API_TOKEN (see .env.example).")
+        if existing_ids:
+            print("Nothing new to request; clustering the resumed answers as they are.")
+            return []
+        raise SystemExit("Nothing to do: no model has a usable key. Set OPENAI_API_KEY and/or REPLICATE_API_TOKEN (see .env.example).")
 
     from openai import AsyncOpenAI
     from tqdm.asyncio import tqdm

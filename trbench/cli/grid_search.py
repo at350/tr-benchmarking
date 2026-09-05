@@ -45,14 +45,14 @@ def run(args) -> int:
     print(f"Encoding {len(ids)} answers with {args.model}...")
     embeddings = encode_responses([d["response"] for d in data], model_name=args.model)
 
-    grid = [(n, d, m) for n in (5, 10, 15, 30) for d in (0.0, 0.05, 0.1, 0.2) for m in (5, 10)]
+    neighbors, min_dists, min_sizes = (5, 10, 15, 30), (0.0, 0.05, 0.1, 0.2), (5, 10)
     best_score, best = -1.0, None
-    print(f"Sweeping {len(grid)} settings...")
-    for n_neighbors in (5, 10, 15, 30):
-        for min_dist in (0.0, 0.05, 0.1, 0.2):
+    print(f"Sweeping {len(neighbors) * len(min_dists) * len(min_sizes)} settings...")
+    for n_neighbors in neighbors:
+        for min_dist in min_dists:
             reduced = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=10,
                                 metric="cosine", random_state=42).fit_transform(embeddings)
-            for min_cluster_size in (5, 10):
+            for min_cluster_size in min_sizes:
                 labels = HDBSCAN(min_cluster_size=min_cluster_size, min_samples=1, cluster_selection_method="eom").fit_predict(reduced)
                 partition = dict(zip(ids, labels))
                 score = purity(partition, verdicts)

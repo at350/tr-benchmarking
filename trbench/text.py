@@ -13,8 +13,15 @@ import numpy as np
 DEFAULT_EMBEDDING_MODEL = "hkunlp/instructor-large"
 EMBEDDING_DIM = 768
 
-# Set LSH_MOCK_EMBEDDINGS=1 to use random vectors instead of a model (tests only).
-MOCK_EMBEDDINGS = os.getenv("LSH_MOCK_EMBEDDINGS", "").strip().lower() in {"1", "true", "yes"}
+
+
+def mock_embeddings_enabled() -> bool:
+    """True when LSH_MOCK_EMBEDDINGS is set: random vectors instead of a model (tests, smoke runs).
+
+    Read at call time rather than import time so a value loaded from ``.env`` is honoured.
+    """
+    return os.getenv("LSH_MOCK_EMBEDDINGS", "").strip().lower() in {"1", "true", "yes", "on"}
+
 
 _EMBEDDING_MODEL = None
 _EMBEDDING_NAME: Optional[str] = None
@@ -65,7 +72,7 @@ def encode_responses(
     installed wrapper rejects pairs, the instruction is prepended to the text instead. Other
     models get the instruction prepended, or the raw text when no instruction is given.
     """
-    if MOCK_EMBEDDINGS:
+    if mock_embeddings_enabled():
         _log("LSH_MOCK_EMBEDDINGS is set: using random embeddings.")
         return np.random.default_rng(0).standard_normal((len(texts), EMBEDDING_DIM))
 

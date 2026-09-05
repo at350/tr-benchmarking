@@ -53,6 +53,7 @@ def build_results_document(
             "total_items": len(pipeline.embeddings),
             "duplicate_ids_dropped": len(pipeline.duplicate_ids),
             "num_clusters": results["num_clusters"],
+            "versions": package_versions(),
         },
         "clusters": {},
     }
@@ -75,6 +76,27 @@ def build_results_document(
             entry["topic_signals"] = topic_signals.get(key, {})
         document["clusters"][key] = entry
     return document
+
+
+VERSIONED_PACKAGES = ("numpy", "scikit-learn", "umap-learn", "numba", "sentence-transformers", "torch")
+
+
+def package_versions() -> Dict[str, str]:
+    """Installed versions of the packages that decide where points land, for a run's metadata.
+
+    Clusters reproduce exactly only under the same umap-learn / numba / scikit-learn versions,
+    so every run file records them. Packages that are not installed are omitted.
+    """
+    import platform
+    from importlib import metadata
+
+    versions: Dict[str, str] = {"python": platform.python_version()}
+    for name in VERSIONED_PACKAGES:
+        try:
+            versions[name] = metadata.version(name)
+        except metadata.PackageNotFoundError:
+            continue
+    return versions
 
 
 def write_json(path: str, document: Any) -> str:

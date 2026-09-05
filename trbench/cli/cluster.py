@@ -23,11 +23,19 @@ def run(args) -> int:
     if not os.path.exists(args.data):
         raise SystemExit(f"Data file {args.data} not found. Collect answers first with `trbench generate`.")
     data = read_json(args.data)
+    if not isinstance(data, list) or not data:
+        raise SystemExit(f"{args.data} holds no answers to cluster.")
+    if not all(isinstance(record, dict) and isinstance(record.get("response"), str) for record in data):
+        raise SystemExit(f"{args.data} does not look like a free-form responses file: every 'response' should be "
+                         "text. IRAC answers (objects) are clustered by `trbench irac-benchmark` and `trbench poison`.")
     print(f"Loaded {len(data)} items from {args.data}.")
 
     pipeline = LSHEvaluationPipeline()
     pipeline.ingest_data(data)
-    results = pipeline.run_clustering(method=args.method)
+    try:
+        results = pipeline.run_clustering(method=args.method)
+    except ValueError as exc:  # too few answers for the density method
+        raise SystemExit(f"{exc} (pass --method lsh for a small file)") from exc
     print(f"\n=== RESULTS ===\nTotal clusters: {results['num_clusters']}")
 
     document = build_results_document(

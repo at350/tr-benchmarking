@@ -55,3 +55,10 @@ def test_irac_document_carries_topic_signals_and_fields():
     assert doc["clusters"]["0"]["topic_signals"] == {"Statute of Frauds": 80.0}
     assert doc["clusters"]["0"]["members"][0] == {"id": "a", "model": "m1", "issue": "I", "rule": "R", "application": "A", "conclusion": "Yes."}
     assert doc["clusters"]["-1"]["representative"]["conclusion"] == "Outliers"
+
+
+def test_package_versions_are_recorded():
+    from trbench.results import package_versions
+
+    versions = package_versions()
+    assert "python" in versions and "numpy" in versions

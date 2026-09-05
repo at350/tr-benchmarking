@@ -54,8 +54,10 @@ async def replicate_predict(
 ) -> str:
     """Create a prediction and poll until it finishes. Returns the output text.
 
-    Raises RuntimeError with a readable reason on rate limiting that never clears, a failed or
-    cancelled prediction, or a prediction that does not finish before ``poll_timeout``.
+    Raises RuntimeError with a readable reason on rate limiting (429) or server errors (5xx) that
+    never clear, on a request Replicate rejects outright (bad token, unknown model, invalid input:
+    reported immediately, not retried), on a failed or cancelled prediction, or on a prediction
+    that does not finish before ``poll_timeout``.
     ``poll_interval`` and ``retry_backoff`` exist so tests can run without real delays.
     """
     owner, name = (model.split("/") + ["unknown"])[:2] if "/" in model else ("unknown", model)
@@ -69,6 +71,9 @@ async def replicate_predict(
             response = await client.post(url, json=payload, headers=headers)
             if response.status_code == 201:
                 break
+            if response.status_code != 429 and response.status_code < 500:
+                # A bad token, unknown model, or invalid input will not fix itself: report it now.
+                raise RuntimeError(f"Replicate rejected the request: {response.status_code} {response.text[:200]}")
             await asyncio.sleep(min(2 ** attempt + 2, 60) * retry_backoff)
         else:
             raise RuntimeError(f"Replicate refused the request after {create_attempts} attempts: "

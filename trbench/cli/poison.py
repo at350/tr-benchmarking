@@ -28,6 +28,10 @@ def run(args) -> int:
 
     print(f"Loading {args.input}...")
     data = read_json(args.input)
+    if not isinstance(data, list) or not data or not all(
+            isinstance(record, dict) and isinstance(record.get("response"), dict) for record in data):
+        raise SystemExit(f"{args.input} is not an IRAC responses file (each 'response' should be an "
+                         "{issue, rule, application, conclusion} object, as written by `trbench irac-benchmark`).")
     question = (data[0].get("prompt") if data else None) or ""
     data = list(data) + poison_records(question, args.copies)
 

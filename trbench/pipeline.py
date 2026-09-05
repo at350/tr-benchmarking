@@ -83,9 +83,18 @@ class LSHEvaluationPipeline:
         Runs the clustering pipeline.
         
         Args:
-            method: "lsh" (default) or "density" (UMAP+HDBSCAN).
+            method: "density" (default: UMAP + HDBSCAN) or "lsh" (LSH candidate pairs + Louvain).
+
+        Raises ValueError when the density method is given fewer answers than UMAP can reduce
+        (``umap_dims + 2``); collect more answers or use "lsh" for such small sets.
         """
         if method == "density":
+            minimum = self.umap_dims + 2
+            if len(self.embeddings) < minimum:
+                raise ValueError(
+                    f"Density clustering needs at least {minimum} answers to reduce to {self.umap_dims} "
+                    f"UMAP dimensions; got {len(self.embeddings)}. Collect more answers or use method='lsh'."
+                )
             print("Running Density-Based Clustering (UMAP + HDBSCAN)...", file=sys.stderr)
             partition = run_density_clustering(
                 self.embeddings,

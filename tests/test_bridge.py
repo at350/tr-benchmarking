@@ -39,13 +39,15 @@ def assert_partition(result: dict, ids: list[str]) -> None:
 
 
 def test_density_path_emits_json_only(tmp_path):
-    ids = [f"r{i}" for i in range(12)]
+    ids = [f"r{i}" for i in range(40)]
     payload = {"responses": [{"id": i, "response": f"The promise is {'un' if n % 2 else ''}enforceable. " * (3 + n % 4)}
                              for n, i in enumerate(ids)]}
     proc = run_bridge(payload, tmp_path)
     assert proc.returncode == 0, proc.stderr
     result = json.loads(proc.stdout)  # would raise if progress text leaked onto stdout
-    assert result["method"] in {"density_umap_hdbscan", "embedding_graph_fallback"}
+    # The density pipeline itself must have run; the bridge falls back to graph clustering on any
+    # exception, so accepting the fallback here would hide a broken UMAP/HDBSCAN path.
+    assert result["method"] == "density_umap_hdbscan", result.get("notes")
     assert_partition(result, ids)
 
 

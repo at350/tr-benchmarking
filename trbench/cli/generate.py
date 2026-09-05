@@ -43,6 +43,7 @@ def add_parser(subparsers, name, help_text):
     parser.add_argument("--output", default=DEFAULT_OUTPUT, help="responses file to append to (default: %(default)s)")
     parser.add_argument("--overwrite", action="store_true", help="replace the output file instead of appending")
     parser.add_argument("--concurrency", type=int, default=5, help="parallel requests (default: %(default)s)")
+    parser.add_argument("--dry-run", action="store_true", help="print the request plan and exit without calling any API")
     parser.set_defaults(run=run)
 
 
@@ -51,9 +52,20 @@ def openai_temperature(model: str, index: int) -> float:
     return 1.0 if "mini" in model else round(0.7 + (index % 5) * 0.1, 1)
 
 
-async def collect(args, question: str, models: List[str], existing_ids: set) -> List[dict]:
-    load_env()
+def plan_requests(args, models: List[str], existing_ids: set) -> List[tuple]:
+    """(model, index) pairs still to request: ``--count`` answers spread over the models, skipping ids present."""
     per_model = args.count // len(models) + 1
+    plan: List[tuple] = []
+    for model in models:
+        label = model if args.provider == "openai" else short_model_name(model)
+        for index in range(per_model):
+            if f"{label}_{index}" not in existing_ids and len(plan) < args.count:
+                plan.append((model, index))
+    return plan
+
+
+async def collect(args, question: str, models: List[str], plan: List[tuple]) -> List[dict]:
+    load_env()
     semaphore = asyncio.Semaphore(args.concurrency)
 
     if args.provider == "openai":
@@ -88,14 +100,8 @@ async def collect(args, question: str, models: List[str], existing_ids: set) -> 
                     return None
             return {"model": name, "prompt": question, "response": text, "id": record_id}
 
-    tasks = []
-    for model in models:
-        label = model if args.provider == "openai" else short_model_name(model)
-        for index in range(per_model):
-            if f"{label}_{index}" not in existing_ids and len(tasks) < args.count:
-                tasks.append(one(model, index))
-    print(f"Requesting {len(tasks)} answers from {len(models)} {args.provider} models...")
-    results = await asyncio.gather(*tasks)
+    print(f"Requesting {len(plan)} answers from {len(models)} {args.provider} models...")
+    results = await asyncio.gather(*(one(model, index) for model, index in plan))
     return [record for record in results if record]
 
 
@@ -109,7 +115,12 @@ def run(args) -> int:
     existing: List[dict] = []
     if not args.overwrite and os.path.exists(args.output):
         existing = read_json(args.output)
-    new_records = asyncio.run(collect(args, question, models, {record["id"] for record in existing}))
+    plan = plan_requests(args, models, {record["id"] for record in existing})
+    print(f"Planned requests: {len(plan)} answers from {len(models)} {args.provider} models, appended to {args.output} "
+          f"({len(existing)} answers already there). Each request is one model call.")
+    if args.dry_run:
+        return 0
+    new_records = asyncio.run(collect(args, question, models, plan))
     write_json(args.output, existing + new_records)
     print(f"Saved {len(new_records)} new answers to {args.output} ({len(existing) + len(new_records)} total).")
     return 0

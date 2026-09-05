@@ -71,12 +71,15 @@ async def collect(args, question) -> List[dict]:
     replicate_models = [m for m in args.replicate_models.split(",") if m.strip()]
     print(f"OpenAI models ({'key found' if openai_key else 'OPENAI_API_KEY not set, skipped'}): {', '.join(openai_models) or '-'}")
     print(f"Replicate models ({'token found' if replicate_token else 'REPLICATE_API_TOKEN not set, skipped'}): {', '.join(replicate_models) or '-'}")
+    listed = len(openai_models) + len(replicate_models)
+    print(f"Planned requests: {listed * args.per_model} ({listed} models x {args.per_model}). Each request is one model call.")
     if not openai_key:
         openai_models = []
     if not replicate_token:
         replicate_models = []
     total = (len(openai_models) + len(replicate_models)) * args.per_model
-    print(f"Planned requests: {total} ({len(openai_models) + len(replicate_models)} models x {args.per_model}). Each request is one model call.")
+    if total < listed * args.per_model:
+        print(f"Runnable with the keys present now: {total} ({len(openai_models) + len(replicate_models)} models x {args.per_model}).")
     if args.dry_run:
         return []
     if total == 0:

@@ -23,26 +23,48 @@ def member_text(member: dict) -> str:
     return " ".join(p for p in parts if p)
 
 
-def load_clusters(path: Path) -> dict:
-    with path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
-    if "clusters" not in data:
-        raise SystemExit(f"{path} has no 'clusters' key (keys: {list(data)})")
-    return data["clusters"]
-
-
 NOISE_KEYS = {"-1", "noise"}
 
 
-def describe_totals(clusters: dict) -> str:
-    real = [k for k in clusters if k not in NOISE_KEYS]
-    noise = sum(len(clusters[k].get("members", [])) for k in clusters if k in NOISE_KEYS)
-    return f"Total clusters: {len(real)} (plus {noise} unclustered answers)" if noise else f"Total clusters: {len(real)}"
+def load_run(path: Path) -> dict:
+    """Read a run_<timestamp>.json document, with a short message when given the wrong file."""
+    with path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    if isinstance(data, list):
+        raise SystemExit(f"{path} is a list of answers (a responses file), not a run file. "
+                         "Run files are the run_<timestamp>.json documents under runs/*/results/.")
+    if not isinstance(data, dict) or "clusters" not in data:
+        found = ", ".join(list(data)[:10]) if isinstance(data, dict) else type(data).__name__
+        raise SystemExit(f"{path} has no 'clusters' key (found: {found})")
+    return data
 
 
-def cmd_summary(clusters: dict, args: argparse.Namespace) -> None:
-    print(describe_totals(clusters) + "\n")
-    for cluster_id, cluster in clusters.items():
+def ordered_clusters(document: dict) -> list:
+    """(cluster_id, cluster) pairs, largest first, with the noise bucket last."""
+    items = list(document["clusters"].items())
+    real = sorted((kv for kv in items if kv[0] not in NOISE_KEYS), key=lambda kv: -len(kv[1].get("members", [])))
+    return real + [kv for kv in items if kv[0] in NOISE_KEYS]
+
+
+def describe_totals(document: dict) -> str:
+    """One line with the numbers the README's results table reports."""
+    clusters = document["clusters"]
+    real = [c for k, c in clusters.items() if k not in NOISE_KEYS]
+    members = [m for c in clusters.values() for m in c.get("members", [])]
+    unclustered = sum(len(clusters[k].get("members", [])) for k in clusters if k in NOISE_KEYS)
+    models = {m.get("model", "?") for m in members}
+    largest = max((len(c.get("members", [])) for c in real), default=0)
+    line = (f"Answers: {len(members)} from {len(models)} models | Clusters: {len(real)} | "
+            f"Unclustered: {unclustered} | Largest cluster: {largest}")
+    failures = (document.get("metadata") or {}).get("failures") or {}
+    if isinstance(failures, dict) and failures:
+        line += " | Dropped as generation failures: " + ", ".join(f"{m} {n}" for m, n in failures.items())
+    return line
+
+
+def cmd_summary(document: dict, args: argparse.Namespace) -> None:
+    print(describe_totals(document) + "\n")
+    for cluster_id, cluster in ordered_clusters(document):
         members = cluster.get("members", [])
         counts = Counter(m.get("model", "?") for m in members)
         print(f"=== Cluster {cluster_id} (size {len(members)}) ===")
@@ -55,9 +77,9 @@ def cmd_summary(clusters: dict, args: argparse.Namespace) -> None:
         print("-" * 40)
 
 
-def cmd_small(clusters: dict, args: argparse.Namespace) -> None:
-    print(describe_totals(clusters))
-    for cluster_id, cluster in clusters.items():
+def cmd_small(document: dict, args: argparse.Namespace) -> None:
+    print(describe_totals(document))
+    for cluster_id, cluster in ordered_clusters(document):
         members = cluster.get("members", [])
         if len(members) <= args.max_size:
             rep = cluster.get("representative", {})
@@ -66,8 +88,8 @@ def cmd_small(clusters: dict, args: argparse.Namespace) -> None:
             print(f"Preview: {member_text(rep)[:200]}...")
 
 
-def cmd_verdicts(clusters: dict, args: argparse.Namespace) -> None:
-    for cluster_id, cluster in clusters.items():
+def cmd_verdicts(document: dict, args: argparse.Namespace) -> None:
+    for cluster_id, cluster in ordered_clusters(document):
         if cluster_id in NOISE_KEYS:
             continue
         members = cluster.get("members", [])
@@ -83,9 +105,9 @@ def cmd_verdicts(clusters: dict, args: argparse.Namespace) -> None:
                 print(member_text(members[idx])[:300] + "...")
 
 
-def cmd_excerpts(clusters: dict, args: argparse.Namespace) -> None:
-    lines = [describe_totals(clusters)]
-    for cluster_id, cluster in clusters.items():
+def cmd_excerpts(document: dict, args: argparse.Namespace) -> None:
+    lines = [describe_totals(document)]
+    for cluster_id, cluster in ordered_clusters(document):
         rep = cluster.get("representative", {})
         lines.append(f"\n=== Cluster {cluster_id} (size {len(cluster.get('members', []))}) ===")
         lines.append(f"Representative model: {rep.get('model', '?')}")
@@ -129,5 +151,5 @@ def configure(parser: argparse.ArgumentParser) -> None:
 
 
 def run(args) -> int:
-    args.func(load_clusters(args.results), args)
+    args.func(load_run(args.results), args)
     return 0

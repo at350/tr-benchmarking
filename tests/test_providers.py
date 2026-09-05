@@ -110,3 +110,15 @@ def test_claude_sonnet_gets_longer_output_budget():
 def test_short_model_name():
     assert short_model_name("anthropic/claude-3.5-haiku") == "claude-3.5-haiku"
     assert short_model_name("gpt-4o") == "gpt-4o"
+
+
+def test_client_errors_are_reported_without_retrying():
+    posts = {"n": 0}
+
+    def handler(request):
+        posts["n"] += 1
+        return httpx.Response(401, text="invalid token")
+
+    with pytest.raises(RuntimeError, match="rejected.*401"):
+        predict(make_client(handler))
+    assert posts["n"] == 1
