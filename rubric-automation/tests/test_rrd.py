@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from rrd_legal_pkg.llm import MockLLMClient
+from rrd_legal_pkg.llm import BasePromptLLMClient, MockLLMClient
 from rrd_legal_pkg.models import LegalTaskExample, PipelineConfig
 from rrd_legal_pkg.pipeline import RRDPipeline
 from rrd_legal_pkg.utils import jaccard_similarity, normalize_weights
@@ -90,3 +90,26 @@ class TestRRDLegalPipeline(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class _StubPromptClient(BasePromptLLMClient):
+    """Returns canned JSON so the prompt-driven client path runs without a provider."""
+
+    def __init__(self) -> None:
+        super().__init__(model_name="stub")
+
+    def _complete(self, prompt: str) -> str:
+        return json.dumps({
+            "issues": ["Is the oral promise enforceable?"],
+            "rules": ["Statute of Frauds, marriage provision"],
+            "elements": ["a promise made in consideration of marriage"],
+            "applications": ["The promise was never written down."],
+            "conclusions": ["Unenforceable."],
+        })
+
+
+class TestPromptDrivenClient(unittest.TestCase):
+    def test_structure_extraction_runs_through_the_prompt_client(self) -> None:
+        structure = _StubPromptClient().extract_legal_structure(legal_question="Q", golden_answer="A")
+        self.assertIn("issues", structure)
+        self.assertEqual(structure["issues"], ["Is the oral promise enforceable?"])

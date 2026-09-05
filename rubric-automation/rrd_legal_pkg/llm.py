@@ -271,6 +271,7 @@ class BasePromptLLMClient(LLMClient):
         payload = self._complete_json("assign_rubric_weights", prompt)
         return normalize_weights({key: float(value) for key, value in payload.get("weights", {}).items()})
 
+    @staticmethod
     def _normalize_structure(payload: Any) -> dict[str, Any]:
         structure = payload if isinstance(payload, dict) else {}
         normalized = {}
