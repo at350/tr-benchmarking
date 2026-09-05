@@ -1,58 +1,50 @@
-# Recursive Rubric Decomposition for Legal Answers
+# Recursive Rubric Decomposition (RRD)
 
-This folder contains a production-style Python implementation of an automated Recursive Rubric Decomposition (RRD) pipeline for legal-answer evaluation.
+A standard-library-only Python package that turns a legal question plus a
+gold-standard answer into a weighted scoring rubric, then scores sample answers
+against it. It ships with a deterministic mock LLM client, so the whole
+pipeline runs offline and is unit tested; OpenAI and Anthropic clients are optional.
 
-## Module Structure
+## Run
 
-- `rrd_legal.py`: top-level CLI entry point matching the requested usage style.
-- `rrd_legal_pkg/models.py`: dataclasses for legal tasks, rubrics, evaluations, config, and pipeline results.
-- `rrd_legal_pkg/prompts.py`: default JSON-only prompt templates for structure extraction, rubric generation, decomposition, evaluation, redundancy, weighting, and coverage auditing.
-- `rrd_legal_pkg/llm.py`: `LLMClient` interface plus a deterministic `MockLLMClient` and optional `OpenAILLMClient`.
-- `rrd_legal_pkg/extractors.py`: legal-structure extraction service wrapper.
-- `rrd_legal_pkg/evaluation.py`: rubric evaluation and rubric-response matrix construction.
-- `rrd_legal_pkg/filters.py`: redundancy and misalignment filtering.
-- `rrd_legal_pkg/weighting.py`: uniform, LLM, whitened, and doctrinal weighting strategies.
-- `rrd_legal_pkg/pipeline.py`: end-to-end RRD orchestration, coverage repair, and export logic.
-- `examples/toy_legal_task.json`: bundled end-to-end demo input.
-- `tests/test_rrd.py`: lightweight unit and integration tests using the mocked client.
-
-## Running It
-
-From the `rubric-automation` directory:
+From this directory:
 
 ```bash
 python rrd_legal.py --demo --weighting doctrinal --verbose
+python rrd_legal.py --input examples/statute_of_frauds_marriage.json --weighting doctrinal
+python -m pytest -q tests          # or just `pytest` from the repository root
 ```
 
-Or with your own input file:
+Exports go to `outputs/<input-stem>/` (gitignored):
+`final_rubrics.json`, `rubric_matrix.csv`, `coverage_audit.json`, `pipeline_log.json`.
 
-```bash
-python rrd_legal.py --input examples/toy_legal_task.json --weighting doctrinal
-```
+### Flags
 
-Optional flags:
+| Flag | Default | Meaning |
+|---|---|---|
+| `--input PATH` | | Task JSON (see format below) |
+| `--demo` | | Use `examples/toy_legal_task.json` |
+| `--output-dir PATH` | `outputs` | Export directory |
+| `--weighting` | `doctrinal` | `uniform`, `llm`, `whitened`, or `doctrinal` |
+| `--threshold N` | 3 | Decomposition match threshold |
+| `--max-iterations N` | 4 | RRD iteration cap |
+| `--disable-misalignment` | | Skip the misalignment filter |
+| `--include-style-rubrics` | | Keep style-only criteria |
+| `--provider` | `mock` | `mock`, `openai` (`pip install openai`, `OPENAI_API_KEY`), or `anthropic` (`pip install anthropic`, `ANTHROPIC_API_KEY`) |
+| `--model` | per provider | `gpt-4.1-mini` for OpenAI, `claude-sonnet-4-6` for Anthropic |
+| `--verbose` | | Print iteration progress |
 
-- `--threshold`
-- `--max-iterations`
-- `--disable-misalignment`
-- `--weighting uniform|llm|whitened|doctrinal`
-- `--include-style-rubrics`
-- `--verbose`
-- `--use-openai`
-- `--model`
+## What the pipeline does
 
-Outputs are exported into `outputs/<input-stem>/` by default:
+1. Extract the legal structure of the gold answer (doctrines, sub-issues, rules).
+2. Generate a first rubric: criteria a correct answer must satisfy.
+3. Decompose broad criteria into atomic, independently gradeable items.
+4. Filter redundant or misaligned items.
+5. Weight items (`weighting.py`): uniform, LLM-assigned, statistically whitened, or doctrinal centrality.
+6. Audit coverage against every issue in the gold answer and repair gaps.
+7. Score each sample response, producing a rubric × response matrix.
 
-- `final_rubrics.json`
-- `rubric_matrix.csv`
-- `coverage_audit.json`
-- `pipeline_log.json`
-
-## Example Input
-
-See [`examples/toy_legal_task.json`](/Users/clarkhanlon/Desktop/CS/CS397/tr-benchmarking-lsh/rubric-automation/examples/toy_legal_task.json).
-
-The JSON format is:
+## Input format
 
 ```json
 {
@@ -60,23 +52,27 @@ The JSON format is:
   "golden_answer": "...",
   "sample_responses": ["...", "..."],
   "jurisdiction": "United States",
-  "legal_domain": "Torts",
+  "legal_domain": "Contracts",
   "metadata": {}
 }
 ```
 
-## Plugging In a Real LLM API Key
+`examples/` contains the toy task used by `--demo` and a real Statute of Frauds
+(marriage provision) task with two sample model responses.
 
-The API-specific code lives in [`rrd_legal_pkg/llm.py`](/Users/clarkhanlon/Desktop/CS/CS397/tr-benchmarking-lsh/rubric-automation/rrd_legal_pkg/llm.py).
+## Layout
 
-To use a real model:
-
-1. Install the `openai` Python package in your environment.
-2. Set `OPENAI_API_KEY` in your shell.
-3. Run:
-
-```bash
-python rrd_legal.py --input your_task.json --use-openai --model gpt-4.1-mini
 ```
-
-The mocked client remains the default so the package works offline for testing and development.
+rrd_legal.py            CLI entry point (delegates to rrd_legal_pkg.cli)
+rrd_legal_pkg/
+  cli.py                argument parsing
+  models.py             dataclasses for tasks, rubrics, evaluations, config
+  prompts.py            JSON-only prompt templates
+  llm.py                LLMClient interface; Mock, OpenAI, and Anthropic clients
+  extractors.py         legal-structure extraction
+  pipeline.py           orchestration, coverage repair, export
+  evaluation.py         rubric scoring and matrix construction
+  filters.py            redundancy / misalignment filtering
+  weighting.py          the four weighting strategies
+tests/test_rrd.py       unit and integration tests on the mock client
+```

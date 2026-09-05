@@ -10,6 +10,11 @@ from .llm import AnthropicLLMClient, MockLLMClient, OpenAILLMClient
 from .models import LegalTaskExample, PipelineConfig
 from .pipeline import RRDPipeline
 
+DEFAULT_MODELS = {
+    "openai": "gpt-4.1-mini",
+    "anthropic": "claude-sonnet-4-6",
+}
+
 
 def build_parser() -> argparse.ArgumentParser:
     """Construct the argument parser."""
@@ -42,7 +47,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="mock",
         help="LLM provider to use.",
     )
-    parser.add_argument("--model", default="gpt-4.1-mini", help="Model name for a real LLM client.")
+    parser.add_argument(
+        "--model",
+        default=None,
+        help=f"Model name for a real LLM client (defaults per provider: {DEFAULT_MODELS}).",
+    )
     parser.add_argument("--demo", action="store_true", help="Run the bundled toy demo input.")
     return parser
 
@@ -68,12 +77,13 @@ def main() -> int:
         input_path = Path(__file__).resolve().parent.parent / "examples" / "toy_legal_task.json"
 
     task = load_task(input_path)
+    model_name = args.model or DEFAULT_MODELS.get(args.provider, PipelineConfig.llm_model_name)
     config = PipelineConfig(
         decomposition_match_threshold=args.threshold,
         max_iterations=args.max_iterations,
         misalignment_enabled=not args.disable_misalignment,
         weighting_mode=args.weighting,
-        llm_model_name=args.model,
+        llm_model_name=model_name,
         include_style_rubrics=args.include_style_rubrics,
     )
 

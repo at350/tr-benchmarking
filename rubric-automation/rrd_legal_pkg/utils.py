@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import json
 import math
-import random
 import re
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
@@ -87,13 +86,6 @@ CORE_CATEGORIES = {
     "counterargument",
     "conclusion",
 }
-
-
-def seed_random(seed: int | None) -> None:
-    """Set the process-local RNG seed when provided."""
-
-    if seed is not None:
-        random.seed(seed)
 
 
 def ensure_directory(path: str | Path) -> Path:

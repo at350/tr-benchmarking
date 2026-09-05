@@ -11,7 +11,6 @@ from typing import Any
 
 from .prompts import (
     BINARY_RUBRIC_EVALUATION_PROMPT,
-    COVERAGE_AUDIT_PROMPT,
     INITIAL_LEGAL_RUBRIC_PROMPT,
     LEGAL_RUBRIC_DECOMPOSITION_PROMPT,
     LEGAL_STRUCTURE_EXTRACTION_PROMPT,
@@ -66,6 +65,11 @@ DOMAIN_DEFAULTS = {
     },
 }
 
+
+
+def _rubric_field(rubric: Any, name: str) -> Any:
+    """Read a field from either a Rubric dataclass or a plain dict."""
+    return getattr(rubric, name) if hasattr(rubric, name) else rubric.get(name)
 
 class LLMClient(ABC):
     """Abstract interface for all LLM-backed rubric services."""
@@ -145,7 +149,7 @@ class BasePromptLLMClient(LLMClient):
             try:
                 raw = self._complete(prompt)
                 return safe_json_loads(raw)
-            except Exception as exc:  # pragma: no cover - exercised with a real provider
+            except ValueError as exc:  # invalid or empty JSON: ask the model to repair it
                 last_error = exc
                 repair_suffix = (
                     "\n\nYour last reply could not be parsed as JSON. "
@@ -254,9 +258,9 @@ class BasePromptLLMClient(LLMClient):
         for rubric in rubrics:
             rubric_payload.append(
                 {
-                    "id": getattr(rubric, "id", rubric.get("id")),
-                    "text": getattr(rubric, "text", rubric.get("text")),
-                    "category": getattr(rubric, "category", rubric.get("category")),
+                    "id": _rubric_field(rubric, "id"),
+                    "text": _rubric_field(rubric, "text"),
+                    "category": _rubric_field(rubric, "category"),
                 }
             )
         prompt = LEGAL_WEIGHT_ASSIGNMENT_PROMPT.format(
@@ -267,34 +271,6 @@ class BasePromptLLMClient(LLMClient):
         payload = self._complete_json("assign_rubric_weights", prompt)
         return normalize_weights({key: float(value) for key, value in payload.get("weights", {}).items()})
 
-    def coverage_audit(
-        self,
-        legal_question: str,
-        golden_answer: str,
-        legal_structure: dict[str, Any],
-        rubrics: list[Any],
-    ) -> dict[str, Any]:
-        """Optional LLM-backed coverage audit hook used by the pipeline when available."""
-
-        rubric_payload = []
-        for rubric in rubrics:
-            rubric_payload.append(
-                {
-                    "id": getattr(rubric, "id", rubric.get("id")),
-                    "text": getattr(rubric, "text", rubric.get("text")),
-                    "category": getattr(rubric, "category", rubric.get("category")),
-                }
-            )
-        prompt = COVERAGE_AUDIT_PROMPT.format(
-            legal_question=legal_question,
-            golden_answer=golden_answer,
-            legal_structure_json=json.dumps(legal_structure, indent=2, sort_keys=True),
-            rubrics_json=json.dumps(rubric_payload, indent=2),
-        )
-        payload = self._complete_json("coverage_audit", prompt)
-        return payload if isinstance(payload, dict) else {}
-
-    @staticmethod
     def _normalize_structure(payload: Any) -> dict[str, Any]:
         structure = payload if isinstance(payload, dict) else {}
         normalized = {}
@@ -718,9 +694,9 @@ class MockLLMClient(LLMClient):
         del legal_question, golden_answer
         raw_weights: dict[str, float] = {}
         for rubric in rubrics:
-            rubric_id = getattr(rubric, "id", rubric.get("id"))
-            category = getattr(rubric, "category", rubric.get("category"))
-            text = getattr(rubric, "text", rubric.get("text"))
+            rubric_id = _rubric_field(rubric, "id")
+            category = _rubric_field(rubric, "category")
+            text = _rubric_field(rubric, "text")
             base = category_weight(str(category))
             specificity_bonus = min(0.35, len(set(content_tokens(text))) / 40.0)
             raw_weights[str(rubric_id)] = base + specificity_bonus

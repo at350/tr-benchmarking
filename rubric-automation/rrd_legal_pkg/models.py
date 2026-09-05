@@ -120,7 +120,6 @@ class PipelineConfig:
     require_fact_application_rubrics: bool = True
     require_issue_spotting_rubrics: bool = True
     require_counterargument_rubrics: bool = True
-    random_seed: int | None = 7
     misalignment_mode: str = "golden"
     misalignment_threshold: float = 0.6
     llm_max_retries: int = 3

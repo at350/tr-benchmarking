@@ -218,36 +218,3 @@ LEGAL_WEIGHT_ASSIGNMENT_PROMPT = dedent(
 ).strip()
 
 
-COVERAGE_AUDIT_PROMPT = dedent(
-    """
-    You are auditing the coverage of a final legal rubric set.
-    Return JSON only.
-
-    Legal question:
-    {legal_question}
-
-    Golden answer:
-    {golden_answer}
-
-    Extracted legal structure:
-    {legal_structure_json}
-
-    Final rubrics:
-    {rubrics_json}
-
-    Produce JSON with this schema:
-    {{
-      "covered_categories": [str],
-      "underrepresented_categories": [str],
-      "missing_points": [{{"category": str, "point": str, "reason": str}}],
-      "rubric_mapping": {{
-        "<rubric_id>": [str]
-      }}
-    }}
-
-    Requirements:
-    - Check coverage of major issues, rules, elements or factors, exceptions or defenses, factual application, conclusions, and counterarguments where relevant.
-    - Flag doctrinal omissions, not stylistic omissions.
-    - Map each rubric to the legal issue, rule, element, or application point it covers where possible.
-    """
-).strip()

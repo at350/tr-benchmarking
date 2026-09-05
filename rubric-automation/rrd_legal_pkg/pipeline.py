@@ -9,7 +9,7 @@ from typing import Any
 from .evaluation import RubricEvaluator
 from .extractors import LegalStructureExtractor
 from .filters import MisalignmentFilter, RedundancyFilter
-from .llm import BasePromptLLMClient, LLMClient
+from .llm import LLMClient
 from .models import LegalTaskExample, PipelineConfig, PipelineResult, Rubric, RubricSet
 from .utils import (
     CORE_CATEGORIES,
@@ -20,7 +20,6 @@ from .utils import (
     keyword_overlap_score,
     normalize_weights,
     rubric_specificity_score,
-    seed_random,
     write_json,
     write_matrix_csv,
 )
@@ -33,7 +32,6 @@ class RRDPipeline:
     def __init__(self, llm_client: LLMClient, config: PipelineConfig | None = None) -> None:
         self.llm_client = llm_client
         self.config = config or PipelineConfig()
-        seed_random(self.config.random_seed)
 
         self.structure_extractor = LegalStructureExtractor(llm_client)
         self.rubric_evaluator = RubricEvaluator(llm_client)
