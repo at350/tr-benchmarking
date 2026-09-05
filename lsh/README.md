@@ -1,91 +1,72 @@
-# LSH for LLM Response Grouping
+# lsh — embedding and clustering of model responses
 
-This directory contains an implementation of Locality Sensitive Hashing (LSH) and Density Clustering (UMAP + HDBSCAN) to group semantically similar LLM responses.
+Generates many answers to one legal question from several models, embeds them
+with an instruction-tuned encoder, and clusters the embeddings to find the
+distinct lines of reasoning the models take. Outliers land in a `noise`
+cluster. This is the shared engine; `lsh-IRAC/` builds on it and the frontend
+calls `cluster_legal_workflow.py` from it.
 
-## Overview
-
-The pipeline ingests legal responses from various LLMs, generates **Instruction-Tuned Embeddings** to capture legal reasoning, reduces dimensionality with UMAP, and clusters them using HDBSCAN. This allows for clean separation of responses based on their legal conclusion (e.g., "Enforceable" vs "Unenforceable") rather than just topical similarity.
+All commands below run from the **repository root** (the scripts use paths like
+`lsh/data/...`).
 
 ## Setup
 
-1. **Install Dependencies**:
-   ```bash
-   # Create and activate virtual environment
-   python3 -m venv .venv
-   source .venv/bin/activate
-   
-   # Install required packages
-   pip install -r requirements.txt
-   ```
-
-2. **Set API Keys**:
-   Make sure the following environment variables are set (or present in `.env`):
-   - `OPENAI_API_KEY`: For generating OpenAI data.
-   - `REPLICATE_API_TOKEN`: For generating Replicate/Claude/Gemini data.
-
-## Usage
-
-### 1. Data Generation
-Scripts to fetch responses from different model families:
-
-- **OpenAI Models** (GPT-4o, GPT-3.5, etc.):
-  ```bash
-  python generate_data.py
-  ```
-- **Replicate Models** (Claude 3.5 Sonnet, Llama 3):
-  ```bash
-  python generate_replicate_data.py
-  ```
-- **Gemini Models** (Gemini 1.5 Pro/Flash via Replicate):
-  ```bash
-  python generate_gemini_data.py
-  ```
-
-All scripts append unique responses to `data/responses.json`.
-
-### 2. Clustering Pipeline
-Run the full clustering pipeline. This reads `data/responses.json`, generates embeddings, clusters them, and saves the results.
 ```bash
-python ../run_experiment.py
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # OPENAI_API_KEY, REPLICATE_API_TOKEN
 ```
-**Output**: A JSON file in `results/` (e.g., `results/run_20260217_153621.json`) containing cluster assignments, representatives, and metadata.
 
-### 3. Visualization
-Generate performance charts and UMAP visualizations:
+## Pipeline
+
 ```bash
-python visualize_pipeline.py
+# 1. Collect responses (each script appends to lsh/data/responses.json; all spend API credits)
+python lsh/generate_data.py             # OpenAI models
+python lsh/generate_replicate_data.py   # Claude, Llama, Mixtral via Replicate
+python lsh/generate_gemini_data.py      # Gemini via Replicate
+
+# 2. Embed + cluster -> lsh/results/run_<timestamp>.json
+python run_experiment.py
+
+# 3. Look at a run
+python lsh/inspect_run.py lsh/results/run_20260217_153621.json summary
+python lsh/inspect_run.py lsh/results/run_20260217_153621.json verdicts   # flags clusters that disagree on the outcome
+
+# 4. Figures -> lsh/presentation_assets/
+python lsh/visualize_pipeline.py
 ```
-**Output**: Images saved in `presentation_assets/`:
-- `viz_before_topical.png`: UMAP of baseline embeddings (mixed clusters).
-- `viz_after_instruction.png`: UMAP of instruction-tuned embeddings (clean separation).
-- `viz_cluster_distribution.png`: Bar chart of cluster sizes and verdicts.
 
-## Files & Directories
+`run_robust_benchmark.py` (or `bash run_benchmark.sh`) does generation and
+clustering in one go for a fixed robustness question.
 
-### Core Logic
-- **`pipeline.py`**: Main class `LSHEvaluationPipeline` that orchestrates the workflow.
-- **`density_clustering.py`**: Implementation of UMAP + HDBSCAN clustering logic.
-- **`lsh_index.py`**: Baseline Random Hyperplane LSH implementation.
-- **`clustering.py`**: Baseline graph clustering (Louvain).
-- **`utils.py`**: Helper functions for text preprocessing and embedding generation.
+## How it works
 
-### Tools & Inspection
-- **`deep_inspect.py`**: Script to print detailed text content of clusters for manual verification of purity.
-- **`visualize_pipeline.py`**: Generates the project's visual assets.
-- **`inspect_clusters.py`**: Simple CLI tool to list cluster members.
+1. **Embedding** (`utils.py`): `hkunlp/instructor-large` with the instruction
+   *"Represent the legal conclusion and reasoning of this text"*, so that
+   "enforceable" and "unenforceable" answers separate even when they share vocabulary.
+2. **Dimensionality reduction + clustering** (`density_clustering.py`): UMAP to a
+   low-dimensional manifold, then HDBSCAN; points HDBSCAN cannot place are noise.
+3. **Representatives** (`pipeline.py`): the member closest to each cluster's mean
+   embedding, plus the three most central and three most peripheral members.
+4. Baseline alternatives kept for comparison: random-hyperplane LSH
+   (`lsh_index.py`) and Louvain graph clustering (`clustering.py`).
 
-### Data & Results
-- **`data/`**: Contains the input dataset `responses.json`.
-- **`results/`**: Archive of clustering run outputs.
-- **`presentation_assets/`**: Generated plots and charts for reports.
+## Files
 
-## Methodology
-
-### Instruction-Tuned Embeddings
-We use `hkunlp/instructor-large` with the instruction:
-> *"Represent the legal conclusion and reasoning of this text:"*
-
-This directs the model to embed the *outcome* of the legal argument, ensuring that "Enforceable" and "Unenforceable" answers are semantically distinct, even if they use similar legal vocabulary.
-
-### Density Clustering
-We use **UMAP** (Uniform Manifold Approximation and Projection) to reduce embeddings to a lower-dimensional space, followed by **HDBSCAN** (Hierarchical Density-Based Spatial Clustering of Applications with Noise) to identify dense clusters of varying shapes and sizes, while automatically classifying outliers as noise.
+| File | Purpose |
+|---|---|
+| `pipeline.py` | `LSHEvaluationPipeline`: ingest, embed, cluster, pick representatives |
+| `density_clustering.py` | UMAP + HDBSCAN |
+| `lsh_index.py` | Random-hyperplane LSH index (baseline) |
+| `clustering.py` | Similarity graph + Louvain (baseline) |
+| `utils.py` | Text cleaning and embedding helpers |
+| `generate_data.py`, `generate_replicate_data.py`, `generate_gemini_data.py` | Response collection |
+| `run_robust_benchmark.py` | One-shot generation + clustering for the robustness question |
+| `grid_search.py` | Sweep clustering hyperparameters |
+| `inspect_run.py` | CLI to summarise a saved run (model mix, small clusters, verdict splits, excerpts) |
+| `visualize_pipeline.py` | UMAP scatter plots and cluster-size charts |
+| `cluster_legal_workflow.py` | JSON-in / JSON-out clustering used by the frontend (`--input file.json`) |
+| `data/` | Collected responses |
+| `results/` | Saved runs (`run_<timestamp>.json`) |
+| `presentation_assets/` | Generated figures |
+| `experiments/` | Earlier benchmark iterations kept for provenance (see its README) |

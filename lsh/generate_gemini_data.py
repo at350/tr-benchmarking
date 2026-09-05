@@ -6,7 +6,10 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-load_dotenv(dotenv_path="../frontend/.env")
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(dotenv_path=os.path.join(_ROOT, "lsh", ".env"))
+load_dotenv(dotenv_path=os.path.join(_ROOT, ".env"))
+load_dotenv()
 
 API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
 if not API_TOKEN:
@@ -38,10 +41,6 @@ async def fetch_gemini(index, client):
                 "prompt": TEST_QUESTION,
                 "max_output_tokens": 2048, # Increased for detail
                 "temperature": 0.7,
-                # "thinking_level": "low", # User example had this, maybe keep it? Or omit if default is fine. User said "Install Replicate... Run... input={... thinking_level: 'low' ...}". I'll include it.
-                # Actually, user's prompt was for video transcript. For legal QA, maybe "high" thinking is better? Or just omit.
-                # Let's try omitting first to be standard, or use "low" as in example if required. 
-                # Replicate often has default values. I'll stick to a basic set first.
                 "top_p": 0.95
             }
         }

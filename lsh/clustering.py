@@ -1,4 +1,6 @@
 import networkx as nx
+import sys
+
 import numpy as np
 from typing import List, Dict, Tuple, Set
 from collections import defaultdict
@@ -7,7 +9,7 @@ try:
     import community.community_louvain as community_louvain
 except ImportError:
     community_louvain = None
-    print("Warning: python-louvain not installed. Clustering will be limited to connected components.")
+    print("Warning: python-louvain not installed. Clustering will be limited to connected components.", file=sys.stderr)
 
 def build_similarity_graph(
     candidates: Set[Tuple[str, str]],
@@ -53,7 +55,7 @@ def cluster_graph(G: nx.Graph, resolution: float = 1.0) -> Dict[str, int]:
         return partition
     else:
         # Fallback: Connected Components
-        print("Using Connected Components clustering (fallback)")
+        print("Using Connected Components clustering (fallback)", file=sys.stderr)
         partition = {}
         for i, component in enumerate(nx.connected_components(G)):
             for node in component:

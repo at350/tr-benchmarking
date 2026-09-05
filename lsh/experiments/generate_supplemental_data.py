@@ -8,7 +8,7 @@ from tqdm.asyncio import tqdm
 import sys
 
 # Add lsh module to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))  # repo root
 
 # Load environment variables
 load_dotenv(dotenv_path="../frontend/.env")

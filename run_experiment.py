@@ -24,12 +24,7 @@ def main():
     print(f"Loaded {len(data)} items.")
     
     # Initialize pipeline
-    pipeline = LSHEvaluationPipeline(
-        num_bits=128,
-        num_bands=32,
-        sim_threshold=0.88,  # Target: Merge singletons (0.90 was too high, 0.85 too low)
-        resolution=1.0       
-    )
+    pipeline = LSHEvaluationPipeline()  # density defaults: UMAP to 10 dims, HDBSCAN min_cluster_size=5
     
     pipeline.ingest_data(data)
     # Run density-based clustering (UMAP+HDBSCAN)
@@ -41,10 +36,11 @@ def main():
     # Prepare full results object
     full_output = {
         "metadata": {
-            "method": "density_umap_hdbscan",
-            "umap_dims": 5,
-            "min_cluster_size": 5,
-            "total_items": len(data),
+            "method": results["params"]["method"],
+            "umap_dims": results["params"]["umap_dims"],
+            "min_cluster_size": results["params"]["min_cluster_size"],
+            "total_items": len(pipeline.embeddings),
+            "duplicate_ids_dropped": len(pipeline.duplicate_ids),
             "num_clusters": results['num_clusters']
         },
         "clusters": {}
@@ -55,7 +51,7 @@ def main():
     embeddings = pipeline.embeddings
 
     def get_centroid_members(cluster_id, member_ids):
-        """Return representative plus 2 other members closest to cluster geometric center."""
+        """Return the 3 members closest to the cluster's geometric centroid."""
         if cluster_id == "noise" or len(member_ids) == 0:
             return []
         members_with_emb = [m for m in member_ids if m in embeddings]

@@ -112,7 +112,7 @@ import glob
 def get_latest_results_file():
     files = glob.glob("lsh/results/run_*.json")
     if not files: return None
-    return max(files, key=os.path.getctime)
+    return max(files)  # names are run_YYYYMMDD_HHMMSS.json, so lexicographic max is the latest
 
 def visualize_cluster_distribution():
     print("Generating Cluster Distribution Chart...")

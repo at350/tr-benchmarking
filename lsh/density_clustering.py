@@ -1,4 +1,6 @@
 
+import sys
+
 import numpy as np
 import umap
 from sklearn.cluster import HDBSCAN
@@ -37,7 +39,7 @@ def run_density_clustering(
     # Stack embeddings into a matrix
     X = np.stack([embeddings[uid] for uid in doc_ids])
     
-    print(f"Running UMAP reduction ({X.shape[1]} -> {n_components} dims)...")
+    print(f"Running UMAP reduction ({X.shape[1]} -> {n_components} dims)...", file=sys.stderr)
     reducer = umap.UMAP(
         n_neighbors=n_neighbors,
         min_dist=min_dist,
@@ -47,7 +49,7 @@ def run_density_clustering(
     )
     X_embedded = reducer.fit_transform(X)
     
-    print(f"Running HDBSCAN clustering (min_cluster_size={min_cluster_size})...")
+    print(f"Running HDBSCAN clustering (min_cluster_size={min_cluster_size})...", file=sys.stderr)
     clusterer = HDBSCAN(
         min_cluster_size=min_cluster_size,
         min_samples=min_samples,
@@ -62,6 +64,6 @@ def run_density_clustering(
     # Count noise
     n_noise = list(labels).count(-1)
     n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-    print(f"Density clustering found {n_clusters} clusters and {n_noise} noise points.")
+    print(f"Density clustering found {n_clusters} clusters and {n_noise} noise points.", file=sys.stderr)
     
     return partition

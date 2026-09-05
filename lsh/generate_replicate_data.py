@@ -6,7 +6,10 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-load_dotenv(dotenv_path="../frontend/.env")
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(dotenv_path=os.path.join(_ROOT, "lsh", ".env"))
+load_dotenv(dotenv_path=os.path.join(_ROOT, ".env"))
+load_dotenv()
 
 API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
 if not API_TOKEN:
@@ -124,7 +127,6 @@ async def main():
     
     tasks = []
     # Start ID index at something to avoid collision with existing data if we ran this multiple times for same model?
-    # But for now, simple index 0..N is fine, the model name prefix makes it unique.
     
     for model in MODELS:
         # Increase the per_model slightly to ensure we hit target if some fail
@@ -145,7 +147,7 @@ async def main():
         except json.JSONDecodeError:
             print("Warning: Could not parse existing responses.json")
             
-    # Calculate how many we actually need to add to reach close to target 
+    # Only request the shortfall against the target count.
     # But user said "generate 100", so we append what we generated.
     
     existing_data.extend(valid_results)

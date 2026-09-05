@@ -6,14 +6,12 @@ from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm
 
 # Load environment variables
-load_dotenv(dotenv_path="../frontend/.env")
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(dotenv_path=os.path.join(_ROOT, "lsh", ".env"))
+load_dotenv(dotenv_path=os.path.join(_ROOT, ".env"))
+load_dotenv()
 
 api_key = os.getenv("OPENAI_API_KEY")
-if not api_key:
-    # Try looking in current directory .env too, or just rely on env var
-    load_dotenv()
-    api_key = os.getenv("OPENAI_API_KEY")
-
 if not api_key:
     print("Warning: OPENAI_API_KEY not found in environment or .env file.")
 

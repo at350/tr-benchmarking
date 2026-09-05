@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 from typing import List, Dict, Any, Tuple
 import json
@@ -10,22 +12,35 @@ from lsh.clustering import build_similarity_graph, cluster_graph, get_cluster_re
 from lsh.density_clustering import run_density_clustering
 
 class LSHEvaluationPipeline:
-    def __init__(self, 
-                 num_bits=128, 
-                 num_bands=32, 
-                 sim_threshold=0.7, 
-                 min_cluster_size=1,
-                 resolution=1.0):
+    def __init__(self,
+                 num_bits=128,
+                 num_bands=32,
+                 sim_threshold=0.7,
+                 resolution=1.0,
+                 # density path (UMAP + HDBSCAN); defaults chosen after a grid search on this data
+                 umap_dims=10,
+                 n_neighbors=5,
+                 min_dist=0.1,
+                 min_cluster_size=5,
+                 min_samples=2,
+                 random_state=42):
+        # LSH / graph path
         self.num_bits = num_bits
         self.num_bands = num_bands
         self.sim_threshold = sim_threshold
-        self.min_cluster_size = min_cluster_size
         self.resolution = resolution
+        # density path
+        self.umap_dims = umap_dims
+        self.n_neighbors = n_neighbors
+        self.min_dist = min_dist
+        self.min_cluster_size = min_cluster_size
+        self.min_samples = min_samples
+        self.random_state = random_state
+
         self.lsh_index = None
-        self.embeddings = {} # id -> np.array
-        self.responses = {}  # id -> text/metadata
-        # Density parameters
-        self.use_density = False
+        self.embeddings = {}  # id -> np.array
+        self.responses = {}   # id -> text/metadata
+        self.duplicate_ids = []  # ids seen more than once during ingest (last one wins)
 
     def ingest_data(self, data: List[Dict[str, Any]]):
         """
@@ -34,14 +49,20 @@ class LSHEvaluationPipeline:
         texts = []
         ids = []
         
-        print("Preprocessing and encoding data...")
+        print("Preprocessing and encoding data...", file=sys.stderr)
+        seen = set()
         for item in data:
             doc_id = item['id']
+            if doc_id in seen:
+                self.duplicate_ids.append(doc_id)
+            seen.add(doc_id)
             text = clean_text(item['response'])
             
             self.responses[doc_id] = item
             texts.append(text)
             ids.append(doc_id)
+        if self.duplicate_ids:
+            print(f"Warning: {len(self.duplicate_ids)} duplicate ids in input; keeping the last occurrence of each.", file=sys.stderr)
             
         # Bulk encode with instruction to focus on legal conclusion
         embs = encode_responses(
@@ -54,7 +75,7 @@ class LSHEvaluationPipeline:
         for doc_id, emb in zip(ids, embs):
             self.embeddings[doc_id] = emb
             
-        print(f"Encoded {len(texts)} responses.")
+        print(f"Encoded {len(texts)} responses.", file=sys.stderr)
 
     def run_clustering(self, method="lsh") -> Dict[str, Any]:
         """
@@ -64,38 +85,53 @@ class LSHEvaluationPipeline:
             method: "lsh" (default) or "density" (UMAP+HDBSCAN).
         """
         if method == "density":
-            print("Running Density-Based Clustering (UMAP + HDBSCAN)...")
-            # Using SOTA parameters found via grid search
+            print("Running Density-Based Clustering (UMAP + HDBSCAN)...", file=sys.stderr)
             partition = run_density_clustering(
                 self.embeddings,
-                n_neighbors=5,       # Grid search optimal for local structure
-                min_dist=0.1,        # Grid search optimal
-                min_cluster_size=5,
-                min_samples=2,
-                n_components=10, 
-                random_state=42
+                n_neighbors=self.n_neighbors,
+                min_dist=self.min_dist,
+                min_cluster_size=self.min_cluster_size,
+                min_samples=self.min_samples,
+                n_components=self.umap_dims,
+                random_state=self.random_state,
             )
+            params = {
+                "method": "density_umap_hdbscan",
+                "umap_dims": self.umap_dims,
+                "n_neighbors": self.n_neighbors,
+                "min_dist": self.min_dist,
+                "min_cluster_size": self.min_cluster_size,
+                "min_samples": self.min_samples,
+                "random_state": self.random_state,
+            }
             num_clusters = len(set(partition.values())) - (1 if -1 in partition.values() else 0)
         else:
             # Traditional LSH pipeline
             if not self.lsh_index:
                 self.build_index()
                 
-            print("Retrieving candidates...")
+            print("Retrieving candidates...", file=sys.stderr)
             candidates = self.lsh_index.get_candidates()
-            print(f"Found {len(candidates)} candidate pairs.")
+            print(f"Found {len(candidates)} candidate pairs.", file=sys.stderr)
             
-            print("Building similarity graph...")
+            print("Building similarity graph...", file=sys.stderr)
             G = build_similarity_graph(candidates, self.embeddings, self.sim_threshold)
-            print(f"Graph has {G.number_of_nodes()} nodes and {G.number_of_edges()} edges.")
+            print(f"Graph has {G.number_of_nodes()} nodes and {G.number_of_edges()} edges.", file=sys.stderr)
             
-            print(f"Clustering (resolution={self.resolution})...")
+            print(f"Clustering (resolution={self.resolution})...", file=sys.stderr)
             partition = cluster_graph(G, resolution=self.resolution)
             num_clusters = len(set(partition.values())) if partition else 0
+            params = {
+                "method": "lsh_louvain",
+                "num_bits": self.num_bits,
+                "num_bands": self.num_bands,
+                "sim_threshold": self.sim_threshold,
+                "resolution": self.resolution,
+            }
             
-        print(f"Found {num_clusters} clusters.")
+        print(f"Found {num_clusters} clusters.", file=sys.stderr)
         
-        print("Selecting representatives...")
+        print("Selecting representatives...", file=sys.stderr)
         # Filter out noise (-1) for representative selection if using density
         valid_partition = {k: v for k, v in partition.items() if v != -1}
         representatives = get_cluster_representatives(valid_partition, self.embeddings)
@@ -112,7 +148,8 @@ class LSHEvaluationPipeline:
             "num_clusters": num_clusters,
             "clusters": clusters,
             "representatives": representatives,
-            "partition": partition
+            "partition": partition,
+            "params": params,
         }
     
     def build_index(self):
@@ -125,6 +162,6 @@ class LSHEvaluationPipeline:
         input_dim = next(iter(self.embeddings.values())).shape[0]
         self.lsh_index = LSHIndex(input_dim, self.num_bits, self.num_bands)
         
-        print("Building LSH index...")
+        print("Building LSH index...", file=sys.stderr)
         for doc_id, emb in self.embeddings.items():
             self.lsh_index.add(emb, doc_id)

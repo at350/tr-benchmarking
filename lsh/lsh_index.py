@@ -21,9 +21,8 @@ class LSHIndex:
         if num_bits % num_bands != 0:
             raise ValueError(f"num_bits ({num_bits}) must be divisible by num_bands ({num_bands})")
             
-        np.random.seed(seed)
-        # Generate random hyperplanes: shape (num_bits, input_dim)
-        self.hyperplanes = np.random.randn(num_bits, input_dim)
+        rng = np.random.default_rng(seed)
+        self.hyperplanes = rng.standard_normal((num_bits, input_dim))
         
         # Storage: List of dictionaries, one per band
         # band_tables[j][band_hash] = [doc_id_1, doc_id_2, ...]
@@ -73,7 +72,6 @@ class LSHIndex:
                 if len(bucket_ids) > 1:
                     # All pairs in this bucket are candidates
                     # Optimization: Don't generate all pairs if bucket is huge?
-                    # For now, simplistic approach
                     for i in range(len(bucket_ids)):
                         for j in range(i + 1, len(bucket_ids)):
                             # Sort to ensure consistent pair ordering

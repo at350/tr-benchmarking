@@ -1,77 +1,84 @@
+"""Text cleaning and embedding helpers shared by lsh/, lsh-IRAC/, and the frontend bridge.
+
+Progress and warnings go to stderr so that scripts which emit JSON on stdout
+(lsh/cluster_legal_workflow.py) are never corrupted.
+"""
+import os
 import re
-from typing import List
+import sys
+from typing import List, Optional
 
 import numpy as np
-import os
 
-# Try to import sentence_transformers, handle case where it's not installed
 try:
     from sentence_transformers import SentenceTransformer
-    _EMBEDDING_MODEL = None
-except ImportError:
-    _EMBEDDING_MODEL = None
-    print("Warning: sentence-transformers not installed. Embeddings will be random.")
+except ImportError:  # surfaced as a clear error in get_embedding_model
+    SentenceTransformer = None
 
-def clean_text(text: str) -> str:
-    """
-    Normalizes text by removing extra whitespace, aggressive punctuation,
-    and common LLM boilerplate.
-    """
+DEFAULT_EMBEDDING_MODEL = "hkunlp/instructor-large"
+EMBEDDING_DIM = 768
+
+# Set LSH_MOCK_EMBEDDINGS=1 to use random vectors instead of a model (tests only).
+MOCK_EMBEDDINGS = os.getenv("LSH_MOCK_EMBEDDINGS", "").strip().lower() in {"1", "true", "yes"}
+
+_EMBEDDING_MODEL = None
+_EMBEDDING_NAME: Optional[str] = None
+
+
+def _log(message: str) -> None:
+    print(message, file=sys.stderr)
+
+
+def clean_text(text: Optional[str]) -> str:
+    """Strip whitespace, collapse runs of spaces, and drop leading "As an AI..." boilerplate."""
+    if not isinstance(text, str):
+        return ""
     text = text.strip()
-    
-    # Remove "As an AI..." boilerplate (simple heuristic)
     text = re.sub(r"^(As an AI|I am an AI)[^.]*\.", "", text, flags=re.IGNORECASE)
-    
-    # Normalize whitespace
     text = re.sub(r"\s+", " ", text)
-    
     return text.strip()
 
-# Redefine _EMBEDDING_MODEL and get_embedding_model as per instructions
-_EMBEDDING_NAME = None
 
-def get_embedding_model(model_name: str):
+def get_embedding_model(model_name: str = DEFAULT_EMBEDDING_MODEL):
+    """Load (once) and return the sentence-transformers model. Raises if it cannot be loaded."""
     global _EMBEDDING_MODEL, _EMBEDDING_NAME
-    try:
-        # If the model is already loaded and it's the same model_name, return it
-        if _EMBEDDING_MODEL is None or _EMBEDDING_NAME != model_name:
-            print(f"Loading embedding model: {model_name}...")
+    if SentenceTransformer is None:
+        raise RuntimeError(
+            "sentence-transformers is not installed. Run `pip install -r requirements.txt` "
+            "(or set LSH_MOCK_EMBEDDINGS=1 for a test run with random vectors)."
+        )
+    if _EMBEDDING_MODEL is None or _EMBEDDING_NAME != model_name:
+        _log(f"Loading embedding model: {model_name}...")
+        try:
             _EMBEDDING_MODEL = SentenceTransformer(model_name)
-            _EMBEDDING_NAME = model_name
-        return _EMBEDDING_MODEL
-    except Exception as e:
-         print(f"Error loading model {model_name}: {e}")
-         return None
+        except Exception as exc:
+            raise RuntimeError(f"Could not load embedding model {model_name!r}: {exc}") from exc
+        _EMBEDDING_NAME = model_name
+    return _EMBEDDING_MODEL
 
-def encode_responses(texts: List[str], model_name: str = 'hkunlp/instructor-large', instruction: str = None) -> np.ndarray:
+
+def encode_responses(
+    texts: List[str],
+    model_name: str = DEFAULT_EMBEDDING_MODEL,
+    instruction: Optional[str] = None,
+) -> np.ndarray:
+    """Encode texts into dense vectors.
+
+    Instruction-tuned models (hkunlp/instructor-*) take ``[instruction, text]`` pairs; if the
+    installed wrapper rejects pairs, the instruction is prepended to the text instead. Other
+    models get the instruction prepended, or the raw text when no instruction is given.
     """
-    Encodes a list of texts into dense vectors.
-    Supports Instruction-Tuned models (e.g., hkunlp/instructor-large) which take context.
-    
-    Args:
-        texts: List of text strings to encode.
-        model_name: HuggingFace model name.
-        instruction: Optional task instruction (e.g., "Represent the legal conclusion:").
-    """
+    if MOCK_EMBEDDINGS:
+        _log("LSH_MOCK_EMBEDDINGS is set: using random embeddings.")
+        return np.random.default_rng(0).standard_normal((len(texts), EMBEDDING_DIM))
+
     model = get_embedding_model(model_name)
-    if model:
-        if "instructor" in model_name.lower() and instruction:
-            # Instructor models expect [[instruction, text], ...]
-            print(f"Encoding with instruction: '{instruction}'")
-            inputs = [[instruction, text] for text in texts]
-            embeddings = model.encode(inputs)
-        else:
-            # Standard models (or if no instruction provided)
-            # If instruction provided for non-instructor model, prepend it
-            if instruction:
-                 inputs = [f"{instruction} {text}" for text in texts]
-                 embeddings = model.encode(inputs)
-            else:
-                 embeddings = model.encode(texts)
-                 
-        return embeddings
-    else:
-        # Fallback for testing without model
-        print("Using random embeddings (mock mode)")
-        # Default dimension for Instructor-Large is 768
-        return np.random.randn(len(texts), 768)
+    if instruction and "instructor" in model_name.lower():
+        _log(f"Encoding with instruction: {instruction!r}")
+        try:
+            return model.encode([[instruction, text] for text in texts])
+        except Exception:
+            return model.encode([f"{instruction} {text}" for text in texts])
+    if instruction:
+        return model.encode([f"{instruction} {text}" for text in texts])
+    return model.encode(texts)

@@ -1,0 +1,6 @@
+# Repository-level test configuration so `pytest` works from the root.
+# (The Python code itself is organised as scripts + two folders, not an installable package.)
+[tool.pytest.ini_options]
+testpaths = ["rubric-automation/tests", "lsh/tests"]
+pythonpath = ["rubric-automation", "."]
+addopts = "-q"
